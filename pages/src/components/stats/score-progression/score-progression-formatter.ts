@@ -9,7 +9,11 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
-import { buildStrongholdsTeamLines } from "./modes/strongholds/strongholds-view-model";
+import {
+  buildStrongholdsMarkers,
+  buildStrongholdsTeamLines,
+  buildZoneAdvantage,
+} from "./modes/strongholds/strongholds-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -242,6 +246,8 @@ export function formatScoreProgression(
           durationMs,
           teamSize,
         ),
+        markers: null,
+        zoneAdvantage: null,
       };
     }
     case "koth": {
@@ -277,10 +283,11 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      const teamLines = buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        teamLines,
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
         playerAdvantage: buildPlayerAdvantage(
           teams.teamIds,
@@ -289,6 +296,8 @@ export function formatScoreProgression(
           durationMs,
           teamSize,
         ),
+        markers: buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs),
+        zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
       };
     }
     default: {

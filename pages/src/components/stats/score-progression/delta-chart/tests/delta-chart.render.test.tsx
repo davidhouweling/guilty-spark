@@ -40,8 +40,11 @@ function aDeltaViewModelWith(lineType: "step" | "linear"): ScoreProgressionDelta
     team0Color: "#ff0000",
     team1Color: "#0000ff",
     playerAdvantage: null,
+    zoneAdvantage: null,
+    advantageDomain: null,
     tooltipFormatter: (value: unknown): [string, string] => [String(value), "Delta"],
     advantageTooltipFormatter: (value: unknown): [string, string] => [String(value), "Player Advantage"],
+    zoneAdvantageTooltipFormatter: (value: unknown): [string, string] => [String(value), "Zone Advantage"],
   };
 }
 

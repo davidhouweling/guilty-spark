@@ -586,5 +586,42 @@ describe("formatScoreProgression", () => {
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.playerAdvantage).toBeNull();
     });
+
+    it("builds capture and secure markers on the team lines", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.markers?.map((marker) => [marker.timestampMs, marker.teamId, marker.kind])).toEqual([
+        [10000, 0, "capture"],
+        [40000, 1, "capture"],
+        [60000, 0, "capture"],
+        [70000, 0, "secure"],
+      ]);
+    });
+
+    it("builds a zone advantage overlay from the zone timeline", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.zoneAdvantage?.points.at(0)).toEqual({ timestampMs: 0, score: 0 });
+      expect(result.zoneAdvantage?.points.at(-1)).toEqual({ timestampMs: 100000, score: 1 });
+      expect(result.zoneAdvantage?.minScore).toBe(-3);
+      expect(result.zoneAdvantage?.maxScore).toBe(3);
+    });
+  });
+
+  describe("kill-race overlays", () => {
+    it("returns null markers and zone advantage for kill-race timelines", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 30000,
+        timeline: {
+          type: "kill-race",
+          events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+          deathTimeline: [],
+          respawnDurationMs: 8000,
+        },
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.markers).toBeNull();
+      expect(result.zoneAdvantage).toBeNull();
+    });
   });
 });

@@ -3,10 +3,17 @@ import type { ChartType } from "./types";
 export interface ScoreProgressionSnapshot {
   readonly chartType: ChartType;
   readonly showPlayerAdvantage: boolean;
+  readonly showMarkers: boolean;
+  readonly showZoneAdvantage: boolean;
 }
 
 export class ScoreProgressionStore {
-  private _snapshot: ScoreProgressionSnapshot = { chartType: "progression", showPlayerAdvantage: false };
+  private _snapshot: ScoreProgressionSnapshot = {
+    chartType: "progression",
+    showPlayerAdvantage: false,
+    showMarkers: true,
+    showZoneAdvantage: false,
+  };
   private readonly listeners = new Set<() => void>();
 
   getSnapshot = (): ScoreProgressionSnapshot => this._snapshot;

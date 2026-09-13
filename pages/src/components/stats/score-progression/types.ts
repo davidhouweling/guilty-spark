@@ -24,6 +24,15 @@ export interface PlayerAdvantageData {
   readonly maxScore: number;
 }
 
+export interface ScoreMarkerData {
+  readonly timestampMs: number;
+  readonly score: number;
+  readonly teamId: number;
+  readonly teamName: string;
+  readonly color: string;
+  readonly kind: "capture" | "secure";
+}
+
 export interface TimelineGanttSegment {
   readonly startMs: number;
   readonly endMs: number;
@@ -92,6 +101,8 @@ export interface ScoreLinesViewData {
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly markers: readonly ScoreMarkerData[] | null;
+  readonly zoneAdvantage: PlayerAdvantageData | null;
 }
 
 export interface KothViewData {
@@ -116,8 +127,13 @@ export interface ScoreProgressionDeltaViewModel {
   readonly team0Color: string;
   readonly team1Color: string;
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly zoneAdvantage: PlayerAdvantageData | null;
+  readonly advantageDomain: readonly [number, number] | null;
   readonly tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined) => [string, string];
   readonly advantageTooltipFormatter: (
+    value: number | string | readonly (number | string)[] | undefined,
+  ) => [string, string];
+  readonly zoneAdvantageTooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
   ) => [string, string];
 }
@@ -126,6 +142,9 @@ export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly zoneAdvantage: PlayerAdvantageData | null;
+  readonly advantageDomain: readonly [number, number] | null;
+  readonly markers: readonly ScoreMarkerData[] | null;
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
@@ -138,12 +157,18 @@ export interface ScoreLinesViewModel {
   readonly effectiveChartType: ChartType;
   readonly hasDelta: boolean;
   readonly hasPlayerAdvantage: boolean;
+  readonly hasMarkers: boolean;
+  readonly hasZoneAdvantage: boolean;
   readonly showPlayerAdvantage: boolean;
+  readonly showMarkers: boolean;
+  readonly showZoneAdvantage: boolean;
   readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
   readonly onChartTypeChange: (value: string) => void;
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
+  readonly onMarkersChange: (checked: boolean) => void;
+  readonly onZoneAdvantageChange: (checked: boolean) => void;
 }
 
 export interface TimelineGanttChartViewModel {

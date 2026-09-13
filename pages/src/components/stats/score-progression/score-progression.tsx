@@ -13,12 +13,18 @@ function ScoreLinesCharts({
   effectiveChartType,
   hasDelta,
   hasPlayerAdvantage,
+  hasMarkers,
+  hasZoneAdvantage,
   showPlayerAdvantage,
+  showMarkers,
+  showZoneAdvantage,
   showToolbar,
   deltaViewModel,
   progressionViewModel,
   onChartTypeChange,
   onPlayerAdvantageChange,
+  onMarkersChange,
+  onZoneAdvantageChange,
 }: ScoreLinesViewModel): React.ReactElement {
   return (
     <div className={styles.container}>
@@ -47,6 +53,22 @@ function ScoreLinesCharts({
               checked={showPlayerAdvantage}
               onChange={onPlayerAdvantageChange}
               label="Player Advantage"
+              className={styles.toolbarCheckbox}
+            />
+          )}
+          {hasZoneAdvantage && (
+            <Checkbox
+              checked={showZoneAdvantage}
+              onChange={onZoneAdvantageChange}
+              label="Zone Advantage"
+              className={styles.toolbarCheckbox}
+            />
+          )}
+          {hasMarkers && (
+            <Checkbox
+              checked={showMarkers}
+              onChange={onMarkersChange}
+              label="Captures & Secures"
               className={styles.toolbarCheckbox}
             />
           )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStrongholdsTeamLines } from "../strongholds-view-model";
+import { buildStrongholdsMarkers, buildStrongholdsTeamLines, buildZoneAdvantage } from "../strongholds-view-model";
 import { aFakeStrongholdsTimelineWith } from "../fakes/strongholds-timeline.fake";
 
 const TEAM_IDS = [0, 1] as const;
@@ -61,5 +61,81 @@ describe("buildStrongholdsTeamLines", () => {
     expect(lines[1]?.name).toBe("Cobra");
     expect(lines[0]?.color).toBe("#FE3939");
     expect(lines[1]?.color).toBe("#3B9DFF");
+  });
+});
+
+describe("buildStrongholdsMarkers", () => {
+  it("places each zone event on its team's line, interpolating between ramp points", () => {
+    const timeline = aFakeStrongholdsTimelineWith();
+    const teamLines = buildStrongholdsTeamLines(timeline.events, TEAM_IDS, TEAM_COLORS, 100000);
+    const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, 100000);
+    expect(markers).toEqual([
+      { timestampMs: 10000, score: 0, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "capture" },
+      { timestampMs: 40000, score: 0, teamId: 1, teamName: "Cobra", color: "#ff0000", kind: "capture" },
+      { timestampMs: 60000, score: 30, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "capture" },
+      // 70s sits a third of the way along the 60s→90s ramp from 30 to 60
+      { timestampMs: 70000, score: 40, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "secure" },
+    ]);
+  });
+
+  it("drops zone events past the match duration or for unknown teams", () => {
+    const timeline = aFakeStrongholdsTimelineWith();
+    const teamLines = buildStrongholdsTeamLines(timeline.events, TEAM_IDS, TEAM_COLORS, 100000);
+    const markers = buildStrongholdsMarkers(
+      [
+        { timestampMs: 150000, teamId: 0, kind: "capture" },
+        { timestampMs: 20000, teamId: 5, kind: "capture" },
+        { timestampMs: 20000, teamId: 1, kind: "secure" },
+      ],
+      teamLines,
+      100000,
+    );
+    expect(markers).toEqual([
+      { timestampMs: 20000, score: 0, teamId: 1, teamName: "Cobra", color: "#ff0000", kind: "secure" },
+    ]);
+  });
+});
+
+describe("buildZoneAdvantage", () => {
+  it("builds a step series of the zone-count difference extended to the match duration", () => {
+    const timeline = aFakeStrongholdsTimelineWith();
+    const zoneAdvantage = buildZoneAdvantage(timeline.zoneTimeline, [...TEAM_IDS], 100000);
+    expect(zoneAdvantage).toEqual({
+      points: [
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 10000, score: 1 },
+        { timestampMs: 40000, score: -1 },
+        { timestampMs: 60000, score: 1 },
+        { timestampMs: 100000, score: 1 },
+      ],
+      minScore: -3,
+      maxScore: 3,
+    });
+  });
+
+  it("drops samples past the match duration", () => {
+    const zoneAdvantage = buildZoneAdvantage(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+        { timestampMs: 10000, zoneCounts: { "0": 2, "1": 1 } },
+        { timestampMs: 150000, zoneCounts: { "0": 3, "1": 0 } },
+      ],
+      [...TEAM_IDS],
+      100000,
+    );
+    expect(zoneAdvantage?.points).toEqual([
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 10000, score: 1 },
+      { timestampMs: 100000, score: 1 },
+    ]);
+  });
+
+  it("returns null when the timeline is empty or the counts never diverge", () => {
+    expect(buildZoneAdvantage([], [...TEAM_IDS], 100000)).toBeNull();
+    expect(buildZoneAdvantage([{ timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } }], [...TEAM_IDS], 100000)).toBeNull();
+  });
+
+  it("returns null when the match is not a two-team match", () => {
+    expect(buildZoneAdvantage([{ timestampMs: 0, zoneCounts: { "0": 1 } }], [0], 100000)).toBeNull();
   });
 });

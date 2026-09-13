@@ -31,6 +31,8 @@ const DELTA_LABEL = "Score Delta";
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
   readonly onPlayerAdvantageChange: (checked: boolean) => void;
+  readonly onMarkersChange: (checked: boolean) => void;
+  readonly onZoneAdvantageChange: (checked: boolean) => void;
 
   constructor(private readonly config: ScoreProgressionPresenterConfig) {
     this.onChartTypeChange = (value: string): void => {
@@ -38,6 +40,12 @@ export class ScoreProgressionPresenter {
     };
     this.onPlayerAdvantageChange = (checked: boolean): void => {
       this.setPlayerAdvantage(checked);
+    };
+    this.onMarkersChange = (checked: boolean): void => {
+      this.config.store.update({ showMarkers: checked });
+    };
+    this.onZoneAdvantageChange = (checked: boolean): void => {
+      this.config.store.update({ showZoneAdvantage: checked });
     };
   }
 
@@ -72,16 +80,20 @@ export class ScoreProgressionPresenter {
     viewData: ScoreLinesViewData,
     ariaLabel: string,
   ): ScoreLinesViewModel {
-    const { chartType, showPlayerAdvantage } = snapshot;
+    const { chartType, showPlayerAdvantage, showMarkers, showZoneAdvantage } = snapshot;
     const effectiveChartType: ChartType =
       chartType === "delta" && viewData.scoreDelta == null ? "progression" : chartType;
     const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
+    const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;
+    const effectiveMarkers =
+      showMarkers && viewData.markers != null && viewData.markers.length > 0 ? viewData.markers : null;
+    const advantageDomain = this.buildAdvantageDomain(effectivePlayerAdvantage, effectiveZoneAdvantage);
 
     const team0Name = viewData.teamLines[0]?.name ?? "Team 1";
     const team1Name = viewData.teamLines[1]?.name ?? "Team 2";
 
     const syncedScoreDelta =
-      viewData.scoreDelta != null ? this.synchronizeDeltaDomain(viewData.scoreDelta, effectivePlayerAdvantage) : null;
+      viewData.scoreDelta != null ? this.synchronizeDeltaDomain(viewData.scoreDelta, advantageDomain != null) : null;
 
     const deltaViewModel: ScoreProgressionDeltaViewModel | null =
       effectiveChartType === "delta" && syncedScoreDelta != null
@@ -91,16 +103,23 @@ export class ScoreProgressionPresenter {
             team0Color: viewData.teamLines[0]?.color ?? TICK_FILL,
             team1Color: viewData.teamLines[1]?.color ?? TICK_FILL,
             playerAdvantage: effectivePlayerAdvantage,
+            zoneAdvantage: effectiveZoneAdvantage,
+            advantageDomain,
             tooltipFormatter: (value: number | string | readonly (number | string)[] | undefined): [string, string] =>
               this.formatDeltaTooltip(value, team0Name, team1Name),
             advantageTooltipFormatter: (
               value: number | string | readonly (number | string)[] | undefined,
             ): [string, string] => this.formatAdvantageTooltip(value, team0Name, team1Name),
+            zoneAdvantageTooltipFormatter: (
+              value: number | string | readonly (number | string)[] | undefined,
+            ): [string, string] => this.formatZoneAdvantageTooltip(value, team0Name, team1Name),
           }
         : null;
 
     const hasDelta = viewData.scoreDelta != null;
     const hasPlayerAdvantage = viewData.playerAdvantage != null;
+    const hasMarkers = viewData.markers != null && viewData.markers.length > 0;
+    const hasZoneAdvantage = viewData.zoneAdvantage != null;
 
     return {
       kind: "score-lines",
@@ -108,13 +127,20 @@ export class ScoreProgressionPresenter {
       effectiveChartType,
       hasDelta,
       hasPlayerAdvantage,
+      hasMarkers,
+      hasZoneAdvantage,
       showPlayerAdvantage,
-      showToolbar: hasDelta || hasPlayerAdvantage,
+      showMarkers,
+      showZoneAdvantage,
+      showToolbar: hasDelta || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,
         teamLines: viewData.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
+        zoneAdvantage: effectiveZoneAdvantage,
+        advantageDomain,
+        markers: effectiveMarkers,
         tooltipFormatter: (
           value: number | string | readonly (number | string)[] | undefined,
           name: string | number | undefined,
@@ -122,7 +148,22 @@ export class ScoreProgressionPresenter {
       },
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
+      onMarkersChange: this.onMarkersChange,
+      onZoneAdvantageChange: this.onZoneAdvantageChange,
     };
+  }
+
+  // one shared right-hand axis serves every enabled advantage overlay, so its domain is the
+  // widest of them
+  private buildAdvantageDomain(
+    playerAdvantage: PlayerAdvantageData | null,
+    zoneAdvantage: PlayerAdvantageData | null,
+  ): readonly [number, number] | null {
+    const overlays = [playerAdvantage, zoneAdvantage].filter((overlay) => overlay != null);
+    if (overlays.length === 0) {
+      return null;
+    }
+    return [Math.min(...overlays.map((o) => o.minScore)), Math.max(...overlays.map((o) => o.maxScore))];
   }
 
   private presentTimelineGantt(
@@ -182,8 +223,8 @@ export class ScoreProgressionPresenter {
     return { key: String(teamId), color: value > 0 ? color : null, text };
   }
 
-  private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, advantage: PlayerAdvantageData | null): ScoreDeltaData {
-    if (advantage == null) {
+  private synchronizeDeltaDomain(scoreDelta: ScoreDeltaData, hasAdvantageOverlay: boolean): ScoreDeltaData {
+    if (!hasAdvantageOverlay) {
       return scoreDelta;
     }
     const maxAbsDelta = Math.max(Math.abs(scoreDelta.minScore), Math.abs(scoreDelta.maxScore));
@@ -209,7 +250,23 @@ export class ScoreProgressionPresenter {
     if (name === "Player Advantage") {
       return this.formatAdvantageTooltip(value, team0Name, team1Name);
     }
+    if (name === "Zone Advantage") {
+      return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
+    }
     return [String(value ?? ""), typeof name === "string" ? name : String(name ?? "")];
+  }
+
+  private formatZoneAdvantageTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    team0Name: string,
+    team1Name: string,
+  ): [string, string] {
+    if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
+      return ["Even", "Zone Advantage"];
+    }
+    const leader = value > 0 ? team0Name : team1Name;
+    const zones = Math.abs(value);
+    return [`${leader} +${String(zones)} ${zones === 1 ? "zone" : "zones"}`, "Zone Advantage"];
   }
 
   private formatAdvantageTooltip(
