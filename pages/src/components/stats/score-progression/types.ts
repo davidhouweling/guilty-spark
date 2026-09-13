@@ -31,6 +31,7 @@ export interface ScoreMarkerData {
   readonly teamName: string;
   readonly color: string;
   readonly kind: "capture" | "secure";
+  readonly label: string;
 }
 
 export interface TimelineGanttSegment {

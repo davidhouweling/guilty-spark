@@ -5,6 +5,7 @@ import type {
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../../../team-colors/team-colors";
+import { formatTime } from "../../chart-constants";
 import { extendToDuration } from "../../extend-to-duration";
 import type {
   PlayerAdvantageData,
@@ -80,6 +81,7 @@ export function buildStrongholdsMarkers(
       teamName: line.name,
       color: line.color,
       kind: zoneEvent.kind,
+      label: `${line.name} ${zoneEvent.kind === "capture" ? "captured" : "secured"} a zone · ${formatTime(zoneEvent.timestampMs)}`,
     });
   }
   return markers;

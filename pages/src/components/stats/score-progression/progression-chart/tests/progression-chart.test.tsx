@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
+import React, { cloneElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ProgressionChart } from "../progression-chart";
@@ -16,13 +16,17 @@ vi.mock("recharts", () => ({
     y,
     fill,
     stroke,
+    shape,
   }: {
     x: number;
     y: number;
     fill: string;
     stroke: string;
+    shape: React.ReactElement<{ cx?: number; cy?: number; fill?: string; stroke?: string }>;
   }): React.ReactElement => (
-    <div data-testid="reference-dot" data-x={x} data-y={y} data-fill={fill} data-stroke={stroke} />
+    <div data-testid="reference-dot" data-x={x} data-y={y} data-fill={fill} data-stroke={stroke}>
+      <svg>{cloneElement(shape, { cx: 5, cy: 5, fill, stroke })}</svg>
+    </div>
   ),
   XAxis: (): null => null,
   YAxis: (): null => null,
@@ -60,13 +64,29 @@ describe("ProgressionChart", () => {
     expect(areas[1]).toHaveTextContent("Cobra");
   });
 
-  it("renders a filled dot for a capture and a hollow dot for a secure", () => {
+  it("renders a filled dot for a capture and a hollow dot for a secure, each with a hover label", () => {
     render(
       <ProgressionChart
         {...aProgressionViewModelWith({
           markers: [
-            { timestampMs: 30000, score: 12, teamId: 0, teamName: "Eagle", color: "#0000ff", kind: "capture" },
-            { timestampMs: 60000, score: 40, teamId: 1, teamName: "Cobra", color: "#ff0000", kind: "secure" },
+            {
+              timestampMs: 30000,
+              score: 12,
+              teamId: 0,
+              teamName: "Eagle",
+              color: "#0000ff",
+              kind: "capture",
+              label: "Eagle captured a zone · 0:30",
+            },
+            {
+              timestampMs: 60000,
+              score: 40,
+              teamId: 1,
+              teamName: "Cobra",
+              color: "#ff0000",
+              kind: "secure",
+              label: "Cobra secured a zone · 1:00",
+            },
           ],
         })}
       />,
@@ -78,6 +98,9 @@ describe("ProgressionChart", () => {
     expect(dots[0]).toHaveAttribute("data-x", "30000");
     expect(dots[1]).toHaveAttribute("data-fill", "transparent");
     expect(dots[1]).toHaveAttribute("data-stroke", "#ff0000");
+    // the marker shape carries an svg <title> whose text is the hover description
+    expect(dots[0]).toHaveTextContent("Eagle captured a zone · 0:30");
+    expect(dots[1]).toHaveTextContent("Cobra secured a zone · 1:00");
   });
 
   it("renders zone and player advantage overlays as named areas", () => {

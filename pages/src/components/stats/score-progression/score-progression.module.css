@@ -22,3 +22,19 @@
 .toolbarCheckbox {
   margin-left: auto;
 }
+
+.markerLegend {
+  align-items: center;
+  color: #8fa3b0;
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+
+.markerLegendItem {
+  align-items: center;
+  display: flex;
+  gap: 4px;
+}

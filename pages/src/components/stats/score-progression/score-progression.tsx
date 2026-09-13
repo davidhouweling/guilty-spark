@@ -81,6 +81,22 @@ function ScoreLinesCharts({
           <ProgressionChart {...progressionViewModel} />
         )}
       </div>
+      {progressionViewModel.markers != null && (
+        <div className={styles.markerLegend}>
+          <span className={styles.markerLegendItem}>
+            <svg width="10" height="10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" fill="currentColor" />
+            </svg>
+            Capture
+          </span>
+          <span className={styles.markerLegendItem}>
+            <svg width="10" height="10" aria-hidden="true">
+              <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            Secure
+          </span>
+        </div>
+      )}
     </div>
   );
 }
