@@ -109,11 +109,19 @@ function buildKothControlPeriods(
   return periods;
 }
 
-// The match-ending capture can interpolate slightly past MatchInfo.Duration (film-clock drift),
-// but any capture after that one is trailing film data, not a hill the match awarded.
+// One scoring-tick cadence: how far the match-ending capture may interpolate past
+// MatchInfo.Duration (film-clock drift) while still counting as the real final hill.
+const CAPTURE_OVERSHOOT_TOLERANCE_MS = 5_000;
+
+// Captures past the match end are trailing film data, not hills the match awarded — except the
+// match-ending capture itself, which can drift slightly past the duration.
 function dropCapturesPastMatchEnd(timestamps: number[], durationMs: number): number[] {
   const firstOvershoot = timestamps.findIndex((ts) => ts > durationMs);
-  return firstOvershoot === -1 ? timestamps : timestamps.slice(0, firstOvershoot + 1);
+  if (firstOvershoot === -1) {
+    return timestamps;
+  }
+  const isFilmClockDrift = (timestamps[firstOvershoot] ?? Infinity) - durationMs <= CAPTURE_OVERSHOOT_TOLERANCE_MS;
+  return timestamps.slice(0, firstOvershoot + (isFilmClockDrift ? 1 : 0));
 }
 
 export function buildKothProgression(

@@ -4,6 +4,7 @@ import type { ScoreProgressionInput } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
+import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -657,16 +658,10 @@ describe("ScoreProgressionPresenter", () => {
     it("presents koth score lines when the chart type is progression", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "progression" });
-      const scoreLines: ScoreLinesViewData = {
-        kind: "score-lines",
-        durationMs: 600000,
+      const scoreLines = aFakeScoreLinesViewDataWith({
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta: aFakeScoreDeltaData(),
-        playerAdvantage: null,
-        markers: null,
-        zoneAdvantage: null,
-        roundBoundaries: [],
-      };
+      });
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), {
           viewData: {

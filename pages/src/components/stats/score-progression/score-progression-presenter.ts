@@ -84,7 +84,6 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // Gantt-first modes (koth's hills, oddball's rounds) resolve an unset chart type to the timeline
   private presentGanttMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,

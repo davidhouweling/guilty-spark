@@ -1,16 +1,13 @@
 import type { OddballRound, OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
+import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { OddballRoundData, OddballRoundTeamScore, ScoreSample } from "../../types";
 
 export interface OddballScoreSeries {
   readonly samples: readonly ScoreSample[];
   readonly roundBoundaries: readonly number[];
-}
-
-function zeroScores(teamIds: readonly number[]): Record<string, number> {
-  return Object.fromEntries(teamIds.map((teamId) => [String(teamId), 0]));
 }
 
 // key presence matters as much as the value: an omitted team means "carry the previous score

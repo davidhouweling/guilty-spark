@@ -250,6 +250,31 @@ describe("buildKothScoreSeries", () => {
     expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 4, "1": 4 } });
   });
 
+  it("omits the trailing window and boundary for a sub-2-second post-capture sliver, matching the hills", () => {
+    const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [30000, 59100] });
+    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+
+    expect(hillBoundaries).toEqual([30000]);
+    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 3 } });
+  });
+
+  it("counts a score event at the match start toward the first hill instead of the baseline", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 0, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+      ],
+      hillCaptureTimestamps: [],
+    });
+    const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
+
+    expect(samples).toEqual([
+      { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 0, runningScores: { "0": 1, "1": 0 } },
+      { timestampMs: 5000, runningScores: { "0": 2, "1": 0 } },
+    ]);
+  });
+
   it("clamps ticks from a match-ending capture past the duration onto the axis edge", () => {
     const timeline = aFakeKothTimelineWith({
       events: [

@@ -272,10 +272,7 @@ export function formatScoreProgression(
         kind: "koth",
         durationMs,
         hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreLines:
-          samples.length > 0
-            ? buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize)
-            : null,
+        scoreLines: buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize),
       };
     }
     case "oddball": {
@@ -294,10 +291,7 @@ export function formatScoreProgression(
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
-        scoreLines:
-          samples.length > 0
-            ? buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize)
-            : null,
+        scoreLines: buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize),
       };
     }
     case "strongholds": {

@@ -1,8 +1,11 @@
 import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
+import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, KothHillTeamProgress, ScoreSample, TimelineGanttSegment } from "../../types";
+
+const MIN_TRAILING_HILL_MS = 2_000;
 
 // A capture timestamp is the capturing team's last score-event timestamp, so the co-timestamped
 // event identifies the winner.
@@ -10,23 +13,44 @@ function findCaptureWinnerTeamId(events: KothTimeline["events"], captureTs: numb
   return events.findLast((event) => event.timestampMs === captureTs)?.teamId ?? null;
 }
 
+interface KothHillPeriod {
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly captureTs: number | null;
+}
+
+// The one derivation of hill windows both koth views share, so the gantt and the score lines
+// always agree on how many hills the match had and where each one ends.
+function buildKothHillPeriods(hillCaptureTimestamps: readonly number[], durationMs: number): KothHillPeriod[] {
+  const periods: KothHillPeriod[] = [];
+  let hillStart = 0;
+  for (const captureTs of hillCaptureTimestamps) {
+    // film-clock interpolation can land a capture slightly past the match duration; the hill is
+    // real, so its end clamps to the axis while the raw timestamp still identifies the winner
+    const endMs = Math.min(captureTs, durationMs);
+    if (endMs <= hillStart) {
+      continue;
+    }
+    periods.push({ startMs: hillStart, endMs, captureTs });
+    hillStart = endMs;
+  }
+  // A match that ends on a capture leaves a sliver between the final capture and the film end;
+  // that sliver is not a real hill, so only keep a trailing hill the teams actually contested.
+  if (durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
+    periods.push({ startMs: hillStart, endMs: durationMs, captureTs: null });
+  }
+  return periods;
+}
+
 export interface KothScoreSeries {
   readonly samples: readonly ScoreSample[];
   readonly hillBoundaries: readonly number[];
 }
 
-// runningScores are cumulative across the match, so a hill's ticks are measured against the
-// totals standing when the hill spawned
-function cumulativeScoresAt(events: KothTimeline["events"], timestampMs: number): Record<string, number> {
-  return events.findLast((event) => event.timestampMs <= timestampMs)?.runningScores ?? {};
-}
-
-function zeroScores(teamIds: readonly number[]): Record<string, number> {
-  return Object.fromEntries(teamIds.map((teamId) => [String(teamId), 0]));
-}
-
 // Each hill is its own capture race: both teams' scoring ticks climb from zero until one team
 // captures, then the meter resets for the next hill — mirroring oddball's per-round curves.
+// runningScores are cumulative across the match, so each hill's ticks are measured against the
+// totals standing when the hill spawned.
 export function buildKothScoreSeries(
   timeline: KothTimeline,
   teamIds: readonly number[],
@@ -34,45 +58,40 @@ export function buildKothScoreSeries(
 ): KothScoreSeries {
   const samples: ScoreSample[] = [];
   const hillBoundaries: number[] = [];
+  const keys = teamIds.map(String);
+  const { events } = timeline;
+  let cursor = 0;
+  let baseline: Record<string, number> = {};
 
-  const windowEnds = [...timeline.hillCaptureTimestamps];
-  if ((windowEnds.at(-1) ?? 0) < durationMs) {
-    windowEnds.push(durationMs);
-  }
-
-  let startMs = 0;
-  for (const endMs of windowEnds) {
-    if (startMs >= durationMs) {
-      break;
+  for (const period of buildKothHillPeriods(timeline.hillCaptureTimestamps, durationMs)) {
+    while (cursor < events.length && events[cursor].timestampMs < period.startMs) {
+      baseline = events[cursor].runningScores;
+      cursor++;
     }
-    if (samples.length > 0) {
-      hillBoundaries.push(startMs);
+    if (period.startMs > 0) {
+      hillBoundaries.push(period.startMs);
     }
-    samples.push({ timestampMs: startMs, runningScores: zeroScores(teamIds) });
+    samples.push({ timestampMs: period.startMs, runningScores: zeroScores(teamIds) });
 
-    const baseline = cumulativeScoresAt(timeline.events, startMs);
-    for (const event of timeline.events) {
-      if (event.timestampMs <= startMs || event.timestampMs > endMs) {
-        continue;
+    // the match-ending capture can interpolate slightly past the duration; its ticks are real,
+    // so they land on the axis edge rather than being dropped
+    const attributionEndMs = period.captureTs ?? period.endMs;
+    while (cursor < events.length && events[cursor].timestampMs <= attributionEndMs) {
+      const event = events[cursor];
+      const hillTicks: Record<string, number> = {};
+      for (const key of keys) {
+        hillTicks[key] = (event.runningScores[key] ?? 0) - (baseline[key] ?? 0);
       }
-      const hillTicks = Object.fromEntries(
-        teamIds.map((teamId) => {
-          const key = String(teamId);
-          return [key, (event.runningScores[key] ?? 0) - (baseline[key] ?? 0)];
-        }),
-      );
-      // the match-ending capture can interpolate slightly past the duration; its ticks are real,
-      // so they land on the axis edge rather than being dropped
       samples.push({ timestampMs: Math.min(event.timestampMs, durationMs), runningScores: hillTicks });
+      cursor++;
     }
-
-    startMs = endMs;
+    if (cursor > 0) {
+      baseline = events[cursor - 1].runningScores;
+    }
   }
 
   return { samples, hillBoundaries };
 }
-
-const MIN_TRAILING_HILL_MS = 2_000;
 
 // One scoring-tick cadence: how far outside a control window a team's score event may sit while
 // still counting as evidence the team really held the hill during that window.
@@ -148,30 +167,7 @@ export function buildKothHills(
   teamColorByTeamId: Map<number, string>,
   durationMs: number,
 ): KothHillData[] {
-  const { hillCaptureTimestamps } = timeline;
-
-  interface HillPeriod {
-    startMs: number;
-    endMs: number;
-    captureTs: number | null;
-  }
-
-  const hillPeriods: HillPeriod[] = [];
-  let hillStart = 0;
-  for (const captureTs of hillCaptureTimestamps) {
-    // film-clock interpolation can land a capture slightly past the match duration; the hill is
-    // real, so its end clamps to the axis while the raw timestamp still identifies the winner
-    const endMs = Math.min(captureTs, durationMs);
-    hillPeriods.push({ startMs: hillStart, endMs, captureTs });
-    hillStart = endMs;
-  }
-  // A match that ends on a capture leaves a sliver between the final capture and the film end;
-  // that sliver is not a real hill, so only keep a trailing hill the teams actually contested.
-  if (durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
-    hillPeriods.push({ startMs: hillStart, endMs: durationMs, captureTs: null });
-  }
-
-  return hillPeriods.map((period, periodIndex) => {
+  return buildKothHillPeriods(timeline.hillCaptureTimestamps, durationMs).map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
     const winnerTeamId = period.captureTs != null ? findCaptureWinnerTeamId(timeline.events, period.captureTs) : null;
