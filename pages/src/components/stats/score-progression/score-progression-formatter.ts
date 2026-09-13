@@ -240,6 +240,7 @@ export function formatScoreProgression(
         ),
         markers: null,
         zoneAdvantage: null,
+        roundBoundaries: [],
       };
     }
     case "koth": {
@@ -254,7 +255,13 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      const teams = resolveTeams(timeline.rounds.at(0)?.scores, teamColors);
+      // round score records may be sparse, so a team missing from one round must still resolve —
+      // union the scores across all rounds
+      const mergedRoundScores: Record<string, number> = {};
+      for (const round of timeline.rounds) {
+        Object.assign(mergedRoundScores, round.scores);
+      }
+      const teams = resolveTeams(timeline.rounds.length > 0 ? mergedRoundScores : undefined, teamColors);
       if (teams == null) {
         return null;
       }
@@ -307,6 +314,7 @@ export function formatScoreProgression(
         ),
         markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
+        roundBoundaries: [],
       };
     }
     default: {

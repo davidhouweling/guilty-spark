@@ -58,7 +58,7 @@ export class ScoreProgressionPresenter {
     const { viewData, ariaLabel } = input;
     switch (viewData.kind) {
       case "score-lines": {
-        return this.presentScoreLines(snapshot, viewData, ariaLabel);
+        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
       }
       case "koth": {
         return this.presentTimelineGantt(
@@ -82,26 +82,26 @@ export class ScoreProgressionPresenter {
     viewData: Extract<ScoreProgressionViewData, { kind: "oddball" }>,
     ariaLabel: string,
   ): ScoreProgressionViewModel {
+    const chartTypeOptions = this.buildChartTypeOptions(viewData.scoreLines, [TIMELINE_OPTION]);
     // the rounds timeline is oddball's default; an unset chart type resolves to it
     if (viewData.scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
       return this.presentTimelineGantt(
         ariaLabel,
         viewData.durationMs,
         viewData.rounds.map((round) => this.buildOddballRow(round)),
-        viewData.scoreLines != null
-          ? this.buildChartTypeOptions(viewData.scoreLines, [TIMELINE_OPTION])
-          : [TIMELINE_OPTION],
+        chartTypeOptions,
       );
     }
-    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, [TIMELINE_OPTION]);
+    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
   }
 
-  // the mode's capability list: an optional leading option (the gantt timeline), then the
-  // score-lines charts, with delta offered only when delta data exists
   private buildChartTypeOptions(
-    viewData: ScoreLinesViewData,
+    viewData: ScoreLinesViewData | null,
     leadingOptions: readonly ChartTypeOption[],
   ): ChartTypeOption[] {
+    if (viewData == null) {
+      return [...leadingOptions];
+    }
     return [...leadingOptions, PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
   }
 
@@ -109,10 +109,9 @@ export class ScoreProgressionPresenter {
     snapshot: ScoreProgressionSnapshot,
     viewData: ScoreLinesViewData,
     ariaLabel: string,
-    leadingOptions: readonly ChartTypeOption[] = [],
+    chartTypeOptions: readonly ChartTypeOption[],
   ): ScoreLinesViewModel {
     const { chartType, showPlayerAdvantage, showMarkers, showZoneAdvantage } = snapshot;
-    const chartTypeOptions = this.buildChartTypeOptions(viewData, leadingOptions);
     // an unset or unavailable chart type (timeline on a score-lines mode, delta without delta
     // data) resolves to the progression chart
     const effectiveChartType: ChartType =

@@ -53,6 +53,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
       zoneAdvantage: null,
       advantageDomain: null,
       markers: null,
+      roundBoundaries: [],
       tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
     },
     onChartTypeChange: vi.fn<(value: string) => void>(),

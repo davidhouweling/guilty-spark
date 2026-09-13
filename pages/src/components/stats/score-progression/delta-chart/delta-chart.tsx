@@ -70,13 +70,13 @@ function DeltaChartGradients({
 
 export function DeltaChart({
   durationMs,
-  roundBoundaries,
   scoreDelta,
   team0Color,
   team1Color,
   playerAdvantage,
   zoneAdvantage,
   advantageDomain,
+  roundBoundaries,
   tooltipFormatter,
 }: ScoreProgressionDeltaViewModel): React.ReactElement {
   const { points, minScore, maxScore } = scoreDelta;
@@ -98,7 +98,7 @@ export function DeltaChart({
         <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
-        {roundBoundaries?.map((boundaryMs) => (
+        {roundBoundaries.map((boundaryMs) => (
           <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />
         ))}
         <Tooltip

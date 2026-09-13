@@ -51,6 +51,7 @@ function aProgressionViewModelWith(
     zoneAdvantage: null,
     advantageDomain: null,
     markers: null,
+    roundBoundaries: [],
     tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
     ...overrides,
   };

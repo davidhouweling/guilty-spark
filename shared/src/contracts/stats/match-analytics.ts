@@ -8,8 +8,6 @@ const scoreSampleSchema = z.object({
   runningScores: teamKeyedCountsSchema,
 });
 
-export type ScoreSamplePoint = z.infer<typeof scoreSampleSchema>;
-
 const progressionEventSchema = z.object({
   timestampMs: z.number().int().nonnegative(),
   teamId: z.number().int().nonnegative(),
@@ -111,7 +109,6 @@ const strongholdsTimelineSchema = z.object({
   ...deathOverlayFields,
 });
 
-export type StrongholdsEvent = z.infer<typeof strongholdsEventSchema>;
 export type StrongholdsZoneEvent = z.infer<typeof strongholdsZoneEventSchema>;
 export type StrongholdsZoneCountSample = z.infer<typeof strongholdsZoneCountSampleSchema>;
 export type StrongholdsTimeline = z.infer<typeof strongholdsTimelineSchema>;

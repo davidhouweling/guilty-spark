@@ -61,6 +61,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       playerAdvantage: null,
       markers: null,
       zoneAdvantage: null,
+      roundBoundaries: [],
       ...overrides,
     },
     ariaLabel: "test chart",

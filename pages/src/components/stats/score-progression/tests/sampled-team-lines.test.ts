@@ -64,15 +64,14 @@ describe("buildSampledTeamLines", () => {
   });
 });
 
-describe("buildSampledTeamLines duplicates", () => {
-  it("collapses a repeated (timestamp, score) pair while keeping genuine vertical drops", () => {
+describe("buildSampledTeamLines vertical drops", () => {
+  it("keeps one point per sample so a same-timestamp pair renders as a vertical drop", () => {
     const samples = [
       { timestampMs: 10000, runningScores: { "0": 5, "1": 0 } },
       { timestampMs: 20000, runningScores: { "0": 5, "1": 0 } },
-      { timestampMs: 20000, runningScores: { "0": 5, "1": 0 } },
       { timestampMs: 20000, runningScores: { "0": 0, "1": 0 } },
     ];
-    const [team0] = buildSampledTeamLines(samples, TEAM_IDS, TEAM_COLORS, 30000);
+    const [team0, team1] = buildSampledTeamLines(samples, TEAM_IDS, TEAM_COLORS, 30000);
     expect(team0.points).toEqual([
       { timestampMs: 0, score: 0 },
       { timestampMs: 10000, score: 5 },
@@ -80,5 +79,7 @@ describe("buildSampledTeamLines duplicates", () => {
       { timestampMs: 20000, score: 0 },
       { timestampMs: 30000, score: 0 },
     ]);
+    // every team line keeps one point per sample, so the lines stay index-aligned
+    expect(team1.points).toHaveLength(team0.points.length);
   });
 });

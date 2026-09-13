@@ -108,8 +108,8 @@ export interface ScoreLinesViewData {
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly markers: readonly ScoreMarkerData[] | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
-  // round starts after the first, for modes whose score resets per round
-  readonly roundBoundaries?: readonly number[] | undefined;
+  // round starts after the first, for modes whose score resets per round; empty otherwise
+  readonly roundBoundaries: readonly number[];
 }
 
 export interface KothViewData {
@@ -136,13 +136,13 @@ export interface ChartTypeOption {
 
 export interface ScoreProgressionDeltaViewModel {
   readonly durationMs: number;
-  readonly roundBoundaries?: readonly number[] | undefined;
   readonly scoreDelta: ScoreDeltaData;
   readonly team0Color: string;
   readonly team1Color: string;
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
+  readonly roundBoundaries: readonly number[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
@@ -151,12 +151,12 @@ export interface ScoreProgressionDeltaViewModel {
 
 export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
-  readonly roundBoundaries?: readonly number[] | undefined;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
   readonly markers: readonly ScoreMarkerData[] | null;
+  readonly roundBoundaries: readonly number[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,

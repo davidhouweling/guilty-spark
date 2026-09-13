@@ -16,6 +16,7 @@ describe("ScoreProgressionDeltaViewModel", () => {
       playerAdvantage: null,
       zoneAdvantage: null,
       advantageDomain: null,
+      roundBoundaries: [],
       tooltipFormatter: (value: unknown): [string, string] => [String(value), "Delta"],
     };
     expect(props.tooltipFormatter(3, undefined)).toEqual(["3", "Delta"]);

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { Select } from "../../../select/select";
 import type { ChartType, ChartTypeOption } from "../types";
 import styles from "../score-progression.module.css";
@@ -10,13 +10,16 @@ interface ChartTypeSelectProps {
 }
 
 export function ChartTypeSelect({ value, options, onChange }: ChartTypeSelectProps): React.ReactElement {
+  // several charts can render on one page (a series view shows every match), so the id must be
+  // per-instance for the label to focus its own select
+  const selectId = useId();
   return (
     <>
-      <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
+      <label htmlFor={selectId} className={styles.toolbarLabel}>
         Chart type
       </label>
       <Select
-        id="chart-type-select"
+        id={selectId}
         containerClassName={styles.toolbarSelect}
         value={value}
         onChange={(e) => {
