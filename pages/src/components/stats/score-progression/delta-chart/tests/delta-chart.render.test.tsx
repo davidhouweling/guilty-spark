@@ -19,8 +19,8 @@ vi.mock("recharts", () => ({
   CartesianGrid: (): null => null,
   ReferenceLine: (): null => null,
   Tooltip: (): null => null,
-  XAxis: (): null => null,
-  YAxis: (): null => null,
+  XAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="x-axis" data-axis={yAxisId} />,
+  YAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="y-axis" data-axis={yAxisId} />,
   usePlotArea: (): null => null,
   useYAxisScale: (): null => null,
 }));
@@ -57,5 +57,42 @@ describe("DeltaChart", () => {
     render(<DeltaChart {...aDeltaViewModelWith("linear")} />);
     const areas = screen.getAllByTestId("area");
     expect(areas[0]).toHaveAttribute("data-type", "linear");
+  });
+
+  it("renders both advantage overlays on the shared advantage axis when enabled", () => {
+    const advantage = {
+      points: [
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 600000, score: 1 },
+      ],
+      minScore: -3,
+      maxScore: 3,
+    };
+    render(
+      <DeltaChart
+        {...aDeltaViewModelWith("linear")}
+        playerAdvantage={advantage}
+        zoneAdvantage={advantage}
+        advantageDomain={[-3, 3]}
+      />,
+    );
+
+    const areaNames = screen.getAllByTestId("area").map((area) => area.getAttribute("data-name"));
+    expect(areaNames).toContain("Player Advantage");
+    expect(areaNames).toContain("Zone Advantage");
+    const advantageAxes = screen
+      .getAllByTestId("y-axis")
+      .filter((axis) => axis.getAttribute("data-axis") === "advantage");
+    expect(advantageAxes).toHaveLength(1);
+  });
+
+  it("renders no advantage axis or overlay areas when overlays are hidden", () => {
+    render(<DeltaChart {...aDeltaViewModelWith("linear")} />);
+    const areaNames = screen.getAllByTestId("area").map((area) => area.getAttribute("data-name"));
+    expect(areaNames).toEqual(["score"]);
+    const advantageAxes = screen
+      .getAllByTestId("y-axis")
+      .filter((axis) => axis.getAttribute("data-axis") === "advantage");
+    expect(advantageAxes).toHaveLength(0);
   });
 });
