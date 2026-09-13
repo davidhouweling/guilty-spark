@@ -126,6 +126,47 @@ describe("matchAnalyticsSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts a koth timeline with control periods, captures, and the death overlay", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 6,
+        durationMs: 600000,
+        teamCount: 2,
+        timeline: {
+          type: "koth",
+          events: [
+            { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+            { timestampMs: 40000, teamId: 0, runningScores: { "0": 8, "1": 0 } },
+          ],
+          controlPeriods: [{ startMs: 0, endMs: 40000, controllingTeamId: 0 }],
+          hillCaptureTimestamps: [40000],
+          deathTimeline: [{ timestampMs: 42000, teamId: 1 }],
+          respawnDurationMs: 8000,
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a koth timeline missing the death overlay fields", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 6,
+        durationMs: 600000,
+        teamCount: 2,
+        timeline: {
+          type: "koth",
+          events: [],
+          controlPeriods: [],
+          hillCaptureTimestamps: [],
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("accepts an oddball timeline whose rounds carry the solver score curve", () => {
     const result = matchAnalyticsSchema.safeParse({
       ...aValidAnalytics(),

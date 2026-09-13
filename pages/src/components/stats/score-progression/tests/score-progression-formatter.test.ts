@@ -476,6 +476,33 @@ describe("formatScoreProgression", () => {
     });
   });
 
+  describe("empty sampled score lines", () => {
+    it("returns null oddball score lines when every round falls outside the match duration", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 60000,
+        timeline: aFakeOddballTimelineWith({
+          rounds: [
+            {
+              roundIndex: 0,
+              startMs: 70000,
+              endMs: 90000,
+              endedByCap: false,
+              winnerTeamId: 0,
+              scores: { "0": 20, "1": 10 },
+              carrySegments: [],
+              points: [],
+            },
+          ],
+        }),
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "oddball") {
+        throw new Error("expected oddball view data");
+      }
+      expect(result.scoreLines).toBeNull();
+    });
+  });
+
   describe("koth score lines", () => {
     it("builds per-hill tick lines with hill boundaries, a linear delta, and player advantage", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 60000, timeline: aFakeKothTimelineWith() });

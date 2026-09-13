@@ -206,7 +206,11 @@ function buildSampledScoreLines(
   overlaySource: DeathOverlay,
   durationMs: number,
   teamSize: number | null,
-): ScoreLinesViewData {
+): ScoreLinesViewData | null {
+  // no samples means nothing reconstructable — offering the chart would render fake zero lines
+  if (samples.length === 0) {
+    return null;
+  }
   return {
     kind: "score-lines",
     durationMs,
