@@ -75,11 +75,14 @@ function aStrongholdsInput(zoneStrip: ZoneStripData | null): ScoreProgressionInp
   return {
     viewData: {
       kind: "strongholds",
-      durationMs: 600000,
+      durationMs: 100000,
       zoneStrip,
       scoreLines: aFakeScoreLinesViewDataWith({
+        durationMs: 100000,
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta: aFakeScoreDeltaData(),
+        playerAdvantage: aFakePlayerAdvantageData(),
+        zoneAdvantage: aFakePlayerAdvantageData(),
       }),
     },
     ariaLabel: "test chart",
@@ -706,17 +709,25 @@ describe("ScoreProgressionPresenter", () => {
     it("presents the zone strip as a single gantt row when the timeline chart type is selected", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "timeline" });
-      const model = asTimelineGantt(
-        presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())),
-      );
+      const zoneStrip = aFakeZoneStripDataWith();
+      const model = asTimelineGantt(presenter.present(store.getSnapshot(), aStrongholdsInput(zoneStrip)));
       expect(model.timeline.rows).toHaveLength(1);
       expect(model.timeline.rows[0]?.label).toBe("Zones");
       expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 70% · Cobra 20%");
-      expect(model.timeline.rows[0]?.segments).toEqual(aFakeZoneStripDataWith().segments);
+      expect(model.timeline.rows[0]?.segments).toBe(zoneStrip.segments);
       expect(model.timeline.rows[0]?.tooltipEntries.map((entry) => entry.text)).toEqual([
         "Eagle: ahead 70%",
         "Cobra: ahead 20%",
       ]);
+    });
+
+    it("forwards the strongholds overlays through to the score-lines view model", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())));
+      expect(model.hasPlayerAdvantage).toBe(true);
+      expect(model.hasZoneAdvantage).toBe(true);
+      expect(model.deltaViewModel).toBeNull();
+      expect(model.progressionViewModel.teamLines).toHaveLength(2);
     });
 
     it("omits the timeline chart type and stays on score lines when there is no zone strip", () => {

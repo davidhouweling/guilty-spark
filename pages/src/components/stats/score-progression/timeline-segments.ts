@@ -4,6 +4,7 @@ export interface OccupiedInterval {
   readonly startMs: number;
   readonly endMs: number;
   readonly teamId: number | null;
+  readonly opacity?: number | undefined;
 }
 
 function mergeAdjacentSegments(segments: readonly TimelineGanttSegment[]): TimelineGanttSegment[] {
@@ -12,7 +13,11 @@ function mergeAdjacentSegments(segments: readonly TimelineGanttSegment[]): Timel
     const previous = merged.pop();
     if (previous == null) {
       merged.push(segment);
-    } else if (previous.teamId === segment.teamId && previous.endMs === segment.startMs) {
+    } else if (
+      previous.teamId === segment.teamId &&
+      previous.opacity === segment.opacity &&
+      previous.endMs === segment.startMs
+    ) {
       merged.push({ ...previous, endMs: segment.endMs });
     } else {
       merged.push(previous, segment);
@@ -46,6 +51,7 @@ export function tileSegments(
       endMs: intervalEnd,
       teamId: interval.teamId,
       color: interval.teamId != null ? (teamColorByTeamId.get(interval.teamId) ?? null) : null,
+      opacity: interval.opacity,
     });
     cursor = intervalEnd;
   }

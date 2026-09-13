@@ -49,7 +49,7 @@ export function RowBar({ y = 0, height = 0, background, durationMs = 1, row }: R
             width={isOccupied ? Math.max(1, widthPx) : widthPx}
             height={height}
             fill={isOccupied ? (segment.color ?? TICK_FILL) : UNOCCUPIED_FILL}
-            opacity={isOccupied ? 0.8 : undefined}
+            opacity={isOccupied ? 0.8 * (segment.opacity ?? 1) : undefined}
             stroke={isOccupied ? undefined : UNOCCUPIED_STROKE}
             strokeWidth={isOccupied ? undefined : 0.5}
           />

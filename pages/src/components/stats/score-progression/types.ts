@@ -43,6 +43,8 @@ export interface TimelineGanttSegment {
   readonly endMs: number;
   readonly teamId: number | null;
   readonly color: string | null;
+  // scales the renderer's base segment opacity; 1 when omitted
+  readonly opacity?: number | undefined;
 }
 
 export interface KothHillTeamProgress {

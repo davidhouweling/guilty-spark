@@ -2,8 +2,9 @@ import type {
   StrongholdsZoneCountSample,
   StrongholdsZoneEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { extendToDuration } from "../../extend-to-duration";
+import { tileSegments } from "../../timeline-segments";
+import type { OccupiedInterval } from "../../timeline-segments";
 import type {
   PlayerAdvantageData,
   ScoreMarkerData,
@@ -57,120 +58,122 @@ export function buildStrongholdsMarkers(
   return markers;
 }
 
-// The strip encodes the leader's grip as colour intensity: a 3-cap paints the full team colour,
+// The strip encodes the leader's grip as segment opacity: a 3-cap paints the full team colour,
 // a 2-zone hold a dimmer one, a single zone dimmer still, and a tie stays neutral.
-const ZONE_LEAD_ALPHA: Record<number, string> = { 1: "66", 2: "B3" };
+const ZONE_LEAD_OPACITY: readonly number[] = [0, 0.4, 0.7, 1];
 
-function zoneLeadColor(baseColor: string, zoneCount: number): string {
-  return `${baseColor}${ZONE_LEAD_ALPHA[zoneCount] ?? ""}`;
+interface ZoneCountWindow {
+  readonly startMs: number;
+  readonly endMs: number;
+  readonly count0: number;
+  readonly count1: number;
 }
 
-function pushZoneSegment(segments: TimelineGanttSegment[], segment: TimelineGanttSegment): void {
-  const last = segments.at(-1);
-  if (last == null) {
-    segments.push(segment);
-    return;
-  }
-  if (last.teamId !== segment.teamId || last.color !== segment.color) {
-    segments.push(segment);
-    return;
-  }
-  segments[segments.length - 1] = { ...last, endMs: segment.endMs };
-}
-
-function buildZoneStripShares(
-  segments: readonly TimelineGanttSegment[],
-  teamIds: readonly number[],
-  teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ZoneStripTeamShare[] {
-  return teamIds.map((teamId) => {
-    const leadMs = segments
-      .filter((segment) => segment.teamId === teamId)
-      .reduce((total, segment) => total + (segment.endMs - segment.startMs), 0);
-    return {
-      teamId,
-      name: getTeamName(teamId),
-      color: teamColorByTeamId.get(teamId) ?? "",
-      leadPercentage: Math.round((leadMs / durationMs) * 100),
-    };
-  });
-}
-
-// One gantt strip coloured by whoever holds more zones at each moment; ties stay neutral. Zone
-// ownership is a step function, so each sample's counts hold until the next sample.
-export function buildZoneControlStrip(
-  zoneTimeline: readonly StrongholdsZoneCountSample[],
-  teamIds: readonly number[],
-  teamColorByTeamId: Map<number, string>,
-  durationMs: number,
-): ZoneStripData | null {
-  if (teamIds.length !== 2 || durationMs <= 0) {
-    return null;
-  }
-  const [teamId0, teamId1] = teamIds;
-  const key0 = String(teamId0);
-  const key1 = String(teamId1);
-  const inMatchSamples = zoneTimeline.filter((sample) => sample.timestampMs <= durationMs);
-  if (inMatchSamples.length === 0) {
-    return null;
-  }
-
-  const segments: TimelineGanttSegment[] = [];
-  // both teams spawn owning one zone, so the strip is neutral until the first sample
-  if ((inMatchSamples.at(0)?.timestampMs ?? 0) > 0) {
-    segments.push({ startMs: 0, endMs: inMatchSamples[0].timestampMs, teamId: null, color: null });
-  }
-  for (const [sampleIndex, sample] of inMatchSamples.entries()) {
-    const startMs = sample.timestampMs;
-    const endMs = inMatchSamples[sampleIndex + 1]?.timestampMs ?? durationMs;
-    if (endMs <= startMs) {
-      continue;
-    }
-    const count0 = sample.zoneCounts[key0] ?? 0;
-    const count1 = sample.zoneCounts[key1] ?? 0;
-    if (count0 === count1) {
-      pushZoneSegment(segments, { startMs, endMs, teamId: null, color: null });
-      continue;
-    }
-    const leaderTeamId = count0 > count1 ? teamId0 : teamId1;
-    const leaderColor = teamColorByTeamId.get(leaderTeamId);
-    pushZoneSegment(segments, {
-      startMs,
-      endMs,
-      teamId: leaderTeamId,
-      color: leaderColor != null ? zoneLeadColor(leaderColor, Math.max(count0, count1)) : null,
-    });
-  }
-
-  return { segments, teamShares: buildZoneStripShares(segments, teamIds, teamColorByTeamId, durationMs) };
-}
-
-// Zones owned is a step function that only changes at captures; a match where the counts never
-// diverge renders no overlay, matching the player-advantage behaviour.
-export function buildZoneAdvantage(
+// Zone ownership is a step function, so each sample's counts hold until the next sample.
+function buildZoneCountWindows(
   zoneTimeline: readonly StrongholdsZoneCountSample[],
   teamIds: readonly number[],
   durationMs: number,
-): PlayerAdvantageData | null {
+): ZoneCountWindow[] | null {
   if (teamIds.length !== 2) {
     return null;
   }
   const [teamId0, teamId1] = teamIds;
   const key0 = String(teamId0);
   const key1 = String(teamId1);
-  const inMatchSamples = zoneTimeline.filter((sample) => sample.timestampMs <= durationMs);
+  const inMatchSamples = zoneTimeline
+    .filter((sample) => sample.timestampMs <= durationMs)
+    .sort((a, b) => a.timestampMs - b.timestampMs);
   if (inMatchSamples.length === 0) {
+    return null;
+  }
+  return inMatchSamples.map((sample, sampleIndex) => ({
+    startMs: sample.timestampMs,
+    endMs: inMatchSamples[sampleIndex + 1]?.timestampMs ?? durationMs,
+    count0: sample.zoneCounts[key0] ?? 0,
+    count1: sample.zoneCounts[key1] ?? 0,
+  }));
+}
+
+function buildZoneStripShares(
+  segments: readonly TimelineGanttSegment[],
+  teamLines: readonly ScoreProgressionTeamLine[],
+  durationMs: number,
+): ZoneStripTeamShare[] {
+  return teamLines.map((line) => {
+    const leadMs = segments
+      .filter((segment) => segment.teamId === line.teamId)
+      .reduce((total, segment) => total + (segment.endMs - segment.startMs), 0);
+    return {
+      teamId: line.teamId,
+      name: line.name,
+      color: line.color,
+      // a lead too brief to round to 1% still counts as time spent ahead
+      leadPercentage: leadMs > 0 ? Math.max(1, Math.round((leadMs / durationMs) * 100)) : 0,
+    };
+  });
+}
+
+// One gantt strip coloured by whoever holds more zones at each moment; ties stay neutral. A match
+// where the counts never diverge has no strip, matching the zone-advantage behaviour.
+export function buildZoneControlStrip(
+  zoneTimeline: readonly StrongholdsZoneCountSample[],
+  teamLines: readonly ScoreProgressionTeamLine[],
+  durationMs: number,
+): ZoneStripData | null {
+  if (durationMs <= 0) {
+    return null;
+  }
+  const windows = buildZoneCountWindows(
+    zoneTimeline,
+    teamLines.map((line) => line.teamId),
+    durationMs,
+  );
+  if (windows == null) {
+    return null;
+  }
+  const [line0, line1] = teamLines;
+
+  const intervals: OccupiedInterval[] = [];
+  for (const window of windows) {
+    if (window.count0 === window.count1) {
+      continue;
+    }
+    const leader = window.count0 > window.count1 ? line0 : line1;
+    intervals.push({
+      startMs: window.startMs,
+      endMs: window.endMs,
+      teamId: leader.teamId,
+      opacity: ZONE_LEAD_OPACITY[Math.min(Math.max(window.count0, window.count1), 3)],
+    });
+  }
+  if (intervals.length === 0) {
+    return null;
+  }
+
+  const teamColorByTeamId = new Map(teamLines.map((line) => [line.teamId, line.color]));
+  const segments = tileSegments(0, durationMs, intervals, teamColorByTeamId);
+  return { segments, teamShares: buildZoneStripShares(segments, teamLines, durationMs) };
+}
+
+// A match where the counts never diverge renders no overlay, matching the player-advantage
+// behaviour.
+export function buildZoneAdvantage(
+  zoneTimeline: readonly StrongholdsZoneCountSample[],
+  teamIds: readonly number[],
+  durationMs: number,
+): PlayerAdvantageData | null {
+  const windows = buildZoneCountWindows(zoneTimeline, teamIds, durationMs);
+  if (windows == null) {
     return null;
   }
 
   // both teams spawn owning one zone, so the series is even until the first sample
-  const points: ScoreProgressionPoint[] =
-    (inMatchSamples.at(0)?.timestampMs ?? 0) > 0 ? [{ timestampMs: 0, score: 0 }] : [];
+  const points: ScoreProgressionPoint[] = windows[0].startMs > 0 ? [{ timestampMs: 0, score: 0 }] : [];
   let hasAdvantage = false;
-  for (const sample of inMatchSamples) {
-    const score = (sample.zoneCounts[key0] ?? 0) - (sample.zoneCounts[key1] ?? 0);
-    points.push({ timestampMs: sample.timestampMs, score });
+  for (const window of windows) {
+    const score = window.count0 - window.count1;
+    points.push({ timestampMs: window.startMs, score });
     if (score !== 0) {
       hasAdvantage = true;
     }

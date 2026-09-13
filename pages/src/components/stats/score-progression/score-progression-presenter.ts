@@ -1,3 +1,4 @@
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
@@ -13,7 +14,6 @@ import type {
   ScoreProgressionDeltaViewModel,
   ScoreProgressionViewData,
   ScoreProgressionViewModel,
-  StrongholdsViewData,
   TimelineGanttChartViewModel,
   TimelineGanttRowViewModel,
   TimelineGanttTooltipEntry,
@@ -63,25 +63,26 @@ export class ScoreProgressionPresenter {
         return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
       }
       case "strongholds": {
-        return this.presentStrongholdsMode(snapshot, ariaLabel, viewData);
+        const { zoneStrip } = viewData;
+        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+          buildRows: zoneStrip != null ? (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)] : null,
+          scoreLines: viewData.scoreLines,
+          ganttIsDefault: false,
+        });
       }
       case "koth": {
-        return this.presentGanttMode(
-          snapshot,
-          ariaLabel,
-          viewData.durationMs,
-          () => viewData.hills.map((hill) => this.buildKothRow(hill)),
-          viewData.scoreLines,
-        );
+        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
+          scoreLines: viewData.scoreLines,
+          ganttIsDefault: true,
+        });
       }
       case "oddball": {
-        return this.presentGanttMode(
-          snapshot,
-          ariaLabel,
-          viewData.durationMs,
-          () => viewData.rounds.map((round) => this.buildOddballRow(round)),
-          viewData.scoreLines,
-        );
+        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
+          scoreLines: viewData.scoreLines,
+          ganttIsDefault: true,
+        });
       }
       default: {
         throw new UnreachableError(viewData);
@@ -89,40 +90,34 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  private presentGanttMode(
+  // One resolution rule for every mode that can carry both a gantt timeline and score lines: the
+  // default view is the mode's primary chart, and the other appears through the chart-type select.
+  private presentMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
     durationMs: number,
-    buildRows: () => readonly TimelineGanttRowViewModel[],
-    scoreLines: ScoreLinesViewData | null,
+    mode: {
+      buildRows: (() => readonly TimelineGanttRowViewModel[]) | null;
+      scoreLines: ScoreLinesViewData | null;
+      ganttIsDefault: boolean;
+    },
   ): ScoreProgressionViewModel {
-    const chartTypeOptions = this.buildChartTypeOptions(scoreLines, [TIMELINE_OPTION]);
-    if (scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
+    const { buildRows, scoreLines, ganttIsDefault } = mode;
+    const scoreOptions = this.buildChartTypeOptions(scoreLines, []);
+    const timelineOptions = buildRows != null ? [TIMELINE_OPTION] : [];
+    const chartTypeOptions = ganttIsDefault
+      ? [...timelineOptions, ...scoreOptions]
+      : [...scoreOptions, ...timelineOptions];
+    const wantsTimeline = snapshot.chartType === "timeline" || (snapshot.chartType == null && ganttIsDefault);
+    if (buildRows != null && (scoreLines == null || wantsTimeline)) {
       return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
-    return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
-  }
-
-  // Strongholds is score-lines-first: the zone-control strip is a trailing chart-type option
-  // rather than the default, unlike the gantt-first modes.
-  private presentStrongholdsMode(
-    snapshot: ScoreProgressionSnapshot,
-    ariaLabel: string,
-    viewData: StrongholdsViewData,
-  ): ScoreProgressionViewModel {
-    const chartTypeOptions = [
-      ...this.buildChartTypeOptions(viewData.scoreLines, []),
-      ...(viewData.zoneStrip != null ? [TIMELINE_OPTION] : []),
-    ];
-    if (viewData.zoneStrip != null && snapshot.chartType === "timeline") {
-      return this.presentTimelineGantt(
-        ariaLabel,
-        viewData.durationMs,
-        [this.buildZoneStripRow(viewData.zoneStrip)],
-        chartTypeOptions,
-      );
-    }
-    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+    return this.presentScoreLines(
+      snapshot,
+      Preconditions.checkExists(scoreLines, "a mode without gantt rows must carry score lines"),
+      ariaLabel,
+      chartTypeOptions,
+    );
   }
 
   private buildZoneStripRow(zoneStrip: ZoneStripData): TimelineGanttRowViewModel {
