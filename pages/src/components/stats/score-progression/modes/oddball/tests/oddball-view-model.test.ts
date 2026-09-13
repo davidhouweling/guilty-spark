@@ -110,6 +110,36 @@ describe("buildOddballScoreSeries", () => {
     expect(last).toEqual({ timestampMs: 410000, runningScores: { "0": 0, "1": 50 } });
   });
 
+  it("ramps an overlap-clamped empty-curve round against its true window", () => {
+    const timeline = aFakeOddballTimelineWith({
+      rounds: [
+        {
+          roundIndex: 0,
+          startMs: 0,
+          endMs: 60000,
+          endedByCap: false,
+          winnerTeamId: 0,
+          scores: { "0": 10, "1": 0 },
+          carrySegments: [],
+          points: [{ timestampMs: 60000, runningScores: { "0": 10, "1": 0 } }],
+        },
+        {
+          roundIndex: 1,
+          startMs: 50000,
+          endMs: 100000,
+          endedByCap: false,
+          winnerTeamId: 0,
+          scores: { "0": 50, "1": 0 },
+          carrySegments: [],
+          points: [],
+        },
+      ],
+    });
+    const { samples } = buildOddballScoreSeries(timeline, [...TEAM_IDS], 80000);
+    // 80s is 60% of the round's true 50s→100s window, not 50% of the overlap-clamped remainder
+    expect(samples.at(-1)).toEqual({ timestampMs: 80000, runningScores: { "0": 30, "1": 0 } });
+  });
+
   it("skips rounds entirely past the match duration and emits no boundary for them", () => {
     const { samples, roundBoundaries } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 330000);
     expect(roundBoundaries).toEqual([]);

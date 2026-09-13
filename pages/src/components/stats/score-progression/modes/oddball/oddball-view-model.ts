@@ -53,19 +53,20 @@ function appendRoundCurve(
 }
 
 // A round the solver produced no curve for at all: slope the round score against the round's
-// TRUE end, so a duration-truncated round shows only the fraction earned by the cut.
+// TRUE window (not the overlap-clamped start or the duration-clamped end), so a truncated
+// round shows only the fraction earned by the cut.
 function appendUniformRamp(
   samples: ScoreSample[],
   round: OddballRound,
-  startMs: number,
   endMs: number,
   teamIds: readonly number[],
 ): void {
-  const trueEndMs = Math.max(round.endMs, startMs + 1);
+  const trueStartMs = Math.max(0, round.startMs);
+  const trueEndMs = Math.max(round.endMs, trueStartMs + 1);
   const rampScores: Record<string, number> = {};
   for (const teamId of teamIds) {
     const target = round.scores[String(teamId)] ?? 0;
-    rampScores[String(teamId)] = Math.round((target * (endMs - startMs)) / (trueEndMs - startMs));
+    rampScores[String(teamId)] = Math.round((target * (endMs - trueStartMs)) / (trueEndMs - trueStartMs));
   }
   pushSample(samples, { timestampMs: endMs, runningScores: rampScores }, teamIds);
 }
@@ -99,7 +100,7 @@ export function buildOddballScoreSeries(
     if (round.points.length > 0) {
       appendRoundCurve(samples, round, startMs, endMs, teamIds);
     } else {
-      appendUniformRamp(samples, round, startMs, endMs, teamIds);
+      appendUniformRamp(samples, round, endMs, teamIds);
     }
     holdLastValueTo(samples, endMs);
   }
