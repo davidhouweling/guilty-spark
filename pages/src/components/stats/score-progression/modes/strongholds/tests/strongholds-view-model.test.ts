@@ -99,37 +99,53 @@ describe("buildZoneAdvantage", () => {
 });
 
 describe("buildZoneControlStrip", () => {
-  it("colors each window by the leading team with intensity from their zone count", () => {
-    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_IDS, TEAM_COLORS, 100000);
+  const TEAM_LINES = [
+    { teamId: 0, name: "Eagle", color: "#0000ff", points: [] },
+    { teamId: 1, name: "Cobra", color: "#ff0000", points: [] },
+  ];
+
+  it("colors each window by the leading team with opacity from their zone count", () => {
+    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_LINES, 100000);
     expect(strip?.segments).toEqual([
       { startMs: 0, endMs: 10000, teamId: null, color: null },
-      { startMs: 10000, endMs: 40000, teamId: 0, color: "#0000ffB3" },
-      { startMs: 40000, endMs: 60000, teamId: 1, color: "#ff0000B3" },
-      { startMs: 60000, endMs: 100000, teamId: 0, color: "#0000ffB3" },
+      { startMs: 10000, endMs: 40000, teamId: 0, color: "#0000ff", opacity: 0.7 },
+      { startMs: 40000, endMs: 60000, teamId: 1, color: "#ff0000", opacity: 0.7 },
+      { startMs: 60000, endMs: 100000, teamId: 0, color: "#0000ff", opacity: 0.7 },
     ]);
   });
 
   it("computes each team's share of the match spent leading", () => {
-    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_IDS, TEAM_COLORS, 100000);
+    const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_LINES, 100000);
     expect(strip?.teamShares).toEqual([
       { teamId: 0, name: "Eagle", color: "#0000ff", leadPercentage: 70 },
       { teamId: 1, name: "Cobra", color: "#ff0000", leadPercentage: 20 },
     ]);
   });
 
-  it("paints a 3-cap at full color and a one-zone lead at the dimmest intensity", () => {
+  it("reports a lead too brief to round to 1% as 1% rather than never ahead", () => {
+    const strip = buildZoneControlStrip(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 2, "1": 1 } },
+        { timestampMs: 100, zoneCounts: { "0": 1, "1": 1 } },
+      ],
+      TEAM_LINES,
+      100000,
+    );
+    expect(strip?.teamShares[0]?.leadPercentage).toBe(1);
+  });
+
+  it("paints a 3-cap at full opacity and a one-zone lead at the dimmest", () => {
     const strip = buildZoneControlStrip(
       [
         { timestampMs: 0, zoneCounts: { "0": 3, "1": 0 } },
         { timestampMs: 20000, zoneCounts: { "0": 1, "1": 0 } },
       ],
-      TEAM_IDS,
-      TEAM_COLORS,
+      TEAM_LINES,
       60000,
     );
     expect(strip?.segments).toEqual([
-      { startMs: 0, endMs: 20000, teamId: 0, color: "#0000ff" },
-      { startMs: 20000, endMs: 60000, teamId: 0, color: "#0000ff66" },
+      { startMs: 0, endMs: 20000, teamId: 0, color: "#0000ff", opacity: 1 },
+      { startMs: 20000, endMs: 60000, teamId: 0, color: "#0000ff", opacity: 0.4 },
     ]);
   });
 
@@ -140,33 +156,39 @@ describe("buildZoneControlStrip", () => {
         { timestampMs: 20000, zoneCounts: { "0": 2, "1": 1 } },
         { timestampMs: 30000, zoneCounts: { "0": 1, "1": 2 } },
       ],
-      TEAM_IDS,
-      TEAM_COLORS,
+      TEAM_LINES,
       60000,
     );
     expect(strip?.segments).toEqual([
-      { startMs: 0, endMs: 30000, teamId: 0, color: "#0000ffB3" },
-      { startMs: 30000, endMs: 60000, teamId: 1, color: "#ff0000B3" },
+      { startMs: 0, endMs: 30000, teamId: 0, color: "#0000ff", opacity: 0.7 },
+      { startMs: 30000, endMs: 60000, teamId: 1, color: "#ff0000", opacity: 0.7 },
     ]);
   });
 
-  it("drops samples past the match duration", () => {
+  it("drops samples past the match duration and sorts out-of-order samples", () => {
     const strip = buildZoneControlStrip(
       [
+        { timestampMs: 30000, zoneCounts: { "0": 1, "1": 2 } },
         { timestampMs: 0, zoneCounts: { "0": 2, "1": 1 } },
         { timestampMs: 70000, zoneCounts: { "0": 0, "1": 3 } },
       ],
-      TEAM_IDS,
-      TEAM_COLORS,
+      TEAM_LINES,
       60000,
     );
-    expect(strip?.segments).toEqual([{ startMs: 0, endMs: 60000, teamId: 0, color: "#0000ffB3" }]);
+    expect(strip?.segments).toEqual([
+      { startMs: 0, endMs: 30000, teamId: 0, color: "#0000ff", opacity: 0.7 },
+      { startMs: 30000, endMs: 60000, teamId: 1, color: "#ff0000", opacity: 0.7 },
+    ]);
+  });
+
+  it("returns null when the zone counts never diverge, matching the zone advantage", () => {
+    const strip = buildZoneControlStrip([{ timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } }], TEAM_LINES, 60000);
+    expect(strip).toBeNull();
   });
 
   it("returns null without exactly two teams or without samples", () => {
-    expect(
-      buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, [0, 1, 2], TEAM_COLORS, 100000),
-    ).toBeNull();
-    expect(buildZoneControlStrip([], TEAM_IDS, TEAM_COLORS, 100000)).toBeNull();
+    const threeLines = [...TEAM_LINES, { teamId: 2, name: "Hades", color: "#00ff00", points: [] }];
+    expect(buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, threeLines, 100000)).toBeNull();
+    expect(buildZoneControlStrip([], TEAM_LINES, 100000)).toBeNull();
   });
 });

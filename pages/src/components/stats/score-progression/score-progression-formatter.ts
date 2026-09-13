@@ -319,7 +319,7 @@ export function formatScoreProgression(
       return {
         kind: "strongholds",
         durationMs,
-        zoneStrip: buildZoneControlStrip(timeline.zoneTimeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        zoneStrip: buildZoneControlStrip(timeline.zoneTimeline, teamLines, durationMs),
         scoreLines: {
           kind: "score-lines",
           durationMs,
