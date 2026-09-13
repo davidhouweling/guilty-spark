@@ -9,6 +9,7 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
+import { buildStrongholdsTeamLines } from "./modes/strongholds/strongholds-view-model";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -17,10 +18,16 @@ import type {
   ScoreProgressionViewData,
 } from "./types";
 
+interface ScoreSample {
+  readonly timestampMs: number;
+  readonly runningScores: Record<string, number>;
+}
+
 function buildScoreDelta(
   teamIds: readonly number[],
-  events: readonly KillRaceEvent[],
+  events: readonly ScoreSample[],
   durationMs: number,
+  lineType: ScoreDeltaData["lineType"],
 ): ScoreDeltaData | null {
   if (teamIds.length !== 2) {
     return null;
@@ -30,13 +37,19 @@ function buildScoreDelta(
   const key0 = String(teamId0);
   const key1 = String(teamId1);
 
+  // trailing film events past the match end would leave an out-of-range sample and suppress
+  // the terminal point
+  const inMatchEvents = events.filter((event) => event.timestampMs <= durationMs);
   const points: ScoreProgressionPoint[] = [{ timestampMs: 0, score: 0 }];
   let minScore = 0;
   let maxScore = 0;
+  let score0 = 0;
+  let score1 = 0;
 
-  for (const event of events) {
-    const score0 = event.runningScores[key0] ?? 0;
-    const score1 = event.runningScores[key1] ?? 0;
+  for (const event of inMatchEvents) {
+    // a team omitted from a sparse record carries its previous score forward (scores never drop)
+    score0 = key0 in event.runningScores ? event.runningScores[key0] : score0;
+    score1 = key1 in event.runningScores ? event.runningScores[key1] : score1;
     const score = score0 - score1;
     points.push({ timestampMs: event.timestampMs, score });
     if (score < minScore) {
@@ -47,13 +60,16 @@ function buildScoreDelta(
     }
   }
 
-  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  const lastEvent = inMatchEvents.at(-1);
+  if (lastEvent == null || lastEvent.timestampMs < durationMs) {
+    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  }
   const range = maxScore - minScore;
   if (range === 0) {
     return null;
   }
 
-  return { points, minScore, maxScore };
+  return { points, minScore, maxScore, lineType };
 }
 
 function buildPlayerAdvantage(
@@ -63,7 +79,9 @@ function buildPlayerAdvantage(
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
-  if (teamIds.length !== 2 || deathTimeline.length === 0) {
+  // a trailing film death past the match end would push advantage points beyond the x-axis
+  const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
+  if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
   }
 
@@ -75,7 +93,7 @@ function buildPlayerAdvantage(
     delta: 1 | -1;
   }
   const events: AdvantageEvent[] = [];
-  for (const death of deathTimeline) {
+  for (const death of inMatchDeaths) {
     events.push({ timestampMs: death.timestampMs, teamId: death.teamId, delta: 1 });
     const respawnTs = death.timestampMs + respawnDurationMs;
     if (respawnTs < durationMs) {
@@ -207,6 +225,8 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      // a trailing film event past the match end would push the lines beyond the x-axis
+      const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
       const playerAdvantage =
         timeline.respawnDurationMs != null
           ? buildPlayerAdvantage(
@@ -220,8 +240,8 @@ export function formatScoreProgression(
       return {
         kind: "score-lines",
         durationMs,
-        teamLines: buildTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs),
+        teamLines: buildTeamLines(inMatchEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, inMatchEvents, durationMs, "step"),
         playerAdvantage,
       };
     }
@@ -245,6 +265,25 @@ export function formatScoreProgression(
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
+      };
+    }
+    case "strongholds": {
+      // strongholds records may be sparse, so a team missing from the first sample must still
+      // resolve — union the scores across all samples
+      const mergedScores: Record<string, number> = {};
+      for (const event of timeline.events) {
+        Object.assign(mergedScores, event.runningScores);
+      }
+      const teams = resolveTeams(timeline.events.length > 0 ? mergedScores : undefined, teamColors);
+      if (teams == null) {
+        return null;
+      }
+      return {
+        kind: "score-lines",
+        durationMs,
+        teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
+        playerAdvantage: null,
       };
     }
     default: {

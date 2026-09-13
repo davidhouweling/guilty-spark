@@ -76,4 +76,39 @@ describe("matchAnalyticsSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts a strongholds timeline with sparse running scores", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 11,
+        durationMs: 684000,
+        teamCount: 2,
+        timeline: {
+          type: "strongholds",
+          events: [
+            { timestampMs: 40000, runningScores: { "0": 5 } },
+            { timestampMs: 90000, runningScores: { "0": 30, "1": 12 } },
+          ],
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a strongholds timeline with negative running scores", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 11,
+        durationMs: 684000,
+        teamCount: 2,
+        timeline: {
+          type: "strongholds",
+          events: [{ timestampMs: 40000, runningScores: { "0": -5 } }],
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });

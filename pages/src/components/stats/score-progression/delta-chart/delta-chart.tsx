@@ -127,7 +127,7 @@ export function DeltaChart({
           strokeWidth={2}
           fill={`url(#${gradientId})`}
           dot={false}
-          type="stepAfter"
+          type={scoreDelta.lineType === "linear" ? "linear" : "stepAfter"}
         />
         {playerAdvantage != null && (
           <>

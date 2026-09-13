@@ -3,67 +3,13 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts <matchId>
  */
-import "dotenv/config";
-import path from "node:path";
-
-if (typeof caches === "undefined") {
-  /* eslint-disable @typescript-eslint/promise-function-async */
-  (globalThis as unknown as Record<string, unknown>)["caches"] = {
-    default: {
-      match: (): Promise<undefined> => Promise.resolve(undefined),
-      put: (): Promise<void> => Promise.resolve(),
-      delete: (): Promise<boolean> => Promise.resolve(false),
-    },
-  };
-  /* eslint-enable @typescript-eslint/promise-function-async */
-}
-
-import { fileURLToPath } from "node:url";
-import { authenticate } from "@xboxreplay/xboxlive-auth";
-import { aFakeEnvWith } from "../base/fakes/env.fake";
-import { aFakeDatabaseServiceWith } from "../services/database/fakes/database.fake";
-import { aFakeLogServiceWith } from "../services/log/fakes/log.fake";
-import { aFakePlayerMatchesRateLimiterWith } from "../services/halo/fakes/player-matches-rate-limiter.fake";
-import { createFileBackedKVNamespace } from "../base/fakes/namespace-to-file";
-import { createHaloInfiniteClientProxy } from "../services/halo/halo-infinite-client-proxy";
-import { HaloService } from "../services/halo/halo";
-import { XboxService } from "../services/xbox/xbox";
-import { CustomSpartanTokenProvider } from "../services/halo/custom-spartan-token-provider";
-import { HaloFilmService } from "../services/halo/halo-film";
 import { AnalyticsService } from "../services/analytics/analytics";
+import { createScriptServices, fmtMs } from "./script-services";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MATCH_ID = process.argv[2] ?? "72c3006a-82fc-48a2-8a2f-f862b675f984";
 
-// ─── Setup ───────────────────────────────────────────────────────────────────
-
-const fakeNamespace = await createFileBackedKVNamespace(path.join(__dirname, "app-data.json"));
-const env = aFakeEnvWith({
-  APP_DATA: fakeNamespace,
-  XBOX_USERNAME: process.env.XBOX_USERNAME,
-  XBOX_PASSWORD: process.env.XBOX_PASSWORD,
-});
-
-const logService = aFakeLogServiceWith();
-const databaseService = aFakeDatabaseServiceWith();
-const xboxService = new XboxService({ env, authenticate });
-const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-const infiniteClient = createHaloInfiniteClientProxy({ env });
-const haloService = new HaloService({
-  env,
-  logService,
-  databaseService,
-  xboxService,
-  infiniteClient,
-  playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
-});
-const haloFilmService = new HaloFilmService({ env, spartanTokenProvider });
+const { haloService, haloFilmService, databaseService, logService } = await createScriptServices();
 const analyticsService = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
-
-function fmtMs(ms: number): string {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60).toString()}:${(s % 60).toString().padStart(2, "0")}`;
-}
 
 // ─── Fetch match + analytics ─────────────────────────────────────────────────
 

@@ -67,6 +67,21 @@ export type OddballCarrySegment = z.infer<typeof oddballCarrySegmentSchema>;
 export type OddballRound = z.infer<typeof oddballRoundSchema>;
 export type OddballTimeline = z.infer<typeof oddballTimelineSchema>;
 
+// Strongholds scoring accrues continuously for both teams at once, so a sample carries no
+// scoring team — only the running totals at a rate boundary.
+const strongholdsEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  runningScores: z.record(z.string().regex(/^\d+$/), z.number().int().nonnegative()),
+});
+
+const strongholdsTimelineSchema = z.object({
+  type: z.literal("strongholds"),
+  events: z.array(strongholdsEventSchema),
+});
+
+export type StrongholdsEvent = z.infer<typeof strongholdsEventSchema>;
+export type StrongholdsTimeline = z.infer<typeof strongholdsTimelineSchema>;
+
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
   perfects: z.number().int().nonnegative().describe("Perfect medal kill count for this killer/victim pair"),
@@ -107,7 +122,12 @@ export const matchAnalyticsSchema = z.object({
       mode: z.number().int().nonnegative(),
       durationMs: z.number().int().nonnegative(),
       teamCount: z.number().int().positive(),
-      timeline: z.discriminatedUnion("type", [killRaceTimelineSchema, kothTimelineSchema, oddballTimelineSchema]),
+      timeline: z.discriminatedUnion("type", [
+        killRaceTimelineSchema,
+        kothTimelineSchema,
+        oddballTimelineSchema,
+        strongholdsTimelineSchema,
+      ]),
     })
     .nullable(),
 });
