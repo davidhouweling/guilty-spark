@@ -275,6 +275,17 @@ describe("buildKothScoreSeries", () => {
     ]);
   });
 
+  it("returns an empty series when every event lands past the match duration", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 61000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 66000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+      ],
+      hillCaptureTimestamps: [],
+    });
+    expect(buildKothScoreSeries(timeline, [0, 1], 60000)).toEqual({ samples: [], hillBoundaries: [] });
+  });
+
   it("clamps ticks from a match-ending capture past the duration onto the axis edge", () => {
     const timeline = aFakeKothTimelineWith({
       events: [

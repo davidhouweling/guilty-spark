@@ -62,6 +62,7 @@ export function buildKothScoreSeries(
   const { events } = timeline;
   let cursor = 0;
   let baseline: Record<string, number> = {};
+  let hasEventSamples = false;
 
   for (const period of buildKothHillPeriods(timeline.hillCaptureTimestamps, durationMs)) {
     while (cursor < events.length && events[cursor].timestampMs < period.startMs) {
@@ -83,6 +84,7 @@ export function buildKothScoreSeries(
         hillTicks[key] = (event.runningScores[key] ?? 0) - (baseline[key] ?? 0);
       }
       samples.push({ timestampMs: Math.min(event.timestampMs, durationMs), runningScores: hillTicks });
+      hasEventSamples = true;
       cursor++;
     }
     if (cursor > 0) {
@@ -90,6 +92,11 @@ export function buildKothScoreSeries(
     }
   }
 
+  // a series holding only the zero-reset seeds (every event past the duration) reconstructs
+  // nothing — report it as unavailable rather than a flat zero chart
+  if (!hasEventSamples) {
+    return { samples: [], hillBoundaries: [] };
+  }
   return { samples, hillBoundaries };
 }
 
