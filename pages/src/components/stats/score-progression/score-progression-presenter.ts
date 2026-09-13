@@ -1,4 +1,3 @@
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
@@ -60,13 +59,16 @@ export class ScoreProgressionPresenter {
     const { viewData, ariaLabel } = input;
     switch (viewData.kind) {
       case "score-lines": {
-        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
+        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData));
       }
       case "strongholds": {
-        const { zoneStrip } = viewData;
-        return this.presentMode(snapshot, ariaLabel, viewData.scoreLines.durationMs, {
-          buildRows: zoneStrip != null ? (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)] : null,
-          scoreLines: viewData.scoreLines,
+        const { zoneStrip, scoreLines } = viewData;
+        if (zoneStrip == null) {
+          return this.presentScoreLines(snapshot, scoreLines, ariaLabel, this.buildChartTypeOptions(scoreLines));
+        }
+        return this.presentMode(snapshot, ariaLabel, scoreLines.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)],
+          scoreLines,
           defaultChartType: "progression",
         });
       }
@@ -90,33 +92,26 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // One resolution rule for every mode that can carry both a gantt timeline and score lines: an
-  // unset chart type resolves to the mode's default, whose options also lead the select.
+  // an unset chart type resolves to the mode's default, whose option group leads the select
   private presentMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
     durationMs: number,
     mode: {
-      buildRows: (() => readonly TimelineGanttRowViewModel[]) | null;
+      buildRows: () => readonly TimelineGanttRowViewModel[];
       scoreLines: ScoreLinesViewData | null;
       defaultChartType: ChartType;
     },
   ): ScoreProgressionViewModel {
     const { buildRows, scoreLines, defaultChartType } = mode;
-    const scoreOptions = this.buildChartTypeOptions(scoreLines, []);
-    const timelineOptions = buildRows != null ? [TIMELINE_OPTION] : [];
+    const scoreOptions = this.buildChartTypeOptions(scoreLines);
     const chartTypeOptions =
-      defaultChartType === "timeline" ? [...timelineOptions, ...scoreOptions] : [...scoreOptions, ...timelineOptions];
+      defaultChartType === "timeline" ? [TIMELINE_OPTION, ...scoreOptions] : [...scoreOptions, TIMELINE_OPTION];
     const wantsTimeline = (snapshot.chartType ?? defaultChartType) === "timeline";
-    if (buildRows != null && (scoreLines == null || wantsTimeline)) {
+    if (scoreLines == null || wantsTimeline) {
       return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
-    return this.presentScoreLines(
-      snapshot,
-      Preconditions.checkExists(scoreLines, "a mode without gantt rows must carry score lines"),
-      ariaLabel,
-      chartTypeOptions,
-    );
+    return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }
 
   private buildZoneStripRow(zoneStrip: ZoneStripData): TimelineGanttRowViewModel {
@@ -142,14 +137,11 @@ export class ScoreProgressionPresenter {
     return entries.map((entry) => `${entry.name} ${String(entry.percentage)}%`).join(" · ");
   }
 
-  private buildChartTypeOptions(
-    viewData: ScoreLinesViewData | null,
-    leadingOptions: readonly ChartTypeOption[],
-  ): ChartTypeOption[] {
+  private buildChartTypeOptions(viewData: ScoreLinesViewData | null): ChartTypeOption[] {
     if (viewData == null) {
-      return [...leadingOptions];
+      return [];
     }
-    return [...leadingOptions, PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
+    return [PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
   }
 
   private presentScoreLines(

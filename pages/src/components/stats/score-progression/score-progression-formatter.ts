@@ -10,6 +10,7 @@ import {
   buildStrongholdsMarkers,
   buildZoneAdvantage,
   buildZoneControlStrip,
+  buildZoneCountWindows,
 } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
 import type {
@@ -316,9 +317,10 @@ export function formatScoreProgression(
       const teamLines = buildSampledTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
       // null rather than an empty array so "no markers" reads the same as modes without markers
       const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
+      const zoneWindows = buildZoneCountWindows(timeline.zoneTimeline, teams.teamIds, durationMs);
       return {
         kind: "strongholds",
-        zoneStrip: buildZoneControlStrip(timeline.zoneTimeline, teamLines, durationMs),
+        zoneStrip: buildZoneControlStrip(zoneWindows, teamLines, durationMs),
         scoreLines: {
           kind: "score-lines",
           durationMs,
@@ -326,7 +328,7 @@ export function formatScoreProgression(
           scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
           playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
           markers: markers.length > 0 ? markers : null,
-          zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
+          zoneAdvantage: buildZoneAdvantage(zoneWindows, durationMs),
           roundBoundaries: [],
         },
       };

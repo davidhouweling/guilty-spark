@@ -47,7 +47,7 @@ export interface TimelineGanttSegment {
   readonly opacity?: number | undefined;
 }
 
-export interface KothHillTeamProgress {
+export interface TeamPercentShare {
   readonly teamId: number;
   readonly name: string;
   readonly color: string;
@@ -62,7 +62,7 @@ export interface KothHillData {
   readonly winnerTeamId: number | null;
   readonly winnerColor: string | null;
   readonly winnerName: string | null;
-  readonly teamCaptureProgress: readonly KothHillTeamProgress[];
+  readonly teamCaptureProgress: readonly TeamPercentShare[];
 }
 
 export interface OddballRoundTeamScore {
@@ -114,17 +114,10 @@ export interface ScoreLinesViewData {
   readonly roundBoundaries: readonly number[];
 }
 
-export interface ZoneStripTeamShare {
-  readonly teamId: number;
-  readonly name: string;
-  readonly color: string;
-  // share of the match this team held more zones than the opponent
-  readonly percentage: number;
-}
-
 export interface ZoneStripData {
   readonly segments: readonly TimelineGanttSegment[];
-  readonly teamShares: readonly ZoneStripTeamShare[];
+  // each team's share of the match spent holding more zones than the opponent
+  readonly teamShares: readonly TeamPercentShare[];
 }
 
 export interface StrongholdsViewData {

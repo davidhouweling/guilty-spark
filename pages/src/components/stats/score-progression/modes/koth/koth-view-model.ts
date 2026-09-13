@@ -3,7 +3,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
-import type { KothHillData, KothHillTeamProgress, ScoreSample, TimelineGanttSegment } from "../../types";
+import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
 
 const MIN_TRAILING_HILL_MS = 2_000;
 
@@ -188,7 +188,7 @@ export function buildKothHills(
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 
-    const teamCaptureProgress: KothHillTeamProgress[] = teamIds.map((teamId) => ({
+    const teamCaptureProgress: TeamPercentShare[] = teamIds.map((teamId) => ({
       teamId,
       name: getTeamName(teamId),
       color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
