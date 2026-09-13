@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildSampledTeamLines } from "../../../sampled-team-lines";
 import { buildStrongholdsMarkers, buildZoneAdvantage, buildZoneControlStrip } from "../strongholds-view-model";
 import { aFakeStrongholdsTimelineWith } from "../fakes/strongholds-timeline.fake";
+import { aFakeTeamLineWith } from "../../../fakes/team-line.fake";
 
 const TEAM_IDS = [0, 1] as const;
 const TEAM_COLORS = new Map<number, string>([
@@ -99,10 +100,7 @@ describe("buildZoneAdvantage", () => {
 });
 
 describe("buildZoneControlStrip", () => {
-  const TEAM_LINES = [
-    { teamId: 0, name: "Eagle", color: "#0000ff", points: [] },
-    { teamId: 1, name: "Cobra", color: "#ff0000", points: [] },
-  ];
+  const TEAM_LINES = [aFakeTeamLineWith(), aFakeTeamLineWith({ teamId: 1, name: "Cobra", color: "#ff0000" })];
 
   it("colors each window by the leading team with opacity from their zone count", () => {
     const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_LINES, 100000);
@@ -199,7 +197,7 @@ describe("buildZoneControlStrip", () => {
   });
 
   it("returns null without exactly two teams or without samples", () => {
-    const threeLines = [...TEAM_LINES, { teamId: 2, name: "Hades", color: "#00ff00", points: [] }];
+    const threeLines = [...TEAM_LINES, aFakeTeamLineWith({ teamId: 2, name: "Hades", color: "#00ff00" })];
     expect(buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, threeLines, 100000)).toBeNull();
     expect(buildZoneControlStrip([], TEAM_LINES, 100000)).toBeNull();
   });
