@@ -10,9 +10,7 @@ function findCaptureWinnerTeamId(events: KothTimeline["events"], captureTs: numb
   return events.findLast((event) => event.timestampMs === captureTs)?.teamId ?? null;
 }
 
-// The match score for King of the Hill is hills won, so the competitive score line steps by one
-// at each captured hill. Deriving the steps from the hills keeps the score line and the hills
-// timeline agreeing on winners and capture times by construction.
+// The match score for King of the Hill is hills won, so the score line steps by one per captured hill.
 export function buildKothCaptureEvents(hills: readonly KothHillData[], teamIds: readonly number[]): KillRaceEvent[] {
   const runningScores = new Map<number, number>(teamIds.map((teamId) => [teamId, 0]));
   const captureEvents: KillRaceEvent[] = [];
@@ -123,8 +121,9 @@ export function buildKothHills(
   for (const captureTs of hillCaptureTimestamps) {
     // film-clock interpolation can land a capture slightly past the match duration; the hill is
     // real, so its end clamps to the axis while the raw timestamp still identifies the winner
-    hillPeriods.push({ startMs: hillStart, endMs: Math.min(captureTs, durationMs), captureTs });
-    hillStart = Math.min(captureTs, durationMs);
+    const endMs = Math.min(captureTs, durationMs);
+    hillPeriods.push({ startMs: hillStart, endMs, captureTs });
+    hillStart = endMs;
   }
   // A match that ends on a capture leaves a sliver between the final capture and the film end;
   // that sliver is not a real hill, so only keep a trailing hill the teams actually contested.
@@ -143,7 +142,13 @@ export function buildKothHills(
       teamId,
       name: getTeamName(teamId),
       color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
-      percentage: buildCaptureMeterPercentage(timeline.events, teamId, period.startMs, period.endMs, winnerTeamId),
+      percentage: buildCaptureMeterPercentage(
+        timeline.events,
+        teamId,
+        period.startMs,
+        period.captureTs ?? period.endMs,
+        winnerTeamId,
+      ),
     }));
 
     return {

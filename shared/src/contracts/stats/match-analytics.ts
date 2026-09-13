@@ -23,18 +23,19 @@ const teamDeathEventSchema = z.object({
 
 // death timeline plus the mode's respawn duration — the inputs of the player-advantage overlay,
 // shared by every respawn-bearing mode timeline
-const deathOverlayFields = {
+const deathOverlaySchema = z.object({
   deathTimeline: z.array(teamDeathEventSchema),
   respawnDurationMs: z.number().int().positive().nullable(),
-};
+});
 
+export type DeathOverlay = z.infer<typeof deathOverlaySchema>;
 export type KillRaceEvent = z.infer<typeof killRaceEventSchema>;
 export type TeamDeathEvent = z.infer<typeof teamDeathEventSchema>;
 
 const killRaceTimelineSchema = z.object({
   type: z.literal("kill-race"),
   events: z.array(killRaceEventSchema),
-  ...deathOverlayFields,
+  ...deathOverlaySchema.shape,
 });
 
 const kothEventSchema = progressionEventSchema;
@@ -50,7 +51,7 @@ const kothTimelineSchema = z.object({
   events: z.array(kothEventSchema),
   controlPeriods: z.array(kothControlPeriodSchema),
   hillCaptureTimestamps: z.array(z.number().int().nonnegative()),
-  ...deathOverlayFields,
+  ...deathOverlaySchema.shape,
 });
 
 export type KothEvent = z.infer<typeof kothEventSchema>;
@@ -79,7 +80,7 @@ const oddballRoundSchema = z.object({
 const oddballTimelineSchema = z.object({
   type: z.literal("oddball"),
   rounds: z.array(oddballRoundSchema),
-  ...deathOverlayFields,
+  ...deathOverlaySchema.shape,
 });
 
 export type OddballCarrySegment = z.infer<typeof oddballCarrySegmentSchema>;
@@ -108,7 +109,7 @@ const strongholdsTimelineSchema = z.object({
   events: z.array(strongholdsEventSchema),
   zoneEvents: z.array(strongholdsZoneEventSchema),
   zoneTimeline: z.array(strongholdsZoneCountSampleSchema),
-  ...deathOverlayFields,
+  ...deathOverlaySchema.shape,
 });
 
 export type StrongholdsZoneEvent = z.infer<typeof strongholdsZoneEventSchema>;

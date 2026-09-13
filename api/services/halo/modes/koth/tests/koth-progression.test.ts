@@ -238,10 +238,10 @@ describe("buildKothProgression", () => {
     const allEvents = [
       modeEvent(0, 5000),
       aFakeParsedHighlightEventWith({ teamId: 1, timeMs: 12000 }),
-      aFakeParsedHighlightEventWith({ teamId: null, timeMs: 15000 }), // unattributed — dropped
-      aFakeParsedHighlightEventWith({ teamId: 7, timeMs: 18000 }), // team not in match stats — dropped
+      aFakeParsedHighlightEventWith({ teamId: null, timeMs: 15000 }),
+      aFakeParsedHighlightEventWith({ teamId: 7, timeMs: 18000 }),
       aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 20000 }),
-      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 305000 }), // past match duration — dropped
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 305000 }),
     ];
 
     const result = buildKothProgression(allEvents, [], kothMatchStats(), 300000);

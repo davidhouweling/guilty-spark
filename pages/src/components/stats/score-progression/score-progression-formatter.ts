@@ -1,9 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type {
-  KillRaceEvent,
-  MatchAnalytics,
-  TeamDeathEvent,
-} from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { DeathOverlay, KillRaceEvent, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
@@ -68,21 +64,16 @@ function buildScoreDelta(
   return { points, minScore, maxScore, lineType };
 }
 
-interface DeathOverlaySource {
-  readonly deathTimeline: readonly TeamDeathEvent[];
-  readonly respawnDurationMs: number | null;
-}
-
 function buildPlayerAdvantage(
   teamIds: readonly number[],
-  { deathTimeline, respawnDurationMs }: DeathOverlaySource,
+  { deathTimeline, respawnDurationMs }: DeathOverlay,
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
   if (respawnDurationMs == null) {
     return null;
   }
-  // a trailing film death past the match end would push advantage points beyond the x-axis
+  // producers clamp server-side; kept as boundary defense for payloads from an older api deploy
   const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
   if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
@@ -189,11 +180,10 @@ interface ResolvedTeams {
   readonly teamColorByTeamId: Map<number, string>;
 }
 
-// kill-race and koth share the same event-stepped score-lines shape; only the event source differs
 function buildStepScoreLines(
   events: readonly KillRaceEvent[],
   teams: ResolvedTeams,
-  overlaySource: DeathOverlaySource,
+  overlaySource: DeathOverlay,
   durationMs: number,
   teamSize: number | null,
 ): ScoreLinesViewData {
