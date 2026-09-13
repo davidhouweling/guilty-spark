@@ -4,7 +4,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
-import { buildKothCaptureEvents, buildKothHills } from "./modes/koth/koth-view-model";
+import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import { buildStrongholdsMarkers, buildZoneAdvantage } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
@@ -199,6 +199,26 @@ function buildStepScoreLines(
   };
 }
 
+function buildSampledScoreLines(
+  samples: readonly ScoreSample[],
+  roundBoundaries: readonly number[],
+  teams: ResolvedTeams,
+  overlaySource: DeathOverlay,
+  durationMs: number,
+  teamSize: number | null,
+): ScoreLinesViewData {
+  return {
+    kind: "score-lines",
+    durationMs,
+    teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
+    playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
+    markers: null,
+    zoneAdvantage: null,
+    roundBoundaries,
+  };
+}
+
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
@@ -247,15 +267,15 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const hills = buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
-      const captureEvents = buildKothCaptureEvents(hills, teams.teamIds);
-      const scoreLines: ScoreLinesViewData | null =
-        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
+      const { samples, hillBoundaries } = buildKothScoreSeries(timeline, teams.teamIds, durationMs);
       return {
         kind: "koth",
         durationMs,
-        hills,
-        scoreLines,
+        hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreLines:
+          samples.length > 0
+            ? buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize)
+            : null,
       };
     }
     case "oddball": {
@@ -270,24 +290,14 @@ export function formatScoreProgression(
         return null;
       }
       const { samples, roundBoundaries } = buildOddballScoreSeries(timeline, teams.teamIds, durationMs);
-      const scoreLines: ScoreLinesViewData | null =
-        samples.length > 0
-          ? {
-              kind: "score-lines",
-              durationMs,
-              teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
-              scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
-              playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
-              markers: null,
-              zoneAdvantage: null,
-              roundBoundaries,
-            }
-          : null;
       return {
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
-        scoreLines,
+        scoreLines:
+          samples.length > 0
+            ? buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize)
+            : null,
       };
     }
     case "strongholds": {

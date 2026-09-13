@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildKothCaptureEvents, buildKothHills } from "../koth-view-model";
+import { buildKothHills, buildKothScoreSeries } from "../koth-view-model";
 import { aFakeKothTimelineWith } from "../fakes/koth-timeline.fake";
-import { aFakeKothHillDataWith } from "../../../fakes/koth-hill-data.fake";
 
 const TEAM_IDS = [0, 1] as const;
 const TEAM_COLOR_BY_TEAM_ID = new Map<number, string>([
@@ -220,26 +219,49 @@ describe("buildKothHills", () => {
   });
 });
 
-describe("buildKothCaptureEvents", () => {
-  it("steps the winning team's hill count at each captured hill", () => {
-    const hills = [
-      aFakeKothHillDataWith({ hillIndex: 1, startMs: 0, endMs: 30000, winnerTeamId: 0 }),
-      aFakeKothHillDataWith({ hillIndex: 2, startMs: 30000, endMs: 55000, winnerTeamId: 1 }),
-    ];
-    expect(buildKothCaptureEvents(hills, [0, 1])).toEqual([
-      { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-      { timestampMs: 55000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+describe("buildKothScoreSeries", () => {
+  it("builds per-hill tick curves that reset to zero at each capture", () => {
+    const { samples, hillBoundaries } = buildKothScoreSeries(aFakeKothTimelineWith(), [0, 1], 60000);
+
+    expect(hillBoundaries).toEqual([30000, 55000]);
+    expect(samples).toEqual([
+      { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 2500, runningScores: { "0": 1, "1": 0 } },
+      { timestampMs: 5000, runningScores: { "0": 2, "1": 0 } },
+      { timestampMs: 12500, runningScores: { "0": 2, "1": 1 } },
+      { timestampMs: 20000, runningScores: { "0": 3, "1": 1 } },
+      { timestampMs: 30000, runningScores: { "0": 4, "1": 1 } },
+      // hill 2: ticks measured against the totals standing at the capture
+      { timestampMs: 30000, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 32500, runningScores: { "0": 0, "1": 1 } },
+      { timestampMs: 45000, runningScores: { "0": 0, "1": 2 } },
+      { timestampMs: 55000, runningScores: { "0": 0, "1": 3 } },
+      // trailing hill: contested but never captured
+      { timestampMs: 55000, runningScores: { "0": 0, "1": 0 } },
     ]);
   });
 
-  it("skips uncaptured hills and winners outside the team list", () => {
-    const hills = [
-      aFakeKothHillDataWith({ hillIndex: 1, startMs: 0, endMs: 30000, winnerTeamId: 0 }),
-      aFakeKothHillDataWith({ hillIndex: 2, startMs: 30000, endMs: 45000, winnerTeamId: null }),
-      aFakeKothHillDataWith({ hillIndex: 3, startMs: 45000, endMs: 55000, winnerTeamId: 7 }),
-    ];
-    expect(buildKothCaptureEvents(hills, [0, 1])).toEqual([
-      { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
-    ]);
+  it("builds one cumulative window with no boundaries when no captures are identified", () => {
+    const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [] });
+    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+
+    expect(hillBoundaries).toEqual([]);
+    expect(samples[0]).toEqual({ timestampMs: 0, runningScores: { "0": 0, "1": 0 } });
+    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 4, "1": 4 } });
+  });
+
+  it("clamps ticks from a match-ending capture past the duration onto the axis edge", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 58000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+        { timestampMs: 60350, teamId: 1, runningScores: { "0": 1, "1": 2 } },
+      ],
+      hillCaptureTimestamps: [30000, 60350],
+    });
+    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+
+    expect(hillBoundaries).toEqual([30000]);
+    expect(samples.at(-1)).toEqual({ timestampMs: 60000, runningScores: { "0": 0, "1": 2 } });
   });
 });

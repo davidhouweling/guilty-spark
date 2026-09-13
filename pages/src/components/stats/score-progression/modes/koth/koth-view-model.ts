@@ -1,8 +1,8 @@
-import type { KillRaceEvent, KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { tileSegments } from "../../timeline-segments";
-import type { KothHillData, KothHillTeamProgress, TimelineGanttSegment } from "../../types";
+import type { KothHillData, KothHillTeamProgress, ScoreSample, TimelineGanttSegment } from "../../types";
 
 // A capture timestamp is the capturing team's last score-event timestamp, so the co-timestamped
 // event identifies the winner.
@@ -10,26 +10,66 @@ function findCaptureWinnerTeamId(events: KothTimeline["events"], captureTs: numb
   return events.findLast((event) => event.timestampMs === captureTs)?.teamId ?? null;
 }
 
-// The match score for King of the Hill is hills won, so the score line steps by one per captured hill.
-export function buildKothCaptureEvents(hills: readonly KothHillData[], teamIds: readonly number[]): KillRaceEvent[] {
-  const runningScores = new Map<number, number>(teamIds.map((teamId) => [teamId, 0]));
-  const captureEvents: KillRaceEvent[] = [];
-  for (const hill of hills) {
-    if (hill.winnerTeamId == null) {
-      continue;
-    }
-    const currentScore = runningScores.get(hill.winnerTeamId);
-    if (currentScore == null) {
-      continue;
-    }
-    runningScores.set(hill.winnerTeamId, currentScore + 1);
-    captureEvents.push({
-      timestampMs: hill.endMs,
-      teamId: hill.winnerTeamId,
-      runningScores: Object.fromEntries(runningScores),
-    });
+export interface KothScoreSeries {
+  readonly samples: readonly ScoreSample[];
+  readonly hillBoundaries: readonly number[];
+}
+
+// runningScores are cumulative across the match, so a hill's ticks are measured against the
+// totals standing when the hill spawned
+function cumulativeScoresAt(events: KothTimeline["events"], timestampMs: number): Record<string, number> {
+  return events.findLast((event) => event.timestampMs <= timestampMs)?.runningScores ?? {};
+}
+
+function zeroScores(teamIds: readonly number[]): Record<string, number> {
+  return Object.fromEntries(teamIds.map((teamId) => [String(teamId), 0]));
+}
+
+// Each hill is its own capture race: both teams' scoring ticks climb from zero until one team
+// captures, then the meter resets for the next hill — mirroring oddball's per-round curves.
+export function buildKothScoreSeries(
+  timeline: KothTimeline,
+  teamIds: readonly number[],
+  durationMs: number,
+): KothScoreSeries {
+  const samples: ScoreSample[] = [];
+  const hillBoundaries: number[] = [];
+
+  const windowEnds = [...timeline.hillCaptureTimestamps];
+  if ((windowEnds.at(-1) ?? 0) < durationMs) {
+    windowEnds.push(durationMs);
   }
-  return captureEvents;
+
+  let startMs = 0;
+  for (const endMs of windowEnds) {
+    if (startMs >= durationMs) {
+      break;
+    }
+    if (samples.length > 0) {
+      hillBoundaries.push(startMs);
+    }
+    samples.push({ timestampMs: startMs, runningScores: zeroScores(teamIds) });
+
+    const baseline = cumulativeScoresAt(timeline.events, startMs);
+    for (const event of timeline.events) {
+      if (event.timestampMs <= startMs || event.timestampMs > endMs) {
+        continue;
+      }
+      const hillTicks = Object.fromEntries(
+        teamIds.map((teamId) => {
+          const key = String(teamId);
+          return [key, (event.runningScores[key] ?? 0) - (baseline[key] ?? 0)];
+        }),
+      );
+      // the match-ending capture can interpolate slightly past the duration; its ticks are real,
+      // so they land on the axis edge rather than being dropped
+      samples.push({ timestampMs: Math.min(event.timestampMs, durationMs), runningScores: hillTicks });
+    }
+
+    startMs = endMs;
+  }
+
+  return { samples, hillBoundaries };
 }
 
 const MIN_TRAILING_HILL_MS = 2_000;
