@@ -28,6 +28,7 @@ import type { ScoreProgressionProgressionViewModel } from "../types";
 
 export function ProgressionChart({
   durationMs,
+  roundBoundaries,
   teamLines,
   playerAdvantage,
   zoneAdvantage,
@@ -44,6 +45,9 @@ export function ProgressionChart({
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
+        {roundBoundaries?.map((boundaryMs) => (
+          <ReferenceLine key={boundaryMs} x={boundaryMs} stroke={AXIS_STROKE} strokeDasharray="3 3" />
+        ))}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}

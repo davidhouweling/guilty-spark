@@ -5,6 +5,7 @@ describe("ScoreProgressionDeltaViewModel", () => {
   it("accepts a tooltipFormatter callback", () => {
     const props: ScoreProgressionDeltaViewModel = {
       durationMs: 600000,
+      roundBoundaries: null,
       scoreDelta: {
         points: [{ timestampMs: 0, score: 0 }],
         minScore: 0,

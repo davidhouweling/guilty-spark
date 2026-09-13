@@ -14,7 +14,7 @@ vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }): React.ReactElement => <div>{children}</div>,
   AreaChart: ({ children }: { children: React.ReactNode }): React.ReactElement => <div>{children}</div>,
   CartesianGrid: (): null => null,
-  ReferenceLine: (): null => null,
+  ReferenceLine: ({ x }: { x?: number }): React.ReactElement => <div data-testid="reference-line" data-x={x} />,
   ReferenceDot: ({
     x,
     y,
@@ -46,6 +46,7 @@ function aProgressionViewModelWith(
 ): ScoreProgressionProgressionViewModel {
   return {
     durationMs: 600000,
+    roundBoundaries: null,
     teamLines,
     playerAdvantage: null,
     zoneAdvantage: null,
@@ -113,6 +114,12 @@ describe("ProgressionChart", () => {
       .filter((axis) => axis.getAttribute("data-axis") === "advantage");
     expect(advantageAxes).toHaveLength(1);
     expect(advantageAxes[0]).toHaveAttribute("data-domain", "-3,3");
+  });
+
+  it("renders a dashed reference line at each round boundary", () => {
+    render(<ProgressionChart {...aProgressionViewModelWith({ roundBoundaries: [200000, 400000] })} />);
+    const boundaryLines = screen.getAllByTestId("reference-line").filter((line) => line.getAttribute("data-x") != null);
+    expect(boundaryLines.map((line) => line.getAttribute("data-x"))).toEqual(["200000", "400000"]);
   });
 
   it("renders no advantage axis when no overlay is enabled", () => {

@@ -5,13 +5,43 @@ import { Select } from "../../select/select";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
-import type { ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
+import type { ChartType, ChartTypeOption, ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
 import styles from "./score-progression.module.css";
+
+interface ChartTypeSelectProps {
+  readonly value: ChartType;
+  readonly options: readonly ChartTypeOption[];
+  readonly onChange: (value: string) => void;
+}
+
+function ChartTypeSelect({ value, options, onChange }: ChartTypeSelectProps): React.ReactElement {
+  return (
+    <>
+      <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
+        Chart type
+      </label>
+      <Select
+        id="chart-type-select"
+        containerClassName={styles.toolbarSelect}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </Select>
+    </>
+  );
+}
 
 function ScoreLinesCharts({
   ariaLabel,
   effectiveChartType,
-  hasDelta,
+  chartTypeOptions,
   hasPlayerAdvantage,
   hasMarkers,
   hasZoneAdvantage,
@@ -30,23 +60,8 @@ function ScoreLinesCharts({
     <div className={styles.container}>
       {showToolbar && (
         <div className={styles.toolbar}>
-          {hasDelta && (
-            <>
-              <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
-                Chart type
-              </label>
-              <Select
-                id="chart-type-select"
-                containerClassName={styles.toolbarSelect}
-                value={effectiveChartType}
-                onChange={(e) => {
-                  onChartTypeChange(e.target.value);
-                }}
-              >
-                <option value="progression">Score Progression</option>
-                <option value="delta">Score Delta</option>
-              </Select>
-            </>
+          {chartTypeOptions.length > 1 && (
+            <ChartTypeSelect value={effectiveChartType} options={chartTypeOptions} onChange={onChartTypeChange} />
           )}
           {(hasPlayerAdvantage || hasZoneAdvantage || hasMarkers) && (
             <div className={styles.toolbarToggles}>
@@ -96,6 +111,11 @@ export function ScoreProgression(props: ScoreProgressionViewModel): React.ReactE
     case "timeline-gantt": {
       return (
         <div className={styles.container}>
+          {props.chartTypeOptions.length > 1 && (
+            <div className={styles.toolbar}>
+              <ChartTypeSelect value="timeline" options={props.chartTypeOptions} onChange={props.onChartTypeChange} />
+            </div>
+          )}
           <div role="img" aria-label={props.ariaLabel}>
             <TimelineGanttChart {...props.timeline} />
           </div>

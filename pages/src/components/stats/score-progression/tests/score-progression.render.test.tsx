@@ -36,7 +36,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     kind: "score-lines",
     ariaLabel: "test chart",
     effectiveChartType: "progression",
-    hasDelta: false,
+    chartTypeOptions: [{ value: "progression", label: "Score Progression" }],
     hasPlayerAdvantage: false,
     hasMarkers: false,
     hasZoneAdvantage: false,
@@ -47,6 +47,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     deltaViewModel: null,
     progressionViewModel: {
       durationMs: 600000,
+      roundBoundaries: null,
       teamLines: [],
       playerAdvantage: null,
       zoneAdvantage: null,
@@ -79,5 +80,35 @@ describe("ScoreProgression", () => {
     render(<ScoreProgression {...aScoreLinesViewModelWith()} />);
     expect(screen.queryByText("Capture")).not.toBeInTheDocument();
     expect(screen.queryByText("Secure")).not.toBeInTheDocument();
+  });
+
+  it("renders the chart-type select above the timeline gantt when other chart types are offered", () => {
+    render(
+      <ScoreProgression
+        kind="timeline-gantt"
+        ariaLabel="test chart"
+        chartTypeOptions={[
+          { value: "timeline", label: "Objective Timeline" },
+          { value: "progression", label: "Score Progression" },
+        ]}
+        timeline={{ durationMs: 600000, rows: [] }}
+        onChartTypeChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+    expect(screen.getByLabelText("Chart type")).toBeInTheDocument();
+    expect(screen.getByText("Objective Timeline")).toBeInTheDocument();
+  });
+
+  it("renders no chart-type select above the timeline gantt when it is the only chart type", () => {
+    render(
+      <ScoreProgression
+        kind="timeline-gantt"
+        ariaLabel="test chart"
+        chartTypeOptions={[{ value: "timeline", label: "Objective Timeline" }]}
+        timeline={{ durationMs: 600000, rows: [] }}
+        onChartTypeChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+    expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
   });
 });

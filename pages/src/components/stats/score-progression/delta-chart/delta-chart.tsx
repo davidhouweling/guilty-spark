@@ -69,6 +69,7 @@ function DeltaChartGradients({
 
 export function DeltaChart({
   durationMs,
+  roundBoundaries,
   scoreDelta,
   team0Color,
   team1Color,
@@ -96,6 +97,9 @@ export function DeltaChart({
         <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
+        {roundBoundaries?.map((boundaryMs) => (
+          <ReferenceLine key={boundaryMs} x={boundaryMs} stroke={AXIS_STROKE} strokeDasharray="3 3" />
+        ))}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}

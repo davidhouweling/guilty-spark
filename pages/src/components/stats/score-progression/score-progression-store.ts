@@ -8,8 +8,10 @@ export interface ScoreProgressionSnapshot {
 }
 
 export class ScoreProgressionStore {
+  // "timeline" resolves per mode: gantt modes show their timeline, score-line modes fall
+  // back to the progression chart
   private _snapshot: ScoreProgressionSnapshot = {
-    chartType: "progression",
+    chartType: "timeline",
     showPlayerAdvantage: false,
     showMarkers: true,
     showZoneAdvantage: false,

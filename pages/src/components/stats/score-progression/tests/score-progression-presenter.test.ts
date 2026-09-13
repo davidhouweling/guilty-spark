@@ -61,6 +61,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       playerAdvantage: null,
       markers: null,
       zoneAdvantage: null,
+      roundBoundaries: null,
       ...overrides,
     },
     ariaLabel: "test chart",
@@ -76,7 +77,7 @@ function aKothInput(hills: readonly KothHillData[]): ScoreProgressionInput {
 
 function anOddballInput(rounds: readonly OddballRoundData[]): ScoreProgressionInput {
   return {
-    viewData: { kind: "oddball", durationMs: 600000, rounds },
+    viewData: { kind: "oddball", durationMs: 600000, rounds, scoreLines: null },
     ariaLabel: "test chart",
   };
 }
@@ -121,18 +122,18 @@ describe("ScoreProgressionPresenter", () => {
       expect(model.effectiveChartType).toBe("progression");
     });
 
-    it("sets hasDelta true when scoreDelta is non-null", () => {
+    it("offers progression and delta chart types when scoreDelta is non-null", () => {
       const { store, presenter } = makePresenter();
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.hasDelta).toBe(true);
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta"]);
     });
 
-    it("sets hasDelta false when scoreDelta is null", () => {
+    it("offers only the progression chart type when scoreDelta is null", () => {
       const { store, presenter } = makePresenter();
       const model = asScoreLines(presenter.present(store.getSnapshot(), aScoreLinesInput()));
-      expect(model.hasDelta).toBe(false);
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression"]);
     });
 
     it("returns null deltaViewModel when effectiveChartType is progression", () => {
@@ -479,10 +480,17 @@ describe("ScoreProgressionPresenter", () => {
       expect(store.getSnapshot().chartType).toBe("progression");
     });
 
+    it("updates the store to timeline", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      presenter.onChartTypeChange("timeline");
+      expect(store.getSnapshot().chartType).toBe("timeline");
+    });
+
     it("ignores invalid values", () => {
       const { store, presenter } = makePresenter();
       presenter.onChartTypeChange("invalid");
-      expect(store.getSnapshot().chartType).toBe("progression");
+      expect(store.getSnapshot().chartType).toBe("timeline");
     });
   });
 
@@ -579,6 +587,71 @@ describe("ScoreProgressionPresenter", () => {
       const { store, presenter } = makePresenter();
       const model = presenter.present(store.getSnapshot(), aScoreLinesInput());
       expect(model.kind).toBe("score-lines");
+    });
+  });
+
+  describe("oddball chart types", () => {
+    function anOddballInputWithScoreLines(scoreDelta: ScoreDeltaData | null): ScoreProgressionInput {
+      const scoreLines: ScoreLinesViewData = {
+        kind: "score-lines",
+        durationMs: 600000,
+        teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+        scoreDelta,
+        playerAdvantage: null,
+        markers: null,
+        zoneAdvantage: null,
+        roundBoundaries: [300000],
+      };
+      return {
+        viewData: { kind: "oddball", durationMs: 600000, rounds: [aFakeOddballRoundDataWith()], scoreLines },
+        ariaLabel: "test chart",
+      };
+    }
+
+    it("shows the rounds timeline by default with all chart types offered", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
+      );
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+    });
+
+    it("presents the score lines when the chart type is progression", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "progression" });
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
+      );
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+      expect(model.progressionViewModel.roundBoundaries).toEqual([300000]);
+    });
+
+    it("presents the delta chart when the chart type is delta", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
+      );
+      expect(model.effectiveChartType).toBe("delta");
+      expect(model.deltaViewModel?.roundBoundaries).toEqual([300000]);
+    });
+
+    it("offers only the timeline when the oddball data has no score lines", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "progression" });
+      const model = asTimelineGantt(
+        presenter.present(store.getSnapshot(), anOddballInput([aFakeOddballRoundDataWith()])),
+      );
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline"]);
+    });
+
+    it("offers only the timeline chart type for koth", () => {
+      const { store, presenter } = makePresenter();
+      const model = asTimelineGantt(
+        presenter.present(store.getSnapshot(), aKothInput([aFakeKothHillDataWith({ teamCaptureProgress: [] })])),
+      );
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline"]);
     });
   });
 

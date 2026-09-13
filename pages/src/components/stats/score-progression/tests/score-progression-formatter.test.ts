@@ -505,6 +505,27 @@ describe("formatScoreProgression", () => {
       expect(result.rounds[0]?.teamScores.map((o) => o.teamId)).toEqual([0, 1]);
     });
 
+    it("builds per-round score lines with a linear delta and round boundaries", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+      expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 460000, score: 100 });
+      expect(result.scoreLines?.scoreDelta?.lineType).toBe("linear");
+      expect(result.scoreLines?.roundBoundaries).toEqual([342000]);
+      expect(result.scoreLines?.playerAdvantage).toBeNull();
+      expect(result.scoreLines?.markers).toBeNull();
+    });
+
+    it("resets the score lines to zero at each round start", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      const team0ResetPoints = result.scoreLines?.teamLines[0]?.points.filter((point) => point.timestampMs === 342000);
+      expect(team0ResetPoints).toEqual([
+        { timestampMs: 342000, score: 20 },
+        { timestampMs: 342000, score: 0 },
+      ]);
+    });
+
     it("maps team colors onto rounds by slot index order", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));

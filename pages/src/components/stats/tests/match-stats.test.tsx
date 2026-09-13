@@ -229,6 +229,7 @@ describe("MatchStats", () => {
       playerAdvantage: null,
       markers: null,
       zoneAdvantage: null,
+      roundBoundaries: null,
     };
     const baseProps = {
       data,
