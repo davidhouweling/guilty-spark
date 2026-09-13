@@ -2,6 +2,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getMatchStats } from "../../../fakes/data";
+import { aFakeParsedHighlightEventWith } from "../../../fakes/parsed-highlight-event.fake";
 import { buildOddballProgression } from "../oddball-progression";
 import { ODDBALL_3A8D_DURATION_MS, oddball3a8dEvents } from "../fakes/oddball-match-3a8d.fake";
 import { ODDBALL_F206_DURATION_MS, oddballF206Events } from "../fakes/oddball-match-f206.fake";
@@ -24,6 +25,43 @@ function aCalibrationMatchStats(): MatchStats {
 function minute(m: number, s = 0): number {
   return (m * 60 + s) * 1000;
 }
+
+describe("buildOddballProgression death timeline", () => {
+  it("extracts known-team deaths in film order, dropping unattributed, unknown-team and trailing deaths", () => {
+    const death = (
+      timeMs: number,
+      teamId: number | null,
+      index: number,
+    ): ReturnType<typeof aFakeParsedHighlightEventWith> =>
+      aFakeParsedHighlightEventWith({ xuid: `21000000000700${String(index)}`, timeMs, teamId });
+    const events = [
+      death(15000, 1, 0),
+      death(30000, 0, 1),
+      death(45000, null, 2),
+      death(50000, 9, 3),
+      death(ODDBALL_3A8D_DURATION_MS + 5000, 1, 4),
+    ];
+    const progression = buildOddballProgression(events, aCalibrationMatchStats(), ODDBALL_3A8D_DURATION_MS);
+    expect(progression.deathTimeline).toEqual([
+      { timestampMs: 15000, teamId: 1 },
+      { timestampMs: 30000, teamId: 0 },
+    ]);
+  });
+
+  it("still reports the death timeline when no rounds can be solved", () => {
+    const stats = aCalibrationMatchStats();
+    for (const team of stats.Teams) {
+      team.Stats.CoreStats.RoundsWon = 0;
+    }
+    const progression = buildOddballProgression(
+      [aFakeParsedHighlightEventWith({ timeMs: 20000, teamId: 0 })],
+      stats,
+      ODDBALL_3A8D_DURATION_MS,
+    );
+    expect(progression.rounds).toEqual([]);
+    expect(progression.deathTimeline).toEqual([{ timestampMs: 20000, teamId: 0 }]);
+  });
+});
 
 describe("buildOddballProgression (calibration match 3a8dab3d)", () => {
   const progression = buildOddballProgression(oddball3a8dEvents(), aCalibrationMatchStats(), ODDBALL_3A8D_DURATION_MS);

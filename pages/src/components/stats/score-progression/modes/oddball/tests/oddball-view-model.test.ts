@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOddballRounds } from "../oddball-view-model";
+import { buildOddballRounds, buildOddballScoreSeries } from "../oddball-view-model";
 import { aFakeOddballTimelineWith } from "../fakes/oddball-timeline.fake";
 
 const TEAM_IDS = [0, 1] as const;
@@ -63,5 +63,123 @@ describe("buildOddballRounds", () => {
     const rounds = buildOddballRounds(aFakeOddballTimelineWith(), TEAM_IDS, new Map());
     const occupied = rounds[0]?.segments.find((s) => s.teamId != null);
     expect(occupied?.color).toBeNull();
+  });
+});
+
+describe("buildOddballScoreSeries", () => {
+  it("stitches the API round points into the series with a reset at each round start", () => {
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    const at = (timestampMs: number): Record<string, number>[] =>
+      samples.filter((sample) => sample.timestampMs === timestampMs).map((sample) => sample.runningScores);
+    expect(at(0)).toEqual([{ "0": 0, "1": 0 }]);
+    expect(at(20000)).toEqual([{ "0": 15, "1": 0 }]);
+    expect(at(50000)).toEqual([{ "0": 20, "1": 10 }]);
+    // held flat to the round end
+    expect(at(330000)).toEqual([{ "0": 20, "1": 10 }]);
+  });
+
+  it("carries the previous round's totals to the next round start and then resets to zero", () => {
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    const atRoundTwoStart = samples.filter((sample) => sample.timestampMs === 342000);
+    expect(atRoundTwoStart).toEqual([
+      { timestampMs: 342000, runningScores: { "0": 20, "1": 10 } },
+      { timestampMs: 342000, runningScores: { "0": 0, "1": 0 } },
+    ]);
+  });
+
+  it("reports the boundaries of the rounds it actually emitted", () => {
+    const { roundBoundaries } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 470000);
+    expect(roundBoundaries).toEqual([342000]);
+  });
+
+  it("orders rounds by start time so boundaries and resets stay aligned for unsorted input", () => {
+    const timeline = aFakeOddballTimelineWith();
+    const { samples, roundBoundaries } = buildOddballScoreSeries(
+      aFakeOddballTimelineWith({ rounds: [...timeline.rounds].reverse() }),
+      [...TEAM_IDS],
+      470000,
+    );
+    expect(roundBoundaries).toEqual([342000]);
+    expect(samples.at(0)?.timestampMs).toBe(0);
+  });
+
+  it("drops round points past the match duration without inflating the round", () => {
+    const { samples } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 410000);
+    const last = samples.at(-1);
+    // the 460000 completion point is cut; the curve holds the last in-range value to the cut
+    expect(last).toEqual({ timestampMs: 410000, runningScores: { "0": 0, "1": 50 } });
+  });
+
+  it("ramps an overlap-clamped empty-curve round against its true window", () => {
+    const timeline = aFakeOddballTimelineWith({
+      rounds: [
+        {
+          roundIndex: 0,
+          startMs: 0,
+          endMs: 60000,
+          endedByCap: false,
+          winnerTeamId: 0,
+          scores: { "0": 10, "1": 0 },
+          carrySegments: [],
+          points: [{ timestampMs: 60000, runningScores: { "0": 10, "1": 0 } }],
+        },
+        {
+          roundIndex: 1,
+          startMs: 50000,
+          endMs: 100000,
+          endedByCap: false,
+          winnerTeamId: 0,
+          scores: { "0": 50, "1": 0 },
+          carrySegments: [],
+          points: [],
+        },
+      ],
+    });
+    const { samples } = buildOddballScoreSeries(timeline, [...TEAM_IDS], 80000);
+    // 80s is 60% of the round's true 50s→100s window, not 50% of the overlap-clamped remainder
+    expect(samples.at(-1)).toEqual({ timestampMs: 80000, runningScores: { "0": 30, "1": 0 } });
+  });
+
+  it("skips rounds entirely past the match duration and emits no boundary for them", () => {
+    const { samples, roundBoundaries } = buildOddballScoreSeries(aFakeOddballTimelineWith(), [...TEAM_IDS], 330000);
+    expect(roundBoundaries).toEqual([]);
+    expect(samples.at(-1)?.timestampMs).toBe(330000);
+  });
+
+  it("keeps the reset after a sparse round-ending sample so carried scores cannot leak across rounds", () => {
+    const timeline = aFakeOddballTimelineWith();
+    const [round1, round2] = timeline.rounds;
+    const sparseEnding = aFakeOddballTimelineWith({
+      rounds: [{ ...round1, points: [...round1.points, { timestampMs: 330000, runningScores: { "1": 10 } }] }, round2],
+    });
+    const { samples } = buildOddballScoreSeries(sparseEnding, [...TEAM_IDS], 470000);
+    const atRoundTwoStart = samples.filter((sample) => sample.timestampMs === 342000);
+    expect(atRoundTwoStart).toEqual([
+      { timestampMs: 342000, runningScores: { "1": 10 } },
+      { timestampMs: 342000, runningScores: { "0": 0, "1": 0 } },
+    ]);
+  });
+
+  it("falls back to a uniform ramp sloped against the round's true end when a round has no points", () => {
+    const timeline = aFakeOddballTimelineWith({
+      rounds: [
+        {
+          roundIndex: 0,
+          startMs: 0,
+          endMs: 100000,
+          endedByCap: false,
+          winnerTeamId: 0,
+          scores: { "0": 50, "1": 0 },
+          carrySegments: [],
+          points: [],
+        },
+      ],
+    });
+    // duration cuts the round in half, so only half the round score is shown at the cut
+    const { samples } = buildOddballScoreSeries(timeline, [...TEAM_IDS], 50000);
+    expect(samples).toEqual([
+      { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
+      { timestampMs: 50000, runningScores: { "0": 25, "1": 0 } },
+    ]);
   });
 });

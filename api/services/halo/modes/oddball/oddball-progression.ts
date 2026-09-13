@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { ParsedHighlightEvent } from "../../types";
+import type { ParsedHighlightEvent, TeamDeathEvent } from "../../types";
+import { buildDeathTimeline } from "../death-timeline";
 
 // HCS Oddball: the ball carrier scores 1 point per full in-game second held; a round is won at
 // CAP_SCORE points, or by the leader when the 5-minute round timer expires. The round timer
@@ -59,6 +60,7 @@ export interface OddballRound {
 
 export interface OddballProgression {
   rounds: OddballRound[];
+  deathTimeline: TeamDeathEvent[];
   teamCount: number;
 }
 
@@ -525,8 +527,11 @@ export function buildOddballProgression(
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
   const matchTotals = new Map(matchStats.Teams.map((team) => [team.TeamId, team.Stats.CoreStats.Score]));
   const roundCount = matchStats.Teams.reduce((acc, team) => acc + team.Stats.CoreStats.RoundsWon, 0);
+  // trailing film deaths past the match end are dropped for the same reason the round windows
+  // clamp to the duration
+  const deathTimeline = buildDeathTimeline(events, new Set(teamIds)).filter((death) => death.timestampMs <= durationMs);
   if (roundCount === 0 || teamIds.length === 0) {
-    return { rounds: [], teamCount: teamIds.length };
+    return { rounds: [], deathTimeline, teamCount: teamIds.length };
   }
 
   // team attribution is not needed to prove the round is live — an unattributed kill still
@@ -563,5 +568,5 @@ export function buildOddballProgression(
     };
   });
 
-  return { rounds, teamCount: teamIds.length };
+  return { rounds, deathTimeline, teamCount: teamIds.length };
 }

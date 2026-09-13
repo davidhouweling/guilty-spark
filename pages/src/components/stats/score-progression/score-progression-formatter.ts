@@ -9,24 +9,18 @@ import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
 import { buildKothHills } from "./modes/koth/koth-view-model";
-import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
-import {
-  buildStrongholdsMarkers,
-  buildStrongholdsTeamLines,
-  buildZoneAdvantage,
-} from "./modes/strongholds/strongholds-view-model";
+import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
+import { buildStrongholdsMarkers, buildZoneAdvantage } from "./modes/strongholds/strongholds-view-model";
+import { buildSampledTeamLines } from "./sampled-team-lines";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
+  ScoreLinesViewData,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
+  ScoreSample,
 } from "./types";
-
-interface ScoreSample {
-  readonly timestampMs: number;
-  readonly runningScores: Record<string, number>;
-}
 
 function buildScoreDelta(
   teamIds: readonly number[],
@@ -246,6 +240,7 @@ export function formatScoreProgression(
         ),
         markers: null,
         zoneAdvantage: null,
+        roundBoundaries: [],
       };
     }
     case "koth": {
@@ -260,14 +255,41 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      const teams = resolveTeams(timeline.rounds.at(0)?.scores, teamColors);
+      // round score records may be sparse, so a team missing from one round must still resolve —
+      // union the scores across all rounds
+      const mergedRoundScores: Record<string, number> = {};
+      for (const round of timeline.rounds) {
+        Object.assign(mergedRoundScores, round.scores);
+      }
+      const teams = resolveTeams(timeline.rounds.length > 0 ? mergedRoundScores : undefined, teamColors);
       if (teams == null) {
         return null;
       }
+      const { samples, roundBoundaries } = buildOddballScoreSeries(timeline, teams.teamIds, durationMs);
+      const scoreLines: ScoreLinesViewData | null =
+        samples.length > 0
+          ? {
+              kind: "score-lines",
+              durationMs,
+              teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
+              scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
+              playerAdvantage: buildPlayerAdvantage(
+                teams.teamIds,
+                timeline.deathTimeline,
+                timeline.respawnDurationMs,
+                durationMs,
+                teamSize,
+              ),
+              markers: null,
+              zoneAdvantage: null,
+              roundBoundaries,
+            }
+          : null;
       return {
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
+        scoreLines,
       };
     }
     case "strongholds": {
@@ -281,7 +303,7 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const teamLines = buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      const teamLines = buildSampledTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
       // null rather than an empty array so "no markers" reads the same as modes without markers
       const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       return {
@@ -298,6 +320,7 @@ export function formatScoreProgression(
         ),
         markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
+        roundBoundaries: [],
       };
     }
     default: {

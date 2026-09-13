@@ -17,6 +17,7 @@ import {
   TICK_STYLE,
   advantageAxisProps,
   chartMargin,
+  roundBoundaryLineProps,
   playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
@@ -33,6 +34,7 @@ export function ProgressionChart({
   zoneAdvantage,
   advantageDomain,
   markers,
+  roundBoundaries,
   tooltipFormatter,
 }: ScoreProgressionProgressionViewModel): React.ReactElement {
   const margin = chartMargin(advantageDomain);
@@ -44,6 +46,9 @@ export function ProgressionChart({
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
+        {roundBoundaries.map((boundaryMs) => (
+          <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />
+        ))}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}

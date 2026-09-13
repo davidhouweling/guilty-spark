@@ -3,6 +3,7 @@ import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./cha
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
+  ChartTypeOption,
   KothHillData,
   OddballRoundData,
   PlayerAdvantageData,
@@ -27,6 +28,10 @@ export interface ScoreProgressionInput {
 }
 
 const DELTA_LABEL = "Score Delta";
+
+const TIMELINE_OPTION: ChartTypeOption = { value: "timeline", label: "Objective Timeline" };
+const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Score Progression" };
+const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
@@ -53,21 +58,18 @@ export class ScoreProgressionPresenter {
     const { viewData, ariaLabel } = input;
     switch (viewData.kind) {
       case "score-lines": {
-        return this.presentScoreLines(snapshot, viewData, ariaLabel);
+        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
       }
       case "koth": {
         return this.presentTimelineGantt(
           ariaLabel,
           viewData.durationMs,
           viewData.hills.map((hill) => this.buildKothRow(hill)),
+          [TIMELINE_OPTION],
         );
       }
       case "oddball": {
-        return this.presentTimelineGantt(
-          ariaLabel,
-          viewData.durationMs,
-          viewData.rounds.map((round) => this.buildOddballRow(round)),
-        );
+        return this.presentOddball(snapshot, viewData, ariaLabel);
       }
       default: {
         throw new UnreachableError(viewData);
@@ -75,14 +77,45 @@ export class ScoreProgressionPresenter {
     }
   }
 
+  private presentOddball(
+    snapshot: ScoreProgressionSnapshot,
+    viewData: Extract<ScoreProgressionViewData, { kind: "oddball" }>,
+    ariaLabel: string,
+  ): ScoreProgressionViewModel {
+    const chartTypeOptions = this.buildChartTypeOptions(viewData.scoreLines, [TIMELINE_OPTION]);
+    // the rounds timeline is oddball's default; an unset chart type resolves to it
+    if (viewData.scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
+      return this.presentTimelineGantt(
+        ariaLabel,
+        viewData.durationMs,
+        viewData.rounds.map((round) => this.buildOddballRow(round)),
+        chartTypeOptions,
+      );
+    }
+    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+  }
+
+  private buildChartTypeOptions(
+    viewData: ScoreLinesViewData | null,
+    leadingOptions: readonly ChartTypeOption[],
+  ): ChartTypeOption[] {
+    if (viewData == null) {
+      return [...leadingOptions];
+    }
+    return [...leadingOptions, PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
+  }
+
   private presentScoreLines(
     snapshot: ScoreProgressionSnapshot,
     viewData: ScoreLinesViewData,
     ariaLabel: string,
+    chartTypeOptions: readonly ChartTypeOption[],
   ): ScoreLinesViewModel {
     const { chartType, showPlayerAdvantage, showMarkers, showZoneAdvantage } = snapshot;
+    // an unset or unavailable chart type (timeline on a score-lines mode, delta without delta
+    // data) resolves to the progression chart
     const effectiveChartType: ChartType =
-      chartType === "delta" && viewData.scoreDelta == null ? "progression" : chartType;
+      chartType === "delta" && viewData.scoreDelta != null ? "delta" : "progression";
     const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
     const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;
     // markers only draw on the progression chart, so the toggle hides on the delta view rather
@@ -101,6 +134,7 @@ export class ScoreProgressionPresenter {
       effectiveChartType === "delta" && syncedScoreDelta != null
         ? {
             durationMs: viewData.durationMs,
+            roundBoundaries: viewData.roundBoundaries,
             scoreDelta: syncedScoreDelta,
             team0Color: viewData.teamLines[0]?.color ?? TICK_FILL,
             team1Color: viewData.teamLines[1]?.color ?? TICK_FILL,
@@ -114,25 +148,27 @@ export class ScoreProgressionPresenter {
           }
         : null;
 
-    const hasDelta = viewData.scoreDelta != null;
     const hasPlayerAdvantage = viewData.playerAdvantage != null;
     const hasZoneAdvantage = viewData.zoneAdvantage != null;
+    const showChartTypeSelect = chartTypeOptions.length > 1;
 
     return {
       kind: "score-lines",
       ariaLabel,
       effectiveChartType,
-      hasDelta,
+      chartTypeOptions,
+      showChartTypeSelect,
       hasPlayerAdvantage,
       hasMarkers,
       hasZoneAdvantage,
       showPlayerAdvantage,
       showMarkers,
       showZoneAdvantage,
-      showToolbar: hasDelta || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
+      showToolbar: showChartTypeSelect || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,
+        roundBoundaries: viewData.roundBoundaries,
         teamLines: viewData.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
         zoneAdvantage: effectiveZoneAdvantage,
@@ -167,14 +203,19 @@ export class ScoreProgressionPresenter {
     ariaLabel: string,
     durationMs: number,
     rows: readonly TimelineGanttRowViewModel[],
+    chartTypeOptions: readonly ChartTypeOption[],
   ): TimelineGanttChartViewModel {
     return {
       kind: "timeline-gantt",
       ariaLabel,
+      effectiveChartType: "timeline",
+      chartTypeOptions,
+      showChartTypeSelect: chartTypeOptions.length > 1,
       timeline: {
         durationMs,
         rows: this.orderRowsForVerticalChart(rows),
       },
+      onChartTypeChange: this.onChartTypeChange,
     };
   }
 
@@ -229,7 +270,7 @@ export class ScoreProgressionPresenter {
   }
 
   private setChartType(value: string): void {
-    if (value === "progression" || value === "delta") {
+    if (value === "timeline" || value === "progression" || value === "delta") {
       this.config.store.update({ chartType: value });
     }
   }

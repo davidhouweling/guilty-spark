@@ -1,7 +1,7 @@
 import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Checkbox } from "../../checkbox/checkbox";
-import { Select } from "../../select/select";
+import { ChartTypeSelect } from "./chart-type-select/chart-type-select";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
@@ -11,7 +11,8 @@ import styles from "./score-progression.module.css";
 function ScoreLinesCharts({
   ariaLabel,
   effectiveChartType,
-  hasDelta,
+  chartTypeOptions,
+  showChartTypeSelect,
   hasPlayerAdvantage,
   hasMarkers,
   hasZoneAdvantage,
@@ -30,23 +31,8 @@ function ScoreLinesCharts({
     <div className={styles.container}>
       {showToolbar && (
         <div className={styles.toolbar}>
-          {hasDelta && (
-            <>
-              <label htmlFor="chart-type-select" className={styles.toolbarLabel}>
-                Chart type
-              </label>
-              <Select
-                id="chart-type-select"
-                containerClassName={styles.toolbarSelect}
-                value={effectiveChartType}
-                onChange={(e) => {
-                  onChartTypeChange(e.target.value);
-                }}
-              >
-                <option value="progression">Score Progression</option>
-                <option value="delta">Score Delta</option>
-              </Select>
-            </>
+          {showChartTypeSelect && (
+            <ChartTypeSelect value={effectiveChartType} options={chartTypeOptions} onChange={onChartTypeChange} />
           )}
           {(hasPlayerAdvantage || hasZoneAdvantage || hasMarkers) && (
             <div className={styles.toolbarToggles}>
@@ -96,6 +82,15 @@ export function ScoreProgression(props: ScoreProgressionViewModel): React.ReactE
     case "timeline-gantt": {
       return (
         <div className={styles.container}>
+          {props.showChartTypeSelect && (
+            <div className={styles.toolbar}>
+              <ChartTypeSelect
+                value={props.effectiveChartType}
+                options={props.chartTypeOptions}
+                onChange={props.onChartTypeChange}
+              />
+            </div>
+          )}
           <div role="img" aria-label={props.ariaLabel}>
             <TimelineGanttChart {...props.timeline} />
           </div>

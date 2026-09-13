@@ -126,6 +126,66 @@ describe("matchAnalyticsSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts an oddball timeline whose rounds carry the solver score curve", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 18,
+        durationMs: 460000,
+        teamCount: 2,
+        timeline: {
+          type: "oddball",
+          rounds: [
+            {
+              roundIndex: 0,
+              startMs: 0,
+              endMs: 330000,
+              endedByCap: false,
+              winnerTeamId: 0,
+              scores: { "0": 20, "1": 10 },
+              carrySegments: [{ startMs: 5000, endMs: 20000, teamId: 0 }],
+              points: [
+                { timestampMs: 5000, runningScores: { "0": 0, "1": 0 } },
+                { timestampMs: 20000, runningScores: { "0": 15 } },
+              ],
+            },
+          ],
+          deathTimeline: [{ timestampMs: 42000, teamId: 1 }],
+          respawnDurationMs: 8000,
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an oddball round without the score curve points", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 18,
+        durationMs: 460000,
+        teamCount: 2,
+        timeline: {
+          type: "oddball",
+          rounds: [
+            {
+              roundIndex: 0,
+              startMs: 0,
+              endMs: 330000,
+              endedByCap: false,
+              winnerTeamId: 0,
+              scores: { "0": 20, "1": 10 },
+              carrySegments: [],
+            },
+          ],
+          deathTimeline: [],
+          respawnDurationMs: null,
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a strongholds zone event with an unknown kind", () => {
     const result = matchAnalyticsSchema.safeParse({
       ...aValidAnalytics(),

@@ -17,7 +17,7 @@ vi.mock("recharts", () => ({
     <div data-testid="area" data-type={type} data-name={name ?? "score"} />
   ),
   CartesianGrid: (): null => null,
-  ReferenceLine: (): null => null,
+  ReferenceLine: ({ x }: { x?: number }): React.ReactElement => <div data-testid="reference-line" data-x={x} />,
   Tooltip: (): null => null,
   XAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="x-axis" data-axis={yAxisId} />,
   YAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="y-axis" data-axis={yAxisId} />,
@@ -42,6 +42,7 @@ function aDeltaViewModelWith(lineType: "step" | "linear"): ScoreProgressionDelta
     playerAdvantage: null,
     zoneAdvantage: null,
     advantageDomain: null,
+    roundBoundaries: [],
     tooltipFormatter: (value: unknown): [string, string] => [String(value), "Delta"],
   };
 }
@@ -84,6 +85,12 @@ describe("DeltaChart", () => {
       .getAllByTestId("y-axis")
       .filter((axis) => axis.getAttribute("data-axis") === "advantage");
     expect(advantageAxes).toHaveLength(1);
+  });
+
+  it("renders a dashed reference line at each round boundary", () => {
+    render(<DeltaChart {...aDeltaViewModelWith("linear")} roundBoundaries={[150000]} />);
+    const boundaryLines = screen.getAllByTestId("reference-line").filter((line) => line.getAttribute("data-x") != null);
+    expect(boundaryLines.map((line) => line.getAttribute("data-x"))).toEqual(["150000"]);
   });
 
   it("renders no advantage axis or overlay areas when overlays are hidden", () => {

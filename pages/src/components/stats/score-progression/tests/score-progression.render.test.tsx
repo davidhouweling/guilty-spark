@@ -36,7 +36,8 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     kind: "score-lines",
     ariaLabel: "test chart",
     effectiveChartType: "progression",
-    hasDelta: false,
+    chartTypeOptions: [{ value: "progression", label: "Score Progression" }],
+    showChartTypeSelect: false,
     hasPlayerAdvantage: false,
     hasMarkers: false,
     hasZoneAdvantage: false,
@@ -52,6 +53,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
       zoneAdvantage: null,
       advantageDomain: null,
       markers: null,
+      roundBoundaries: [],
       tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
     },
     onChartTypeChange: vi.fn<(value: string) => void>(),
@@ -79,5 +81,39 @@ describe("ScoreProgression", () => {
     render(<ScoreProgression {...aScoreLinesViewModelWith()} />);
     expect(screen.queryByText("Capture")).not.toBeInTheDocument();
     expect(screen.queryByText("Secure")).not.toBeInTheDocument();
+  });
+
+  it("renders the chart-type select above the timeline gantt when other chart types are offered", () => {
+    render(
+      <ScoreProgression
+        kind="timeline-gantt"
+        ariaLabel="test chart"
+        effectiveChartType="timeline"
+        chartTypeOptions={[
+          { value: "timeline", label: "Objective Timeline" },
+          { value: "progression", label: "Score Progression" },
+        ]}
+        showChartTypeSelect={true}
+        timeline={{ durationMs: 600000, rows: [] }}
+        onChartTypeChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+    expect(screen.getByLabelText("Chart type")).toBeInTheDocument();
+    expect(screen.getByText("Objective Timeline")).toBeInTheDocument();
+  });
+
+  it("renders no chart-type select above the timeline gantt when it is the only chart type", () => {
+    render(
+      <ScoreProgression
+        kind="timeline-gantt"
+        ariaLabel="test chart"
+        effectiveChartType="timeline"
+        chartTypeOptions={[{ value: "timeline", label: "Objective Timeline" }]}
+        showChartTypeSelect={false}
+        timeline={{ durationMs: 600000, rows: [] }}
+        onChartTypeChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+    expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
   });
 });

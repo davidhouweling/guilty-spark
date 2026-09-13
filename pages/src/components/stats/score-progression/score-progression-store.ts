@@ -1,7 +1,8 @@
 import type { ChartType } from "./types";
 
 export interface ScoreProgressionSnapshot {
-  readonly chartType: ChartType;
+  // null means the user has not chosen yet; each mode resolves its own default
+  readonly chartType: ChartType | null;
   readonly showPlayerAdvantage: boolean;
   readonly showMarkers: boolean;
   readonly showZoneAdvantage: boolean;
@@ -9,7 +10,7 @@ export interface ScoreProgressionSnapshot {
 
 export class ScoreProgressionStore {
   private _snapshot: ScoreProgressionSnapshot = {
-    chartType: "progression",
+    chartType: null,
     showPlayerAdvantage: false,
     showMarkers: true,
     showZoneAdvantage: false,

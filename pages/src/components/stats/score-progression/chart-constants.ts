@@ -67,6 +67,14 @@ export function timeAxisProps(durationMs: number): {
   };
 }
 
+export function roundBoundaryLineProps(boundaryMs: number): {
+  x: number;
+  stroke: string;
+  strokeDasharray: string;
+} {
+  return { x: boundaryMs, stroke: AXIS_STROKE, strokeDasharray: "3 3" };
+}
+
 export function chartMargin(advantageDomain: readonly [number, number] | null): {
   top: number;
   right: number;

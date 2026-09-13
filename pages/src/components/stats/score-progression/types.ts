@@ -3,6 +3,11 @@ export interface ScoreProgressionPoint {
   readonly score: number;
 }
 
+export interface ScoreSample {
+  readonly timestampMs: number;
+  readonly runningScores: Record<string, number>;
+}
+
 export interface ScoreProgressionTeamLine {
   readonly teamId: number;
   readonly name: string;
@@ -103,6 +108,8 @@ export interface ScoreLinesViewData {
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly markers: readonly ScoreMarkerData[] | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
+  // round starts after the first, for modes whose score resets per round; empty otherwise
+  readonly roundBoundaries: readonly number[];
 }
 
 export interface KothViewData {
@@ -115,11 +122,17 @@ export interface OddballViewData {
   readonly kind: "oddball";
   readonly durationMs: number;
   readonly rounds: readonly OddballRoundData[];
+  readonly scoreLines: ScoreLinesViewData | null;
 }
 
 export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData | OddballViewData;
 
-export type ChartType = "progression" | "delta";
+export type ChartType = "timeline" | "progression" | "delta";
+
+export interface ChartTypeOption {
+  readonly value: ChartType;
+  readonly label: string;
+}
 
 export interface ScoreProgressionDeltaViewModel {
   readonly durationMs: number;
@@ -129,6 +142,7 @@ export interface ScoreProgressionDeltaViewModel {
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
+  readonly roundBoundaries: readonly number[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
@@ -142,6 +156,7 @@ export interface ScoreProgressionProgressionViewModel {
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
   readonly markers: readonly ScoreMarkerData[] | null;
+  readonly roundBoundaries: readonly number[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
@@ -152,7 +167,8 @@ export interface ScoreLinesViewModel {
   readonly kind: "score-lines";
   readonly ariaLabel: string;
   readonly effectiveChartType: ChartType;
-  readonly hasDelta: boolean;
+  readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
   readonly hasPlayerAdvantage: boolean;
   readonly hasMarkers: boolean;
   readonly hasZoneAdvantage: boolean;
@@ -171,7 +187,11 @@ export interface ScoreLinesViewModel {
 export interface TimelineGanttChartViewModel {
   readonly kind: "timeline-gantt";
   readonly ariaLabel: string;
+  readonly effectiveChartType: ChartType;
+  readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
   readonly timeline: TimelineGanttViewModel;
+  readonly onChartTypeChange: (value: string) => void;
 }
 
 export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel;
