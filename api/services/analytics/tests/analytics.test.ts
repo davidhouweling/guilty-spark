@@ -392,6 +392,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
           carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
         },
       ],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
       teamCount: 2,
     });
 
@@ -412,6 +413,10 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       carrySegments: [{ startMs: 95000, endMs: 100000, teamId: 1 }],
       points: [{ timestampMs: 100000, teamId: 1, runningScores: { "0": 0, "1": 25 } }],
     });
+    expect(timeline?.type === "oddball" ? timeline.deathTimeline : undefined).toEqual([
+      { timestampMs: 40000, teamId: 0 },
+    ]);
+    expect(timeline?.type === "oddball" ? timeline.respawnDurationMs : undefined).toBe(8000);
   });
 
   it("returns scoreProgression with strongholds timeline for Strongholds when scoreProgression is requested", async () => {

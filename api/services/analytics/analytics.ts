@@ -353,6 +353,8 @@ export class AnalyticsService {
             carrySegments: round.carrySegments,
             points: round.points,
           })),
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
         },
       };
     }

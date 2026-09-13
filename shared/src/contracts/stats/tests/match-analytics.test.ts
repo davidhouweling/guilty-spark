@@ -150,6 +150,8 @@ describe("matchAnalyticsSchema", () => {
               ],
             },
           ],
+          deathTimeline: [{ timestampMs: 42000, teamId: 1 }],
+          respawnDurationMs: 8000,
         },
       },
     });
@@ -176,6 +178,8 @@ describe("matchAnalyticsSchema", () => {
               carrySegments: [],
             },
           ],
+          deathTimeline: [],
+          respawnDurationMs: null,
         },
       },
     });

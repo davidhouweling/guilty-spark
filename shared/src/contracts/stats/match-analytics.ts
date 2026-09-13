@@ -78,6 +78,7 @@ const oddballRoundSchema = z.object({
 const oddballTimelineSchema = z.object({
   type: z.literal("oddball"),
   rounds: z.array(oddballRoundSchema),
+  ...deathOverlayFields,
 });
 
 export type OddballCarrySegment = z.infer<typeof oddballCarrySegmentSchema>;

@@ -40,6 +40,11 @@ export function aFakeOddballTimelineWith(overrides: Partial<OddballTimeline> = {
         ],
       },
     ],
+    deathTimeline: [
+      { timestampMs: 15000, teamId: 1 },
+      { timestampMs: 60000, teamId: 0 },
+    ],
+    respawnDurationMs: 8000,
     ...overrides,
   };
 }

@@ -512,8 +512,24 @@ describe("formatScoreProgression", () => {
       expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 460000, score: 100 });
       expect(result.scoreLines?.scoreDelta?.lineType).toBe("linear");
       expect(result.scoreLines?.roundBoundaries).toEqual([342000]);
-      expect(result.scoreLines?.playerAdvantage).toBeNull();
+      expect(result.scoreLines?.playerAdvantage).not.toBeNull();
       expect(result.scoreLines?.markers).toBeNull();
+    });
+
+    it("builds a player advantage overlay from the oddball death timeline", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreLines?.playerAdvantage?.points.at(0)).toEqual({ timestampMs: 0, score: 0 });
+      expect(result.scoreLines?.playerAdvantage?.points.at(1)).toEqual({ timestampMs: 15000, score: 1 });
+    });
+
+    it("returns null oddball player advantage when the respawn duration is unknown", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 460000,
+        timeline: aFakeOddballTimelineWith({ respawnDurationMs: null }),
+      });
+      const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
+      expect(result.scoreLines?.playerAdvantage).toBeNull();
     });
 
     it("resets the score lines to zero at each round start", () => {
