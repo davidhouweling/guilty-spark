@@ -5,8 +5,9 @@
 .toolbar {
   align-items: center;
   display: flex;
-  gap: 8px;
-  padding: 0 8px 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-2);
 }
 
 .toolbarLabel {
@@ -19,8 +20,19 @@
   width: fit-content;
 }
 
-.toolbarCheckbox {
+.toolbarToggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-left: auto;
+}
+
+@media (--tablet-viewport) {
+  .toolbarToggles {
+    align-items: center;
+    flex-direction: row;
+    gap: var(--space-4);
+  }
 }
 
 .markerLegend {

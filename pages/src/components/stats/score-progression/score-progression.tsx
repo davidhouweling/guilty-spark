@@ -48,29 +48,16 @@ function ScoreLinesCharts({
               </Select>
             </>
           )}
-          {hasPlayerAdvantage && (
-            <Checkbox
-              checked={showPlayerAdvantage}
-              onChange={onPlayerAdvantageChange}
-              label="Player Advantage"
-              className={styles.toolbarCheckbox}
-            />
-          )}
-          {hasZoneAdvantage && (
-            <Checkbox
-              checked={showZoneAdvantage}
-              onChange={onZoneAdvantageChange}
-              label="Zone Advantage"
-              className={styles.toolbarCheckbox}
-            />
-          )}
-          {hasMarkers && (
-            <Checkbox
-              checked={showMarkers}
-              onChange={onMarkersChange}
-              label="Captures & Secures"
-              className={styles.toolbarCheckbox}
-            />
+          {(hasPlayerAdvantage || hasZoneAdvantage || hasMarkers) && (
+            <div className={styles.toolbarToggles}>
+              {hasPlayerAdvantage && (
+                <Checkbox checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} label="Player Advantage" />
+              )}
+              {hasZoneAdvantage && (
+                <Checkbox checked={showZoneAdvantage} onChange={onZoneAdvantageChange} label="Zone Advantage" />
+              )}
+              {hasMarkers && <Checkbox checked={showMarkers} onChange={onMarkersChange} label="Captures & Secures" />}
+            </div>
           )}
         </div>
       )}
