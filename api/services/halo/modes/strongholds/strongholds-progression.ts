@@ -565,9 +565,7 @@ export function buildStrongholdsProgression(
       ticks: team.Stats.ZonesStats.StrongholdScoringTicks,
     });
   }
-  // trailing film deaths past the match end are dropped for the same reason groupCarryEvents
-  // drops trailing mode events
-  const deathTimeline = buildDeathTimeline(events, new Set(teamIds)).filter((death) => death.timestampMs <= durationMs);
+  const deathTimeline = buildDeathTimeline(events, new Set(teamIds), durationMs);
   if (teamIds.length !== 2 || targetsByTeamId.size !== 2 || durationMs <= 0) {
     return emptyProgression(teamIds.length, deathTimeline);
   }

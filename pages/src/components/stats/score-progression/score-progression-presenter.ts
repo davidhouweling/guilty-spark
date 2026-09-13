@@ -65,7 +65,7 @@ export class ScoreProgressionPresenter {
           snapshot,
           ariaLabel,
           viewData.durationMs,
-          viewData.hills.map((hill) => this.buildKothRow(hill)),
+          () => viewData.hills.map((hill) => this.buildKothRow(hill)),
           viewData.scoreLines,
         );
       }
@@ -74,7 +74,7 @@ export class ScoreProgressionPresenter {
           snapshot,
           ariaLabel,
           viewData.durationMs,
-          viewData.rounds.map((round) => this.buildOddballRow(round)),
+          () => viewData.rounds.map((round) => this.buildOddballRow(round)),
           viewData.scoreLines,
         );
       }
@@ -84,18 +84,17 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // Gantt-first modes (koth's hills, oddball's rounds): the timeline is the default view, and
-  // the score-lines charts are offered through the chart-type select when the data supports them.
+  // Gantt-first modes (koth's hills, oddball's rounds) resolve an unset chart type to the timeline
   private presentGanttMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
     durationMs: number,
-    rows: readonly TimelineGanttRowViewModel[],
+    buildRows: () => readonly TimelineGanttRowViewModel[],
     scoreLines: ScoreLinesViewData | null,
   ): ScoreProgressionViewModel {
     const chartTypeOptions = this.buildChartTypeOptions(scoreLines, [TIMELINE_OPTION]);
     if (scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
-      return this.presentTimelineGantt(ariaLabel, durationMs, rows, chartTypeOptions);
+      return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
     return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }

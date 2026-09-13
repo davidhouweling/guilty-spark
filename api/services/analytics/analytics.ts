@@ -291,7 +291,7 @@ export class AnalyticsService {
       return null;
     }
     if (KILL_RACE_GAME_MODES.has(mode)) {
-      const progression = await this.haloFilmService.buildKillRaceProgression(matchStats);
+      const progression = await this.haloFilmService.buildKillRaceProgression(matchStats, durationMs);
       return {
         mode,
         durationMs,

@@ -209,10 +209,25 @@ describe("buildKothCaptureEvents", () => {
     ]);
   });
 
-  it("drops captures past the match duration and captures with no identifiable winner", () => {
-    const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [30000, 42000, 65000] });
-    // 42000 matches no score event, 65000 is past the duration
+  it("drops captures with no identifiable winner", () => {
+    // 42000 matches no score event
+    const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [30000, 42000] });
     const events = buildKothCaptureEvents(timeline, [0, 1], 60000);
     expect(events).toEqual([{ timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } }]);
+  });
+
+  it("clamps a capture past the match duration instead of dropping it", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 60350, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+      ],
+      hillCaptureTimestamps: [30000, 60350],
+    });
+    const events = buildKothCaptureEvents(timeline, [0, 1], 60000);
+    expect(events).toEqual([
+      { timestampMs: 30000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+      { timestampMs: 60000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+    ]);
   });
 });

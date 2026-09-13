@@ -123,8 +123,7 @@ export function buildKothProgression(
     events,
     controlPeriods,
     hillCaptureTimestamps: findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
-    // trailing film deaths past the match end are dropped like everywhere else in the pipeline
-    deathTimeline: buildDeathTimeline(allEvents, knownTeamIds).filter((death) => death.timestampMs <= durationMs),
+    deathTimeline: buildDeathTimeline(allEvents, knownTeamIds, durationMs),
     teamCount: knownTeamIds.size,
   };
 }

@@ -122,7 +122,7 @@ export class HaloFilmService {
     return events;
   }
 
-  async buildKillRaceProgression(matchStats: MatchStats): Promise<KillRaceProgression> {
+  async buildKillRaceProgression(matchStats: MatchStats, durationMs: number): Promise<KillRaceProgression> {
     const events = await this.loadEnrichedEventsForMatch(matchStats);
     const kills = this.filterKillEvents(events);
     const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
@@ -143,7 +143,7 @@ export class HaloFilmService {
 
     return {
       events: progressionEvents,
-      deathTimeline: buildDeathTimeline(events, knownTeamIds),
+      deathTimeline: buildDeathTimeline(events, knownTeamIds, durationMs),
       teamCount: runningScores.size,
     };
   }

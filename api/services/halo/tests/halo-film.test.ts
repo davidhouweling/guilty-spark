@@ -1897,7 +1897,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildKillRaceProgression(match);
+      const result = await service.buildKillRaceProgression(match, 600000);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(3);
@@ -1949,7 +1949,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildKillRaceProgression(match);
+      const result = await service.buildKillRaceProgression(match, 600000);
 
       expect(result.deathTimeline).toEqual([{ timestampMs: 5001, teamId: 1 }]);
     });
@@ -1985,7 +1985,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildKillRaceProgression(match);
+      const result = await service.buildKillRaceProgression(match, 600000);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(1);
@@ -2012,7 +2012,7 @@ describe("HaloFilmService", () => {
         },
       ]);
 
-      const result = await service.buildKillRaceProgression(match);
+      const result = await service.buildKillRaceProgression(match, 600000);
 
       expect(result.teamCount).toBe(2);
       expect(result.events).toHaveLength(0);

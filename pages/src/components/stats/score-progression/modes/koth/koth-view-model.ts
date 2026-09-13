@@ -4,9 +4,14 @@ import { TICK_FILL } from "../../chart-constants";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, KothHillTeamProgress, TimelineGanttSegment } from "../../types";
 
+// A capture timestamp is the capturing team's last score-event timestamp, so the co-timestamped
+// event identifies the winner.
+function findCaptureWinnerTeamId(events: KothTimeline["events"], captureTs: number): number | null {
+  return events.findLast((event) => event.timestampMs === captureTs)?.teamId ?? null;
+}
+
 // The match score for King of the Hill is hills won, so the competitive score line steps by one
-// at each capture. A capture timestamp is the capturing team's last score-event timestamp, so
-// the co-timestamped event identifies the winner.
+// at each capture.
 export function buildKothCaptureEvents(
   timeline: KothTimeline,
   teamIds: readonly number[],
@@ -14,19 +19,20 @@ export function buildKothCaptureEvents(
 ): KillRaceEvent[] {
   const runningScores = new Map<number, number>(teamIds.map((teamId) => [teamId, 0]));
   const captureEvents: KillRaceEvent[] = [];
-  for (const captureTs of [...timeline.hillCaptureTimestamps].sort((a, b) => a - b)) {
-    if (captureTs > durationMs) {
+  for (const captureTs of timeline.hillCaptureTimestamps) {
+    const winnerTeamId = findCaptureWinnerTeamId(timeline.events, captureTs);
+    const currentScore = winnerTeamId != null ? runningScores.get(winnerTeamId) : undefined;
+    if (winnerTeamId == null || currentScore == null) {
       continue;
     }
-    const winnerTeamId = timeline.events.findLast((event) => event.timestampMs === captureTs)?.teamId;
-    if (winnerTeamId == null || !runningScores.has(winnerTeamId)) {
-      continue;
-    }
-    runningScores.set(winnerTeamId, (runningScores.get(winnerTeamId) ?? 0) + 1);
+    runningScores.set(winnerTeamId, currentScore + 1);
     captureEvents.push({
-      timestampMs: captureTs,
+      // film-clock interpolation can land a capture slightly past the match duration; the capture
+      // is real, so its timestamp is clamped rather than dropped to keep the line's final score
+      // matching the hills timeline
+      timestampMs: Math.min(captureTs, durationMs),
       teamId: winnerTeamId,
-      runningScores: Object.fromEntries([...runningScores.entries()].map(([id, score]) => [String(id), score])),
+      runningScores: Object.fromEntries(runningScores),
     });
   }
   return captureEvents;
@@ -131,10 +137,7 @@ export function buildKothHills(
   return hillPeriods.map((period, periodIndex) => {
     const segments = buildHillSegments(period.startMs, period.endMs, timeline, teamColorByTeamId);
 
-    // hillCaptureTimestamps entries are the capturing team's last score-event timestamp,
-    // so the event at period.endMs directly identifies the winner.
-    const capturingEvent = period.isCaptured ? timeline.events.findLast((e) => e.timestampMs === period.endMs) : null;
-    const winnerTeamId = capturingEvent?.teamId ?? null;
+    const winnerTeamId = period.isCaptured ? findCaptureWinnerTeamId(timeline.events, period.endMs) : null;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 

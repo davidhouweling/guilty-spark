@@ -527,9 +527,7 @@ export function buildOddballProgression(
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
   const matchTotals = new Map(matchStats.Teams.map((team) => [team.TeamId, team.Stats.CoreStats.Score]));
   const roundCount = matchStats.Teams.reduce((acc, team) => acc + team.Stats.CoreStats.RoundsWon, 0);
-  // trailing film deaths past the match end are dropped for the same reason the round windows
-  // clamp to the duration
-  const deathTimeline = buildDeathTimeline(events, new Set(teamIds)).filter((death) => death.timestampMs <= durationMs);
+  const deathTimeline = buildDeathTimeline(events, new Set(teamIds), durationMs);
   if (roundCount === 0 || teamIds.length === 0) {
     return { rounds: [], deathTimeline, teamCount: teamIds.length };
   }

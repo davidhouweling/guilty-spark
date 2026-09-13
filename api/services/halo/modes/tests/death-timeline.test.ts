@@ -9,7 +9,7 @@ describe("buildDeathTimeline", () => {
       aFakeParsedHighlightEventWith({ timeMs: 12000, teamId: 0 }),
       aFakeParsedHighlightEventWith({ timeMs: 20000, teamId: 1 }),
     ];
-    expect(buildDeathTimeline(events, new Set([0, 1]))).toEqual([
+    expect(buildDeathTimeline(events, new Set([0, 1]), 600000)).toEqual([
       { timestampMs: 5000, teamId: 1 },
       { timestampMs: 12000, teamId: 0 },
       { timestampMs: 20000, teamId: 1 },
@@ -23,6 +23,18 @@ describe("buildDeathTimeline", () => {
       aFakeParsedHighlightEventWith({ timeMs: 7000, teamId: 5 }),
       aFakeParsedHighlightEventWith({ timeMs: 8000, teamId: 1 }),
     ];
-    expect(buildDeathTimeline(events, new Set([0, 1]))).toEqual([{ timestampMs: 8000, teamId: 1 }]);
+    expect(buildDeathTimeline(events, new Set([0, 1]), 600000)).toEqual([{ timestampMs: 8000, teamId: 1 }]);
+  });
+
+  it("drops trailing film deaths past the match duration, keeping one exactly at it", () => {
+    const events = [
+      aFakeParsedHighlightEventWith({ timeMs: 599000, teamId: 0 }),
+      aFakeParsedHighlightEventWith({ timeMs: 600000, teamId: 1 }),
+      aFakeParsedHighlightEventWith({ timeMs: 600001, teamId: 0 }),
+    ];
+    expect(buildDeathTimeline(events, new Set([0, 1]), 600000)).toEqual([
+      { timestampMs: 599000, teamId: 0 },
+      { timestampMs: 600000, teamId: 1 },
+    ]);
   });
 });

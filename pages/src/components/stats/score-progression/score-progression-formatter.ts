@@ -185,6 +185,37 @@ interface ResolvedTeams {
   readonly teamColorByTeamId: Map<number, string>;
 }
 
+interface DeathOverlaySource {
+  readonly deathTimeline: readonly TeamDeathEvent[];
+  readonly respawnDurationMs: number | null;
+}
+
+// kill-race and koth share the same event-stepped score-lines shape; only the event source differs
+function buildStepScoreLines(
+  events: readonly KillRaceEvent[],
+  teams: ResolvedTeams,
+  overlaySource: DeathOverlaySource,
+  durationMs: number,
+  teamSize: number | null,
+): ScoreLinesViewData {
+  return {
+    kind: "score-lines",
+    durationMs,
+    teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
+    playerAdvantage: buildPlayerAdvantage(
+      teams.teamIds,
+      overlaySource.deathTimeline,
+      overlaySource.respawnDurationMs,
+      durationMs,
+      teamSize,
+    ),
+    markers: null,
+    zoneAdvantage: null,
+    roundBoundaries: [],
+  };
+}
+
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
@@ -226,22 +257,7 @@ export function formatScoreProgression(
       }
       // a trailing film event past the match end would push the lines beyond the x-axis
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
-      return {
-        kind: "score-lines",
-        durationMs,
-        teamLines: buildTeamLines(inMatchEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, inMatchEvents, durationMs, "step"),
-        playerAdvantage: buildPlayerAdvantage(
-          teams.teamIds,
-          timeline.deathTimeline,
-          timeline.respawnDurationMs,
-          durationMs,
-          teamSize,
-        ),
-        markers: null,
-        zoneAdvantage: null,
-        roundBoundaries: [],
-      };
+      return buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize);
     }
     case "koth": {
       const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
@@ -250,24 +266,7 @@ export function formatScoreProgression(
       }
       const captureEvents = buildKothCaptureEvents(timeline, teams.teamIds, durationMs);
       const scoreLines: ScoreLinesViewData | null =
-        captureEvents.length > 0
-          ? {
-              kind: "score-lines",
-              durationMs,
-              teamLines: buildTeamLines(captureEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
-              scoreDelta: buildScoreDelta(teams.teamIds, captureEvents, durationMs, "step"),
-              playerAdvantage: buildPlayerAdvantage(
-                teams.teamIds,
-                timeline.deathTimeline,
-                timeline.respawnDurationMs,
-                durationMs,
-                teamSize,
-              ),
-              markers: null,
-              zoneAdvantage: null,
-              roundBoundaries: [],
-            }
-          : null;
+        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
       return {
         kind: "koth",
         durationMs,
