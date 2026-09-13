@@ -11,21 +11,18 @@ import {
   YAxis,
 } from "recharts";
 import {
-  ADVANTAGE_STROKE,
   AXIS_STROKE,
   CHART_HEIGHT,
-  CHART_MARGIN,
   GRID_STROKE,
-  PLAYER_ADVANTAGE_SERIES,
   TICK_STYLE,
-  ZONE_ADVANTAGE_SERIES,
-  ZONE_ADVANTAGE_STROKE,
-  advantageAreaProps,
   advantageAxisProps,
+  chartMargin,
+  playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
   formatTooltipLabel,
+  zoneAdvantageAreaProps,
 } from "../chart-constants";
 import type { ScoreProgressionProgressionViewModel } from "../types";
 
@@ -38,7 +35,7 @@ export function ProgressionChart({
   markers,
   tooltipFormatter,
 }: ScoreProgressionProgressionViewModel): React.ReactElement {
-  const margin = advantageDomain != null ? { ...CHART_MARGIN, right: 36 } : CHART_MARGIN;
+  const margin = chartMargin(advantageDomain);
 
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
@@ -70,12 +67,8 @@ export function ProgressionChart({
         {advantageDomain != null && (
           <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
-        {playerAdvantage != null && (
-          <Area {...advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE)} data={playerAdvantage.points} />
-        )}
-        {zoneAdvantage != null && (
-          <Area {...advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE)} data={zoneAdvantage.points} />
-        )}
+        {playerAdvantage != null && <Area {...playerAdvantageAreaProps()} data={playerAdvantage.points} />}
+        {zoneAdvantage != null && <Area {...zoneAdvantageAreaProps()} data={zoneAdvantage.points} />}
         {markers?.map((marker, index) => (
           <ReferenceDot
             key={`${String(index)}-${String(marker.timestampMs)}`}

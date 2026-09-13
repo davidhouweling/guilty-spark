@@ -130,6 +130,19 @@ describe("buildZoneAdvantage", () => {
     ]);
   });
 
+  it("seeds an even baseline at t=0 when the zone timeline starts later", () => {
+    const zoneAdvantage = buildZoneAdvantage(
+      [{ timestampMs: 15000, zoneCounts: { "0": 2, "1": 1 } }],
+      [...TEAM_IDS],
+      100000,
+    );
+    expect(zoneAdvantage?.points).toEqual([
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 15000, score: 1 },
+      { timestampMs: 100000, score: 1 },
+    ]);
+  });
+
   it("returns null when the timeline is empty or the counts never diverge", () => {
     expect(buildZoneAdvantage([], [...TEAM_IDS], 100000)).toBeNull();
     expect(buildZoneAdvantage([{ timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } }], [...TEAM_IDS], 100000)).toBeNull();

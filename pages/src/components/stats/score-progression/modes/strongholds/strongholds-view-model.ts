@@ -5,6 +5,7 @@ import type {
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../../../team-colors/team-colors";
+import { extendToDuration } from "../../extend-to-duration";
 import type {
   PlayerAdvantageData,
   ScoreMarkerData,
@@ -14,13 +15,6 @@ import type {
 
 // Every ranked strongholds map plays three zones, so the advantage axis is fixed at ±3.
 const ZONE_ADVANTAGE_DOMAIN = 3;
-
-function extendToDuration(points: ScoreProgressionPoint[], durationMs: number): void {
-  const last = points.at(-1);
-  if (last != null && last.timestampMs < durationMs) {
-    points.push({ timestampMs: durationMs, score: last.score });
-  }
-}
 
 // Strongholds scores accrue continuously (1-2 points per second while holding zones), so its
 // lines are ramps between rate boundaries rather than the stepped lines kill events produce.

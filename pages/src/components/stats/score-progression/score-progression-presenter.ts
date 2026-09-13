@@ -244,13 +244,10 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    if (name === PLAYER_ADVANTAGE_SERIES) {
-      return this.formatAdvantageTooltip(value, team0Name, team1Name);
-    }
-    if (name === ZONE_ADVANTAGE_SERIES) {
-      return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
-    }
-    return [String(value ?? ""), typeof name === "string" ? name : String(name ?? "")];
+    return this.formatSeriesTooltip(value, name, team0Name, team1Name, () => [
+      String(value ?? ""),
+      typeof name === "string" ? name : String(name ?? ""),
+    ]);
   }
 
   private formatDeltaChartTooltip(
@@ -259,13 +256,27 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
+    return this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+      this.formatDeltaTooltip(value, team0Name, team1Name),
+    );
+  }
+
+  // routes the advantage overlay series to their formatters; anything else takes the chart's
+  // own fallback
+  private formatSeriesTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+    team0Name: string,
+    team1Name: string,
+    fallback: () => [string, string],
+  ): [string, string] {
     if (name === PLAYER_ADVANTAGE_SERIES) {
       return this.formatAdvantageTooltip(value, team0Name, team1Name);
     }
     if (name === ZONE_ADVANTAGE_SERIES) {
       return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
     }
-    return this.formatDeltaTooltip(value, team0Name, team1Name);
+    return fallback();
   }
 
   private formatZoneAdvantageTooltip(
@@ -285,7 +296,7 @@ export class ScoreProgressionPresenter {
     team1Name: string,
     label: string,
     evenText: string,
-    formatLead: (lead: number) => string,
+    formatLead: (lead: number) => string = (lead) => `+${String(lead)}`,
   ): [string, string] {
     if (typeof value !== "number" || value === 0 || Number.isNaN(value)) {
       return [evenText, label];
@@ -299,9 +310,7 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    return this.formatLeaderTooltip(value, team0Name, team1Name, PLAYER_ADVANTAGE_SERIES, "Even", (lead) => {
-      return `+${String(lead)}`;
-    });
+    return this.formatLeaderTooltip(value, team0Name, team1Name, PLAYER_ADVANTAGE_SERIES, "Even");
   }
 
   private formatDeltaTooltip(
@@ -309,8 +318,6 @@ export class ScoreProgressionPresenter {
     team0Name: string,
     team1Name: string,
   ): [string, string] {
-    return this.formatLeaderTooltip(value, team0Name, team1Name, DELTA_LABEL, "Tied", (lead) => {
-      return `+${String(lead)}`;
-    });
+    return this.formatLeaderTooltip(value, team0Name, team1Name, DELTA_LABEL, "Tied");
   }
 }

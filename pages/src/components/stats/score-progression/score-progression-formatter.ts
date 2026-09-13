@@ -7,6 +7,7 @@ import type {
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { extendToDuration } from "./extend-to-duration";
 import { buildKothHills } from "./modes/koth/koth-view-model";
 import { buildOddballRounds } from "./modes/oddball/oddball-view-model";
 import {
@@ -64,10 +65,7 @@ function buildScoreDelta(
     }
   }
 
-  const lastEvent = inMatchEvents.at(-1);
-  if (lastEvent == null || lastEvent.timestampMs < durationMs) {
-    points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
-  }
+  extendToDuration(points, durationMs);
   const range = maxScore - minScore;
   if (range === 0) {
     return null;
@@ -135,7 +133,7 @@ function buildPlayerAdvantage(
     }
   }
 
-  points.push({ timestampMs: durationMs, score: points.at(-1)?.score ?? 0 });
+  extendToDuration(points, durationMs);
 
   const range = maxScore - minScore;
   if (range === 0) {
@@ -182,7 +180,7 @@ function buildTeamLines(
 
   const teamLines: ScoreProgressionTeamLine[] = [];
   for (const [teamId, state] of teamState) {
-    state.points.push({ timestampMs: durationMs, score: state.prevScore });
+    extendToDuration(state.points, durationMs);
     teamLines.push({ teamId, name: state.name, color: state.color, points: state.points });
   }
   return teamLines;
