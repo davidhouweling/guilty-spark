@@ -90,6 +90,16 @@ describe("matchAnalyticsSchema", () => {
             { timestampMs: 40000, runningScores: { "0": 5 } },
             { timestampMs: 90000, runningScores: { "0": 30, "1": 12 } },
           ],
+          zoneEvents: [
+            { timestampMs: 35000, teamId: 0, kind: "capture" },
+            { timestampMs: 80000, teamId: 1, kind: "secure" },
+          ],
+          zoneTimeline: [
+            { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+            { timestampMs: 35000, zoneCounts: { "0": 2, "1": 1 } },
+          ],
+          deathTimeline: [{ timestampMs: 42000, teamId: 1 }],
+          respawnDurationMs: 8000,
         },
       },
     });
@@ -106,6 +116,30 @@ describe("matchAnalyticsSchema", () => {
         timeline: {
           type: "strongholds",
           events: [{ timestampMs: 40000, runningScores: { "0": -5 } }],
+          zoneEvents: [],
+          zoneTimeline: [],
+          deathTimeline: [],
+          respawnDurationMs: null,
+        },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a strongholds zone event with an unknown kind", () => {
+    const result = matchAnalyticsSchema.safeParse({
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 11,
+        durationMs: 684000,
+        teamCount: 2,
+        timeline: {
+          type: "strongholds",
+          events: [{ timestampMs: 40000, runningScores: { "0": 5 } }],
+          zoneEvents: [{ timestampMs: 35000, teamId: 0, kind: "contest" }],
+          zoneTimeline: [],
+          deathTimeline: [],
+          respawnDurationMs: null,
         },
       },
     });

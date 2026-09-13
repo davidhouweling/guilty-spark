@@ -20,6 +20,7 @@ import {
   PERFECT_MEDAL_NAME_ID,
   PERFECT_MEDAL_PAIRING_MAX_DELTA_MS,
 } from "./constants";
+import { buildDeathTimeline } from "./modes/death-timeline";
 import { buildKothProgression } from "./modes/koth/koth-progression";
 import { buildOddballProgression } from "./modes/oddball/oddball-progression";
 import type { OddballProgression } from "./modes/oddball/oddball-progression";
@@ -30,7 +31,6 @@ import type {
   ParsedHighlightEvent,
   KillMatrixEntry,
   KillMatrixAnalytics,
-  KillRaceDeathEvent,
   KillRaceProgression,
   KillRaceProgressionEvent,
   KothProgression,
@@ -143,19 +143,9 @@ export class HaloFilmService {
 
     return {
       events: progressionEvents,
-      deathTimeline: this.buildDeathTimeline(events, knownTeamIds),
+      deathTimeline: buildDeathTimeline(events, knownTeamIds),
       teamCount: runningScores.size,
     };
-  }
-
-  private buildDeathTimeline(events: ParsedHighlightEvent[], knownTeamIds: ReadonlySet<number>): KillRaceDeathEvent[] {
-    const timeline: KillRaceDeathEvent[] = [];
-    for (const event of events) {
-      if (event.eventType === "death" && event.teamId != null && knownTeamIds.has(event.teamId)) {
-        timeline.push({ timestampMs: event.timeMs, teamId: event.teamId });
-      }
-    }
-    return timeline;
   }
 
   async buildKothProgression(matchStats: MatchStats, durationMs: number): Promise<KothProgression> {

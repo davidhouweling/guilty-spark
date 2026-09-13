@@ -428,6 +428,12 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     });
     vi.spyOn(haloFilmService, "buildStrongholdsProgression").mockResolvedValue({
       events: [{ timestampMs: 60000, runningScores: { "0": 50, "1": 20 } }],
+      zoneEvents: [{ timestampMs: 30000, teamId: 0, kind: "capture" }],
+      zoneTimeline: [
+        { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+        { timestampMs: 30000, zoneCounts: { "0": 2, "1": 1 } },
+      ],
+      deathTimeline: [{ timestampMs: 45000, teamId: 1 }],
       teamCount: 2,
     });
 
@@ -436,9 +442,15 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(results["match-1"]?.scoreProgression).not.toBeNull();
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("strongholds");
-    expect(timeline?.type === "strongholds" ? timeline.events : undefined).toEqual([
-      { timestampMs: 60000, runningScores: { "0": 50, "1": 20 } },
+    const strongholdsTimeline = timeline?.type === "strongholds" ? timeline : undefined;
+    expect(strongholdsTimeline?.events).toEqual([{ timestampMs: 60000, runningScores: { "0": 50, "1": 20 } }]);
+    expect(strongholdsTimeline?.zoneEvents).toEqual([{ timestampMs: 30000, teamId: 0, kind: "capture" }]);
+    expect(strongholdsTimeline?.zoneTimeline).toEqual([
+      { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+      { timestampMs: 30000, zoneCounts: { "0": 2, "1": 1 } },
     ]);
+    expect(strongholdsTimeline?.deathTimeline).toEqual([{ timestampMs: 45000, teamId: 1 }]);
+    expect(strongholdsTimeline?.respawnDurationMs).toBe(8000);
   });
 
   it("retries a transient score-progression film failure and returns the second attempt", async () => {
@@ -459,6 +471,9 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       .mockRejectedValueOnce(new Error("transient film blip"))
       .mockResolvedValue({
         events: [{ timestampMs: 60000, runningScores: { "0": 50, "1": 20 } }],
+        zoneEvents: [],
+        zoneTimeline: [],
+        deathTimeline: [],
         teamCount: 2,
       });
 

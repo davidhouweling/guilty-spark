@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { ParsedHighlightEvent } from "../../types";
+import type { ParsedHighlightEvent, TeamDeathEvent } from "../../types";
+import { buildDeathTimeline } from "../death-timeline";
 
 // HCS Strongholds: three zones; a team scores 1 point/second while holding 2 zones and
 // 2 points/second while holding all 3, but a zone only counts while no enemy stands in it.
@@ -37,8 +38,22 @@ export interface StrongholdsScorePoint {
   runningScores: Record<string, number>;
 }
 
+export interface StrongholdsZoneEvent {
+  timestampMs: number;
+  teamId: number;
+  kind: "capture" | "secure";
+}
+
+export interface StrongholdsZoneCountSample {
+  timestampMs: number;
+  zoneCounts: Record<string, number>;
+}
+
 export interface StrongholdsProgression {
   events: StrongholdsScorePoint[];
+  zoneEvents: StrongholdsZoneEvent[];
+  zoneTimeline: StrongholdsZoneCountSample[];
+  deathTimeline: TeamDeathEvent[];
   teamCount: number;
 }
 
@@ -459,6 +474,40 @@ function buildScorePoints(
   return points;
 }
 
+// Replays the winning labeling to expose the chart overlays: one marker per event group and a
+// step series of zones owned per team (captures are the only boundaries — a secure clears an
+// attempt without changing ownership).
+function buildZoneOverlays(
+  groups: readonly EventGroup[],
+  candidate: Candidate,
+  teamIds: readonly number[],
+): Pick<StrongholdsProgression, "zoneEvents" | "zoneTimeline"> {
+  const zones: ZoneState = { owned: [1, 1], neutral: NEUTRAL_ZONE_COUNT };
+  const zoneCountsFrom = (timestampMs: number): StrongholdsZoneCountSample => {
+    const zoneCounts: Record<string, number> = {};
+    for (const [teamSlot, teamId] of teamIds.entries()) {
+      zoneCounts[String(teamId)] = zones.owned[teamSlot === 0 ? 0 : 1];
+    }
+    return { timestampMs, zoneCounts };
+  };
+
+  const zoneEvents: StrongholdsZoneEvent[] = [];
+  const zoneTimeline: StrongholdsZoneCountSample[] = [zoneCountsFrom(0)];
+  for (const [index, group] of groups.entries()) {
+    const kind = Preconditions.checkExists(candidate.labels[index]);
+    zoneEvents.push({
+      timestampMs: group.timestampMs,
+      teamId: Preconditions.checkExists(teamIds[group.teamSlot]),
+      kind,
+    });
+    if (kind === "capture") {
+      applyCapture(zones, group.teamSlot, index === candidate.neutralCaptureIndex);
+      zoneTimeline.push(zoneCountsFrom(group.timestampMs));
+    }
+  }
+  return { zoneEvents, zoneTimeline };
+}
+
 // Samples the reconstructed curve at a timestamp; scoring is continuous, so values between
 // emitted points interpolate linearly, and a team omitted from a sparse record carries its
 // previous score forward (matching the view-model semantics).
@@ -498,13 +547,14 @@ export function buildStrongholdsProgression(
     });
   }
   if (teamIds.length !== 2 || targetsByTeamId.size !== 2 || durationMs <= 0) {
-    return { events: [], teamCount: teamIds.length };
+    return { events: [], zoneEvents: [], zoneTimeline: [], deathTimeline: [], teamCount: teamIds.length };
   }
   const targets = teamIds.map((teamId) => Preconditions.checkExists(targetsByTeamId.get(teamId)));
+  const deathTimeline = buildDeathTimeline(events, new Set(teamIds));
 
   const groups = groupCarryEvents(events, teamIds, durationMs);
   if (groups.length === 0) {
-    return { events: [], teamCount: teamIds.length };
+    return { events: [], zoneEvents: [], zoneTimeline: [], deathTimeline, teamCount: teamIds.length };
   }
 
   const skeleton = buildSkeleton(groups);
@@ -513,6 +563,8 @@ export function buildStrongholdsProgression(
 
   return {
     events: buildScorePoints(groups, skeleton, candidate, teamIds, targets, durationMs),
+    ...buildZoneOverlays(groups, candidate, teamIds),
+    deathTimeline,
     teamCount: teamIds.length,
   };
 }

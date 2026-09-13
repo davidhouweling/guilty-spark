@@ -205,6 +205,89 @@ describe("buildStrongholdsProgression", () => {
     expect(sampleScoreAt(progression.events, 0, 60000)).toBeCloseTo(40, 0);
   });
 
+  it("labels one zone event per film group matching the API capture and secure quotas", () => {
+    const progression = build2104();
+    const countOf = (teamId: number, kind: "capture" | "secure"): number =>
+      progression.zoneEvents.filter((event) => event.teamId === teamId && event.kind === kind).length;
+    expect(countOf(0, "capture")).toBe(23);
+    expect(countOf(0, "secure")).toBe(7);
+    expect(countOf(1, "capture")).toBe(21);
+    expect(countOf(1, "secure")).toBe(3);
+    const timestamps = progression.zoneEvents.map((event) => event.timestampMs);
+    expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
+  });
+
+  it("emits one zone timeline sample per capture bounded by the three zones", () => {
+    const progression = build2104();
+    expect(progression.zoneTimeline.at(0)).toEqual({ timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } });
+    expect(progression.zoneTimeline).toHaveLength(1 + 23 + 21);
+    const withinBounds = progression.zoneTimeline.every((sample) => {
+      const eagle = sample.zoneCounts["0"] ?? 0;
+      const cobra = sample.zoneCounts["1"] ?? 0;
+      return eagle >= 0 && cobra >= 0 && eagle + cobra <= 3;
+    });
+    expect(withinBounds).toBe(true);
+  });
+
+  it("reports zone ownership counts through an enemy-first opening", () => {
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 80, ticks: 80, captures: 1, secures: 0 }],
+        [1, { score: 0, ticks: 0, captures: 1, secures: 0 }],
+      ]),
+    );
+    const event = (timeMs: number, teamId: number, index: number): ParsedHighlightEvent => ({
+      xuid: `21000000000400${String(index)}`,
+      gamertag: `player-${String(teamId)}-${String(index)}`,
+      typeHint: 10,
+      isMedal: false,
+      eventType: "mode",
+      timeMs,
+      medalValue: 33554432,
+      teamId,
+    });
+    const events = [event(20000, 0, 0), event(20000, 0, 1), event(40000, 1, 2), event(40000, 1, 3)];
+    const progression = buildStrongholdsProgression(events, matchStats, 100000);
+    expect(progression.zoneEvents).toEqual([
+      { timestampMs: 20000, teamId: 0, kind: "capture" },
+      { timestampMs: 40000, teamId: 1, kind: "capture" },
+    ]);
+    expect(progression.zoneTimeline).toEqual([
+      { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+      { timestampMs: 20000, zoneCounts: { "0": 2, "1": 0 } },
+      { timestampMs: 40000, zoneCounts: { "0": 2, "1": 1 } },
+    ]);
+  });
+
+  it("extracts the death timeline even when the film has no mode events", () => {
+    const matchStats = aFakeStrongholdsMatchStatsWith(
+      new Map([
+        [0, { score: 250, ticks: 237, captures: 23, secures: 7 }],
+        [1, { score: 188, ticks: 185, captures: 21, secures: 3 }],
+      ]),
+    );
+    const death = (timeMs: number, teamId: number | null, index: number): ParsedHighlightEvent => ({
+      xuid: `21000000000500${String(index)}`,
+      gamertag: `victim-${String(index)}`,
+      typeHint: 3,
+      isMedal: false,
+      eventType: "death",
+      timeMs,
+      medalValue: 0,
+      teamId,
+    });
+    const progression = buildStrongholdsProgression(
+      [death(15000, 1, 0), death(30000, 0, 1), death(45000, null, 2)],
+      matchStats,
+      STRONGHOLDS_2104_DURATION_MS,
+    );
+    expect(progression.events).toEqual([]);
+    expect(progression.deathTimeline).toEqual([
+      { timestampMs: 15000, teamId: 1 },
+      { timestampMs: 30000, teamId: 0 },
+    ]);
+  });
+
   it("returns no events when the match has no zone stats", () => {
     const base = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const progression = buildStrongholdsProgression(strongholds2104Events(), base, STRONGHOLDS_2104_DURATION_MS);

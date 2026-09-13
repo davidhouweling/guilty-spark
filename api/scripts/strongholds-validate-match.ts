@@ -44,6 +44,18 @@ for (let minute = 1; minute * 60000 <= durationMs; minute++) {
 const finals = teamIds.map((id) => String(Math.round(sampleScoreAt(progression.events, id, durationMs))));
 console.log(`  @end (${fmtMs(durationMs)})  ${finals.join(":")}`);
 
+console.log(`\nZone overlays:`);
+for (const teamId of teamIds) {
+  const captures = progression.zoneEvents.filter((e) => e.teamId === teamId && e.kind === "capture").length;
+  const secures = progression.zoneEvents.filter((e) => e.teamId === teamId && e.kind === "secure").length;
+  console.log(`  Team ${String(teamId)}: labeled captures=${String(captures)} secures=${String(secures)}`);
+}
+const lastZones = progression.zoneTimeline.at(-1);
+console.log(
+  `  zoneTimeline: ${String(progression.zoneTimeline.length)} samples, final counts ${JSON.stringify(lastZones?.zoneCounts ?? {})}`,
+);
+console.log(`  deathTimeline: ${String(progression.deathTimeline.length)} deaths`);
+
 const THEATRE_WAYPOINTS_BY_MATCH: Record<string, readonly (readonly [number, number, number])[]> = {
   "2104a978-6965-4ea2-831a-f5eb661ae1ea": STRONGHOLDS_2104_THEATRE_WAYPOINTS,
 };

@@ -1,8 +1,8 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
-  KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
+  TeamDeathEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -74,7 +74,7 @@ function buildScoreDelta(
 
 function buildPlayerAdvantage(
   teamIds: readonly number[],
-  deathTimeline: readonly KillRaceDeathEvent[],
+  deathTimeline: readonly TeamDeathEvent[],
   respawnDurationMs: number,
   durationMs: number,
   teamSize: number | null,
