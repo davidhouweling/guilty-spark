@@ -560,10 +560,30 @@ describe("formatScoreProgression", () => {
       ]);
     });
 
-    it("builds a score delta and no player advantage", () => {
-      const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
+    it("builds a player advantage overlay from the death timeline", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 100000,
+        timeline: aFakeStrongholdsTimelineWith({
+          deathTimeline: [{ timestampMs: 20000, teamId: 1 }],
+          respawnDurationMs: 8000,
+        }),
+      });
       const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.scoreDelta).not.toBeNull();
+      expect(result.playerAdvantage?.points).toEqual([
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 20000, score: 1 },
+        { timestampMs: 28000, score: 0 },
+        { timestampMs: 100000, score: 0 },
+      ]);
+    });
+
+    it("returns null player advantage when the respawn duration is unknown", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 100000,
+        timeline: aFakeStrongholdsTimelineWith({ respawnDurationMs: null }),
+      });
+      const result = asScoreLines(formatScoreProgression(data, TEAM_COLORS));
       expect(result.playerAdvantage).toBeNull();
     });
   });

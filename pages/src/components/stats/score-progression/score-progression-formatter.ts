@@ -1,8 +1,8 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type {
-  KillRaceDeathEvent,
   KillRaceEvent,
   MatchAnalytics,
+  TeamDeathEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -74,11 +74,14 @@ function buildScoreDelta(
 
 function buildPlayerAdvantage(
   teamIds: readonly number[],
-  deathTimeline: readonly KillRaceDeathEvent[],
-  respawnDurationMs: number,
+  deathTimeline: readonly TeamDeathEvent[],
+  respawnDurationMs: number | null,
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
+  if (respawnDurationMs == null) {
+    return null;
+  }
   // a trailing film death past the match end would push advantage points beyond the x-axis
   const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
   if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
@@ -227,22 +230,18 @@ export function formatScoreProgression(
       }
       // a trailing film event past the match end would push the lines beyond the x-axis
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
-      const playerAdvantage =
-        timeline.respawnDurationMs != null
-          ? buildPlayerAdvantage(
-              teams.teamIds,
-              timeline.deathTimeline,
-              timeline.respawnDurationMs,
-              durationMs,
-              teamSize,
-            )
-          : null;
       return {
         kind: "score-lines",
         durationMs,
         teamLines: buildTeamLines(inMatchEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
         scoreDelta: buildScoreDelta(teams.teamIds, inMatchEvents, durationMs, "step"),
-        playerAdvantage,
+        playerAdvantage: buildPlayerAdvantage(
+          teams.teamIds,
+          timeline.deathTimeline,
+          timeline.respawnDurationMs,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     case "koth": {
@@ -283,7 +282,13 @@ export function formatScoreProgression(
         durationMs,
         teamLines: buildStrongholdsTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs),
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
-        playerAdvantage: null,
+        playerAdvantage: buildPlayerAdvantage(
+          teams.teamIds,
+          timeline.deathTimeline,
+          timeline.respawnDurationMs,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     default: {

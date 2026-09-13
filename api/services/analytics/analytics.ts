@@ -6,7 +6,7 @@ import type {
   KillMatrixEntry as ContractKillMatrixEntry,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
-import { KILL_RACE_RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations";
+import { RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
@@ -300,7 +300,7 @@ export class AnalyticsService {
           type: "kill-race",
           events: progression.events,
           deathTimeline: progression.deathTimeline,
-          respawnDurationMs: KILL_RACE_RESPAWN_DURATION_MS[mode] ?? null,
+          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
         },
       };
     }
@@ -328,6 +328,10 @@ export class AnalyticsService {
         timeline: {
           type: "strongholds",
           events: progression.events,
+          zoneEvents: progression.zoneEvents,
+          zoneTimeline: progression.zoneTimeline,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs: RESPAWN_DURATION_MS[mode] ?? null,
         },
       };
     }
