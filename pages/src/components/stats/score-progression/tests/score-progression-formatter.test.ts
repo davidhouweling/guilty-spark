@@ -4,18 +4,28 @@ import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
 import { aFakeStrongholdsTimelineWith } from "../modes/strongholds/fakes/strongholds-timeline.fake";
-import type { KothViewData, OddballViewData, ScoreLinesViewData, ScoreProgressionViewData } from "../types";
+import type {
+  KothViewData,
+  OddballViewData,
+  ScoreLinesViewData,
+  ScoreProgressionViewData,
+  StrongholdsViewData,
+} from "../types";
 
 const TEAM_COLORS = [
   { id: "eagle", hex: "#0000ff", name: "Eagle" },
   { id: "cobra", hex: "#ff0000", name: "Cobra" },
 ] as const;
 
-function asStrongholdsScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewData {
+function asStrongholds(result: ScoreProgressionViewData | null): StrongholdsViewData {
   if (result?.kind !== "strongholds") {
     throw new Error("expected strongholds view data");
   }
-  return result.scoreLines;
+  return result;
+}
+
+function asStrongholdsScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewData {
+  return asStrongholds(result).scoreLines;
 }
 
 function asScoreLines(result: ScoreProgressionViewData | null): ScoreLinesViewData {
@@ -618,10 +628,7 @@ describe("formatScoreProgression", () => {
   describe("strongholds dispatch", () => {
     it("returns strongholds view data wrapping score lines and the zone strip", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 100000, timeline: aFakeStrongholdsTimelineWith() });
-      const result = formatScoreProgression(data, TEAM_COLORS);
-      if (result?.kind !== "strongholds") {
-        throw new Error("expected strongholds view data");
-      }
+      const result = asStrongholds(formatScoreProgression(data, TEAM_COLORS));
       expect(result.scoreLines.kind).toBe("score-lines");
       expect(result.zoneStrip).not.toBeNull();
     });
@@ -631,11 +638,7 @@ describe("formatScoreProgression", () => {
         durationMs: 100000,
         timeline: aFakeStrongholdsTimelineWith({ zoneTimeline: [] }),
       });
-      const result = formatScoreProgression(data, TEAM_COLORS);
-      if (result?.kind !== "strongholds") {
-        throw new Error("expected strongholds view data");
-      }
-      expect(result.zoneStrip).toBeNull();
+      expect(asStrongholds(formatScoreProgression(data, TEAM_COLORS)).zoneStrip).toBeNull();
     });
 
     it("returns null when a strongholds timeline has no events", () => {

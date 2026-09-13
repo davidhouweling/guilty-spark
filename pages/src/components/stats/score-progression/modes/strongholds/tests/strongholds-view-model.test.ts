@@ -117,8 +117,8 @@ describe("buildZoneControlStrip", () => {
   it("computes each team's share of the match spent leading", () => {
     const strip = buildZoneControlStrip(aFakeStrongholdsTimelineWith().zoneTimeline, TEAM_LINES, 100000);
     expect(strip?.teamShares).toEqual([
-      { teamId: 0, name: "Eagle", color: "#0000ff", leadPercentage: 70 },
-      { teamId: 1, name: "Cobra", color: "#ff0000", leadPercentage: 20 },
+      { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 70 },
+      { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 20 },
     ]);
   });
 
@@ -131,7 +131,7 @@ describe("buildZoneControlStrip", () => {
       TEAM_LINES,
       100000,
     );
-    expect(strip?.teamShares[0]?.leadPercentage).toBe(1);
+    expect(strip?.teamShares[0]?.percentage).toBe(1);
   });
 
   it("paints a 3-cap at full opacity and a one-zone lead at the dimmest", () => {
@@ -183,6 +183,18 @@ describe("buildZoneControlStrip", () => {
 
   it("returns null when the zone counts never diverge, matching the zone advantage", () => {
     const strip = buildZoneControlStrip([{ timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } }], TEAM_LINES, 60000);
+    expect(strip).toBeNull();
+  });
+
+  it("returns null when the only divergence is a zero-width window at the match end", () => {
+    const strip = buildZoneControlStrip(
+      [
+        { timestampMs: 0, zoneCounts: { "0": 1, "1": 1 } },
+        { timestampMs: 60000, zoneCounts: { "0": 2, "1": 1 } },
+      ],
+      TEAM_LINES,
+      60000,
+    );
     expect(strip).toBeNull();
   });
 

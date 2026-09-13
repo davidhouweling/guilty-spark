@@ -58,8 +58,8 @@ export function buildStrongholdsMarkers(
   return markers;
 }
 
-// The strip encodes the leader's grip as segment opacity: a 3-cap paints the full team colour,
-// a 2-zone hold a dimmer one, a single zone dimmer still, and a tie stays neutral.
+// The strip encodes the leader's grip as the segment's rendered opacity: a 3-cap paints the full
+// team colour, a 2-zone hold a dimmer one, a single zone dimmer still, and a tie stays neutral.
 const ZONE_LEAD_OPACITY: readonly number[] = [0, 0.4, 0.7, 1];
 
 interface ZoneCountWindow {
@@ -108,8 +108,9 @@ function buildZoneStripShares(
       teamId: line.teamId,
       name: line.name,
       color: line.color,
-      // a lead too brief to round to 1% still counts as time spent ahead
-      leadPercentage: leadMs > 0 ? Math.max(1, Math.round((leadMs / durationMs) * 100)) : 0,
+      // flooring keeps the two shares from summing past 100, and a lead too brief to floor to
+      // 1% still counts as time spent ahead
+      percentage: leadMs > 0 ? Math.max(1, Math.floor((leadMs / durationMs) * 100)) : 0,
     };
   });
 }
@@ -121,7 +122,7 @@ export function buildZoneControlStrip(
   teamLines: readonly ScoreProgressionTeamLine[],
   durationMs: number,
 ): ZoneStripData | null {
-  if (durationMs <= 0) {
+  if (teamLines.length !== 2 || durationMs <= 0) {
     return null;
   }
   const windows = buildZoneCountWindows(
@@ -136,7 +137,7 @@ export function buildZoneControlStrip(
 
   const intervals: OccupiedInterval[] = [];
   for (const window of windows) {
-    if (window.count0 === window.count1) {
+    if (window.endMs <= window.startMs || window.count0 === window.count1) {
       continue;
     }
     const leader = window.count0 > window.count1 ? line0 : line1;

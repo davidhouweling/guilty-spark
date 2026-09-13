@@ -9,8 +9,8 @@ export function aFakeZoneStripDataWith(overrides: Partial<ZoneStripData> = {}): 
       { startMs: 60000, endMs: 100000, teamId: 0, color: "#0000ff", opacity: 0.7 },
     ],
     teamShares: [
-      { teamId: 0, name: "Eagle", color: "#0000ff", leadPercentage: 70 },
-      { teamId: 1, name: "Cobra", color: "#ff0000", leadPercentage: 20 },
+      { teamId: 0, name: "Eagle", color: "#0000ff", percentage: 70 },
+      { teamId: 1, name: "Cobra", color: "#ff0000", percentage: 20 },
     ],
     ...overrides,
   };

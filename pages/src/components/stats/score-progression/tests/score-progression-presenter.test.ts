@@ -75,7 +75,6 @@ function aStrongholdsInput(zoneStrip: ZoneStripData | null): ScoreProgressionInp
   return {
     viewData: {
       kind: "strongholds",
-      durationMs: 100000,
       zoneStrip,
       scoreLines: aFakeScoreLinesViewDataWith({
         durationMs: 100000,
