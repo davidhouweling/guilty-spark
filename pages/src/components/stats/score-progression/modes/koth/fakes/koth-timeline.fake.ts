@@ -22,6 +22,11 @@ export function aFakeKothTimelineWith(overrides: Partial<KothTimeline> = {}): Ko
       { startMs: 30000, endMs: 60000, controllingTeamId: 1 },
     ],
     hillCaptureTimestamps: [30000, 55000],
+    deathTimeline: [
+      { timestampMs: 8000, teamId: 1 },
+      { timestampMs: 40000, teamId: 0 },
+    ],
+    respawnDurationMs: 8000,
     ...overrides,
   };
 }

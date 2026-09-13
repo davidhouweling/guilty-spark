@@ -1,14 +1,10 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type {
-  KillRaceEvent,
-  MatchAnalytics,
-  TeamDeathEvent,
-} from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { DeathOverlay, KillRaceEvent, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
-import { buildKothHills } from "./modes/koth/koth-view-model";
+import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import { buildStrongholdsMarkers, buildZoneAdvantage } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
@@ -70,15 +66,14 @@ function buildScoreDelta(
 
 function buildPlayerAdvantage(
   teamIds: readonly number[],
-  deathTimeline: readonly TeamDeathEvent[],
-  respawnDurationMs: number | null,
+  { deathTimeline, respawnDurationMs }: DeathOverlay,
   durationMs: number,
   teamSize: number | null,
 ): PlayerAdvantageData | null {
   if (respawnDurationMs == null) {
     return null;
   }
-  // a trailing film death past the match end would push advantage points beyond the x-axis
+  // producers clamp server-side; kept as boundary defense for payloads from an older api deploy
   const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
   if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
@@ -185,6 +180,49 @@ interface ResolvedTeams {
   readonly teamColorByTeamId: Map<number, string>;
 }
 
+function buildStepScoreLines(
+  events: readonly KillRaceEvent[],
+  teams: ResolvedTeams,
+  overlaySource: DeathOverlay,
+  durationMs: number,
+  teamSize: number | null,
+): ScoreLinesViewData {
+  return {
+    kind: "score-lines",
+    durationMs,
+    teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
+    playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
+    markers: null,
+    zoneAdvantage: null,
+    roundBoundaries: [],
+  };
+}
+
+function buildSampledScoreLines(
+  samples: readonly ScoreSample[],
+  roundBoundaries: readonly number[],
+  teams: ResolvedTeams,
+  overlaySource: DeathOverlay,
+  durationMs: number,
+  teamSize: number | null,
+): ScoreLinesViewData | null {
+  // no samples means nothing reconstructable — offering the chart would render fake zero lines
+  if (samples.length === 0) {
+    return null;
+  }
+  return {
+    kind: "score-lines",
+    durationMs,
+    teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
+    playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
+    markers: null,
+    zoneAdvantage: null,
+    roundBoundaries,
+  };
+}
+
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
@@ -226,32 +264,19 @@ export function formatScoreProgression(
       }
       // a trailing film event past the match end would push the lines beyond the x-axis
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
-      return {
-        kind: "score-lines",
-        durationMs,
-        teamLines: buildTeamLines(inMatchEvents, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreDelta: buildScoreDelta(teams.teamIds, inMatchEvents, durationMs, "step"),
-        playerAdvantage: buildPlayerAdvantage(
-          teams.teamIds,
-          timeline.deathTimeline,
-          timeline.respawnDurationMs,
-          durationMs,
-          teamSize,
-        ),
-        markers: null,
-        zoneAdvantage: null,
-        roundBoundaries: [],
-      };
+      return buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize);
     }
     case "koth": {
       const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
       if (teams == null) {
         return null;
       }
+      const { samples, hillBoundaries } = buildKothScoreSeries(timeline, teams.teamIds, durationMs);
       return {
         kind: "koth",
         durationMs,
         hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        scoreLines: buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize),
       };
     }
     case "oddball": {
@@ -266,30 +291,11 @@ export function formatScoreProgression(
         return null;
       }
       const { samples, roundBoundaries } = buildOddballScoreSeries(timeline, teams.teamIds, durationMs);
-      const scoreLines: ScoreLinesViewData | null =
-        samples.length > 0
-          ? {
-              kind: "score-lines",
-              durationMs,
-              teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
-              scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
-              playerAdvantage: buildPlayerAdvantage(
-                teams.teamIds,
-                timeline.deathTimeline,
-                timeline.respawnDurationMs,
-                durationMs,
-                teamSize,
-              ),
-              markers: null,
-              zoneAdvantage: null,
-              roundBoundaries,
-            }
-          : null;
       return {
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
-        scoreLines,
+        scoreLines: buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize),
       };
     }
     case "strongholds": {
@@ -311,13 +317,7 @@ export function formatScoreProgression(
         durationMs,
         teamLines,
         scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
-        playerAdvantage: buildPlayerAdvantage(
-          teams.teamIds,
-          timeline.deathTimeline,
-          timeline.respawnDurationMs,
-          durationMs,
-          teamSize,
-        ),
+        playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
         markers: markers.length > 0 ? markers : null,
         zoneAdvantage: buildZoneAdvantage(timeline.zoneTimeline, teams.teamIds, durationMs),
         roundBoundaries: [],

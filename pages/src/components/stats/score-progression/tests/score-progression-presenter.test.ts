@@ -4,6 +4,7 @@ import type { ScoreProgressionInput } from "../score-progression-presenter";
 import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
+import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -70,7 +71,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
 
 function aKothInput(hills: readonly KothHillData[]): ScoreProgressionInput {
   return {
-    viewData: { kind: "koth", durationMs: 600000, hills },
+    viewData: { kind: "koth", durationMs: 600000, hills, scoreLines: null },
     ariaLabel: "test chart",
   };
 }
@@ -646,12 +647,34 @@ describe("ScoreProgressionPresenter", () => {
       expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline"]);
     });
 
-    it("offers only the timeline chart type for koth", () => {
+    it("offers only the timeline chart type for koth without score lines", () => {
       const { store, presenter } = makePresenter();
       const model = asTimelineGantt(
         presenter.present(store.getSnapshot(), aKothInput([aFakeKothHillDataWith({ teamCaptureProgress: [] })])),
       );
       expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline"]);
+    });
+
+    it("presents koth score lines when the chart type is progression", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "progression" });
+      const scoreLines = aFakeScoreLinesViewDataWith({
+        teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+        scoreDelta: aFakeScoreDeltaData(),
+      });
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), {
+          viewData: {
+            kind: "koth",
+            durationMs: 600000,
+            hills: [aFakeKothHillDataWith({ teamCaptureProgress: [] })],
+            scoreLines,
+          },
+          ariaLabel: "test chart",
+        }),
+      );
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
     });
   });
 

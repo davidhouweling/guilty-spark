@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getMatchStats } from "../../../fakes/data";
+import { aFakeParsedHighlightEventWith } from "../../../fakes/parsed-highlight-event.fake";
 import { buildKothProgression } from "../koth-progression";
 import type { ParsedHighlightEvent, StateByte2Transition } from "../../../types";
 
@@ -231,5 +232,58 @@ describe("buildKothProgression", () => {
 
     expect(result.hillCaptureTimestamps).toEqual([]);
     expect(result.events).toHaveLength(0);
+  });
+
+  it("keeps the match-ending capture past the duration but drops later trailing-film captures", () => {
+    const modeEvents = [
+      ...tickBurst(0, 5000, 5), // capture at 25000, past durationMs 20000 (film-clock overshoot)
+      ...tickBurst(0, 40000, 5), // trailing film only — capture at 60000 must be dropped
+    ];
+    const byte2Transitions = [transition(15000, 0x40, 0x41), transition(18000, 0x41, 0x42)];
+
+    const result = buildKothProgression(modeEvents, byte2Transitions, kothMatchStats(), 20000);
+
+    expect(result.hillCaptureTimestamps).toEqual([25000]);
+  });
+
+  it("drops an overshoot capture beyond the film-clock drift tolerance entirely", () => {
+    const modeEvents = tickBurst(0, 40000, 5); // capture at 60000, 40s past durationMs — trailing film
+    const byte2Transitions = [transition(15000, 0x40, 0x41), transition(18000, 0x41, 0x42)];
+
+    const result = buildKothProgression(modeEvents, byte2Transitions, kothMatchStats(), 20000);
+
+    expect(result.hillCaptureTimestamps).toEqual([]);
+  });
+
+  it("builds a death timeline from death events, dropping unattributed, unknown-team, and post-match deaths", () => {
+    const allEvents = [
+      modeEvent(0, 5000),
+      aFakeParsedHighlightEventWith({ teamId: 1, timeMs: 12000 }),
+      aFakeParsedHighlightEventWith({ teamId: null, timeMs: 15000 }),
+      aFakeParsedHighlightEventWith({ teamId: 7, timeMs: 18000 }),
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 20000 }),
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 305000 }),
+    ];
+
+    const result = buildKothProgression(allEvents, [], kothMatchStats(), 300000);
+
+    expect(result.deathTimeline).toEqual([
+      { timestampMs: 12000, teamId: 1 },
+      { timestampMs: 20000, teamId: 0 },
+    ]);
+  });
+
+  it("ignores death events when building score events and capture timestamps", () => {
+    const allEvents = [
+      ...tickBurst(0, 5000, 5),
+      aFakeParsedHighlightEventWith({ teamId: 1, timeMs: 7000 }),
+      aFakeParsedHighlightEventWith({ teamId: 0, timeMs: 12000 }),
+    ];
+    const byte2Transitions = [transition(25001, 0x40, 0x41), transition(30000, 0x41, 0x42)];
+
+    const result = buildKothProgression(allEvents, byte2Transitions, kothMatchStats(), 300000);
+
+    expect(result.events).toHaveLength(5);
+    expect(result.hillCaptureTimestamps).toEqual([25000]);
   });
 });

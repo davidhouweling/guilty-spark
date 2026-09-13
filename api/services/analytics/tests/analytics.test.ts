@@ -355,6 +355,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       events: [{ timestampMs: 100000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
       controlPeriods: [{ startMs: 0, endMs: 732278, controllingTeamId: 0 }],
       hillCaptureTimestamps: [100000],
+      deathTimeline: [{ timestampMs: 50000, teamId: 1 }],
       teamCount: 2,
     });
 
@@ -364,6 +365,8 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     const timeline = results["match-1"]?.scoreProgression?.timeline;
     expect(timeline?.type).toBe("koth");
     expect(timeline?.type === "koth" ? timeline.hillCaptureTimestamps : undefined).toEqual([100000]);
+    expect(timeline?.type === "koth" ? timeline.deathTimeline : undefined).toEqual([{ timestampMs: 50000, teamId: 1 }]);
+    expect(timeline?.type === "koth" ? timeline.respawnDurationMs : undefined).toBe(8000);
   });
 
   it("returns scoreProgression with oddball timeline for Oddball when scoreProgression is requested", async () => {

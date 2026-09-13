@@ -61,15 +61,22 @@ export class ScoreProgressionPresenter {
         return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
       }
       case "koth": {
-        return this.presentTimelineGantt(
+        return this.presentGanttMode(
+          snapshot,
           ariaLabel,
           viewData.durationMs,
-          viewData.hills.map((hill) => this.buildKothRow(hill)),
-          [TIMELINE_OPTION],
+          () => viewData.hills.map((hill) => this.buildKothRow(hill)),
+          viewData.scoreLines,
         );
       }
       case "oddball": {
-        return this.presentOddball(snapshot, viewData, ariaLabel);
+        return this.presentGanttMode(
+          snapshot,
+          ariaLabel,
+          viewData.durationMs,
+          () => viewData.rounds.map((round) => this.buildOddballRow(round)),
+          viewData.scoreLines,
+        );
       }
       default: {
         throw new UnreachableError(viewData);
@@ -77,22 +84,18 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  private presentOddball(
+  private presentGanttMode(
     snapshot: ScoreProgressionSnapshot,
-    viewData: Extract<ScoreProgressionViewData, { kind: "oddball" }>,
     ariaLabel: string,
+    durationMs: number,
+    buildRows: () => readonly TimelineGanttRowViewModel[],
+    scoreLines: ScoreLinesViewData | null,
   ): ScoreProgressionViewModel {
-    const chartTypeOptions = this.buildChartTypeOptions(viewData.scoreLines, [TIMELINE_OPTION]);
-    // the rounds timeline is oddball's default; an unset chart type resolves to it
-    if (viewData.scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
-      return this.presentTimelineGantt(
-        ariaLabel,
-        viewData.durationMs,
-        viewData.rounds.map((round) => this.buildOddballRow(round)),
-        chartTypeOptions,
-      );
+    const chartTypeOptions = this.buildChartTypeOptions(scoreLines, [TIMELINE_OPTION]);
+    if (scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
+      return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
-    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+    return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }
 
   private buildChartTypeOptions(

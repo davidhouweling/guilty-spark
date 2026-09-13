@@ -7,6 +7,7 @@ import type {
   ParsedHighlightEvent,
   StateByte2Transition,
 } from "../../types";
+import { buildDeathTimeline } from "../death-timeline";
 import { findBestKothCaptureAssignment } from "./koth-capture-search";
 
 const OBJECTIVE_TICK_DEDUP_MS = 2_500;
@@ -108,19 +109,39 @@ function buildKothControlPeriods(
   return periods;
 }
 
+// One scoring-tick cadence: how far the match-ending capture may interpolate past
+// MatchInfo.Duration (film-clock drift) while still counting as the real final hill.
+const CAPTURE_OVERSHOOT_TOLERANCE_MS = 5_000;
+
+// Captures past the match end are trailing film data, not hills the match awarded — except the
+// match-ending capture itself, which can drift slightly past the duration.
+function dropCapturesPastMatchEnd(timestamps: number[], durationMs: number): number[] {
+  const firstOvershoot = timestamps.findIndex((ts) => ts > durationMs);
+  if (firstOvershoot === -1) {
+    return timestamps;
+  }
+  const isFilmClockDrift = (timestamps[firstOvershoot] ?? Infinity) - durationMs <= CAPTURE_OVERSHOOT_TOLERANCE_MS;
+  return timestamps.slice(0, firstOvershoot + (isFilmClockDrift ? 1 : 0));
+}
+
 export function buildKothProgression(
-  modeEvents: ParsedHighlightEvent[],
+  allEvents: readonly ParsedHighlightEvent[],
   byte2Transitions: StateByte2Transition[],
   matchStats: MatchStats,
   durationMs: number,
 ): KothProgression {
   const knownTeamIds = new Set<number>(matchStats.Teams.map((team) => team.TeamId));
+  const modeEvents = allEvents.filter((event) => event.eventType === "mode");
   const events = buildKothScoreEvents(modeEvents, knownTeamIds);
   const controlPeriods = buildKothControlPeriods(byte2Transitions, modeEvents, durationMs);
   return {
     events,
     controlPeriods,
-    hillCaptureTimestamps: findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
+    hillCaptureTimestamps: dropCapturesPastMatchEnd(
+      findBestKothCaptureAssignment(events, buildTeamCaptureTargets(matchStats), controlPeriods),
+      durationMs,
+    ),
+    deathTimeline: buildDeathTimeline(allEvents, knownTeamIds, durationMs),
     teamCount: knownTeamIds.size,
   };
 }

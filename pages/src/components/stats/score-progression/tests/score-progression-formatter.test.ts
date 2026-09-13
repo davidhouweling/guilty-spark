@@ -476,6 +476,64 @@ describe("formatScoreProgression", () => {
     });
   });
 
+  describe("empty sampled score lines", () => {
+    it("returns null oddball score lines when every round falls outside the match duration", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 60000,
+        timeline: aFakeOddballTimelineWith({
+          rounds: [
+            {
+              roundIndex: 0,
+              startMs: 70000,
+              endMs: 90000,
+              endedByCap: false,
+              winnerTeamId: 0,
+              scores: { "0": 20, "1": 10 },
+              carrySegments: [],
+              points: [],
+            },
+          ],
+        }),
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "oddball") {
+        throw new Error("expected oddball view data");
+      }
+      expect(result.scoreLines).toBeNull();
+    });
+  });
+
+  describe("koth score lines", () => {
+    it("builds per-hill tick lines with hill boundaries, a linear delta, and player advantage", () => {
+      const data = aFakeScoreProgressionWith({ durationMs: 60000, timeline: aFakeKothTimelineWith() });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "koth") {
+        throw new Error("expected koth view data");
+      }
+      // hill 1 peaks at 4 ticks for team 0, then the meter resets at the capture
+      expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 4 });
+      expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 0 });
+      // the trailing uncaptured hill holds at zero through the match end
+      expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 0 });
+      expect(result.scoreLines?.scoreDelta?.lineType).toBe("linear");
+      expect(result.scoreLines?.playerAdvantage).not.toBeNull();
+      expect(result.scoreLines?.roundBoundaries).toEqual([30000, 55000]);
+    });
+
+    it("builds one cumulative tick window when no captures are identifiable", () => {
+      const data = aFakeScoreProgressionWith({
+        durationMs: 60000,
+        timeline: aFakeKothTimelineWith({ hillCaptureTimestamps: [] }),
+      });
+      const result = formatScoreProgression(data, TEAM_COLORS);
+      if (result?.kind !== "koth") {
+        throw new Error("expected koth view data");
+      }
+      expect(result.scoreLines?.roundBoundaries).toEqual([]);
+      expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 4 });
+    });
+  });
+
   describe("oddball dispatch", () => {
     it("returns oddball view data for an oddball timeline", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 460000, timeline: aFakeOddballTimelineWith() });
