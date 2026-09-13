@@ -26,6 +26,40 @@ describe("tileSegments", () => {
     ]);
   });
 
+  it("carries interval opacity onto occupied segments", () => {
+    const segments = tileSegments(0, 100, [{ startMs: 10, endMs: 20, teamId: 0, opacity: 0.7 }], COLORS);
+    expect(segments).toContainEqual({ startMs: 10, endMs: 20, teamId: 0, color: "#0000ff", opacity: 0.7 });
+  });
+
+  it("does not merge adjacent same-team segments whose opacities differ", () => {
+    const segments = tileSegments(
+      0,
+      100,
+      [
+        { startMs: 0, endMs: 50, teamId: 0, opacity: 1 },
+        { startMs: 50, endMs: 100, teamId: 0, opacity: 0.4 },
+      ],
+      COLORS,
+    );
+    expect(segments).toEqual([
+      { startMs: 0, endMs: 50, teamId: 0, color: "#0000ff", opacity: 1 },
+      { startMs: 50, endMs: 100, teamId: 0, color: "#0000ff", opacity: 0.4 },
+    ]);
+  });
+
+  it("merges adjacent same-team segments with equal opacity", () => {
+    const segments = tileSegments(
+      0,
+      100,
+      [
+        { startMs: 0, endMs: 50, teamId: 0, opacity: 0.7 },
+        { startMs: 50, endMs: 100, teamId: 0, opacity: 0.7 },
+      ],
+      COLORS,
+    );
+    expect(segments).toEqual([{ startMs: 0, endMs: 100, teamId: 0, color: "#0000ff", opacity: 0.7 }]);
+  });
+
   it("returns a single unoccupied segment when there are no occupied intervals", () => {
     expect(tileSegments(0, 100, [], COLORS)).toEqual([{ startMs: 0, endMs: 100, teamId: null, color: null }]);
   });

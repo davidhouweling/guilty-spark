@@ -16,6 +16,7 @@ import type {
   TimelineGanttChartViewModel,
   TimelineGanttRowViewModel,
   TimelineGanttTooltipEntry,
+  ZoneStripData,
 } from "./types";
 
 export interface ScoreProgressionPresenterConfig {
@@ -58,25 +59,32 @@ export class ScoreProgressionPresenter {
     const { viewData, ariaLabel } = input;
     switch (viewData.kind) {
       case "score-lines": {
-        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData, []));
+        return this.presentScoreLines(snapshot, viewData, ariaLabel, this.buildChartTypeOptions(viewData));
+      }
+      case "strongholds": {
+        const { zoneStrip, scoreLines } = viewData;
+        if (zoneStrip == null) {
+          return this.presentScoreLines(snapshot, scoreLines, ariaLabel, this.buildChartTypeOptions(scoreLines));
+        }
+        return this.presentMode(snapshot, ariaLabel, scoreLines.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)],
+          scoreLines,
+          defaultChartType: "progression",
+        });
       }
       case "koth": {
-        return this.presentGanttMode(
-          snapshot,
-          ariaLabel,
-          viewData.durationMs,
-          () => viewData.hills.map((hill) => this.buildKothRow(hill)),
-          viewData.scoreLines,
-        );
+        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
+          scoreLines: viewData.scoreLines,
+          defaultChartType: "timeline",
+        });
       }
       case "oddball": {
-        return this.presentGanttMode(
-          snapshot,
-          ariaLabel,
-          viewData.durationMs,
-          () => viewData.rounds.map((round) => this.buildOddballRow(round)),
-          viewData.scoreLines,
-        );
+        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+          buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
+          scoreLines: viewData.scoreLines,
+          defaultChartType: "timeline",
+        });
       }
       default: {
         throw new UnreachableError(viewData);
@@ -84,28 +92,56 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  private presentGanttMode(
+  // an unset chart type resolves to the mode's default, whose option group leads the select
+  private presentMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
     durationMs: number,
-    buildRows: () => readonly TimelineGanttRowViewModel[],
-    scoreLines: ScoreLinesViewData | null,
+    mode: {
+      buildRows: () => readonly TimelineGanttRowViewModel[];
+      scoreLines: ScoreLinesViewData | null;
+      defaultChartType: ChartType;
+    },
   ): ScoreProgressionViewModel {
-    const chartTypeOptions = this.buildChartTypeOptions(scoreLines, [TIMELINE_OPTION]);
-    if (scoreLines == null || snapshot.chartType == null || snapshot.chartType === "timeline") {
+    const { buildRows, scoreLines, defaultChartType } = mode;
+    const scoreOptions = this.buildChartTypeOptions(scoreLines);
+    const chartTypeOptions =
+      defaultChartType === "timeline" ? [TIMELINE_OPTION, ...scoreOptions] : [...scoreOptions, TIMELINE_OPTION];
+    const wantsTimeline = (snapshot.chartType ?? defaultChartType) === "timeline";
+    if (scoreLines == null || wantsTimeline) {
       return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
     }
     return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }
 
-  private buildChartTypeOptions(
-    viewData: ScoreLinesViewData | null,
-    leadingOptions: readonly ChartTypeOption[],
-  ): ChartTypeOption[] {
+  private buildZoneStripRow(zoneStrip: ZoneStripData): TimelineGanttRowViewModel {
+    return {
+      rowIndex: 1,
+      label: "Zones",
+      subLabel: this.buildPercentSubLabel(zoneStrip.teamShares),
+      segments: zoneStrip.segments,
+      winnerColor: null,
+      tooltipTitle: "Zone control — share of the match ahead",
+      tooltipEntries: zoneStrip.teamShares.map((share) =>
+        this.buildTooltipEntry(
+          share.teamId,
+          share.color,
+          share.percentage,
+          `${share.name}: ahead ${String(share.percentage)}%`,
+        ),
+      ),
+    };
+  }
+
+  private buildPercentSubLabel(entries: readonly { name: string; percentage: number }[]): string {
+    return entries.map((entry) => `${entry.name} ${String(entry.percentage)}%`).join(" · ");
+  }
+
+  private buildChartTypeOptions(viewData: ScoreLinesViewData | null): ChartTypeOption[] {
     if (viewData == null) {
-      return [...leadingOptions];
+      return [];
     }
-    return [...leadingOptions, PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
+    return [PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
   }
 
   private presentScoreLines(
@@ -231,7 +267,7 @@ export class ScoreProgressionPresenter {
     return {
       rowIndex: hill.hillIndex,
       label: `Hill ${String(hill.hillIndex)}`,
-      subLabel: hill.teamCaptureProgress.map((o) => `${o.name} ${String(o.percentage)}%`).join(" · "),
+      subLabel: this.buildPercentSubLabel(hill.teamCaptureProgress),
       segments: hill.segments,
       winnerColor: hill.winnerColor,
       tooltipTitle: `Hill ${String(hill.hillIndex)}`,

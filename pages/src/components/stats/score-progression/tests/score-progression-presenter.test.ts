@@ -5,6 +5,8 @@ import { ScoreProgressionStore } from "../score-progression-store";
 import { aFakeKothHillDataWith } from "../fakes/koth-hill-data.fake";
 import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
+import { aFakeTeamLineWith } from "../fakes/team-line.fake";
+import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -16,6 +18,7 @@ import type {
   ScoreProgressionTeamLine,
   ScoreProgressionViewModel,
   TimelineGanttChartViewModel,
+  ZoneStripData,
 } from "../types";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
@@ -29,12 +32,8 @@ const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   lineType: "step",
 });
 
-const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine => ({
-  teamId,
-  name,
-  color,
-  points: [],
-});
+const aFakeTeamLine = (name: string, color: string, teamId = 0): ScoreProgressionTeamLine =>
+  aFakeTeamLineWith({ teamId, name, color });
 
 function makePresenter(): { store: ScoreProgressionStore; presenter: ScoreProgressionPresenter } {
   const store = new ScoreProgressionStore();
@@ -64,6 +63,23 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
       zoneAdvantage: null,
       roundBoundaries: [],
       ...overrides,
+    },
+    ariaLabel: "test chart",
+  };
+}
+
+function aStrongholdsInput(zoneStrip: ZoneStripData | null): ScoreProgressionInput {
+  return {
+    viewData: {
+      kind: "strongholds",
+      zoneStrip,
+      scoreLines: aFakeScoreLinesViewDataWith({
+        durationMs: 100000,
+        teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+        scoreDelta: aFakeScoreDeltaData(),
+        playerAdvantage: aFakePlayerAdvantageData(),
+        zoneAdvantage: aFakePlayerAdvantageData(),
+      }),
     },
     ariaLabel: "test chart",
   };
@@ -675,6 +691,47 @@ describe("ScoreProgressionPresenter", () => {
       );
       expect(model.effectiveChartType).toBe("progression");
       expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+    });
+  });
+
+  describe("strongholds mode", () => {
+    it("presents score lines by default with the zone timeline as a trailing chart type", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())));
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta", "timeline"]);
+    });
+
+    it("presents the zone strip as a single gantt row when the timeline chart type is selected", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "timeline" });
+      const zoneStrip = aFakeZoneStripDataWith();
+      const model = asTimelineGantt(presenter.present(store.getSnapshot(), aStrongholdsInput(zoneStrip)));
+      expect(model.timeline.rows).toHaveLength(1);
+      expect(model.timeline.rows[0]?.label).toBe("Zones");
+      expect(model.timeline.rows[0]?.subLabel).toBe("Eagle 20% · Cobra 40%");
+      expect(model.timeline.rows[0]?.segments).toBe(zoneStrip.segments);
+      expect(model.timeline.rows[0]?.tooltipEntries.map((entry) => entry.text)).toEqual([
+        "Eagle: ahead 20%",
+        "Cobra: ahead 40%",
+      ]);
+    });
+
+    it("forwards the strongholds overlays through to the score-lines view model", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(aFakeZoneStripDataWith())));
+      expect(model.hasPlayerAdvantage).toBe(true);
+      expect(model.hasZoneAdvantage).toBe(true);
+      expect(model.deltaViewModel).toBeNull();
+      expect(model.progressionViewModel.teamLines).toHaveLength(2);
+    });
+
+    it("omits the timeline chart type and stays on score lines when there is no zone strip", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "timeline" });
+      const model = asScoreLines(presenter.present(store.getSnapshot(), aStrongholdsInput(null)));
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta"]);
     });
   });
 
