@@ -116,6 +116,20 @@ describe("buildOddballScoreSeries", () => {
     expect(samples.at(-1)?.timestampMs).toBe(330000);
   });
 
+  it("keeps the reset after a sparse round-ending sample so carried scores cannot leak across rounds", () => {
+    const timeline = aFakeOddballTimelineWith();
+    const [round1, round2] = timeline.rounds;
+    const sparseEnding = aFakeOddballTimelineWith({
+      rounds: [{ ...round1, points: [...round1.points, { timestampMs: 330000, runningScores: { "1": 10 } }] }, round2],
+    });
+    const { samples } = buildOddballScoreSeries(sparseEnding, [...TEAM_IDS], 470000);
+    const atRoundTwoStart = samples.filter((sample) => sample.timestampMs === 342000);
+    expect(atRoundTwoStart).toEqual([
+      { timestampMs: 342000, runningScores: { "1": 10 } },
+      { timestampMs: 342000, runningScores: { "0": 0, "1": 0 } },
+    ]);
+  });
+
   it("falls back to a uniform ramp sloped against the round's true end when a round has no points", () => {
     const timeline = aFakeOddballTimelineWith({
       rounds: [

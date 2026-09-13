@@ -13,8 +13,13 @@ function zeroScores(teamIds: readonly number[]): Record<string, number> {
   return Object.fromEntries(teamIds.map((teamId) => [String(teamId), 0]));
 }
 
+// key presence matters as much as the value: an omitted team means "carry the previous score
+// forward" downstream, so a sparse record must never compare equal to an explicit zero reset
 function scoresEqual(a: Record<string, number>, b: Record<string, number>, teamIds: readonly number[]): boolean {
-  return teamIds.every((teamId) => (a[String(teamId)] ?? 0) === (b[String(teamId)] ?? 0));
+  return teamIds.every((teamId) => {
+    const key = String(teamId);
+    return key in a === key in b && (a[key] ?? 0) === (b[key] ?? 0);
+  });
 }
 
 function pushSample(samples: ScoreSample[], sample: ScoreSample, teamIds: readonly number[]): void {
