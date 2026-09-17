@@ -2,8 +2,14 @@
 import Layout from "../layouts/layout.astro";
 import { API_HOST } from "../constants";
 import { LiveTrackerApp } from "../apps/live-tracker/create";
+
+const queueNumber = Astro.url.searchParams.get("queue");
+const title =
+  queueNumber !== null && /^[1-9]\d*$/.test(queueNumber)
+    ? `Queue #${queueNumber} Live Tracker - Guilty Spark`
+    : "Live Tracker - Guilty Spark";
 ---
 
-<Layout title="Live Tracker - Guilty Spark" description="Real-time live tracker">
+<Layout title={title} description="Real-time live tracker">
   <LiveTrackerApp client:load apiHost={API_HOST} />
 </Layout>

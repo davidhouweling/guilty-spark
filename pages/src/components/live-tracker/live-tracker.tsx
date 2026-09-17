@@ -158,6 +158,14 @@ export function LiveTrackerView(): React.ReactElement {
       ? settings.series.subtitleOverride
       : trackerInfo.subtitle;
 
+  const queueTitle = hasState(state)
+    ? `Queue #${state.queueNumber.toString()} Live Tracker`
+    : displaySubtitle !== ""
+      ? `${displaySubtitle} Live Tracker`
+      : "Live Tracker";
+
+  const pageSubtitle = displayTitle;
+
   // Set body data attribute for streamer mode styling
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -171,47 +179,59 @@ export function LiveTrackerView(): React.ReactElement {
     };
   }, [viewMode]);
 
-  const title: string[] = [trackerInfo.title];
+  const title: string[] = [];
   if (hasState(state)) {
-    title.push(`#${state.queueNumber.toString()}`);
+    title.push(`Queue #${state.queueNumber.toString()}`);
     title.push(`(${emojifySeriesScore(state.seriesScore)})`);
   }
-  title.push("| Live Tracker - Guilty Spark");
+  if (displayTitle !== "") {
+    title.push("|");
+    title.push(displayTitle);
+  }
+  title.push("Live Tracker - Guilty Spark");
 
   const teamColorsArray = [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)];
 
+  const settingsTrigger = (
+    <SettingsTrigger
+      compact={viewMode === "streamer"}
+      onClick={(): void => {
+        setIsSettingsOpen(true);
+      }}
+    />
+  );
+
+  const settingsDialog = (
+    <SettingsDialog
+      isOpen={isSettingsOpen}
+      settings={settings}
+      viewMode={viewMode}
+      availablePlayers={availablePlayers}
+      defaultTitle={state?.guildName}
+      defaultSubtitle={state != null ? `Queue #${state.queueNumber.toString()}` : undefined}
+      server={state?.guildId}
+      queue={state?.queueNumber}
+      onClose={(): void => {
+        setIsSettingsOpen(false);
+      }}
+      onSettingsChange={setSettings}
+      onViewModeChange={handleSetViewMode}
+      onViewPreviewChange={(enabled): void => {
+        setSettings({
+          ...settings,
+          global: {
+            ...settings.global,
+            viewPreview: enabled,
+          },
+        });
+      }}
+    />
+  );
+
   const settingsUi = (
     <>
-      <SettingsTrigger
-        compact={viewMode === "streamer"}
-        onClick={(): void => {
-          setIsSettingsOpen(true);
-        }}
-      />
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        settings={settings}
-        viewMode={viewMode}
-        availablePlayers={availablePlayers}
-        defaultTitle={state?.guildName}
-        defaultSubtitle={state != null ? `Queue #${state.queueNumber.toString()}` : undefined}
-        server={state?.guildId}
-        queue={state?.queueNumber}
-        onClose={(): void => {
-          setIsSettingsOpen(false);
-        }}
-        onSettingsChange={setSettings}
-        onViewModeChange={handleSetViewMode}
-        onViewPreviewChange={(enabled): void => {
-          setSettings({
-            ...settings,
-            global: {
-              ...settings.global,
-              viewPreview: enabled,
-            },
-          });
-        }}
-      />
+      {settingsTrigger}
+      {settingsDialog}
     </>
   );
 
@@ -233,15 +253,13 @@ export function LiveTrackerView(): React.ReactElement {
   return (
     <>
       <title>{title.join(" ")}</title>
-      <Container>
+      <Container className={styles.pageHeader}>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
             <Heading tagName="h1" styleAs="h3">
-              {displayTitle}
+              {queueTitle}
             </Heading>
-            <div className={styles.headerSubtitle}>
-              {hasState(state) ? `Queue #${state.queueNumber.toString()}` : displaySubtitle}
-            </div>
+            <div className={styles.headerSubtitle}>{pageSubtitle}</div>
           </div>
 
           <div className={styles.headerRight}>
@@ -261,8 +279,8 @@ export function LiveTrackerView(): React.ReactElement {
         </div>
       </Container>
 
-      <Container mobileDown="0" className={classNames(styles.dataContainer, styles.contentContainer, styles[viewMode])}>
-        {settingsUi}
+      <div className={classNames(styles.dataContainer, styles[viewMode])}>
+        {settingsDialog}
         {state?.status === "stopped" ? (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>
             <Alert variant="info">The series has completed. Tracker stopped.</Alert>
@@ -273,9 +291,12 @@ export function LiveTrackerView(): React.ReactElement {
           <>
             {hasState(state) && (
               <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                <Heading tagName="h2" styleAs="h3" spacing={3}>
-                  Series overview
-                </Heading>
+                <div className={styles.overviewHeader}>
+                  <Heading tagName="h2" styleAs="h3">
+                    Series overview
+                  </Heading>
+                  {settingsTrigger}
+                </div>
                 <div className={styles.seriesOverview}>
                   <section className={styles.seriesScores}>
                     {hasMatches ? (
@@ -393,7 +414,7 @@ export function LiveTrackerView(): React.ReactElement {
             {hasState(state) && hasMatches && (
               <>
                 <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <Heading tagName="h2" styleAs="h3" spacing={3}>
+                  <Heading tagName="h2" styleAs="h3">
                     Matches
                   </Heading>
                 </Container>
@@ -514,7 +535,7 @@ export function LiveTrackerView(): React.ReactElement {
             <Alert variant="info">{trackerInfo.statusText}</Alert>
           </Container>
         )}
-      </Container>
+      </div>
     </>
   );
 }

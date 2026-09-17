@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 import { FakeLiveTrackerService } from "../live-tracker.fake";
+import { createSampleScenario } from "../scenario";
 import type { LiveTrackerConnection, SteppableLiveTrackerConnection } from "../../types";
 
 function isSteppableLiveTrackerConnection(
@@ -11,6 +12,12 @@ function isSteppableLiveTrackerConnection(
 }
 
 describe("FakeLiveTrackerService (fake mode)", () => {
+  it("plays sample frames quickly", () => {
+    const scenario = createSampleScenario();
+
+    expect(scenario.intervalMs).toBe(2_000);
+  });
+
   it("does not emit frames until stepped, and does not overwrite stopped status", async () => {
     const stateMessage: LiveTrackerStateMessage = {
       type: "state",

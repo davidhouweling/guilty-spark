@@ -137,20 +137,17 @@ export function SeriesStats({
 
     return [
       {
-        id: "team",
-        header: "Team",
-        accessorFn: (row: MatchStatsRow): number => row.teamId,
-        cell: (value: unknown): React.ReactNode => <TeamIcon teamId={value as number} size="small" />,
-        headerClassName: undefined,
-        cellClassName: tableStyles.labelCell,
-        sortFn: "basic",
-      },
-      {
-        id: "gamertag",
-        header: "Gamertag",
+        id: "player",
+        header: "Player",
         accessorFn: (row: MatchStatsRow): string => row.player.name,
-        headerClassName: undefined,
-        cellClassName: tableStyles.labelCell,
+        cell: (_value: unknown, row: MatchStatsRow): React.ReactNode => (
+          <span className={styles.playerIdentity}>
+            <TeamIcon teamId={row.teamId} size="small" />
+            {row.player.name}
+          </span>
+        ),
+        headerClassName: tableStyles.stickyColumn,
+        cellClassName: classNames(tableStyles.labelCell, tableStyles.stickyColumn),
         sortFn: "alphanumeric",
       },
       ...statColumns.map((stat) => ({

@@ -1,6 +1,8 @@
 import type { LiveTrackerMessage, LiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/types";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 
+const DEFAULT_FRAME_INTERVAL_MS = 2_000;
+
 export interface LiveTrackerScenario {
   readonly intervalMs: number;
   readonly frames: readonly LiveTrackerMessage[];
@@ -40,14 +42,14 @@ export function createSampleScenario(): LiveTrackerScenario {
   frames.push(cloneNeatQueueStateWithMatches(sampleLiveTrackerStateMessage, [], baseTimestamp.toISOString()));
 
   for (let index = 0; index < allMatchIds.length; index += 1) {
-    const timestamp = new Date(baseTimestamp.getTime() + (index + 1) * 30_000).toISOString();
+    const timestamp = new Date(baseTimestamp.getTime() + (index + 1) * DEFAULT_FRAME_INTERVAL_MS).toISOString();
     frames.push(
       cloneNeatQueueStateWithMatches(sampleLiveTrackerStateMessage, allMatchIds.slice(0, index + 1), timestamp),
     );
   }
 
   return {
-    intervalMs: 60000,
+    intervalMs: DEFAULT_FRAME_INTERVAL_MS,
     frames,
   };
 }

@@ -18,10 +18,10 @@ describe("/tracker page wiring", () => {
     render(<LiveTrackerApp apiHost="http://example.local" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /Dog\s*Crew/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Queue\s*#\s*\d+ Live Tracker/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Queue\s*#\s*\d+/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dog\s*Crew/i)).toBeInTheDocument();
     expect(screen.getByText(/Status/i)).toBeInTheDocument();
 
     await waitFor(() => {

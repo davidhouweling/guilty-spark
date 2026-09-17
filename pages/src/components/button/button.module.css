@@ -38,7 +38,7 @@
 }
 
 .small {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   min-height: 32px;
   padding: var(--space-1) var(--space-4);
 }
