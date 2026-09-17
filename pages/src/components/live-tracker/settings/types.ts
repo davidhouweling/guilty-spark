@@ -74,7 +74,7 @@ export interface AllStreamerSettings {
 }
 
 // Default values
-export const DEFAULT_VIEW_MODE: ViewMode = "standard";
+export const DEFAULT_VIEW_MODE: ViewMode = "wide";
 
 export const DEFAULT_FONT_SIZES: FontSizeSettings = {
   queueInfo: 100,

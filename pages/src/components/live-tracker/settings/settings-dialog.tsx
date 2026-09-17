@@ -328,8 +328,8 @@ export function SettingsDialog({
                 <div className={styles.viewModeButtonsContainer}>
                   <ViewModeButton
                     mode="standard"
-                    label="Standard View"
-                    description="Default container width"
+                    label="Narrow View"
+                    description="Narrower container width"
                     isSelected={viewMode === "standard"}
                     onClick={(): void => {
                       onViewModeChange("standard");
@@ -338,7 +338,7 @@ export function SettingsDialog({
                   <ViewModeButton
                     mode="wide"
                     label="Wide View"
-                    description="Full width container"
+                    description="Full width container (default)"
                     isSelected={viewMode === "wide"}
                     onClick={(): void => {
                       onViewModeChange("wide");

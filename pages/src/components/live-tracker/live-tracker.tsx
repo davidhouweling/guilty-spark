@@ -14,6 +14,7 @@ import { gameModeIconSrc as gameModeIconFromVariantCategory } from "../individua
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
+import { DEFAULT_VIEW_MODE } from "./settings/types";
 import { StreamerOverlay } from "./streamer-overlay/streamer-overlay";
 import {
   useTrackerInfo,
@@ -72,7 +73,7 @@ export function LiveTrackerView(): React.ReactElement {
     if (typeof window !== "undefined") {
       return parseSettingsFromUrl(urlSearchParams, settings).global.viewMode;
     }
-    return "standard";
+    return DEFAULT_VIEW_MODE;
   });
 
   useEffect(() => {
@@ -253,7 +254,7 @@ export function LiveTrackerView(): React.ReactElement {
   return (
     <>
       <title>{title.join(" ")}</title>
-      <Container className={styles.pageHeader}>
+      <Container className={classNames(styles.pageHeader, styles.contentContainer, styles[viewMode])}>
         <div className={styles.headerBar}>
           <div className={styles.headerLeft}>
             <Heading tagName="h1" styleAs="h3">

@@ -32,7 +32,7 @@ export function ViewModeSelector({
   onStreamerOptionsChange,
 }: ViewModeSelectorProps): React.ReactElement {
   const viewModes: { id: ViewMode; label: string; description: string }[] = [
-    { id: "standard", label: "Standard View", description: "Default container width" },
+    { id: "standard", label: "Narrow View", description: "Narrower container width" },
     { id: "wide", label: "Wide View", description: "Full width container" },
     { id: "streamer", label: "Streamer View (BETA)", description: "OBS overlay mode" },
   ];
