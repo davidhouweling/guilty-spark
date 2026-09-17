@@ -147,8 +147,8 @@ export function MatchStats({
             {row.player.name}
           </span>
         ),
-        headerClassName: undefined,
-        cellClassName: tableStyles.labelCell,
+        headerClassName: tableStyles.stickyColumn,
+        cellClassName: classNames(tableStyles.labelCell, tableStyles.stickyColumn),
         sortFn: "alphanumeric",
       },
       ...statColumns.map((stat) => ({

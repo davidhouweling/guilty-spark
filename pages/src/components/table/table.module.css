@@ -131,6 +131,28 @@
   text-underline-offset: 3px;
 }
 
+.stickyColumn {
+  background: color-mix(in srgb, var(--row-color, transparent) 20%, var(--halo-bg-primary, #000));
+  box-shadow: 1px 0 0 color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
+  left: 0;
+  min-width: 12rem;
+  position: sticky;
+  z-index: 2;
+}
+
+.table thead .stickyColumn {
+  background: var(--halo-bg-secondary, #0a0e14);
+  z-index: 3;
+}
+
+.table tbody tr:hover .stickyColumn {
+  background: color-mix(
+    in srgb,
+    var(--halo-teal-primary) 5%,
+    color-mix(in srgb, var(--row-color, transparent) 20%, var(--halo-bg-primary, #000))
+  );
+}
+
 /* Media Queries - Desktop and Above */
 @media (--desktop-viewport) {
   .table th,
