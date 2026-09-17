@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
 import { SeriesStats } from "../series-stats";
 import {
@@ -119,7 +119,11 @@ describe("SeriesStats", () => {
     );
 
     expect(screen.getByRole("tab", { name: "Accumulated Stats" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Accumulated player statistics")).toBeInTheDocument();
+    const playerStatisticsTable = screen.getByLabelText("Accumulated player statistics");
+    expect(playerStatisticsTable).toBeInTheDocument();
+    expect(within(playerStatisticsTable).getByRole("button", { name: "Player" })).toBeInTheDocument();
+    expect(within(playerStatisticsTable).queryByRole("button", { name: "Gamertag" })).not.toBeInTheDocument();
+    expect(within(playerStatisticsTable).queryByRole("button", { name: "Team" })).not.toBeInTheDocument();
     expect(screen.getByText("Player1")).toBeInTheDocument();
     expect(screen.getByText("Player2")).toBeInTheDocument();
   });
