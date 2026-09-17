@@ -18,7 +18,8 @@ function loadGlobalSettings(): GlobalStreamerSettings {
       const parsed = JSON.parse(stored) as Partial<GlobalStreamerSettings>;
       return {
         ...DEFAULT_ALL_SETTINGS.global,
-        viewMode: parsed.viewMode ?? DEFAULT_ALL_SETTINGS.global.viewMode,
+        // viewMode must only ever come from the URL, never persisted storage (avoids getting stuck in streamer/OBS view)
+        viewMode: DEFAULT_ALL_SETTINGS.global.viewMode,
         ...(parsed.fontSizes && {
           fontSizes: {
             ...DEFAULT_ALL_SETTINGS.global.fontSizes,
@@ -59,7 +60,15 @@ function loadGlobalSettings(): GlobalStreamerSettings {
 
 function saveGlobalSettings(settings: GlobalStreamerSettings): void {
   try {
-    localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(settings));
+    // viewMode is intentionally excluded: it must only ever come from the URL, never persisted storage
+    const persistable: Omit<GlobalStreamerSettings, "viewMode"> = {
+      viewPreview: settings.viewPreview,
+      fontSizes: settings.fontSizes,
+      colors: settings.colors,
+      display: settings.display,
+      ticker: settings.ticker,
+    };
+    localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(persistable));
   } catch (error) {
     console.error("Failed to save global streamer settings:", error);
   }

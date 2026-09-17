@@ -59,12 +59,24 @@ describe("useStreamerSettings", () => {
     expect(result.current.settings.series).toEqual(DEFAULT_ALL_SETTINGS.series);
   });
 
+  it("ignores a persisted viewMode and always loads the default view mode", () => {
+    const storedGlobal: GlobalStreamerSettings = {
+      ...DEFAULT_GLOBAL_SETTINGS,
+      viewMode: "streamer",
+    };
+    localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(storedGlobal));
+
+    const { result } = renderHook(() => useStreamerSettings());
+
+    expect(result.current.settings.global.viewMode).toBe(DEFAULT_ALL_SETTINGS.global.viewMode);
+  });
+
   it("saves global settings to localStorage when updateGlobalSettings is called", () => {
     const { result } = renderHook(() => useStreamerSettings());
 
     act(() => {
       result.current.updateGlobalSettings({
-        viewMode: "wide",
+        ticker: { ...DEFAULT_GLOBAL_SETTINGS.ticker, showTicker: false },
       });
     });
 
@@ -73,7 +85,25 @@ describe("useStreamerSettings", () => {
     expect(stored).not.toBeNull();
     if (stored != null) {
       const parsed = JSON.parse(stored) as GlobalStreamerSettings;
-      expect(parsed.viewMode).toBe("wide");
+      expect(parsed.ticker.showTicker).toBe(false);
+    }
+  });
+
+  it("never persists viewMode to localStorage via updateGlobalSettings", () => {
+    const { result } = renderHook(() => useStreamerSettings());
+
+    act(() => {
+      result.current.updateGlobalSettings({ viewMode: "streamer" });
+    });
+
+    expect(result.current.settings.global.viewMode).toBe("streamer");
+
+    const stored = localStorage.getItem(STORAGE_KEY_GLOBAL);
+    expect.assertions(3);
+    expect(stored).not.toBeNull();
+    if (stored != null) {
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      expect(parsed).not.toHaveProperty("viewMode");
     }
   });
 
@@ -106,7 +136,7 @@ describe("useStreamerSettings", () => {
         ...DEFAULT_ALL_SETTINGS,
         global: {
           ...DEFAULT_GLOBAL_SETTINGS,
-          viewMode: "streamer",
+          colors: { ...DEFAULT_GLOBAL_SETTINGS.colors, mode: "player" },
         },
       });
     });
@@ -116,7 +146,31 @@ describe("useStreamerSettings", () => {
     expect(stored).not.toBeNull();
     if (stored != null) {
       const parsed = JSON.parse(stored) as GlobalStreamerSettings;
-      expect(parsed.viewMode).toBe("streamer");
+      expect(parsed.colors.mode).toBe("player");
+    }
+  });
+
+  it("never persists viewMode to localStorage via setSettings", () => {
+    const { result } = renderHook(() => useStreamerSettings());
+
+    act(() => {
+      result.current.setSettings({
+        ...DEFAULT_ALL_SETTINGS,
+        global: {
+          ...DEFAULT_GLOBAL_SETTINGS,
+          viewMode: "streamer",
+        },
+      });
+    });
+
+    expect(result.current.settings.global.viewMode).toBe("streamer");
+
+    const stored = localStorage.getItem(STORAGE_KEY_GLOBAL);
+    expect.assertions(3);
+    expect(stored).not.toBeNull();
+    if (stored != null) {
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      expect(parsed).not.toHaveProperty("viewMode");
     }
   });
 
@@ -175,16 +229,18 @@ describe("useStreamerSettings", () => {
 
   it("merges partial stored global settings with defaults for missing fields", () => {
     const partialStored = {
-      viewMode: "wide",
-      // Missing colors, display, ticker, fontSizes
+      // viewMode is intentionally omitted: it must never be restored from storage
+      colors: { ...DEFAULT_GLOBAL_SETTINGS.colors, mode: "player" },
+      // Missing display, ticker, fontSizes
     };
     localStorage.setItem(STORAGE_KEY_GLOBAL, JSON.stringify(partialStored));
 
     const { result } = renderHook(() => useStreamerSettings());
 
-    expect(result.current.settings.global.viewMode).toBe("wide");
+    expect(result.current.settings.global.viewMode).toBe(DEFAULT_ALL_SETTINGS.global.viewMode);
+    expect(result.current.settings.global.colors.mode).toBe("player");
     // Missing fields should fall back to defaults
-    expect(result.current.settings.global.colors).toEqual(DEFAULT_GLOBAL_SETTINGS.colors);
+    expect(result.current.settings.global.display).toEqual(DEFAULT_GLOBAL_SETTINGS.display);
     expect(result.current.settings.global.display).toEqual(DEFAULT_GLOBAL_SETTINGS.display);
     expect(result.current.settings.global.ticker).toEqual(DEFAULT_GLOBAL_SETTINGS.ticker);
   });
