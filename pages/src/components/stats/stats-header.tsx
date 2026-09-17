@@ -1,6 +1,5 @@
 import React from "react";
 import { Heading } from "../heading/heading";
-import { Container } from "../container/container";
 import styles from "./match-stats.module.css";
 
 export interface StatsHeaderItem {
@@ -28,7 +27,7 @@ export function StatsHeader({
   rightContent,
 }: StatsHeaderProps): React.ReactElement {
   return (
-    <Container className={styles.matchHeader} style={backgroundStyle}>
+    <div className={styles.matchHeader} style={backgroundStyle}>
       <div className={styles.matchHeaderContent}>
         <Heading tagName="h3" className={styles.matchTitle}>
           {title}
@@ -47,6 +46,6 @@ export function StatsHeader({
         (gameModeIconUrl != null ? (
           <img src={gameModeIconUrl} alt={gameModeAlt ?? ""} className={styles.gameModeIcon} />
         ) : null)}
-    </Container>
+    </div>
   );
 }

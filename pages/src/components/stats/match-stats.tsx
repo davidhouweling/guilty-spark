@@ -10,7 +10,6 @@ import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
-import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import { LoadingState } from "../loading-state/loading-state";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
@@ -229,11 +228,9 @@ export function MatchStats({
 
       {hasTeamStats && (
         <div className={styles.teamTotals}>
-          <Container>
-            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
-              Team Totals
-            </Heading>
-          </Container>
+          <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
+            Team Totals
+          </Heading>
           <SortableTable
             data={data}
             columns={teamColumns}

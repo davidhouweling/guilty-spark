@@ -23,8 +23,7 @@
   isolation: isolate;
   justify-content: space-between;
   overflow: hidden;
-  padding-bottom: var(--space-4);
-  padding-top: var(--space-4);
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-4);
   position: relative;
 }
 
@@ -143,6 +142,8 @@
   font-family: var(--font-body, "Inter", sans-serif);
   font-weight: 500;
   margin: var(--space-3) 0 0;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
 }
 
 /* Team Totals */

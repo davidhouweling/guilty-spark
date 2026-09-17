@@ -9,7 +9,6 @@ import { TabbedSection } from "../tabbed-section/tabbed-section";
 import { TeamIcon } from "../icons/team-icon";
 import { MedalIcon } from "../icons/medal-icon";
 import type { TeamColor } from "../team-colors/team-colors";
-import { Container } from "../container/container";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
@@ -234,11 +233,9 @@ export function SeriesStats({
 
       {hasTeamStats && (
         <>
-          <Container>
-            <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
-              Accumulated Team Stats
-            </Heading>
-          </Container>
+          <Heading tagName="h3" styleAs="h6" className={styles.subsectionHeader}>
+            Accumulated Team Stats
+          </Heading>
           <SortableTable
             data={teamData}
             columns={teamColumns}
