@@ -177,6 +177,12 @@ describe("LiveTracker", () => {
     connection.step();
 
     await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Queue #3 Live Tracker" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Guild 1")).toBeInTheDocument();
+
+    await waitFor(() => {
       expect(screen.getByText("Status")).toBeInTheDocument();
     });
 

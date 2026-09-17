@@ -40,15 +40,3 @@
   height: 24px;
   width: 24px;
 }
-
-.triggerLabel {
-  color: var(--halo-white);
-  font-size: var(--text-base);
-  font-weight: 500;
-}
-
-@media (max-width: 600px) {
-  .triggerLabel {
-    display: none;
-  }
-}

@@ -54,6 +54,29 @@ describe("DiscordSeriesStats", () => {
     return new HaloMedalMetadataResolver(aFakeHaloClientWith());
   }
 
+  it("updates the document title with queue, score, and guild", () => {
+    const DiscordSeriesStats = createDiscordSeriesStats({
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: createMedalMetadataResolver(),
+    });
+
+    render(
+      <DiscordSeriesStats
+        data={aFakeResolvedDataWith({
+          queueNumber: 7156,
+          renderData: {
+            ...aFakeResolvedDataWith().renderData,
+            title: "Queue #7156 Series Stats",
+            subtitle: "Dog Crew",
+            seriesScore: "3:2",
+          },
+        })}
+      />,
+    );
+
+    expect(document.title).toBe("Queue #7156 (🦅3:2🐍) | Dog Crew Stats - Guilty Spark");
+  });
+
   it("renders top-level sections", () => {
     const DiscordSeriesStats = createDiscordSeriesStats({
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),

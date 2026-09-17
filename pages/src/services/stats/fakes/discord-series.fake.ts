@@ -1,4 +1,7 @@
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
+import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import type {
   DiscordSeriesStatsLookupResult,
   DiscordSeriesStatsResult,
@@ -10,37 +13,43 @@ interface FakeDiscordSeriesStatsServiceOptions {
   readonly lookupResult: DiscordSeriesStatsLookupResult;
 }
 
+function getPlayerDisplayName(playerId: string): string {
+  const association = sampleLiveTrackerStateMessage.data.playersAssociationData?.[playerId];
+  if (association?.gamertag != null && association.gamertag !== "") {
+    return association.gamertag;
+  }
+
+  const player = sampleLiveTrackerStateMessage.data.players.find((candidate) => candidate.id === playerId);
+  return player?.discordUsername ?? playerId;
+}
+
+function getGameVariantCategory(match: LiveTrackerMatchSummary): number {
+  const rawMatch = sampleLiveTrackerStateMessage.data.rawMatches[match.matchId];
+  return isMatchStats(rawMatch) ? rawMatch.MatchInfo.GameVariantCategory : 0;
+}
+
 function aFakeResolvedDataWith(): DiscordSeriesStatsResolved {
+  const state = sampleLiveTrackerStateMessage.data;
+  const matches = state.matchSummaries;
+
   return {
     status: "resolved",
-    guildId: "123456789012345678",
-    queueNumber: 7777,
-    matchIds: ["fake-match-1"],
+    guildId: state.guildId,
+    queueNumber: state.queueNumber,
+    matchIds: matches.map((match) => match.matchId),
     renderData: {
-      title: "Queue #7777 Series Stats",
-      subtitle: "Guild 123456789012345678",
-      seriesScore: "1:0",
-      teams: [
-        { name: "Eagle", players: ["Player One"] },
-        { name: "Cobra", players: ["Player Two"] },
-      ],
-      matches: [
-        {
-          matchId: "fake-match-1",
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "data:,",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          playerXuidToGametag: { "xuid-1": "Player One" },
-          rawMatch: {},
-        },
-      ],
+      title: `Queue #${state.queueNumber.toString()} Series Stats`,
+      subtitle: state.guildName,
+      seriesScore: state.seriesScore,
+      teams: state.teams.map((team) => ({
+        name: team.name,
+        players: team.playerIds.map(getPlayerDisplayName),
+      })),
+      matches: matches.map((match) => ({
+        ...match,
+        gameVariantCategory: getGameVariantCategory(match),
+        rawMatch: state.rawMatches[match.matchId] ?? {},
+      })),
     },
   };
 }
