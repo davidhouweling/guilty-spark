@@ -115,6 +115,7 @@
 }
 
 .entry {
+  scroll-margin-top: 96px;
   width: 100%;
 }
 
@@ -197,16 +198,34 @@
 
 .entryBody {
   background: var(--halo-bg-secondary);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border: 1px solid transparent;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+  display: grid;
+  grid-template-rows: 0fr;
   margin-top: calc(var(--space-1) * -1);
   overflow: hidden;
   position: relative;
+  transition:
+    grid-template-rows var(--transition-smooth),
+    border-color var(--transition-smooth);
   z-index: 1;
 }
 
+.entryBodyExpanded {
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  grid-template-rows: 1fr;
+}
+
+.entryBodyInner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .seriesEntryBody {
+  padding-top: 0;
+}
+
+.seriesEntryBody .entryBodyInner {
   padding-top: var(--space-4);
 }
 

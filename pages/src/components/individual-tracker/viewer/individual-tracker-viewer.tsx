@@ -222,6 +222,8 @@ export function IndividualTrackerViewer({
   onLoadMore,
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = useRef<HTMLDivElement | null>(null);
+  const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const previousExpandedEntryKeysRef = useRef<ReadonlySet<string>>(expandedEntryKeys);
   const lastTimelineLengthRef = useRef<number>(renderModel.timeline.length);
   const nearLatestRef = useRef<boolean>(true);
   const [isNearLatestNow, setIsNearLatestNow] = useState(true);
@@ -273,6 +275,17 @@ export function IndividualTrackerViewer({
     }
     lastTimelineLengthRef.current = nextLength;
   }, [timeline.length, scrollToLatest, disableNewEntryTracking]);
+
+  useEffect(() => {
+    for (const key of expandedEntryKeys) {
+      if (!previousExpandedEntryKeysRef.current.has(key)) {
+        entryRefs.current.get(key)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        break;
+      }
+    }
+
+    previousExpandedEntryKeysRef.current = expandedEntryKeys;
+  }, [expandedEntryKeys]);
 
   const statusBadge = getViewerStatusBadge(renderModel.status, connectionStatus);
   const canRefresh = statusBadge.tone === "active";
@@ -354,9 +367,20 @@ export function IndividualTrackerViewer({
                 const { match } = item;
                 const entryRef = isLatest
                   ? (element: HTMLDivElement | null): void => {
+                      if (element == null) {
+                        entryRefs.current.delete(key);
+                      } else {
+                        entryRefs.current.set(key, element);
+                      }
                       latestEntryRef.current = element;
                     }
-                  : undefined;
+                  : (element: HTMLDivElement | null): void => {
+                      if (element == null) {
+                        entryRefs.current.delete(key);
+                      } else {
+                        entryRefs.current.set(key, element);
+                      }
+                    };
 
                 return (
                   <div key={key} className={styles.entry} ref={entryRef}>
@@ -405,10 +429,11 @@ export function IndividualTrackerViewer({
                       </div>
                     </Container>
 
-                    {isExpanded && (
-                      <div className={styles.entryBody}>
+                    <div className={classNames(styles.entryBody, { [styles.entryBodyExpanded]: isExpanded })}>
+                      <div className={styles.entryBodyInner}>
                         <Container wide>
-                          {state == null || (state.kind === "match" && state.state.status === "loading") ? (
+                          {!isExpanded ? null : state == null ||
+                            (state.kind === "match" && state.state.status === "loading") ? (
                             <LoadingState text="Loading match stats..." />
                           ) : state.kind === "match" && state.state.status === "error" ? (
                             <Alert variant="error">{state.state.message}</Alert>
@@ -439,7 +464,7 @@ export function IndividualTrackerViewer({
                           )}
                         </Container>
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               }
@@ -447,9 +472,20 @@ export function IndividualTrackerViewer({
               const { series } = item;
               const entryRef = isLatest
                 ? (element: HTMLDivElement | null): void => {
+                    if (element == null) {
+                      entryRefs.current.delete(key);
+                    } else {
+                      entryRefs.current.set(key, element);
+                    }
                     latestEntryRef.current = element;
                   }
-                : undefined;
+                : (element: HTMLDivElement | null): void => {
+                    if (element == null) {
+                      entryRefs.current.delete(key);
+                    } else {
+                      entryRefs.current.set(key, element);
+                    }
+                  };
 
               return (
                 <div key={key} className={classNames(styles.entry, styles.seriesEntry)} ref={entryRef}>
@@ -516,10 +552,14 @@ export function IndividualTrackerViewer({
                     </div>
                   </Container>
 
-                  {isExpanded && (
-                    <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
+                  <div
+                    className={classNames(styles.entryBody, styles.seriesEntryBody, {
+                      [styles.entryBodyExpanded]: isExpanded,
+                    })}
+                  >
+                    <div className={styles.entryBodyInner}>
                       <Container wide>
-                        {series.matches.length === 0 ? (
+                        {!isExpanded ? null : series.matches.length === 0 ? (
                           <div className={styles.preSeriesPanel}>
                             <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
                             {series.preSeriesTableData != null && series.teams.length > 0 && (
@@ -542,7 +582,7 @@ export function IndividualTrackerViewer({
                         )}
                       </Container>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
