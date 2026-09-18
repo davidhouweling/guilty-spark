@@ -1750,7 +1750,7 @@ describe("IndividualTrackerDO", () => {
   });
 
   describe("alarm()", () => {
-    const NORMAL_INTERVAL_MS = 3 * 60 * 1000 - 8 * 1000;
+    const NORMAL_INTERVAL_MS = 30 * 1000 - 8 * 1000;
     const now = new Date("2024-11-26T12:00:00.000Z");
 
     it("bumps check count and reschedules at the normal interval on success", async () => {
@@ -2821,7 +2821,7 @@ describe("IndividualTrackerDO", () => {
           searchStartTime: "2024-11-26T11:00:00.000Z",
           matchIds: [],
           discoveredMatches: {},
-          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+          errorState: { consecutiveErrors: 0, backoffMinutes: 0.5, lastSuccessTime: "old" },
         }),
       );
 
@@ -2844,7 +2844,7 @@ describe("IndividualTrackerDO", () => {
           searchStartTime: "2024-11-26T11:00:00.000Z",
           matchIds: [],
           discoveredMatches: {},
-          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+          errorState: { consecutiveErrors: 0, backoffMinutes: 0.5, lastSuccessTime: "old" },
         }),
       );
 
@@ -2890,7 +2890,7 @@ describe("IndividualTrackerDO", () => {
           searchStartTime: "2024-11-26T11:00:00.000Z",
           matchIds: [],
           discoveredMatches: {},
-          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+          errorState: { consecutiveErrors: 0, backoffMinutes: 0.5, lastSuccessTime: "old" },
         }),
       );
 
@@ -2912,7 +2912,7 @@ describe("IndividualTrackerDO", () => {
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
           searchStartTime: "2024-11-26T11:00:00.000Z",
-          errorState: { consecutiveErrors: 2, backoffMinutes: 10, lastSuccessTime: "old", lastErrorMessage: "boom" },
+          errorState: { consecutiveErrors: 2, backoffMinutes: 2, lastSuccessTime: "old", lastErrorMessage: "boom" },
         }),
       );
 
@@ -2921,7 +2921,7 @@ describe("IndividualTrackerDO", () => {
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.lastMatchDiscoveredAt).toBe(now.toISOString());
       expect(persisted.errorState.consecutiveErrors).toBe(0);
-      expect(persisted.errorState.backoffMinutes).toBe(3);
+      expect(persisted.errorState.backoffMinutes).toBe(0.5);
       expect(persisted.errorState.lastErrorMessage).toBeUndefined();
     });
 
@@ -3041,7 +3041,7 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
-          errorState: { consecutiveErrors: 0, backoffMinutes: 3, lastSuccessTime: "old" },
+          errorState: { consecutiveErrors: 0, backoffMinutes: 0.5, lastSuccessTime: "old" },
         }),
       );
 
@@ -3049,9 +3049,9 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.errorState.consecutiveErrors).toBe(1);
-      expect(persisted.errorState.backoffMinutes).toBe(8);
+      expect(persisted.errorState.backoffMinutes).toBe(1);
       expect(persisted.errorState.lastErrorMessage).toBe("Halo unavailable");
-      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 8 * 60 * 1000);
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 1 * 60 * 1000);
     });
 
     it("caps backoff at the maximum interval", async () => {
@@ -3059,7 +3059,7 @@ describe("IndividualTrackerDO", () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           startTime: now.toISOString(),
-          errorState: { consecutiveErrors: 5, backoffMinutes: 10, lastSuccessTime: "old" },
+          errorState: { consecutiveErrors: 5, backoffMinutes: 3, lastSuccessTime: "old" },
         }),
       );
 
@@ -3067,7 +3067,7 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.errorState.consecutiveErrors).toBe(6);
-      expect(persisted.errorState.backoffMinutes).toBe(10);
+      expect(persisted.errorState.backoffMinutes).toBe(3);
     });
 
     it("mints the owner client via userTokenProvider.getClientForUser", async () => {
@@ -3088,7 +3088,7 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.errorState.consecutiveErrors).toBe(1);
-      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 8 * 60 * 1000);
+      expect(storageSetAlarmSpy).toHaveBeenCalledWith(now.getTime() + 1 * 60 * 1000);
     });
 
     it("reuses the cached client across polls (getClientForUser not called every alarm)", async () => {
