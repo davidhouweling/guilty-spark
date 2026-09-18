@@ -103,7 +103,7 @@ describe("LiveTracker", () => {
   });
 
   it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {
-    const renderTracker = async (search: string, expectedMode: "wide" | "standard") => {
+    const renderTracker = async (search: string, expectedMode: "wide" | "standard"): Promise<void> => {
       window.history.pushState({}, "", `/tracker${search}`);
 
       const stateMessage: LiveTrackerStateMessage = {
