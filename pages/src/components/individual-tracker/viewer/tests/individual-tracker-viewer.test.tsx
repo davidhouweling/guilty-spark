@@ -166,6 +166,82 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText(/End time/)).toBeInTheDocument();
   });
 
+  it("scrolls only newly expanded non-latest entries into view", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-newest", mapName: "Newest" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-middle", mapName: "Middle" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-oldest", mapName: "Oldest" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-1",
+          matchIds: ["m-newest", "m-middle"],
+          title: "Ranked Series",
+        }),
+      ],
+    });
+    const model = aModel(view);
+    const scrolledElements: HTMLElement[] = [];
+    const scrollIntoView = vi.fn(function (this: HTMLElement): void {
+      scrolledElements.push(this);
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const { rerender } = render(
+      <IndividualTrackerViewer
+        renderModel={model}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    const oldestMatchHeader = screen.getByRole("button", { name: /Match .*Oldest/ });
+    const seriesHeader = screen.getByRole("button", { name: "Series Ranked Series" });
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={model}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set(["match:m-oldest"])}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrolledElements[0]).toBe(oldestMatchHeader.parentElement?.parentElement);
+
+    rerender(
+      <IndividualTrackerViewer
+        renderModel={model}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set(["match:m-oldest", "series:series-1"])}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    expect(scrolledElements[1]).toBe(seriesHeader.parentElement?.parentElement);
+  });
+
   it("collapses a consecutive same-map/mode rematch to one icon in the series header", () => {
     const view = aFakeTrackerViewStateWith({
       matches: [
