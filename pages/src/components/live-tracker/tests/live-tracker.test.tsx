@@ -71,8 +71,9 @@ function aStateMessage(matchIds: readonly string[], rawMatchIds: readonly string
 async function renderLiveTrackerWith(
   stateMessage: LiveTrackerStateMessage,
   analyticsService = aFakeMatchAnalyticsServiceWith(),
+  search = "?server=1&queue=3",
 ): Promise<SteppableLiveTrackerConnection> {
-  window.history.pushState({}, "", "/tracker?server=1&queue=3");
+  window.history.pushState({}, "", `/tracker${search}`);
 
   const scenario = aFakeLiveTrackerScenarioWith({
     intervalMs: 10,
@@ -99,6 +100,87 @@ async function renderLiveTrackerWith(
 describe("LiveTracker", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {
+    const renderTracker = async (search: string, expectedMode: "wide" | "standard") => {
+      window.history.pushState({}, "", `/tracker${search}`);
+
+      const stateMessage: LiveTrackerStateMessage = {
+        type: "state",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        data: {
+          type: "neatqueue",
+          guildId: "1",
+          guildIcon: null,
+          guildName: "Guild 1",
+          channelId: "2",
+          queueNumber: 3,
+          status: "active",
+          lastUpdateTime: "2025-01-01T00:00:00.000Z",
+          players: [{ id: "p1", discordUsername: "Player 1" }],
+          teams: [],
+          substitutions: [],
+          matchSummaries: [
+            {
+              matchId: "m1",
+              gameTypeAndMap: "Slayer: Aquarius",
+              gameType: "Slayer",
+              gameMap: "Aquarius",
+              gameMapThumbnailUrl: "data:,",
+              duration: "10m 0s",
+              gameScore: "50:49",
+              gameSubScore: null,
+              startTime: "2024-12-31T23:50:00.000Z",
+              endTime: "2025-01-01T00:00:00.000Z",
+              playerXuidToGametag: { "123": "GamerTag1" },
+            },
+          ],
+          rawMatches: {},
+          seriesScore: "0:0",
+          playersAssociationData: {},
+        },
+      };
+
+      const scenario = aFakeLiveTrackerScenarioWith({
+        intervalMs: 10,
+        frames: [stateMessage] satisfies readonly LiveTrackerMessage[],
+      });
+
+      const liveTrackerService = aFakeLiveTrackerServiceWith({ scenario, mode: "manual" });
+      const connection = await liveTrackerService.connect({
+        type: "team" as const,
+        guildId: "1",
+        queueNumber: "3",
+      });
+      vi.spyOn(liveTrackerService, "connect").mockImplementation(async () => Promise.resolve(connection));
+
+      const LiveTracker = createLiveTracker({
+        liveTrackerService,
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      });
+
+      render(<LiveTracker />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Connecting...")).toBeInTheDocument();
+      });
+
+      if (!isSteppableLiveTrackerConnection(connection)) {
+        throw new Error("Expected steppable fake connection in manual mode");
+      }
+
+      connection.step();
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Queue #3 Live Tracker" })).toBeInTheDocument();
+      });
+      expect(document.body.dataset.viewMode).toBe(expectedMode);
+      cleanup();
+    };
+
+    await renderTracker("?server=1&queue=3", "wide");
+    await renderTracker("?server=1&queue=3&viewMode=standard", "standard");
   });
 
   it("renders status and updates when messages arrive", async () => {
