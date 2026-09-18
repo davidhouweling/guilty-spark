@@ -343,7 +343,7 @@ export function IndividualTrackerViewer({
             <Alert variant="info">No matches tracked yet.</Alert>
           </Container>
         ) : (
-          <Container mobileDown="0" className={styles.entriesList}>
+          <div className={styles.entriesList}>
             {timeline.map((item, index) => {
               const key = entryKey(item);
               const isExpanded = expandedEntryKeys.has(key);
@@ -360,80 +360,84 @@ export function IndividualTrackerViewer({
 
                 return (
                   <div key={key} className={styles.entry} ref={entryRef}>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className={styles.entryHeaderButton}
-                      onClick={(): void => {
-                        onToggleEntry(item);
-                      }}
-                      onKeyDown={(event): void => {
-                        handleEntryHeaderKeyDown(event, item, onToggleEntry);
-                      }}
-                      aria-expanded={isExpanded}
-                      aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
-                    >
-                      <StatsHeader
-                        title={buildMatchHeaderTitle(match)}
-                        subtitle={match.subtitle}
-                        metadata={buildMatchHeaderMetadata(match)}
-                        backgroundStyle={matchHeaderBackgroundStyleForEntry(match.mapBackgroundUrl, state)}
-                        rightContent={
-                          <div className={styles.entryHeaderRight}>
-                            <div className={styles.entryHeaderVisuals}>
-                              <img
-                                src={gameModeIconSrc(match.gameVariantCategory)}
-                                alt={match.gameModeName}
-                                className={styles.entryModeIcon}
-                              />
-                              <OutcomeBadge outcome={match.outcome} />
+                    <Container>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className={styles.entryHeaderButton}
+                        onClick={(): void => {
+                          onToggleEntry(item);
+                        }}
+                        onKeyDown={(event): void => {
+                          handleEntryHeaderKeyDown(event, item, onToggleEntry);
+                        }}
+                        aria-expanded={isExpanded}
+                        aria-label={`Match ${match.gameModeName} on ${match.mapName}`}
+                      >
+                        <StatsHeader
+                          title={buildMatchHeaderTitle(match)}
+                          subtitle={match.subtitle}
+                          metadata={buildMatchHeaderMetadata(match)}
+                          backgroundStyle={matchHeaderBackgroundStyleForEntry(match.mapBackgroundUrl, state)}
+                          rightContent={
+                            <div className={styles.entryHeaderRight}>
+                              <div className={styles.entryHeaderVisuals}>
+                                <img
+                                  src={gameModeIconSrc(match.gameVariantCategory)}
+                                  alt={match.gameModeName}
+                                  className={styles.entryModeIcon}
+                                />
+                                <OutcomeBadge outcome={match.outcome} />
+                              </div>
+                              <span
+                                className={classNames(styles.entryChevron, {
+                                  [styles.entryChevronExpanded]: isExpanded,
+                                })}
+                                aria-hidden="true"
+                              >
+                                <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
+                                  <path d="M2.5 4.5 6 8l3.5-3.5" />
+                                </svg>
+                              </span>
                             </div>
-                            <span
-                              className={classNames(styles.entryChevron, {
-                                [styles.entryChevronExpanded]: isExpanded,
-                              })}
-                              aria-hidden="true"
-                            >
-                              <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
-                                <path d="M2.5 4.5 6 8l3.5-3.5" />
-                              </svg>
-                            </span>
-                          </div>
-                        }
-                      />
-                    </div>
+                          }
+                        />
+                      </div>
+                    </Container>
 
                     {isExpanded && (
                       <div className={styles.entryBody}>
-                        {state == null || (state.kind === "match" && state.state.status === "loading") ? (
-                          <LoadingState text="Loading match stats..." />
-                        ) : state.kind === "match" && state.state.status === "error" ? (
-                          <Alert variant="error">{state.state.message}</Alert>
-                        ) : state.kind === "match" && state.state.status === "loaded" ? (
-                          <MatchStats
-                            data={state.state.data}
-                            id={`match-${state.state.matchId}`}
-                            backgroundImageUrl=""
-                            gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
-                            gameModeAlt=""
-                            matchNumber={index + 1}
-                            gameTypeAndMap={match.mapName}
-                            duration={state.state.duration}
-                            score={match.score}
-                            startTime={state.state.startTime}
-                            endTime={state.state.endTime}
-                            teamColors={renderModel.teamColors}
-                            killMatrixPivotData={state.state.killMatrixPivotData}
-                            transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
-                            crossTeamData={state.state.crossTeamKillMatrixData}
-                            swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
-                            killMatrixStatus={state.state.killMatrixStatus}
-                            scoreProgressionViewData={state.state.scoreProgressionViewData}
-                            showHeader={false}
-                          />
-                        ) : (
-                          <Alert variant="error">Unexpected entry state.</Alert>
-                        )}
+                        <Container wide>
+                          {state == null || (state.kind === "match" && state.state.status === "loading") ? (
+                            <LoadingState text="Loading match stats..." />
+                          ) : state.kind === "match" && state.state.status === "error" ? (
+                            <Alert variant="error">{state.state.message}</Alert>
+                          ) : state.kind === "match" && state.state.status === "loaded" ? (
+                            <MatchStats
+                              data={state.state.data}
+                              id={`match-${state.state.matchId}`}
+                              backgroundImageUrl=""
+                              gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
+                              gameModeAlt=""
+                              matchNumber={index + 1}
+                              gameTypeAndMap={match.mapName}
+                              duration={state.state.duration}
+                              score={match.score}
+                              startTime={state.state.startTime}
+                              endTime={state.state.endTime}
+                              teamColors={renderModel.teamColors}
+                              killMatrixPivotData={state.state.killMatrixPivotData}
+                              transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                              crossTeamData={state.state.crossTeamKillMatrixData}
+                              swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
+                              killMatrixStatus={state.state.killMatrixStatus}
+                              scoreProgressionViewData={state.state.scoreProgressionViewData}
+                              showHeader={false}
+                            />
+                          ) : (
+                            <Alert variant="error">Unexpected entry state.</Alert>
+                          )}
+                        </Container>
                       </div>
                     )}
                   </div>
@@ -449,96 +453,100 @@ export function IndividualTrackerViewer({
 
               return (
                 <div key={key} className={classNames(styles.entry, styles.seriesEntry)} ref={entryRef}>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className={styles.entryHeaderButton}
-                    onClick={(): void => {
-                      onToggleEntry(item);
-                    }}
-                    onKeyDown={(event): void => {
-                      handleEntryHeaderKeyDown(event, item, onToggleEntry);
-                    }}
-                    aria-expanded={isExpanded}
-                    aria-label={`Series ${series.title}`}
-                  >
-                    <StatsHeader
-                      title={series.title}
-                      subtitle={series.subtitle}
-                      metadata={buildSeriesHeaderMetadata(series)}
-                      backgroundStyle={seriesHeaderBackgroundStyle(
-                        series.matchBackgroundUrls,
-                        seriesBackgroundTick,
-                        isSeriesBackgroundTransitioning,
-                        isSeriesBackgroundGlitching,
-                      )}
-                      rightContent={
-                        <div className={styles.entryHeaderRight}>
-                          <div className={styles.entryHeaderVisuals}>
-                            <div className={styles.seriesModeIcons}>
-                              {series.iconMatches.map((seriesMatch, iconIndex) => (
-                                <img
-                                  key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
-                                  src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
-                                  alt={seriesMatch.gameModeName}
-                                  className={classNames(styles.entryModeIcon, {
-                                    [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
-                                  })}
-                                />
-                              ))}
+                  <Container>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={styles.entryHeaderButton}
+                      onClick={(): void => {
+                        onToggleEntry(item);
+                      }}
+                      onKeyDown={(event): void => {
+                        handleEntryHeaderKeyDown(event, item, onToggleEntry);
+                      }}
+                      aria-expanded={isExpanded}
+                      aria-label={`Series ${series.title}`}
+                    >
+                      <StatsHeader
+                        title={series.title}
+                        subtitle={series.subtitle}
+                        metadata={buildSeriesHeaderMetadata(series)}
+                        backgroundStyle={seriesHeaderBackgroundStyle(
+                          series.matchBackgroundUrls,
+                          seriesBackgroundTick,
+                          isSeriesBackgroundTransitioning,
+                          isSeriesBackgroundGlitching,
+                        )}
+                        rightContent={
+                          <div className={styles.entryHeaderRight}>
+                            <div className={styles.entryHeaderVisuals}>
+                              <div className={styles.seriesModeIcons}>
+                                {series.iconMatches.map((seriesMatch, iconIndex) => (
+                                  <img
+                                    key={`${seriesMatch.matchId}:${iconIndex.toString()}`}
+                                    src={gameModeIconSrc(seriesMatch.gameVariantCategory)}
+                                    alt={seriesMatch.gameModeName}
+                                    className={classNames(styles.entryModeIcon, {
+                                      [styles.seriesModeIconMuted]: seriesMatch.outcome === "Loss",
+                                    })}
+                                  />
+                                ))}
+                              </div>
+                              <OutcomeBadge
+                                outcome={
+                                  series.isActive
+                                    ? "In progress"
+                                    : summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))
+                                }
+                              />
                             </div>
-                            <OutcomeBadge
-                              outcome={
-                                series.isActive
-                                  ? "In progress"
-                                  : summarizeSeriesOutcome(series.matches.map((seriesMatch) => seriesMatch.outcome))
-                              }
-                            />
+                            <span
+                              className={classNames(styles.entryChevron, {
+                                [styles.entryChevronExpanded]: isExpanded,
+                              })}
+                              aria-hidden="true"
+                            >
+                              <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
+                                <path d="M2.5 4.5 6 8l3.5-3.5" />
+                              </svg>
+                            </span>
                           </div>
-                          <span
-                            className={classNames(styles.entryChevron, {
-                              [styles.entryChevronExpanded]: isExpanded,
-                            })}
-                            aria-hidden="true"
-                          >
-                            <svg viewBox="0 0 12 12" focusable="false" className={styles.entryChevronIcon}>
-                              <path d="M2.5 4.5 6 8l3.5-3.5" />
-                            </svg>
-                          </span>
-                        </div>
-                      }
-                    />
-                  </div>
+                        }
+                      />
+                    </div>
+                  </Container>
 
                   {isExpanded && (
                     <div className={classNames(styles.entryBody, styles.seriesEntryBody)}>
-                      {series.matches.length === 0 ? (
-                        <div className={styles.preSeriesPanel}>
-                          <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
-                          {series.preSeriesTableData != null && series.teams.length > 0 && (
-                            <PlayerPreSeriesInfo
-                              className={styles.preSeriesInfo}
-                              teams={series.preSeriesTableData.teams}
-                              playersAssociationData={series.preSeriesTableData.playersAssociationData}
-                              teamColors={renderModel.teamColors}
-                            />
-                          )}
-                        </div>
-                      ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
-                        <LoadingState text="Loading series stats..." />
-                      ) : state.kind === "series" && state.state.status === "error" ? (
-                        <Alert variant="error">{state.state.message}</Alert>
-                      ) : state.kind === "series" && state.state.status === "loaded" ? (
-                        <SeriesStatsView {...state.state.viewModel} noGutter={true} />
-                      ) : (
-                        <Alert variant="error">Unexpected entry state.</Alert>
-                      )}
+                      <Container wide>
+                        {series.matches.length === 0 ? (
+                          <div className={styles.preSeriesPanel}>
+                            <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
+                            {series.preSeriesTableData != null && series.teams.length > 0 && (
+                              <PlayerPreSeriesInfo
+                                className={styles.preSeriesInfo}
+                                teams={series.preSeriesTableData.teams}
+                                playersAssociationData={series.preSeriesTableData.playersAssociationData}
+                                teamColors={renderModel.teamColors}
+                              />
+                            )}
+                          </div>
+                        ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                          <LoadingState text="Loading series stats..." />
+                        ) : state.kind === "series" && state.state.status === "error" ? (
+                          <Alert variant="error">{state.state.message}</Alert>
+                        ) : state.kind === "series" && state.state.status === "loaded" ? (
+                          <SeriesStatsView {...state.state.viewModel} noGutter={true} wide={true} />
+                        ) : (
+                          <Alert variant="error">Unexpected entry state.</Alert>
+                        )}
+                      </Container>
                     </div>
                   )}
                 </div>
               );
             })}
-          </Container>
+          </div>
         )}
         {hasMore === true && onLoadMore != null && (
           <Container mobileDown="0" className={styles.loadMoreRow}>

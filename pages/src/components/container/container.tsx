@@ -10,6 +10,7 @@ interface ContainerProps {
   readonly tabletUp?: string;
   readonly desktopUp?: string;
   readonly ultrawideUp?: string;
+  readonly wide?: boolean;
 }
 
 export function Container({
@@ -20,6 +21,7 @@ export function Container({
   tabletUp,
   desktopUp,
   ultrawideUp,
+  wide = false,
 }: ContainerProps): React.ReactElement {
   const combinedStyle = {
     ...style,
@@ -30,7 +32,7 @@ export function Container({
   } as React.CSSProperties;
 
   return (
-    <div className={classNames(styles.container, className)} style={combinedStyle}>
+    <div className={classNames(styles.container, { [styles.wide]: wide }, className)} style={combinedStyle}>
       {children}
     </div>
   );

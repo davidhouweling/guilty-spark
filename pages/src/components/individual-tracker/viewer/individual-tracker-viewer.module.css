@@ -115,26 +115,20 @@
 }
 
 .entry {
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  width: 100%;
 }
 
-.seriesEntry {
-  background: color-mix(in srgb, var(--halo-teal-primary) 6%, var(--halo-bg-card));
-  border-color: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
-  border-width: 2px;
-}
-
-.seriesEntry > .entryHeaderButton {
+.seriesEntry .entryHeaderButton {
   background: color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
 }
 
 .entryHeaderButton {
   background: transparent;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
   cursor: pointer;
   display: block;
+  overflow: hidden;
   padding: 0;
   text-align: inherit;
   width: 100%;
@@ -202,7 +196,14 @@
 }
 
 .entryBody {
+  background: var(--halo-bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
   border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+  margin-top: calc(var(--space-1) * -1);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .seriesEntryBody {

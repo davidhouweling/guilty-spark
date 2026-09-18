@@ -7,6 +7,8 @@ import type {
   TrackerViewResponse,
   TrackerViewState,
 } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -95,13 +97,55 @@ interface FakeLiveViewOverrides {
   readonly activeSeriesContext?: TrackerLiveView["activeSeriesContext"];
 }
 
+// Built from the shared live-tracker sample (real MatchStats data) so expanding a fake match or
+// series resolves via aFakeSeriesMatchesServiceWith() instead of showing "Failed to load match source".
+function getGameVariantCategory(matchId: string): number {
+  const rawMatch = sampleLiveTrackerStateMessage.data.rawMatches[matchId];
+  return isMatchStats(rawMatch) ? rawMatch.MatchInfo.GameVariantCategory : 0;
+}
+
+function getSampleMatchSummaries(): TrackerMatchSummary[] {
+  return sampleLiveTrackerStateMessage.data.matchSummaries.map((match, index) => ({
+    matchId: match.matchId,
+    startTime: match.startTime,
+    endTime: match.endTime,
+    mapAssetId: `${match.matchId}-map`,
+    mapVersionId: `${match.matchId}-map-version`,
+    mapName: match.gameMap,
+    modeAssetId: `${match.matchId}-mode`,
+    gameVariantCategory: getGameVariantCategory(match.matchId),
+    mapBackgroundUrl: match.gameMapThumbnailUrl,
+    outcome: index % 2 === 0 ? "Win" : "Loss",
+    score: match.gameScore,
+    teamCount: 2,
+    killsDeathsAssistsKda: "10:7:4 (1.62)",
+    damageDealtTakenRatio: "4,200:3,900 (1.08)",
+    isMatchmaking: true,
+  }));
+}
+
+function getSampleSeriesGroup(): TrackerSeriesGroup {
+  const [firstMatch, secondMatch] = sampleLiveTrackerStateMessage.data.matchSummaries;
+  return {
+    id: "sample-series",
+    matchIds: [firstMatch.matchId, secondMatch.matchId],
+    matchBackgroundUrls: [firstMatch.gameMapThumbnailUrl, secondMatch.gameMapThumbnailUrl],
+    score: "1:1",
+    killsDeathsAssistsKda: "20:14:8 (1.52)",
+    damageDealtTakenRatio: "8,400:7,800 (1.08)",
+    title: "Series",
+    subtitle: "Best of 3",
+    guildIconUrl: null,
+  };
+}
+
 export function aFakeTrackerLiveViewWith(overrides: FakeLiveViewOverrides = {}): TrackerLiveView {
   return {
     trackerId: overrides.trackerId ?? "fake-tracker-id",
     gamertag: overrides.gamertag ?? "Fake Spartan",
     status: overrides.status ?? "active",
-    matches: [...(overrides.matches ?? [aFakeTrackerMatchSummaryWith()])],
-    series: [...(overrides.series ?? [])],
+    matches: [...(overrides.matches ?? getSampleMatchSummaries())],
+    series: [...(overrides.series ?? [getSampleSeriesGroup()])],
     lastUpdateTime: overrides.lastUpdateTime ?? "2100-01-01T00:10:00.000Z",
     lastMatchDiscoveredAt: overrides.lastMatchDiscoveredAt ?? null,
     hasActiveSeries: overrides.hasActiveSeries ?? false,
