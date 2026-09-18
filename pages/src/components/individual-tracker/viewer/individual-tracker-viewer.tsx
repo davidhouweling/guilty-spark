@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import classNames from "classnames";
+import { CSSTransition } from "react-transition-group";
 import ReactTimeAgo from "react-time-ago";
 import { addMinutes, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -223,6 +224,7 @@ export function IndividualTrackerViewer({
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = useRef<HTMLDivElement | null>(null);
   const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const entryBodyRefs = useRef(new Map<string, React.RefObject<HTMLDivElement | null>>());
   const previousExpandedEntryKeysRef = useRef<ReadonlySet<string>>(expandedEntryKeys);
   const lastTimelineLengthRef = useRef<number>(renderModel.timeline.length);
   const nearLatestRef = useRef<boolean>(true);
@@ -235,6 +237,17 @@ export function IndividualTrackerViewer({
   } = useRotatingBackgroundTick();
 
   const { timeline } = renderModel;
+
+  function getEntryBodyRef(key: string): React.RefObject<HTMLDivElement | null> {
+    const existingRef = entryBodyRefs.current.get(key);
+    if (existingRef != null) {
+      return existingRef;
+    }
+
+    const newRef = createRef<HTMLDivElement>();
+    entryBodyRefs.current.set(key, newRef);
+    return newRef;
+  }
 
   const scrollToLatest = useCallback((): void => {
     latestEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -429,42 +442,56 @@ export function IndividualTrackerViewer({
                       </div>
                     </Container>
 
-                    <div className={classNames(styles.entryBody, { [styles.entryBodyExpanded]: isExpanded })}>
-                      <div className={styles.entryBodyInner}>
-                        <Container wide>
-                          {!isExpanded ? null : state == null ||
-                            (state.kind === "match" && state.state.status === "loading") ? (
-                            <LoadingState text="Loading match stats..." />
-                          ) : state.kind === "match" && state.state.status === "error" ? (
-                            <Alert variant="error">{state.state.message}</Alert>
-                          ) : state.kind === "match" && state.state.status === "loaded" ? (
-                            <MatchStats
-                              data={state.state.data}
-                              id={`match-${state.state.matchId}`}
-                              backgroundImageUrl=""
-                              gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
-                              gameModeAlt=""
-                              matchNumber={index + 1}
-                              gameTypeAndMap={match.mapName}
-                              duration={state.state.duration}
-                              score={match.score}
-                              startTime={state.state.startTime}
-                              endTime={state.state.endTime}
-                              teamColors={renderModel.teamColors}
-                              killMatrixPivotData={state.state.killMatrixPivotData}
-                              transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
-                              crossTeamData={state.state.crossTeamKillMatrixData}
-                              swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
-                              killMatrixStatus={state.state.killMatrixStatus}
-                              scoreProgressionViewData={state.state.scoreProgressionViewData}
-                              showHeader={false}
-                            />
-                          ) : (
-                            <Alert variant="error">Unexpected entry state.</Alert>
-                          )}
-                        </Container>
+                    <CSSTransition
+                      in={isExpanded}
+                      timeout={300}
+                      classNames={{
+                        enter: styles.entryBodyEnter,
+                        enterActive: styles.entryBodyEnterActive,
+                        enterDone: styles.entryBodyEnterDone,
+                        exit: styles.entryBodyExit,
+                        exitActive: styles.entryBodyExitActive,
+                        exitDone: styles.entryBodyExitDone,
+                      }}
+                      unmountOnExit
+                      nodeRef={getEntryBodyRef(key)}
+                    >
+                      <div ref={getEntryBodyRef(key)} className={styles.entryBody}>
+                        <div className={styles.entryBodyInner}>
+                          <Container wide>
+                            {state == null || (state.kind === "match" && state.state.status === "loading") ? (
+                              <LoadingState text="Loading match stats..." />
+                            ) : state.kind === "match" && state.state.status === "error" ? (
+                              <Alert variant="error">{state.state.message}</Alert>
+                            ) : state.kind === "match" && state.state.status === "loaded" ? (
+                              <MatchStats
+                                data={state.state.data}
+                                id={`match-${state.state.matchId}`}
+                                backgroundImageUrl=""
+                                gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
+                                gameModeAlt=""
+                                matchNumber={index + 1}
+                                gameTypeAndMap={match.mapName}
+                                duration={state.state.duration}
+                                score={match.score}
+                                startTime={state.state.startTime}
+                                endTime={state.state.endTime}
+                                teamColors={renderModel.teamColors}
+                                killMatrixPivotData={state.state.killMatrixPivotData}
+                                transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                                crossTeamData={state.state.crossTeamKillMatrixData}
+                                swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
+                                killMatrixStatus={state.state.killMatrixStatus}
+                                scoreProgressionViewData={state.state.scoreProgressionViewData}
+                                showHeader={false}
+                              />
+                            ) : (
+                              <Alert variant="error">Unexpected entry state.</Alert>
+                            )}
+                          </Container>
+                        </div>
                       </div>
-                    </div>
+                    </CSSTransition>
                   </div>
                 );
               }
@@ -552,37 +579,48 @@ export function IndividualTrackerViewer({
                     </div>
                   </Container>
 
-                  <div
-                    className={classNames(styles.entryBody, styles.seriesEntryBody, {
-                      [styles.entryBodyExpanded]: isExpanded,
-                    })}
+                  <CSSTransition
+                    in={isExpanded}
+                    timeout={300}
+                    classNames={{
+                      enter: styles.entryBodyEnter,
+                      enterActive: styles.entryBodyEnterActive,
+                      enterDone: styles.entryBodyEnterDone,
+                      exit: styles.entryBodyExit,
+                      exitActive: styles.entryBodyExitActive,
+                      exitDone: styles.entryBodyExitDone,
+                    }}
+                    unmountOnExit
+                    nodeRef={getEntryBodyRef(key)}
                   >
-                    <div className={styles.entryBodyInner}>
-                      <Container wide>
-                        {!isExpanded ? null : series.matches.length === 0 ? (
-                          <div className={styles.preSeriesPanel}>
-                            <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
-                            {series.preSeriesTableData != null && series.teams.length > 0 && (
-                              <PlayerPreSeriesInfo
-                                className={styles.preSeriesInfo}
-                                teams={series.preSeriesTableData.teams}
-                                playersAssociationData={series.preSeriesTableData.playersAssociationData}
-                                teamColors={renderModel.teamColors}
-                              />
-                            )}
-                          </div>
-                        ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
-                          <LoadingState text="Loading series stats..." />
-                        ) : state.kind === "series" && state.state.status === "error" ? (
-                          <Alert variant="error">{state.state.message}</Alert>
-                        ) : state.kind === "series" && state.state.status === "loaded" ? (
-                          <SeriesStatsView {...state.state.viewModel} noGutter={true} wide={true} />
-                        ) : (
-                          <Alert variant="error">Unexpected entry state.</Alert>
-                        )}
-                      </Container>
+                    <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
+                      <div className={styles.entryBodyInner}>
+                        <Container wide>
+                          {series.matches.length === 0 ? (
+                            <div className={styles.preSeriesPanel}>
+                              <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
+                              {series.preSeriesTableData != null && series.teams.length > 0 && (
+                                <PlayerPreSeriesInfo
+                                  className={styles.preSeriesInfo}
+                                  teams={series.preSeriesTableData.teams}
+                                  playersAssociationData={series.preSeriesTableData.playersAssociationData}
+                                  teamColors={renderModel.teamColors}
+                                />
+                              )}
+                            </div>
+                          ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                            <LoadingState text="Loading series stats..." />
+                          ) : state.kind === "series" && state.state.status === "error" ? (
+                            <Alert variant="error">{state.state.message}</Alert>
+                          ) : state.kind === "series" && state.state.status === "loaded" ? (
+                            <SeriesStatsView {...state.state.viewModel} noGutter={true} wide={true} />
+                          ) : (
+                            <Alert variant="error">Unexpected entry state.</Alert>
+                          )}
+                        </Container>
+                      </div>
                     </div>
-                  </div>
+                  </CSSTransition>
                 </div>
               );
             })}

@@ -197,8 +197,8 @@
 }
 
 .entryBody {
-  background: var(--halo-bg-secondary);
-  border: 1px solid transparent;
+  background: transparent;
+  border: 0 solid transparent;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   display: grid;
   grid-template-rows: 0fr;
@@ -211,9 +211,21 @@
   z-index: 1;
 }
 
-.entryBodyExpanded {
+.entryBodyEnterActive,
+.entryBodyEnterDone,
+.entryBodyExit,
+.entryBodyExitDone {
+  background: var(--halo-bg-secondary);
   border-color: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-width: 1px;
   grid-template-rows: 1fr;
+}
+
+.entryBodyEnter,
+.entryBodyExitActive {
+  background: transparent;
+  border-width: 0;
+  grid-template-rows: 0fr;
 }
 
 .entryBodyInner {
