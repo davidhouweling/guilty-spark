@@ -186,6 +186,7 @@ describe("IndividualTrackerViewer", () => {
     const scrollIntoView = vi.fn(function (this: HTMLElement): void {
       scrolledElements.push(this);
     });
+    const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       value: scrollIntoView,
@@ -240,6 +241,12 @@ describe("IndividualTrackerViewer", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
     expect(scrolledElements[1]).toBe(seriesHeader.parentElement?.parentElement);
+
+    if (originalScrollIntoViewDescriptor === undefined) {
+      Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+    } else {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScrollIntoViewDescriptor);
+    }
   });
 
   it("collapses a consecutive same-map/mode rematch to one icon in the series header", () => {
