@@ -12,6 +12,7 @@ import type { IndividualTrackerViewService } from "../../services/individual-tra
 import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import { getMode } from "../../services/mode";
 
 export interface Services {
   readonly authService: AuthService;
@@ -24,7 +25,10 @@ export interface Services {
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
-  const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
+  const haloClient =
+    getMode() === "FAKE"
+      ? (await import("../../services/fakes/halo-client.fake")).aFakeHaloClientWith()
+      : createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
   const medalMetadataResolver = new HaloMedalMetadataResolver(haloClient);
   const [
     authService,

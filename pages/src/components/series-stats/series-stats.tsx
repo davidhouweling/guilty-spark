@@ -11,6 +11,7 @@ import type { SeriesMatchDetail, SeriesMatchSummary, SeriesStatsViewModel, Serie
 interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesTitle?: boolean;
   readonly noGutter?: boolean;
+  readonly wide?: boolean;
 }
 
 interface MatchSummaryItemProps {
@@ -60,11 +61,16 @@ function TeamCardSection({ team }: TeamCardSectionProps): ReactElement {
 interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
   readonly noGutter?: boolean;
+  readonly wide?: boolean;
 }
 
-function MatchDetailSection({ detail, noGutter }: MatchDetailSectionProps): ReactElement {
+function MatchDetailSection({ detail, noGutter, wide }: MatchDetailSectionProps): ReactElement {
   return (
-    <Container mobileDown="0" className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
+    <Container
+      mobileDown="0"
+      wide={wide}
+      className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}
+    >
       {detail.data != null ? (
         <MatchStatsView
           data={detail.data}
@@ -101,10 +107,11 @@ export function SeriesStatsView({
   matchDetails,
   showSeriesTitle,
   noGutter,
+  wide,
 }: SeriesStatsViewProps): ReactElement {
   return (
     <div className={styles.seriesStats}>
-      <Container className={styles.contentContainer}>
+      <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
         <Heading tagName="h2" styleAs="h3">
           Series overview
         </Heading>
@@ -129,7 +136,11 @@ export function SeriesStatsView({
       </Container>
 
       {seriesStats != null && (
-        <Container mobileDown="0" className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
+        <Container
+          mobileDown="0"
+          wide={wide}
+          className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}
+        >
           <SeriesTotalsStats
             teamData={seriesStats.teamData}
             playerData={seriesStats.playerData}
@@ -146,14 +157,14 @@ export function SeriesStatsView({
         </Container>
       )}
 
-      <Container className={styles.contentContainer}>
+      <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
         <Heading tagName="h2" styleAs="h3">
           Matches
         </Heading>
       </Container>
 
       {matchDetails.map((detail) => (
-        <MatchDetailSection key={detail.matchId} detail={detail} noGutter={noGutter} />
+        <MatchDetailSection key={detail.matchId} detail={detail} noGutter={noGutter} wide={wide} />
       ))}
     </div>
   );

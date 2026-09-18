@@ -115,26 +115,21 @@
 }
 
 .entry {
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  scroll-margin-top: 96px;
+  width: 100%;
 }
 
-.seriesEntry {
-  background: color-mix(in srgb, var(--halo-teal-primary) 6%, var(--halo-bg-card));
-  border-color: color-mix(in srgb, var(--halo-teal-primary) 45%, transparent);
-  border-width: 2px;
-}
-
-.seriesEntry > .entryHeaderButton {
+.seriesEntry .entryHeaderButton {
   background: color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
 }
 
 .entryHeaderButton {
   background: transparent;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
   cursor: pointer;
   display: block;
+  overflow: hidden;
   padding: 0;
   text-align: inherit;
   width: 100%;
@@ -202,10 +197,47 @@
 }
 
 .entryBody {
-  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+  background: transparent;
+  border: 0 solid transparent;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: calc(var(--space-1) * -1);
+  overflow: hidden;
+  position: relative;
+  transition:
+    grid-template-rows var(--transition-smooth),
+    border-color var(--transition-smooth);
+  z-index: 1;
+}
+
+.entryBodyEnterActive,
+.entryBodyEnterDone,
+.entryBodyExit,
+.entryBodyExitDone {
+  background: var(--halo-bg-secondary);
+  border-color: color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-width: 1px;
+  grid-template-rows: 1fr;
+}
+
+.entryBodyEnter,
+.entryBodyExitActive {
+  background: transparent;
+  border-width: 0;
+  grid-template-rows: 0fr;
+}
+
+.entryBodyInner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .seriesEntryBody {
+  padding-top: 0;
+}
+
+.seriesEntryBody .entryBodyInner {
   padding-top: var(--space-4);
 }
 
