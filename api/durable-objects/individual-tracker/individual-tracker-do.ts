@@ -85,13 +85,15 @@ import type {
 } from "./types";
 import { accumulatePlayerStats, computeStatsHighlights, getActiveMatchIds } from "./stats-highlights";
 
-const DISPLAY_INTERVAL_MS = 3 * 60 * 1000;
+// Unlike the live tracker (service account), this polls using the tracker owner's personal
+// token, so a much shorter interval is acceptable here.
+const DISPLAY_INTERVAL_MS = 30 * 1000;
 const EXECUTION_BUFFER_MS = 8 * 1000;
 const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS;
 
-const NORMAL_INTERVAL_MINUTES = 3;
-const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 5;
-const MAX_BACKOFF_INTERVAL_MINUTES = 10;
+const NORMAL_INTERVAL_MINUTES = 0.5;
+const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 0.5;
+const MAX_BACKOFF_INTERVAL_MINUTES = 3;
 
 const STALE_EMPTY_SERIES_MINUTES = 15;
 

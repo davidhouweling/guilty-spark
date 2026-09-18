@@ -85,7 +85,7 @@ export function aFakeIndividualTrackerInternalStateWith(
     idleTimeoutHours: 6,
     errorState: {
       consecutiveErrors: 0,
-      backoffMinutes: 3,
+      backoffMinutes: 0.5,
       lastSuccessTime: new Date().toISOString(),
     },
     ...opts,
