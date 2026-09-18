@@ -183,13 +183,16 @@ describe("IndividualTrackerViewer", () => {
     });
     const model = aModel(view);
     const scrolledElements: HTMLElement[] = [];
-    const scrollIntoView = vi.fn(function (this: HTMLElement): void {
-      scrolledElements.push(this);
-    });
     const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
-      value: scrollIntoView,
+      value: function (this: HTMLElement): void {
+        scrolledElements.push(this);
+      },
+    });
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+    scrollIntoView.mockImplementation(function (this: HTMLElement): void {
+      scrolledElements.push(this);
     });
     const { rerender } = render(
       <IndividualTrackerViewer
@@ -241,6 +244,7 @@ describe("IndividualTrackerViewer", () => {
 
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
     expect(scrolledElements[1]).toBe(seriesHeader.parentElement?.parentElement);
+    scrollIntoView.mockRestore();
 
     if (originalScrollIntoViewDescriptor === undefined) {
       Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
