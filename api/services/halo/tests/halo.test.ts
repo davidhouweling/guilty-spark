@@ -1955,6 +1955,72 @@ describe("Halo service", () => {
 
       expect(result).toBe("0:1:0");
     });
+
+    it("attributes series wins to the correct roster when a team swaps sides between matches", () => {
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
+
+      function aMatchWithRosters(overrides: {
+        matchId: string;
+        startTime: string;
+        mapAssetId: string;
+        team0PlayerIds: string[];
+        team1PlayerIds: string[];
+        team0Outcome: MatchOutcome;
+        team1Outcome: MatchOutcome;
+      }): MatchStats {
+        const makePlayer = (playerId: string, teamId: number): MatchStats["Players"][0] => ({
+          ...basePlayer,
+          PlayerId: playerId,
+          LastTeamId: teamId,
+          PlayerTeamStats: [{ TeamId: teamId, Stats: Preconditions.checkExists(basePlayer.PlayerTeamStats[0]).Stats }],
+        });
+
+        return {
+          ...baseMatch,
+          MatchId: overrides.matchId,
+          MatchInfo: {
+            ...baseMatch.MatchInfo,
+            StartTime: overrides.startTime,
+            MapVariant: { ...baseMatch.MatchInfo.MapVariant, AssetId: overrides.mapAssetId },
+          },
+          Players: [
+            ...overrides.team0PlayerIds.map((playerId) => makePlayer(playerId, 0)),
+            ...overrides.team1PlayerIds.map((playerId) => makePlayer(playerId, 1)),
+          ],
+          Teams: [
+            { ...Preconditions.checkExists(baseMatch.Teams[0]), TeamId: 0, Outcome: overrides.team0Outcome },
+            { ...Preconditions.checkExists(baseMatch.Teams[1]), TeamId: 1, Outcome: overrides.team1Outcome },
+          ],
+        };
+      }
+
+      const rosterAWinsAsTeam0 = aMatchWithRosters({
+        matchId: "series-swap-game-1",
+        startTime: "2024-11-26T10:00:00.000Z",
+        mapAssetId: "map-a",
+        team0PlayerIds: ["xuid(1)", "xuid(2)"],
+        team1PlayerIds: ["xuid(3)", "xuid(4)"],
+        team0Outcome: MatchOutcome.Win,
+        team1Outcome: MatchOutcome.Loss,
+      });
+      // Same two rosters, but roster A (xuid 1/2) is now on TeamId 1 and loses
+      const rosterALosesAsTeam1 = aMatchWithRosters({
+        matchId: "series-swap-game-2",
+        startTime: "2024-11-26T11:00:00.000Z",
+        mapAssetId: "map-b",
+        team0PlayerIds: ["xuid(3)", "xuid(4)"],
+        team1PlayerIds: ["xuid(1)", "xuid(2)"],
+        team0Outcome: MatchOutcome.Win,
+        team1Outcome: MatchOutcome.Loss,
+      });
+
+      const result = haloService.getSeriesScore([rosterAWinsAsTeam0, rosterALosesAsTeam1], "en-US");
+
+      // Roster A won game 1, lost game 2 -> 1 win. Roster B lost game 1, won game 2 -> 1 win.
+      // A raw TeamId-indexed count would incorrectly report "2:0" (TeamId 0 won both games).
+      expect(result).toBe("1:1");
+    });
   });
 
   describe("getSeriesScore() with emoji parameter", () => {

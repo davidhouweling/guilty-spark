@@ -17,6 +17,12 @@ import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid, wrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { SeriesScoreEntry } from "@guilty-spark/shared/halo/series-score";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
+import type { MatchTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
+import {
+  buildPresentAtBeginningTeamRosters,
+  resolveMatchTeamIdToSeriesTeamId,
+  resolveSeriesTeamMapping,
+} from "@guilty-spark/shared/halo/series-team-identity";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
@@ -229,7 +235,7 @@ export class HaloService {
       mapAssetId: match.MatchInfo.MapVariant.AssetId,
       mapVersionId: match.MatchInfo.MapVariant.VersionId,
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      teamOutcomes: match.Teams.map((team) => team.Outcome),
+      teamOutcomes: this.getCanonicalTeamOutcomes(matches, match),
     }));
     const wins = computeSeriesTeamWins(entries);
     const score = wins.map((value) => value.toLocaleString(locale)).join(":") || (includeEmojis ? "🦅 0:0 🐍" : "0:0");
@@ -239,6 +245,35 @@ export class HaloService {
     }
 
     return wins.length === 2 ? `🦅 ${score} 🐍` : score;
+  }
+
+  // Reorders a match's team outcomes so array position tracks the series' first match's roster
+  // (seriesTeamId), not the match's own raw TeamId, so a team swapping sides mid-series doesn't
+  // get attributed to the wrong side.
+  private getCanonicalTeamOutcomes(matches: MatchStats[], match: MatchStats): number[] {
+    const rawOutcomes = match.Teams.map((team) => team.Outcome);
+    const [anchorMatch] = matches;
+    if (anchorMatch == null || match.Teams.length !== 2) {
+      return rawOutcomes;
+    }
+
+    const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
+    const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match, {
+      maxToleratedMismatchesPerTeam: 0,
+    });
+    if (anchorRosters == null || matchTeamIdToSeriesTeamId == null) {
+      return rawOutcomes;
+    }
+
+    const rawOutcomesByTeamId = new Map(match.Teams.map((team) => [team.TeamId, team.Outcome]));
+    const seriesTeamIdToMatchTeamId = new Map(
+      Array.from(matchTeamIdToSeriesTeamId.entries(), ([matchTeamId, seriesTeamId]) => [seriesTeamId, matchTeamId]),
+    );
+
+    return anchorRosters.map((roster) => {
+      const matchTeamId = seriesTeamIdToMatchTeamId.get(roster.matchTeamId);
+      return matchTeamId == null ? MatchOutcome.DidNotFinish : Preconditions.checkExists(rawOutcomesByTeamId.get(matchTeamId));
+    });
   }
 
   async getPlayerXuidsToGametags(
@@ -1333,16 +1368,31 @@ export class HaloService {
     const lastMatchPresentAtBeginningPlayers = lastMatch.Players.filter(
       (player) => player.ParticipationInfo.PresentAtBeginning,
     );
+    // 2-team roster resolution tolerates the same two rosters swapping sides; anything that can't be
+    // split into exactly two present-at-beginning teams falls back to the flat player+side comparison.
+    const lastMatchRosters: MatchTeamRoster[] | null = buildPresentAtBeginningTeamRosters(lastMatch);
+
     return matches
       .filter((match) => {
         const presentAtBeginningPlayers = match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning);
-        return (
-          lastMatchPresentAtBeginningPlayers.length === presentAtBeginningPlayers.length &&
-          presentAtBeginningPlayers.every((player) =>
-            lastMatchPresentAtBeginningPlayers.some(
-              (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
-            ),
-          )
+        if (lastMatchPresentAtBeginningPlayers.length !== presentAtBeginningPlayers.length) {
+          return false;
+        }
+
+        if (lastMatchRosters != null) {
+          return (
+            resolveSeriesTeamMapping(
+              lastMatchRosters.map((roster) => ({ seriesTeamId: roster.matchTeamId, xuids: roster.xuids })),
+              buildPresentAtBeginningTeamRosters(match) ?? [],
+              { maxToleratedMismatchesPerTeam: 0 },
+            ) != null
+          );
+        }
+
+        return presentAtBeginningPlayers.every((player) =>
+          lastMatchPresentAtBeginningPlayers.some(
+            (lastPlayer) => lastPlayer.PlayerId === player.PlayerId && lastPlayer.LastTeamId === player.LastTeamId,
+          ),
         );
       })
       .sort((a, b) => (isBefore(a.MatchInfo.StartTime, b.MatchInfo.StartTime) ? -1 : 1));
