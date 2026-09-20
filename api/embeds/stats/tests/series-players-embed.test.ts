@@ -1,6 +1,7 @@
 import { describe, beforeEach, expect, it } from "vitest";
+import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
+import { aMatchWithSwappableRosters, getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
 import { SeriesPlayersEmbed } from "../series-players-embed";
 import type { HaloService } from "../../../services/halo/halo";
 import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake";
@@ -94,6 +95,40 @@ describe("SeriesPlayersEmbed", () => {
       // Player should not appear in results
       const allFieldNames = result.flatMap((embed) => embed.fields?.map((field) => field.name) ?? []);
       expect(allFieldNames.every((name) => !name.includes("gamertag0100000000000000"))).toBe(true);
+    });
+
+    it("groups a player's accumulated stats under a single team heading even after a side swap", async () => {
+      const rosterAAsTeam0 = aMatchWithSwappableRosters({
+        matchId: "series-swap-game-1",
+        startTime: "2024-11-26T10:00:00.000Z",
+        mapAssetId: "map-a",
+        team0PlayerIds: ["xuid(1)"],
+        team1PlayerIds: ["xuid(2)"],
+        team0Outcome: MatchOutcome.Win,
+        team1Outcome: MatchOutcome.Loss,
+      });
+      // Same two rosters, but xuid(1) is now on TeamId 1
+      const rosterAAsTeam1 = aMatchWithSwappableRosters({
+        matchId: "series-swap-game-2",
+        startTime: "2024-11-26T11:00:00.000Z",
+        mapAssetId: "map-b",
+        team0PlayerIds: ["xuid(2)"],
+        team1PlayerIds: ["xuid(1)"],
+        team0Outcome: MatchOutcome.Loss,
+        team1Outcome: MatchOutcome.Win,
+      });
+      const players = new Map([
+        ["1", "PlayerOne"],
+        ["2", "PlayerTwo"],
+      ]);
+
+      const result = await seriesPlayersEmbed.getSeriesEmbed([rosterAAsTeam0, rosterAAsTeam1], players, locale);
+
+      // Each player appears in exactly one team's embed (grouped by their first match's side)
+      const playerOneEmbeds = result.filter((embed) =>
+        embed.fields?.some((field) => field.name.startsWith("PlayerOne")) ?? false,
+      );
+      expect(playerOneEmbeds).toHaveLength(1);
     });
   });
 });
