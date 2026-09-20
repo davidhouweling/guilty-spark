@@ -4458,6 +4458,54 @@ describe("Halo service", () => {
       expect(result.suggestedGroupings).toEqual([["match1", "match2"]]);
     });
 
+    it("groups consecutive custom games when the same two rosters swap sides", async () => {
+      const baseMatch = aFakePlayerMatchHistoryWith();
+      const match1 = aFakePlayerMatchHistoryWith({
+        MatchId: "match1",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+      const match2 = aFakePlayerMatchHistoryWith({
+        MatchId: "match2",
+        MatchInfo: { ...baseMatch.MatchInfo, Playlist: null },
+      });
+
+      infiniteClient.getPlayerMatches.mockResolvedValue([match1, match2]);
+
+      const matchStats1 = createMatchStats(
+        "match1",
+        [
+          { xuid: "1001", teamId: 0 },
+          { xuid: "1002", teamId: 0 },
+          { xuid: "2001", teamId: 1 },
+          { xuid: "2002", teamId: 1 },
+        ],
+        false,
+      );
+      // Same two rosters as match1, but sides are swapped
+      const matchStats2 = createMatchStats(
+        "match2",
+        [
+          { xuid: "2001", teamId: 0 },
+          { xuid: "2002", teamId: 0 },
+          { xuid: "1001", teamId: 1 },
+          { xuid: "1002", teamId: 1 },
+        ],
+        false,
+      );
+
+      infiniteClient.getMatchStats.mockImplementation(async (matchId) => {
+        const matchStatsMap: Record<string, MatchStats> = {
+          match1: matchStats1,
+          match2: matchStats2,
+        };
+        return Promise.resolve(Preconditions.checkExists(matchStatsMap[matchId]));
+      });
+
+      const result = await haloService.getEnrichedMatchHistory("TestPlayer", "en-US", MatchType.All, 25);
+
+      expect(result.suggestedGroupings).toEqual([["match1", "match2"]]);
+    });
+
     it("does not group when team sizes differ", async () => {
       const baseMatch = aFakePlayerMatchHistoryWith();
       const match1 = aFakePlayerMatchHistoryWith({

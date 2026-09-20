@@ -263,6 +263,21 @@ export interface AutoGroupingEntry {
   readonly teamRosterSignature: string | null;
 }
 
+// A team-roster signature is ordered by team index ("0:xuids|1:xuids"), which is not a stable
+// identity across matches - the same two rosters swapping sides mid-series produces a different
+// string. Stripping the team index before comparing lets grouping survive a side swap.
+function normalizeRosterSignatureForGrouping(signature: string): string {
+  return signature
+    .split("|")
+    .map((segment) => segment.split(":")[1] ?? segment)
+    .sort((left, right) => left.localeCompare(right))
+    .join("|");
+}
+
+function haveSameRostersRegardlessOfSide(signatureA: string, signatureB: string): boolean {
+  return normalizeRosterSignatureForGrouping(signatureA) === normalizeRosterSignatureForGrouping(signatureB);
+}
+
 export function analyzeMatchGroupings(entries: readonly AutoGroupingEntry[]): string[][] {
   const groupings: string[][] = [];
   let currentGroup: string[] = [];
@@ -295,7 +310,7 @@ export function analyzeMatchGroupings(entries: readonly AutoGroupingEntry[]): st
     if (
       next.isMatchmaking ||
       next.teamRosterSignature == null ||
-      next.teamRosterSignature !== current.teamRosterSignature
+      !haveSameRostersRegardlessOfSide(next.teamRosterSignature, current.teamRosterSignature)
     ) {
       flush();
     }

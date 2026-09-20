@@ -793,7 +793,7 @@ export class HaloService {
   }
 
   private haveSameTeamRosters(match1: MatchStats, match2: MatchStats): boolean {
-    const getTeamRosters = (match: MatchStats): Map<number, Set<string>> => {
+    const getTeamRosters = (match: MatchStats): Set<string>[] => {
       const rosters = new Map<number, Set<string>>();
 
       for (const player of match.Players) {
@@ -808,32 +808,29 @@ export class HaloService {
         }
       }
 
-      return rosters;
+      return Array.from(rosters.values());
     };
 
     const rosters1 = getTeamRosters(match1);
     const rosters2 = getTeamRosters(match2);
 
-    if (rosters1.size !== rosters2.size) {
+    if (rosters1.length !== rosters2.length) {
       return false;
     }
 
-    for (const [teamId, team1Players] of rosters1.entries()) {
-      const team2Players = rosters2.get(teamId);
+    // Match rosters by their player content rather than raw TeamId, so a team swapping sides
+    // between matches (e.g. Eagle <-> Cobra) isn't mistaken for an entirely different roster.
+    const unmatchedRosters2 = [...rosters2];
+    for (const roster1 of rosters1) {
+      const matchIndex = unmatchedRosters2.findIndex(
+        (roster2) => roster1.size === roster2.size && Array.from(roster1).every((xuid) => roster2.has(xuid)),
+      );
 
-      if (!team2Players) {
+      if (matchIndex === -1) {
         return false;
       }
 
-      if (team1Players.size !== team2Players.size) {
-        return false;
-      }
-
-      for (const xuid of team1Players) {
-        if (!team2Players.has(xuid)) {
-          return false;
-        }
-      }
+      unmatchedRosters2.splice(matchIndex, 1);
     }
 
     return true;
