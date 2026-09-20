@@ -2,6 +2,8 @@ import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType, Locale } from "discord-api-types/v10";
+import type { MatchStats } from "halo-infinite-api";
+import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import type { LiveTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
@@ -852,6 +854,102 @@ describe("LiveTrackerDO", () => {
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
       expect(storagePutSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("attributes the series score to the correct roster when a team swaps sides mid-series", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.discoveredMatches = {};
+      storageGetSpy.mockResolvedValue(trackerState);
+
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
+
+      function aMatchWithRosters(overrides: {
+        matchId: string;
+        startTime: string;
+        mapAssetId: string;
+        team0PlayerIds: string[];
+        team1PlayerIds: string[];
+        team0Outcome: MatchOutcome;
+        team1Outcome: MatchOutcome;
+      }): MatchStats {
+        const makePlayer = (playerId: string, teamId: number): MatchStats["Players"][0] => ({
+          ...basePlayer,
+          PlayerId: playerId,
+          LastTeamId: teamId,
+          PlayerTeamStats: [{ TeamId: teamId, Stats: Preconditions.checkExists(basePlayer.PlayerTeamStats[0]).Stats }],
+        });
+
+        return {
+          ...baseMatch,
+          MatchId: overrides.matchId,
+          MatchInfo: {
+            ...baseMatch.MatchInfo,
+            StartTime: overrides.startTime,
+            MapVariant: { ...baseMatch.MatchInfo.MapVariant, AssetId: overrides.mapAssetId },
+          },
+          Players: [
+            ...overrides.team0PlayerIds.map((playerId) => makePlayer(playerId, 0)),
+            ...overrides.team1PlayerIds.map((playerId) => makePlayer(playerId, 1)),
+          ],
+          Teams: [
+            { ...Preconditions.checkExists(baseMatch.Teams[0]), TeamId: 0, Outcome: overrides.team0Outcome },
+            { ...Preconditions.checkExists(baseMatch.Teams[1]), TeamId: 1, Outcome: overrides.team1Outcome },
+          ],
+        };
+      }
+
+      const rosterAWinsAsTeam0 = aMatchWithRosters({
+        matchId: "series-swap-game-1",
+        startTime: "2024-11-26T10:00:00.000Z",
+        mapAssetId: "map-a",
+        team0PlayerIds: ["xuid(1)"],
+        team1PlayerIds: ["xuid(2)"],
+        team0Outcome: MatchOutcome.Win,
+        team1Outcome: MatchOutcome.Loss,
+      });
+      // Same two rosters, but roster A (xuid 1) is now on TeamId 1 and loses
+      const rosterALosesAsTeam1 = aMatchWithRosters({
+        matchId: "series-swap-game-2",
+        startTime: "2024-11-26T11:00:00.000Z",
+        mapAssetId: "map-b",
+        team0PlayerIds: ["xuid(2)"],
+        team1PlayerIds: ["xuid(1)"],
+        team0Outcome: MatchOutcome.Win,
+        team1Outcome: MatchOutcome.Loss,
+      });
+
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([
+        rosterAWinsAsTeam0,
+        rosterALosesAsTeam1,
+      ]);
+      vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue({
+        ...apiMessage,
+        id: "new-refresh-message-id",
+      });
+      vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
+      vi.spyOn(services.haloService, "getGameTypeAndMap").mockResolvedValue("Capture the Flag: Empyrean");
+      vi.spyOn(haloDuration, "getReadableDuration").mockReturnValue("10:58");
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation(async (key: string) => {
+        if (key === "live-tracker-match:series-swap-game-1") {
+          return Promise.resolve(rosterAWinsAsTeam0);
+        }
+        if (key === "live-tracker-match:series-swap-game-2") {
+          return Promise.resolve(rosterALosesAsTeam1);
+        }
+        return Promise.resolve(null);
+      });
+      // getSeriesScore is intentionally left unmocked here so the real (fixed) implementation runs
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      expect(response.status).toBe(200);
+      const data: { success: boolean; state: LiveTrackerState } = await response.json();
+      expect(data.success).toBe(true);
+      // Each roster won exactly one game; a raw TeamId-indexed count would incorrectly report "2:0"
+      expect(data.state.seriesScore).toBe("1:1");
     });
 
     it("returns error if no tracker exists", async () => {
