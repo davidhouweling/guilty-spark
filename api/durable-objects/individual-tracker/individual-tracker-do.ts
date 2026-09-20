@@ -48,6 +48,8 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
+import type { MatchTeamRoster, SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
+import { resolveSeriesTeamMapping } from "@guilty-spark/shared/halo/series-team-identity";
 import {
   buildSeriesGroupKey,
   getDefaultSeriesGroupSubtitle,
@@ -216,30 +218,39 @@ function getExpectedSeriesTeamRosters(
   return expectedRosters;
 }
 
-function xuidsMatchWithTolerance(expectedXuids: ReadonlySet<string>, actualXuids: ReadonlySet<string>): boolean {
-  if (expectedXuids.size === 0) {
-    return true;
-  }
+function hasKnownIdentitiesForAllTeams(expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>): boolean {
+  return Array.from(expectedRosters.values()).every((roster) => roster.knownXuids.size > 0);
+}
 
-  const maxToleratedMismatches = Math.min(MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM, expectedXuids.size - 1);
-  let mismatchedCount = 0;
-  for (const xuid of expectedXuids) {
-    if (actualXuids.has(xuid)) {
-      continue;
-    }
-    mismatchedCount += 1;
-    if (mismatchedCount > maxToleratedMismatches) {
-      return false;
-    }
-  }
+// Resolves a discovered match's raw TeamIds to the series' stable team identities by roster
+// content (not raw TeamId), tolerating a limited number of per-team mismatches so both an
+// in-flight NeatQueue substitution and a team swapping sides (or both together) are recognized as
+// the same series rather than rejected. Returns null if no known identities exist to resolve
+// against, or if the match doesn't resolve within tolerance.
+function resolveActualToSeriesTeamId(
+  expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
+  actualRosters: ReadonlyMap<number, ReadonlySet<string>>,
+): ReadonlyMap<number, number> | null {
+  const seriesTeamRosters: SeriesTeamRoster[] = Array.from(expectedRosters.entries()).map(([teamId, expected]) => ({
+    seriesTeamId: teamId,
+    xuids: expected.knownXuids,
+  }));
+  const matchTeamRosters: MatchTeamRoster[] = Array.from(actualRosters.entries()).map(([matchTeamId, xuids]) => ({
+    matchTeamId,
+    xuids,
+  }));
 
-  return true;
+  const resolution = resolveSeriesTeamMapping(seriesTeamRosters, matchTeamRosters, {
+    maxToleratedMismatchesPerTeam: MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM,
+  });
+
+  return resolution == null ? null : new Map(resolution.map((entry) => [entry.matchTeamId, entry.seriesTeamId]));
 }
 
 // Matches a discovered match against the series roster by team identity (not just team size),
-// tolerating a limited number of per-team swaps for in-flight NeatQueue substitutions. Falls back
-// to a count-only comparison for any team with no resolved player identities (e.g. no linked Xbox
-// accounts), since there is nothing to compare identities against.
+// tolerating a limited number of per-team roster changes - including a team swapping sides.
+// Falls back to a count-only comparison for any team with no resolved player identities (e.g. no
+// linked Xbox accounts), since there is nothing to compare identities against.
 function matchesExpectedSeriesRoster(
   summary: IndividualTrackerMatchSummary,
   expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
@@ -253,14 +264,57 @@ function matchesExpectedSeriesRoster(
     return false;
   }
 
-  for (const [teamId, expected] of expectedRosters.entries()) {
-    const actualXuids = actualRosters.get(teamId);
-    if (actualXuids?.size !== expected.playerCount || !xuidsMatchWithTolerance(expected.knownXuids, actualXuids)) {
-      return false;
+  if (!hasKnownIdentitiesForAllTeams(expectedRosters)) {
+    for (const [teamId, expected] of expectedRosters.entries()) {
+      if (actualRosters.get(teamId)?.size !== expected.playerCount) {
+        return false;
+      }
     }
+    return true;
   }
 
-  return true;
+  return resolveActualToSeriesTeamId(expectedRosters, actualRosters) != null;
+}
+
+// Reorders a match's team outcomes so array position tracks the series' stable team identity
+// (seriesTeamId), not the match's own raw TeamId, so a team swapping sides mid-series doesn't get
+// attributed to the wrong side when accumulating series wins.
+function getCanonicalTeamOutcomes(
+  summary: IndividualTrackerMatchSummary,
+  teams: readonly SeriesTeam[] | undefined,
+): number[] {
+  const rawOutcomes = summary.teamOutcomes ?? [];
+  const expectedRosters = getExpectedSeriesTeamRosters(teams);
+  if (
+    expectedRosters == null ||
+    summary.teamRosterSignature == null ||
+    !hasKnownIdentitiesForAllTeams(expectedRosters)
+  ) {
+    return rawOutcomes;
+  }
+
+  const actualRosters = parseTeamRosterSignature(summary.teamRosterSignature);
+  if (actualRosters?.size !== rawOutcomes.length) {
+    return rawOutcomes;
+  }
+
+  const matchTeamIdToSeriesTeamId = resolveActualToSeriesTeamId(expectedRosters, actualRosters);
+  if (matchTeamIdToSeriesTeamId == null) {
+    return rawOutcomes;
+  }
+
+  const sortedMatchTeamIds = Array.from(actualRosters.keys()).sort((left, right) => left - right);
+  const rawOutcomeByMatchTeamId = new Map(sortedMatchTeamIds.map((teamId, index) => [teamId, rawOutcomes[index]]));
+  const seriesTeamIdToMatchTeamId = new Map(
+    Array.from(matchTeamIdToSeriesTeamId.entries(), ([matchTeamId, seriesTeamId]) => [seriesTeamId, matchTeamId]),
+  );
+
+  return Array.from(expectedRosters.keys())
+    .sort((left, right) => left - right)
+    .map((seriesTeamId) => {
+      const matchTeamId = seriesTeamIdToMatchTeamId.get(seriesTeamId);
+      return matchTeamId != null ? (rawOutcomeByMatchTeamId.get(matchTeamId) ?? 0) : 0;
+    });
 }
 
 function getSeriesSummariesForSeriesList(
@@ -2655,7 +2709,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           mapAssetId: summary.mapAssetId,
           mapVersionId: summary.mapVersionId,
           gameVariantCategory: summary.gameVariantCategory,
-          teamOutcomes: summary.teamOutcomes ?? [],
+          teamOutcomes: getCanonicalTeamOutcomes(summary, teams),
         })),
       );
       const seriesSummaryStats = computeSeriesSummaryStats(seriesSummariesForSeriesList);
