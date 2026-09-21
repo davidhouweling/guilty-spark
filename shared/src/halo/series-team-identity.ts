@@ -112,12 +112,11 @@ export function buildPresentAtBeginningTeamRosters(match: MatchStats): MatchTeam
  * Resolves a single match's raw `TeamId`s against an anchor match's rosters (whose own `TeamId`s
  * are reused as the stable seriesTeamId labels), returning a map of this match's `TeamId` to the
  * anchor-derived seriesTeamId. Returns null if there is no anchor or the match can't be resolved
- * to the anchor's rosters within tolerance.
+ * to the anchor's exact rosters.
  */
 export function resolveMatchTeamIdToSeriesTeamId(
   anchorRosters: readonly MatchTeamRoster[] | null,
   match: MatchStats,
-  options?: ResolveSeriesTeamMappingOptions,
 ): ReadonlyMap<number, number> | null {
   if (anchorRosters == null) {
     return null;
@@ -131,7 +130,6 @@ export function resolveMatchTeamIdToSeriesTeamId(
   const resolution = resolveSeriesTeamMapping(
     anchorRosters.map((roster) => ({ seriesTeamId: roster.matchTeamId, xuids: roster.xuids })),
     matchRosters,
-    options,
   );
   if (resolution == null) {
     return null;

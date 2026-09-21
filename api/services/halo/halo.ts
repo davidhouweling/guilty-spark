@@ -258,9 +258,7 @@ export class HaloService {
     }
 
     const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
-    const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match, {
-      maxToleratedMismatchesPerTeam: 0,
-    });
+    const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
     if (anchorRosters == null || matchTeamIdToSeriesTeamId == null) {
       return rawOutcomes;
     }
@@ -1368,8 +1366,8 @@ export class HaloService {
     const lastMatchPresentAtBeginningPlayers = lastMatch.Players.filter(
       (player) => player.ParticipationInfo.PresentAtBeginning,
     );
-    // 2-team roster resolution tolerates the same two rosters swapping sides; anything that can't be
-    // split into exactly two present-at-beginning teams falls back to the flat player+side comparison.
+    // 2-team roster resolution permits the same two exact rosters to swap sides; anything that
+    // can't be split into exactly two present-at-beginning teams falls back to player+side comparison.
     const lastMatchRosters: MatchTeamRoster[] | null = buildPresentAtBeginningTeamRosters(lastMatch);
 
     return matches
@@ -1384,7 +1382,6 @@ export class HaloService {
             resolveSeriesTeamMapping(
               lastMatchRosters.map((roster) => ({ seriesTeamId: roster.matchTeamId, xuids: roster.xuids })),
               buildPresentAtBeginningTeamRosters(match) ?? [],
-              { maxToleratedMismatchesPerTeam: 0 },
             ) != null
           );
         }

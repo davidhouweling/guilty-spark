@@ -3,15 +3,13 @@ import { Preconditions } from "../base/preconditions";
 import { adjustAveragesInCoreStats, mergeCoreStats } from "./series-core-stats";
 import { buildPresentAtBeginningTeamRosters, resolveMatchTeamIdToSeriesTeamId } from "./series-team-identity";
 
-const NO_ROSTER_MISMATCH_TOLERANCE = { maxToleratedMismatchesPerTeam: 0 };
-
 export function aggregateTeamCoreStats(matches: MatchStats[]): Map<number, Stats["CoreStats"]> {
   const teamCoreStats = new Map<number, Stats["CoreStats"]>();
   const [anchorMatch] = matches;
   const anchorRosters = anchorMatch ? buildPresentAtBeginningTeamRosters(anchorMatch) : null;
 
   for (const match of matches) {
-    const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match, NO_ROSTER_MISMATCH_TOLERANCE);
+    const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
 
     for (const team of match.Teams) {
       const { TeamId } = team;
