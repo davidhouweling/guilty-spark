@@ -44,7 +44,12 @@ function resolvePairing(
     }
 
     totalMismatches += removedXuids.length + addedXuids.length;
-    resolutions.push({ seriesTeamId: expected.seriesTeamId, matchTeamId: matched.matchTeamId, addedXuids, removedXuids });
+    resolutions.push({
+      seriesTeamId: expected.seriesTeamId,
+      matchTeamId: matched.matchTeamId,
+      addedXuids,
+      removedXuids,
+    });
   }
 
   return { totalMismatches, resolutions };
@@ -67,7 +72,8 @@ export function resolveSeriesTeamMapping(
 
   const [expectedA, expectedB] = expectedRosters as [SeriesTeamRoster, SeriesTeamRoster];
   const [matchA, matchB] = matchRosters as [MatchTeamRoster, MatchTeamRoster];
-  const maxToleratedMismatchesPerTeam = options.maxToleratedMismatchesPerTeam ?? DEFAULT_MAX_TOLERATED_MISMATCHES_PER_TEAM;
+  const maxToleratedMismatchesPerTeam =
+    options.maxToleratedMismatchesPerTeam ?? DEFAULT_MAX_TOLERATED_MISMATCHES_PER_TEAM;
 
   const identity = resolvePairing(
     [

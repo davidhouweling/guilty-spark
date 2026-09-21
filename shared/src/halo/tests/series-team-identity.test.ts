@@ -152,9 +152,7 @@ describe("resolveSeriesTeamMapping", () => {
       aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2", "b3"]) }),
     ];
 
-    expect(
-      resolveSeriesTeamMapping(expectedRosters, matchRosters, { maxToleratedMismatchesPerTeam: 2 }),
-    ).toEqual([
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters, { maxToleratedMismatchesPerTeam: 2 })).toEqual([
       { seriesTeamId: 0, matchTeamId: 0, addedXuids: ["c1", "c2"], removedXuids: ["a2", "a3"] },
       { seriesTeamId: 1, matchTeamId: 1, addedXuids: [], removedXuids: [] },
     ]);
