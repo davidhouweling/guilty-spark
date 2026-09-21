@@ -290,6 +290,46 @@ export function getMatchStats(matchId: string): MatchStats | undefined {
   return match ? structuredClone(match) : undefined;
 }
 
+// Builds a synthetic 2-team match from the CTF fixture with a fully controlled roster/outcome per
+// team, for tests that need to construct a series where a team swaps sides between matches.
+export function aMatchWithSwappableRosters(overrides: {
+  matchId: string;
+  startTime: string;
+  mapAssetId: string;
+  team0PlayerIds: string[];
+  team1PlayerIds: string[];
+  team0Outcome: number;
+  team1Outcome: number;
+}): MatchStats {
+  const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+  const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
+
+  const makePlayer = (playerId: string, teamId: number): MatchStats["Players"][0] => ({
+    ...basePlayer,
+    PlayerId: playerId,
+    LastTeamId: teamId,
+    PlayerTeamStats: [{ TeamId: teamId, Stats: Preconditions.checkExists(basePlayer.PlayerTeamStats[0]).Stats }],
+  });
+
+  return {
+    ...baseMatch,
+    MatchId: overrides.matchId,
+    MatchInfo: {
+      ...baseMatch.MatchInfo,
+      StartTime: overrides.startTime,
+      MapVariant: { ...baseMatch.MatchInfo.MapVariant, AssetId: overrides.mapAssetId },
+    },
+    Players: [
+      ...overrides.team0PlayerIds.map((playerId) => makePlayer(playerId, 0)),
+      ...overrides.team1PlayerIds.map((playerId) => makePlayer(playerId, 1)),
+    ],
+    Teams: [
+      { ...Preconditions.checkExists(baseMatch.Teams[0]), TeamId: 0, Outcome: overrides.team0Outcome },
+      { ...Preconditions.checkExists(baseMatch.Teams[1]), TeamId: 1, Outcome: overrides.team1Outcome },
+    ],
+  };
+}
+
 export function getPlayerMatches(): PlayerMatchHistory[] {
   return structuredClone(playerMatches);
 }
