@@ -164,12 +164,6 @@ function shouldEnrichSummary(summary: IndividualTrackerMatchSummary): boolean {
   );
 }
 
-// A NeatQueue SUBSTITUTION event nudges the tracker's activeSeries roster immediately, so under
-// normal timing a discovered match's roster already reflects any swap. This tolerance only covers
-// the rare race where the match is discovered before that nudge has been applied to state - it
-// deliberately does not tolerate a wholesale different roster.
-const MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM = 1;
-
 function parseTeamRosterSignature(signature: string): Map<number, ReadonlySet<string>> | null {
   const rosters = new Map<number, ReadonlySet<string>>();
 
@@ -222,11 +216,8 @@ function hasKnownIdentitiesForAllTeams(expectedRosters: ReadonlyMap<number, Expe
   return Array.from(expectedRosters.values()).every((roster) => roster.knownXuids.size > 0);
 }
 
-// Resolves a discovered match's raw TeamIds to the series' stable team identities by roster
-// content (not raw TeamId), tolerating a limited number of per-team mismatches so both an
-// in-flight NeatQueue substitution and a team swapping sides (or both together) are recognized as
-// the same series rather than rejected. Returns null if no known identities exist to resolve
-// against, or if the match doesn't resolve within tolerance.
+// Resolves a discovered match's raw TeamIds to the current NeatQueue series baseline by roster
+// content (not raw TeamId), allowing sides to swap without inferring player substitutions.
 function resolveActualToSeriesTeamId(
   expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
   actualRosters: ReadonlyMap<number, ReadonlySet<string>>,
@@ -240,15 +231,12 @@ function resolveActualToSeriesTeamId(
     xuids,
   }));
 
-  const resolution = resolveSeriesTeamMapping(seriesTeamRosters, matchTeamRosters, {
-    maxToleratedMismatchesPerTeam: MAX_TOLERATED_ROSTER_MISMATCHES_PER_TEAM,
-  });
+  const resolution = resolveSeriesTeamMapping(seriesTeamRosters, matchTeamRosters);
 
   return resolution == null ? null : new Map(resolution.map((entry) => [entry.matchTeamId, entry.seriesTeamId]));
 }
 
-// Matches a discovered match against the series roster by team identity (not just team size),
-// tolerating a limited number of per-team roster changes - including a team swapping sides.
+// Matches a discovered match against the current NeatQueue series roster by team identity.
 // Falls back to a count-only comparison for any team with no resolved player identities (e.g. no
 // linked Xbox accounts), since there is nothing to compare identities against.
 function matchesExpectedSeriesRoster(

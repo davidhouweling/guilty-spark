@@ -2411,7 +2411,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.matchIds).toContain("match-new");
     });
 
-    it("tolerates a single per-team roster swap (in-flight substitution) when attaching a match to the active series", async () => {
+    it("does not attach a match with an unrecorded substitution to the active series", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
         .mockResolvedValueOnce([]);
@@ -2425,7 +2425,6 @@ describe("IndividualTrackerDO", () => {
             name: "Eagle",
             players: [
               { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
-              // "Old Bravo" has not yet been reflected as subbed out for "2222222222" (xuid_discord_user_02 stand-in)
               { discordId: null, discordName: null, gamertag: "Old Bravo", xboxId: "9999999999" },
             ],
           },
@@ -2455,10 +2454,10 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.activeSeries?.matchIds).toEqual(["match-new"]);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
     });
 
-    it("attaches a discovered match to the active series when an extra player (e.g. a random queue-crasher) joins one team", async () => {
+    it("disregards a player who joins after the match begins", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
         .mockResolvedValueOnce([]);
@@ -2468,9 +2467,11 @@ describe("IndividualTrackerDO", () => {
           Players: [
             aFakePlayerWith({ PlayerId: "xuid(1111111111)", LastTeamId: 0 }),
             aFakePlayerWith({ PlayerId: "xuid(2222222222)", LastTeamId: 0 }),
-            // An extra, unrecognized player present at the beginning - both real roster members
-            // are still confirmed present, so this must not exclude the match from the series.
-            aFakePlayerWith({ PlayerId: "xuid(9999999998)", LastTeamId: 0 }),
+            aFakePlayerWith({
+              PlayerId: "xuid(9999999998)",
+              LastTeamId: 0,
+              ParticipationInfo: { ...aFakePlayerWith().ParticipationInfo, PresentAtBeginning: false },
+            }),
             aFakePlayerWith({ PlayerId: "xuid(3333333333)", LastTeamId: 1 }),
             aFakePlayerWith({ PlayerId: "xuid(4444444444)", LastTeamId: 1 }),
           ],
