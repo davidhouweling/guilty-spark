@@ -125,8 +125,8 @@ describe("SeriesPlayersEmbed", () => {
       const result = await seriesPlayersEmbed.getSeriesEmbed([rosterAAsTeam0, rosterAAsTeam1], players, locale);
 
       // Each player appears in exactly one team's embed (grouped by their first match's side)
-      const playerOneEmbeds = result.filter((embed) =>
-        embed.fields?.some((field) => field.name.startsWith("PlayerOne")) ?? false,
+      const playerOneEmbeds = result.filter(
+        (embed) => embed.fields?.some((field) => field.name.startsWith("PlayerOne")) ?? false,
       );
       expect(playerOneEmbeds).toHaveLength(1);
     });

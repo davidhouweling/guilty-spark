@@ -338,7 +338,6 @@ export function getPlayerMatchHistory(): PlayerMatchHistory[] {
   return structuredClone(playerMatchHistory);
 }
 
-
 export function getAssetVersion(): MapAsset {
   return structuredClone(assetVersion);
 }
