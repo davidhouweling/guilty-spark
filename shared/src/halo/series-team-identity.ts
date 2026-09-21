@@ -63,18 +63,14 @@ export function resolveSeriesTeamMapping(
   const [expectedA, expectedB] = expectedRosters as [SeriesTeamRoster, SeriesTeamRoster];
   const [matchA, matchB] = matchRosters as [MatchTeamRoster, MatchTeamRoster];
 
-  const identity = resolvePairing(
-    [
-      [expectedA, matchA],
-      [expectedB, matchB],
-    ],
-  );
-  const swapped = resolvePairing(
-    [
-      [expectedA, matchB],
-      [expectedB, matchA],
-    ],
-  );
+  const identity = resolvePairing([
+    [expectedA, matchA],
+    [expectedB, matchB],
+  ]);
+  const swapped = resolvePairing([
+    [expectedA, matchB],
+    [expectedB, matchA],
+  ]);
 
   if (identity == null) {
     return swapped?.resolutions ?? null;
