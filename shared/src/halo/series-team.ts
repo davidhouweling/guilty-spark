@@ -32,4 +32,3 @@ export function aggregateTeamCoreStats(matches: MatchStats[]): Map<number, Stats
 
   return teamCoreStats;
 }
-

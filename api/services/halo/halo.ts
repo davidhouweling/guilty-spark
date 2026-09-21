@@ -270,7 +270,9 @@ export class HaloService {
 
     return anchorRosters.map((roster) => {
       const matchTeamId = seriesTeamIdToMatchTeamId.get(roster.matchTeamId);
-      return matchTeamId == null ? MatchOutcome.DidNotFinish : Preconditions.checkExists(rawOutcomesByTeamId.get(matchTeamId));
+      return matchTeamId == null
+        ? MatchOutcome.DidNotFinish
+        : Preconditions.checkExists(rawOutcomesByTeamId.get(matchTeamId));
     });
   }
 

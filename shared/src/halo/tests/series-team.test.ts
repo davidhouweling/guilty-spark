@@ -15,18 +15,48 @@ function aMatchWithTeams(
 
   const players = [
     ...team0PlayerIds.map((playerId) =>
-      aFakePlayerWith({ PlayerId: playerId, LastTeamId: 0, PlayerTeamStats: [{ TeamId: 0, Stats: { CoreStats: aFakeCoreStatsWith(), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } } }] }),
+      aFakePlayerWith({
+        PlayerId: playerId,
+        LastTeamId: 0,
+        PlayerTeamStats: [
+          {
+            TeamId: 0,
+            Stats: { CoreStats: aFakeCoreStatsWith(), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } },
+          },
+        ],
+      }),
     ),
     ...team1PlayerIds.map((playerId) =>
-      aFakePlayerWith({ PlayerId: playerId, LastTeamId: 1, PlayerTeamStats: [{ TeamId: 1, Stats: { CoreStats: aFakeCoreStatsWith(), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } } }] }),
+      aFakePlayerWith({
+        PlayerId: playerId,
+        LastTeamId: 1,
+        PlayerTeamStats: [
+          {
+            TeamId: 1,
+            Stats: { CoreStats: aFakeCoreStatsWith(), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } },
+          },
+        ],
+      }),
     ),
   ];
 
   return aFakeMatchStatsWith({
     Players: players,
     Teams: [
-      aFakeTeamWith({ TeamId: 0, Stats: { CoreStats: aFakeCoreStatsWith({ Score: team0Score }), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } } }),
-      aFakeTeamWith({ TeamId: 1, Stats: { CoreStats: aFakeCoreStatsWith({ Score: team1Score }), PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 } } }),
+      aFakeTeamWith({
+        TeamId: 0,
+        Stats: {
+          CoreStats: aFakeCoreStatsWith({ Score: team0Score }),
+          PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 },
+        },
+      }),
+      aFakeTeamWith({
+        TeamId: 1,
+        Stats: {
+          CoreStats: aFakeCoreStatsWith({ Score: team1Score }),
+          PvpStats: { Kills: 0, Deaths: 0, Assists: 0, KDA: 0 },
+        },
+      }),
     ],
     ...matchOverrides,
   });
