@@ -35,7 +35,7 @@ describe("resolveSeriesTeamMapping", () => {
     ]);
   });
 
-  it("tolerates a single-player substitution while keeping the same side mapping", () => {
+  it("rejects a substitution until its NeatQueue event updates the expected roster", () => {
     const expectedRosters = [
       aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2"]) }),
       aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
@@ -45,10 +45,7 @@ describe("resolveSeriesTeamMapping", () => {
       aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2"]) }),
     ];
 
-    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toEqual([
-      { seriesTeamId: 0, matchTeamId: 0, addedXuids: ["a3"], removedXuids: ["a2"] },
-      { seriesTeamId: 1, matchTeamId: 1, addedXuids: [], removedXuids: [] },
-    ]);
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
   });
 
   it("maps a full side swap to the opposite match team index", () => {
@@ -67,7 +64,7 @@ describe("resolveSeriesTeamMapping", () => {
     ]);
   });
 
-  it("resolves a swap combined with a substitution in the same transition", () => {
+  it("rejects a side swap combined with an unrecorded substitution", () => {
     const expectedRosters = [
       aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2"]) }),
       aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
@@ -78,45 +75,26 @@ describe("resolveSeriesTeamMapping", () => {
       aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["a1", "a2"]) }),
     ];
 
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
+  });
+
+  it("matches an exact side swap after a substitution updates the expected roster", () => {
+    const expectedRosters = [
+      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a3"]) }),
+      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b3"]) }),
+    ];
+    const matchRosters = [
+      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["b1", "b3"]) }),
+      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["a1", "a3"]) }),
+    ];
+
     expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toEqual([
       { seriesTeamId: 0, matchTeamId: 1, addedXuids: [], removedXuids: [] },
-      { seriesTeamId: 1, matchTeamId: 0, addedXuids: ["b3"], removedXuids: ["b2"] },
+      { seriesTeamId: 1, matchTeamId: 0, addedXuids: [], removedXuids: [] },
     ]);
   });
 
-  it("stays on the same side when the identity pairing is within tolerance, even with substitutions on both teams", () => {
-    const expectedRosters = [
-      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2"]) }),
-      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
-    ];
-    const matchRosters = [
-      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1", "a3"]) }),
-      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b3"]) }),
-    ];
-
-    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toEqual([
-      { seriesTeamId: 0, matchTeamId: 0, addedXuids: ["a3"], removedXuids: ["a2"] },
-      { seriesTeamId: 1, matchTeamId: 1, addedXuids: ["b3"], removedXuids: ["b2"] },
-    ]);
-  });
-
-  it("prefers the identity pairing over swapping when both pairings have equal mismatch counts", () => {
-    const expectedRosters = [
-      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2"]) }),
-      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
-    ];
-    const matchRosters = [
-      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1", "b1"]) }),
-      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["a2", "b2"]) }),
-    ];
-
-    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toEqual([
-      { seriesTeamId: 0, matchTeamId: 0, addedXuids: ["b1"], removedXuids: ["a2"] },
-      { seriesTeamId: 1, matchTeamId: 1, addedXuids: ["a2"], removedXuids: ["b1"] },
-    ]);
-  });
-
-  it("rejects the match when a team's roster mismatch exceeds the tolerated amount", () => {
+  it("rejects the match when any team's roster differs", () => {
     const expectedRosters = [
       aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2", "a3"]) }),
       aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2", "b3"]) }),
@@ -140,22 +118,6 @@ describe("resolveSeriesTeamMapping", () => {
     ];
 
     expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
-  });
-
-  it("respects a custom tolerance option", () => {
-    const expectedRosters = [
-      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1", "a2", "a3"]) }),
-      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2", "b3"]) }),
-    ];
-    const matchRosters = [
-      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1", "c1", "c2"]) }),
-      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2", "b3"]) }),
-    ];
-
-    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters, { maxToleratedMismatchesPerTeam: 2 })).toEqual([
-      { seriesTeamId: 0, matchTeamId: 0, addedXuids: ["c1", "c2"], removedXuids: ["a2", "a3"] },
-      { seriesTeamId: 1, matchTeamId: 1, addedXuids: [], removedXuids: [] },
-    ]);
   });
 
   it("returns null when the number of teams is not exactly two on either side", () => {
