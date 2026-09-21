@@ -209,6 +209,16 @@ describe("analyzeMatchGroupings()", () => {
   it("drops groups with fewer than two matches", () => {
     expect(analyzeMatchGroupings([{ matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" }])).toEqual([]);
   });
+
+  it("keeps matches grouped when the same two rosters swap sides mid-series", () => {
+    expect(
+      analyzeMatchGroupings([
+        { matchId: "a", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+        { matchId: "b", isMatchmaking: false, teamRosterSignature: "0:2|1:1" },
+        { matchId: "c", isMatchmaking: false, teamRosterSignature: "0:1|1:2" },
+      ]),
+    ).toEqual([["a", "b", "c"]]);
+  });
 });
 
 describe("normalizeModeName()", () => {
