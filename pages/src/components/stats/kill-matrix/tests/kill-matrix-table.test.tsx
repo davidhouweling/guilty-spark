@@ -425,6 +425,32 @@ describe("KillMatrixTable", () => {
       // 1 xyHeader col + 4 fallback data cols = 5 cols; 4 fallback rows → 5 + 4×5 = 25 cells
       expect(shimmer.querySelectorAll("th, td")).toHaveLength(25);
     });
+
+    it("shows team-vs-team shimmer before cross-team data has loaded", () => {
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          status={ComponentLoaderStatus.LOADING}
+          playerHeaders={[
+            { gamertag: "Alpha", teamId: 0 },
+            { gamertag: "Bravo", teamId: 0 },
+            { gamertag: "Charlie", teamId: 1 },
+            { gamertag: "Delta", teamId: 1 },
+          ]}
+          useCrossTeamLayout={true}
+        />,
+      );
+
+      const shimmer = screen.getByRole("region", { name: "Kill matrix" });
+      expect(shimmer).toHaveAttribute("aria-busy", "true");
+      expect(shimmer.querySelectorAll("th, td")).toHaveLength(9);
+      expect(screen.getAllByText("Alpha")).toHaveLength(1);
+      expect(screen.getAllByText("Bravo")).toHaveLength(1);
+      expect(screen.getAllByText("Charlie")).toHaveLength(1);
+      expect(screen.getAllByText("Delta")).toHaveLength(1);
+    });
   });
 
   describe("h2h dialog", () => {

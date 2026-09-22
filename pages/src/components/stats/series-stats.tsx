@@ -296,6 +296,7 @@ export function SeriesStats({
                   status={killMatrixStatus}
                   playerHeaders={playerHeaders}
                   teamColors={teamColors}
+                  useCrossTeamLayout={true}
                 />
               ),
             },

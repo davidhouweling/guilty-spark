@@ -68,9 +68,14 @@ interface MatchDetailSectionProps {
 }
 
 function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: MatchDetailSectionProps): ReactElement {
+  const statsGutter = noGutter === true || wide === true ? "0" : undefined;
+
   return (
     <Container
       mobileDown="0"
+      tabletUp={statsGutter}
+      desktopUp={statsGutter}
+      ultrawideUp={statsGutter}
       wide={wide}
       className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}
     >
@@ -115,6 +120,8 @@ export function SeriesStatsView({
   wide,
   onAnalyticsTabSelected,
 }: SeriesStatsViewProps): ReactElement {
+  const statsGutter = noGutter === true || wide === true ? "0" : undefined;
+
   return (
     <div className={styles.seriesStats}>
       <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
@@ -144,6 +151,9 @@ export function SeriesStatsView({
       {seriesStats != null && (
         <Container
           mobileDown="0"
+          tabletUp={statsGutter}
+          desktopUp={statsGutter}
+          ultrawideUp={statsGutter}
           wide={wide}
           className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}
         >

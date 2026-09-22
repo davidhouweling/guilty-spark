@@ -36,6 +36,7 @@ interface KillMatrixTableProps {
   readonly teamColors?: readonly TeamColor[];
   readonly crossTeamData?: KillMatrixCrossTeamData;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData;
+  readonly useCrossTeamLayout?: boolean | undefined;
 }
 
 export function KillMatrixTable({
@@ -51,6 +52,7 @@ export function KillMatrixTable({
   teamColors,
   crossTeamData,
   swappedCrossTeamData,
+  useCrossTeamLayout = false,
 }: KillMatrixTableProps): React.ReactElement {
   const effectiveStatus = status ?? ComponentLoaderStatus.LOADED;
 
@@ -431,7 +433,7 @@ export function KillMatrixTable({
       />
     );
 
-  const isCrossTeam = crossTeamData != null;
+  const isCrossTeam = useCrossTeamLayout || crossTeamData != null;
 
   return (
     <>
