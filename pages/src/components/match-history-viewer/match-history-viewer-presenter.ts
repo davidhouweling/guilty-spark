@@ -1,4 +1,5 @@
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
@@ -57,6 +58,10 @@ export class MatchHistoryViewerPresenter {
 
   public toggleEntry(item: ViewerTimelineItem): void {
     this.entryDetailController.toggleEntry(item);
+  }
+
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
+    this.entryDetailController.loadAnalytics(item, module);
   }
 
   public search(gamertag: string): void {

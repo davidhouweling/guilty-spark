@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
@@ -23,6 +24,7 @@ export interface MatchHistoryViewerHookResult {
   readonly snapshot: IndividualTrackerViewerSnapshot;
   readonly model: IndividualTrackerViewerViewModel;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
+  readonly onLoadAnalytics: (item: ViewerTimelineItem, module: AnalyticsModule) => void;
   readonly onLoadMore: () => void;
 }
 
@@ -85,9 +87,16 @@ export function useMatchHistoryViewer({
     [presenter],
   );
 
+  const onLoadAnalytics = useCallback(
+    (item: ViewerTimelineItem, module: AnalyticsModule): void => {
+      presenter.loadAnalytics(item, module);
+    },
+    [presenter],
+  );
+
   const onLoadMore = useCallback((): void => {
     presenter.loadMore();
   }, [presenter]);
 
-  return { snapshot: viewerSnapshot, model, onToggleEntry, onLoadMore };
+  return { snapshot: viewerSnapshot, model, onToggleEntry, onLoadAnalytics, onLoadMore };
 }
