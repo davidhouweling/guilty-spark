@@ -314,6 +314,7 @@ export function MatchStats({
                 status={killMatrixStatus}
                 playerHeaders={playerHeaders}
                 teamColors={teamColors}
+                useCrossTeamLayout={true}
               />
             ),
           },
