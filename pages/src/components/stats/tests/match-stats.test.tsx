@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { MatchStats } from "../match-stats";
 import {
   aFakeMatchStatsDataWith,
@@ -284,6 +285,36 @@ describe("MatchStats", () => {
     expect(screen.getByText("Kill matrix data is not available for this match yet.")).toBeInTheDocument();
   });
 
+  it("requests the selected analytics module when an analytics tab is selected", () => {
+    const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule) => void>();
+
+    render(
+      <MatchStats
+        data={data}
+        id="match-1"
+        backgroundImageUrl="https://example.com/bg.jpg"
+        gameModeIconUrl="https://example.com/icon.png"
+        gameModeAlt="Slayer"
+        matchNumber={1}
+        gameTypeAndMap="Slayer: Aquarius"
+        duration="10m 30s"
+        score="50:49"
+        startTime="2024-01-01T00:00:00.000Z"
+        endTime="2024-01-01T00:10:30.000Z"
+        killMatrixStatus={ComponentLoaderStatus.PENDING}
+        scoreProgressionStatus={ComponentLoaderStatus.PENDING}
+        onAnalyticsTabSelected={onAnalyticsTabSelected}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+
+    expect(onAnalyticsTabSelected).toHaveBeenNthCalledWith(1, "scoreProgression");
+    expect(onAnalyticsTabSelected).toHaveBeenNthCalledWith(2, "killMatrix");
+  });
+
   it("shows timeline tab with loading state while analytics is loading", () => {
     const data = [aFakeMatchStatsDataWith({ teamId: 0 })];
 
@@ -301,7 +332,7 @@ describe("MatchStats", () => {
         startTime="2024-01-01T00:00:00.000Z"
         endTime="2024-01-01T00:10:30.000Z"
         scoreProgressionViewData={null}
-        killMatrixStatus={ComponentLoaderStatus.LOADING}
+        scoreProgressionStatus={ComponentLoaderStatus.LOADING}
       />,
     );
 
@@ -327,7 +358,7 @@ describe("MatchStats", () => {
         startTime="2024-01-01T00:00:00.000Z"
         endTime="2024-01-01T00:10:30.000Z"
         scoreProgressionViewData={null}
-        killMatrixStatus={ComponentLoaderStatus.LOADED}
+        scoreProgressionStatus={ComponentLoaderStatus.LOADED}
       />,
     );
 

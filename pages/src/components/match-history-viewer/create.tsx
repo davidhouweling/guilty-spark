@@ -31,7 +31,10 @@ interface MatchHistoryViewerPageInternalProps extends MatchHistoryViewerPageProp
 }
 
 function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewerPageInternalProps): React.ReactElement {
-  const { snapshot, model, onToggleEntry, onLoadMore } = useMatchHistoryViewer({ ...config, gamertag });
+  const { snapshot, model, onToggleEntry, onLoadAnalytics, onLoadMore } = useMatchHistoryViewer({
+    ...config,
+    gamertag,
+  });
 
   useEffect(() => {
     const resolvedGamertag = model.renderModel?.gamertag ?? gamertag;
@@ -69,6 +72,7 @@ function MatchHistoryViewerPageInternal({ config, gamertag }: MatchHistoryViewer
                   hasMore={snapshot.hasMore}
                   loadingMore={snapshot.loadingMore}
                   onToggleEntry={onToggleEntry}
+                  onLoadAnalytics={onLoadAnalytics}
                   onBackToManage={(): void => undefined}
                   onRefresh={(): void => undefined}
                   onLoadMore={onLoadMore}

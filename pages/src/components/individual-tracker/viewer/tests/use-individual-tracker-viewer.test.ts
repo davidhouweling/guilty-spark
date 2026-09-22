@@ -5,6 +5,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
@@ -161,7 +162,7 @@ describe("useIndividualTrackerViewer", () => {
     expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
-  it("loads match stats before analytics completes for an expanded match entry", async () => {
+  it("loads match analytics when an expanded match analytics tab is selected", async () => {
     const matchId = "match-1";
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({
@@ -197,7 +198,9 @@ describe("useIndividualTrackerViewer", () => {
     const analyticsPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
       resolveAnalytics = resolve;
     });
-    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => analyticsPromise);
+    const getBatchMatchAnalyticsSpy = vi
+      .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+      .mockImplementation(async () => analyticsPromise);
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -225,6 +228,22 @@ describe("useIndividualTrackerViewer", () => {
     await waitFor(() => {
       const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
       expect(state?.kind).toBe("match");
+      expect(state?.kind === "match" ? state.state.status : undefined).toBe("loaded");
+      if (state?.kind === "match" && state.state.status === "loaded") {
+        expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.PENDING);
+      }
+    });
+
+    act(() => {
+      if (matchItem?.type === "match") {
+        result.current.onLoadAnalytics(matchItem, "killMatrix");
+      }
+    });
+
+    await waitFor(() => {
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith([matchId], ["killMatrix"], "tracker-1");
+      const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
+      expect(state?.kind).toBe("match");
       if (state?.kind === "match" && state.state.status === "loaded") {
         expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.LOADING);
       }
@@ -237,6 +256,133 @@ describe("useIndividualTrackerViewer", () => {
       expect(state?.kind).toBe("match");
       if (state?.kind === "match" && state.state.status === "loaded") {
         expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
+      }
+    });
+  });
+
+  it("preserves score progression when overlapping kill matrix request resolves last", async () => {
+    const matchId = "match-1";
+    const rawMatch = aFakeMatchStatsWith({ MatchId: matchId });
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        trackerId: "tracker-1",
+        status: "active",
+        matches: [aFakeTrackerMatchSummaryWith({ matchId })],
+      }),
+    });
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
+      playerXuidToGametag: {},
+      matches: [
+        {
+          matchId,
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "data:",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          rawMatch,
+        },
+      ],
+    });
+
+    let resolveKillMatrix: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
+    let resolveScoreProgression: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
+    const killMatrixPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+      resolveKillMatrix = resolve;
+    });
+    const scoreProgressionPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+      resolveScoreProgression = resolve;
+    });
+    const getBatchMatchAnalyticsSpy = vi
+      .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+      .mockImplementation(async (_matchIds, modules) => {
+        return modules?.includes("scoreProgression") === true ? scoreProgressionPromise : killMatrixPromise;
+      });
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        medalMetadataResolver,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const matchItem = result.current.model.renderModel?.timeline.find((item) => item.type === "match");
+    expect(matchItem?.type).toBe("match");
+
+    act(() => {
+      if (matchItem?.type === "match") {
+        result.current.onToggleEntry(matchItem);
+      }
+    });
+
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
+      expect(state?.kind).toBe("match");
+      expect(state?.kind === "match" ? state.state.status : undefined).toBe("loaded");
+    });
+
+    act(() => {
+      if (matchItem?.type === "match") {
+        result.current.onLoadAnalytics(matchItem, "killMatrix");
+        result.current.onLoadAnalytics(matchItem, "scoreProgression");
+      }
+    });
+
+    await waitFor(() => {
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith([matchId], ["killMatrix"], "tracker-1");
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith([matchId], ["scoreProgression"], "tracker-1");
+    });
+
+    resolveScoreProgression?.({
+      [matchId]: aFakeMatchAnalyticsWith({
+        requestedModules: ["scoreProgression", "killMatrix"],
+        scoreProgression: {
+          mode: 1,
+          durationMs: 600_000,
+          teamCount: 2,
+          timeline: {
+            type: "kill-race",
+            events: [{ timestampMs: 1_000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
+            deathTimeline: [],
+            respawnDurationMs: null,
+          },
+        },
+      }),
+    });
+
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
+      expect(state?.kind).toBe("match");
+      if (state?.kind === "match" && state.state.status === "loaded") {
+        expect(state.state.scoreProgressionStatus).toBe(ComponentLoaderStatus.LOADED);
+        expect(state.state.scoreProgressionViewData).not.toBeNull();
+      }
+    });
+
+    resolveKillMatrix?.({
+      [matchId]: aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], scoreProgression: null }),
+    });
+
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
+      expect(state?.kind).toBe("match");
+      if (state?.kind === "match" && state.state.status === "loaded") {
+        expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
+        expect(state.state.scoreProgressionStatus).toBe(ComponentLoaderStatus.LOADED);
+        expect(state.state.scoreProgressionViewData).not.toBeNull();
       }
     });
   });

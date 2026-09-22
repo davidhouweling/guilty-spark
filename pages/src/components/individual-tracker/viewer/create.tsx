@@ -52,7 +52,7 @@ function IndividualTrackerViewerPageInternal({
   } = config;
   const canManage = individualTrackerService != null;
 
-  const { snapshot, model, onToggleEntry, onRefresh, onRetry } = useIndividualTrackerViewer({
+  const { snapshot, model, onToggleEntry, onLoadAnalytics, onRefresh, onRetry } = useIndividualTrackerViewer({
     individualTrackerService,
     individualTrackerViewService,
     matchAnalyticsService,
@@ -91,6 +91,7 @@ function IndividualTrackerViewerPageInternal({
             canManage={canManage}
             refreshPending={model.refreshPending}
             onToggleEntry={onToggleEntry}
+            onLoadAnalytics={onLoadAnalytics}
             onBackToManage={
               canManage
                 ? (): void => {

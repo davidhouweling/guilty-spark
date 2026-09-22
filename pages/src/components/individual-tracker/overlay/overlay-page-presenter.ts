@@ -253,7 +253,8 @@ export class OverlayPagePresenter {
       playerMap,
       teamColors: [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)],
       analyticsByMatchId,
-      analyticsStatus,
+      killMatrixStatus: analyticsStatus,
+      scoreProgressionStatus: analyticsStatus,
     });
   }
 
@@ -405,6 +406,7 @@ export class OverlayPagePresenter {
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
       killMatrixStatus: analyticsStatus,
+      scoreProgressionStatus: analyticsStatus,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)],

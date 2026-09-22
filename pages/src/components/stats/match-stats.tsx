@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import React, { useMemo, useState } from "react";
 import classNames from "classnames";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable } from "../table/sortable-table";
@@ -39,9 +40,11 @@ interface MatchStatsProps {
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
-  readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly killMatrixStatus?: ComponentLoaderStatus | undefined;
+  readonly scoreProgressionStatus?: ComponentLoaderStatus | undefined;
   readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
   readonly showHeader?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -64,11 +67,13 @@ export function MatchStats({
   crossTeamData,
   swappedCrossTeamData,
   killMatrixStatus,
+  scoreProgressionStatus,
   scoreProgressionViewData,
   showHeader = true,
+  onAnalyticsTabSelected,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"players" | "timeline" | "kill-matrix">("players");
-  const hasTimelineTab = scoreProgressionViewData != null || killMatrixStatus !== undefined;
+  const hasTimelineTab = scoreProgressionViewData != null || scoreProgressionStatus !== undefined;
   const safeActiveTab: "players" | "timeline" | "kill-matrix" =
     activeTab === "timeline" && !hasTimelineTab ? "players" : activeTab;
   const ScoreProgressionComponent = useMemo(() => createScoreProgression(), []);
@@ -285,7 +290,7 @@ export function MatchStats({
                       />
                     ) : (
                       <ComponentLoader
-                        status={killMatrixStatus ?? ComponentLoaderStatus.LOADING}
+                        status={scoreProgressionStatus ?? ComponentLoaderStatus.LOADING}
                         loading={<LoadingState text="Loading timeline..." />}
                         error={<Alert variant="warning">Failed to load timeline data for this match.</Alert>}
                         loaded={<Alert variant="info">Timeline data is not available for this match.</Alert>}
@@ -314,7 +319,14 @@ export function MatchStats({
           },
         ]}
         tabsClassName={styles.tabs}
-        onTabChange={setActiveTab}
+        onTabChange={(tab): void => {
+          setActiveTab(tab);
+          if (tab === "timeline") {
+            onAnalyticsTabSelected?.("scoreProgression");
+          } else if (tab === "kill-matrix") {
+            onAnalyticsTabSelected?.("killMatrix");
+          }
+        }}
       />
     </div>
   );

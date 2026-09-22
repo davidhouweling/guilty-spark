@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
@@ -26,6 +27,7 @@ export interface IndividualTrackerViewerHookResult {
   readonly snapshot: IndividualTrackerViewerSnapshot;
   readonly model: IndividualTrackerViewerViewModel;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
+  readonly onLoadAnalytics: (item: ViewerTimelineItem, module: AnalyticsModule) => void;
   readonly onRefresh: () => void;
   readonly onRetry: () => void;
 }
@@ -98,6 +100,13 @@ export function useIndividualTrackerViewer({
     [presenter],
   );
 
+  const onLoadAnalytics = useCallback(
+    (item: ViewerTimelineItem, module: AnalyticsModule): void => {
+      presenter.loadAnalytics(item, module);
+    },
+    [presenter],
+  );
+
   const onRetry = useCallback((): void => {
     presenter.start();
   }, [presenter]);
@@ -106,5 +115,5 @@ export function useIndividualTrackerViewer({
     presenter.refresh();
   }, [presenter]);
 
-  return { snapshot, model, onToggleEntry, onRefresh, onRetry };
+  return { snapshot, model, onToggleEntry, onLoadAnalytics, onRefresh, onRetry };
 }

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import classNames from "classnames";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable } from "../table/sortable-table";
@@ -28,8 +29,9 @@ interface SeriesStatsProps {
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
-  readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly killMatrixStatus?: ComponentLoaderStatus | undefined;
   readonly showHeader?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -46,6 +48,7 @@ export function SeriesStats({
   swappedCrossTeamData,
   killMatrixStatus,
   showHeader = true,
+  onAnalyticsTabSelected,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
@@ -298,7 +301,12 @@ export function SeriesStats({
             },
           ]}
           tabsClassName={styles.tabs}
-          onTabChange={setActiveTab}
+          onTabChange={(tab): void => {
+            setActiveTab(tab);
+            if (tab === "kill-matrix") {
+              onAnalyticsTabSelected?.("killMatrix");
+            }
+          }}
         />
       )}
     </div>

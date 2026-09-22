@@ -1,6 +1,7 @@
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -125,6 +126,10 @@ export class IndividualTrackerViewerPresenter {
 
   public toggleEntry(item: ViewerTimelineItem): void {
     this.entryDetailController.toggleEntry(item);
+  }
+
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
+    this.entryDetailController.loadAnalytics(item, module);
   }
 
   public start(): void {

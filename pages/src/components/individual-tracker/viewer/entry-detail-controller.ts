@@ -1,7 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -26,6 +26,24 @@ export interface MatchStatsLoadedState {
   readonly gameMapThumbnailUrl: string;
 }
 
+interface MatchAnalyticsSource {
+  readonly matchSource: MatchStatsLoadedState;
+  analytics: MatchAnalytics | null;
+  readonly requestedModules: Set<AnalyticsModule>;
+  readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
+}
+
+interface SeriesAnalyticsSource {
+  readonly series: ViewerSeriesTab;
+  readonly matches: SeriesMatchesResponse["matches"];
+  readonly rawMatches: readonly MatchStats[];
+  readonly medalMetadata: MedalMetadata;
+  readonly playerMap: Map<string, string>;
+  readonly analyticsByMatchId: Map<string, MatchAnalytics>;
+  readonly requestedModules: Set<AnalyticsModule>;
+  readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
+}
+
 export interface EntryDetailControllerConfig {
   readonly store: IndividualTrackerViewerStore;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -40,6 +58,8 @@ const SERIES_MATCHES_BATCH_SIZE = 30;
 // same timeline/entry-expand UI and only differ in how the top-level TrackerViewState is sourced.
 export class EntryDetailController {
   private readonly config: EntryDetailControllerConfig;
+  private readonly matchAnalyticsSources = new Map<string, MatchAnalyticsSource>();
+  private readonly seriesAnalyticsSources = new Map<string, SeriesAnalyticsSource>();
   private isDisposed = false;
 
   public constructor(config: EntryDetailControllerConfig) {
@@ -59,6 +79,8 @@ export class EntryDetailController {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.matchAnalyticsSources.clear();
+    this.seriesAnalyticsSources.clear();
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -86,6 +108,41 @@ export class EntryDetailController {
     }
 
     void this.fetchSeriesEntry(key, item.series);
+  }
+
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
+    const key = EntryDetailController.entryKey(item);
+    if (item.type === "match") {
+      const source = this.matchAnalyticsSources.get(key);
+      if (source == null || this.isModuleSatisfied(source.requestedModules, module)) {
+        return;
+      }
+
+      source.requestedModules.add(module);
+      void this.fetchMatchAnalyticsAsync(key, item.match.matchId, module, source);
+      return;
+    }
+
+    const source = this.seriesAnalyticsSources.get(key);
+    if (source == null || this.isModuleSatisfied(source.requestedModules, module)) {
+      return;
+    }
+
+    source.requestedModules.add(module);
+    void this.fetchSeriesAnalyticsAsync(key, module, source);
+  }
+
+  /**
+   * The API always includes killMatrix when scoreProgression is requested (see
+   * api/services/analytics/analytics.ts), so a killMatrix request is redundant while
+   * scoreProgression has already been requested for the same entry.
+   */
+  private isModuleSatisfied(requestedModules: Set<AnalyticsModule>, module: AnalyticsModule): boolean {
+    if (requestedModules.has(module)) {
+      return true;
+    }
+
+    return module === "killMatrix" && requestedModules.has("scoreProgression");
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
@@ -117,7 +174,8 @@ export class EntryDetailController {
   private toMatchEntryLoadedState(
     loadedState: MatchStatsLoadedState,
     analytics: MatchAnalytics | null,
-    analyticsStatus: ComponentLoaderStatus,
+    killMatrixStatus: ComponentLoaderStatus,
+    scoreProgressionStatus: ComponentLoaderStatus,
     teamColors: readonly TeamColor[],
   ): MatchEntryLoadedState {
     const { stats, playerMap, medalMetadata, gameMapThumbnailUrl } = loadedState;
@@ -156,7 +214,8 @@ export class EntryDetailController {
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
-      killMatrixStatus: analyticsStatus,
+      killMatrixStatus,
+      scoreProgressionStatus,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         teamColors,
@@ -174,10 +233,20 @@ export class EntryDetailController {
       }
 
       const teamColors = this.resolveTeamColors();
-      const loadingState = this.toMatchEntryLoadedState(matchSource, null, ComponentLoaderStatus.LOADING, teamColors);
+      const loadingState = this.toMatchEntryLoadedState(
+        matchSource,
+        null,
+        ComponentLoaderStatus.PENDING,
+        ComponentLoaderStatus.PENDING,
+        teamColors,
+      );
       this.config.store.setMatchEntryLoaded(key, loadingState);
-
-      void this.fetchMatchAnalyticsAsync(key, matchSource, teamColors, matchId);
+      this.matchAnalyticsSources.set(key, {
+        matchSource,
+        analytics: null,
+        requestedModules: new Set(),
+        moduleStatuses: new Map(),
+      });
     } catch (error) {
       if (this.isDisposed) {
         return;
@@ -188,25 +257,40 @@ export class EntryDetailController {
 
   private async fetchMatchAnalyticsAsync(
     key: string,
-    matchSource: MatchStatsLoadedState,
-    teamColors: readonly TeamColor[],
     matchId: string,
+    module: AnalyticsModule,
+    source: MatchAnalyticsSource,
   ): Promise<void> {
+    source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
+    const loadingState = this.toMatchEntryLoadedState(
+      source.matchSource,
+      source.analytics,
+      source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+      source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
+      this.resolveTeamColors(),
+    );
+    this.config.store.setMatchEntryLoaded(key, loadingState);
+
     try {
       const results = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
         [matchId],
-        ["killMatrix", "scoreProgression"],
+        [module],
         this.config.trackerId,
       );
       if (this.shouldAbort()) {
         return;
       }
 
+      source.analytics = this.mergeAnalytics(source.analytics, results[matchId] ?? null);
+      this.syncRequestedModules(source.requestedModules, source.analytics);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
+      this.markModulesLoaded(source.moduleStatuses, source.analytics);
       const loadedState = this.toMatchEntryLoadedState(
-        matchSource,
-        results[matchId] ?? null,
-        ComponentLoaderStatus.LOADED,
-        teamColors,
+        source.matchSource,
+        source.analytics,
+        source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
+        this.resolveTeamColors(),
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
     } catch {
@@ -214,7 +298,15 @@ export class EntryDetailController {
         return;
       }
 
-      const loadedState = this.toMatchEntryLoadedState(matchSource, null, ComponentLoaderStatus.ERROR, teamColors);
+      source.requestedModules.delete(module);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
+      const loadedState = this.toMatchEntryLoadedState(
+        source.matchSource,
+        source.analytics,
+        source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
+        this.resolveTeamColors(),
+      );
       this.config.store.setMatchEntryLoaded(key, loadedState);
     }
   }
@@ -264,20 +356,21 @@ export class EntryDetailController {
         playerMap,
         teamColors,
         analyticsByMatchId: new Map(),
-        analyticsStatus: ComponentLoaderStatus.LOADING,
+        killMatrixStatus: ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: ComponentLoaderStatus.PENDING,
       });
 
       const state: SeriesEntryLoadedState = { seriesId: series.id, viewModel };
       this.config.store.setSeriesEntryLoaded(key, state);
-
-      void this.fetchSeriesAnalyticsAsync({
-        key,
+      this.seriesAnalyticsSources.set(key, {
         series,
         matches: mergedSeriesData.matches,
         rawMatches,
         medalMetadata,
         playerMap,
-        teamColors,
+        analyticsByMatchId: new Map(),
+        requestedModules: new Set(),
+        moduleStatuses: new Map(),
       });
     } catch (error) {
       if (this.isDisposed) {
@@ -287,30 +380,35 @@ export class EntryDetailController {
     }
   }
 
-  private async fetchSeriesAnalyticsAsync(args: {
-    readonly key: string;
-    readonly series: ViewerSeriesTab;
-    readonly matches: SeriesMatchesResponse["matches"];
-    readonly rawMatches: readonly MatchStats[];
-    readonly medalMetadata: MedalMetadata;
-    readonly playerMap: Map<string, string>;
-    readonly teamColors: readonly TeamColor[];
-  }): Promise<void> {
-    const requestedMatchIds = args.series.matches.map((match) => match.matchId);
+  private async fetchSeriesAnalyticsAsync(
+    key: string,
+    module: AnalyticsModule,
+    source: SeriesAnalyticsSource,
+  ): Promise<void> {
+    source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
+    const loadingViewModel = buildSeriesViewModel({
+      ...source,
+      teamColors: this.resolveTeamColors(),
+      killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+      scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
+    });
+    this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadingViewModel });
+
+    const requestedMatchIds = source.series.matches.map((match) => match.matchId);
     const uniqueMatchIds = [...new Set(requestedMatchIds)];
     if (uniqueMatchIds.length === 0) {
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
       const loadedViewModel = buildSeriesViewModel({
-        ...args,
-        analyticsByMatchId: new Map(),
-        analyticsStatus: ComponentLoaderStatus.LOADED,
+        ...source,
+        teamColors: this.resolveTeamColors(),
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
-      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: loadedViewModel });
+      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
       return;
     }
 
     try {
-      const analyticsByMatchId = new Map<string, MatchAnalytics>();
-
       for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
         if (this.shouldAbort()) {
           return;
@@ -319,7 +417,7 @@ export class EntryDetailController {
         const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
         const batch = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
           batchMatchIds,
-          ["killMatrix", "scoreProgression"],
+          [module],
           this.config.trackerId,
         );
 
@@ -329,29 +427,79 @@ export class EntryDetailController {
 
         for (const [matchId, analytics] of Object.entries(batch)) {
           if (analytics != null) {
-            analyticsByMatchId.set(matchId, analytics);
+            const mergedAnalytics = this.mergeAnalytics(source.analyticsByMatchId.get(matchId) ?? null, analytics);
+            if (mergedAnalytics != null) {
+              source.analyticsByMatchId.set(matchId, mergedAnalytics);
+              this.syncRequestedModules(source.requestedModules, mergedAnalytics);
+              this.markModulesLoaded(source.moduleStatuses, mergedAnalytics);
+            }
           }
         }
       }
 
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
       const loadedViewModel = buildSeriesViewModel({
-        ...args,
-        analyticsByMatchId,
-        analyticsStatus: ComponentLoaderStatus.LOADED,
+        ...source,
+        teamColors: this.resolveTeamColors(),
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
-      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: loadedViewModel });
+      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
     } catch {
       if (this.shouldAbort()) {
         return;
       }
 
+      source.requestedModules.delete(module);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
       const erroredViewModel = buildSeriesViewModel({
-        ...args,
-        analyticsByMatchId: new Map(),
-        analyticsStatus: ComponentLoaderStatus.ERROR,
+        ...source,
+        teamColors: this.resolveTeamColors(),
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
-      this.config.store.setSeriesEntryLoaded(args.key, { seriesId: args.series.id, viewModel: erroredViewModel });
+      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: erroredViewModel });
     }
+  }
+
+  private syncRequestedModules(requestedModules: Set<AnalyticsModule>, analytics: MatchAnalytics | null): void {
+    if (analytics == null) {
+      return;
+    }
+
+    for (const module of analytics.requestedModules) {
+      requestedModules.add(module);
+    }
+  }
+
+  private markModulesLoaded(
+    moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>,
+    analytics: MatchAnalytics | null,
+  ): void {
+    if (analytics == null) {
+      return;
+    }
+
+    for (const module of analytics.requestedModules) {
+      moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
+    }
+  }
+
+  private mergeAnalytics(existing: MatchAnalytics | null, incoming: MatchAnalytics | null): MatchAnalytics | null {
+    if (incoming == null) {
+      return existing;
+    }
+    if (existing == null) {
+      return incoming;
+    }
+
+    return {
+      ...existing,
+      ...incoming,
+      killMatrix: { ...existing.killMatrix, ...incoming.killMatrix },
+      scoreProgression: incoming.scoreProgression ?? existing.scoreProgression,
+      requestedModules: [...new Set([...existing.requestedModules, ...incoming.requestedModules])],
+    };
   }
 
   private resolveTeamColors(): readonly TeamColor[] {

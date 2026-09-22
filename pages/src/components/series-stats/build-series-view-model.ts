@@ -53,7 +53,8 @@ export interface BuildSeriesViewModelArgs {
   readonly playerMap: Map<string, string>;
   readonly teamColors: readonly TeamColor[];
   readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
-  readonly analyticsStatus: ComponentLoaderStatus;
+  readonly killMatrixStatus: ComponentLoaderStatus;
+  readonly scoreProgressionStatus: ComponentLoaderStatus;
 }
 
 function getLatestRawMatch(rawMatches: readonly MatchStats[]): MatchStats | undefined {
@@ -82,7 +83,8 @@ export function buildSeriesViewModel({
   playerMap,
   teamColors,
   analyticsByMatchId,
-  analyticsStatus,
+  killMatrixStatus,
+  scoreProgressionStatus,
 }: BuildSeriesViewModelArgs): SeriesStatsViewModel {
   // --- Series totals ---
   const seriesController = new StatsController();
@@ -116,7 +118,8 @@ export function buildSeriesViewModel({
     transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
     crossTeamKillMatrixData: null,
     swappedCrossTeamKillMatrixData: null,
-    killMatrixStatus: analyticsStatus,
+    killMatrixStatus,
+    scoreProgressionStatus,
   };
 
   // --- Match summaries (score cards) ---
@@ -215,12 +218,13 @@ export function buildSeriesViewModel({
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
-      killMatrixStatus: analyticsStatus,
+      killMatrixStatus,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         teamColors,
         data?.[0]?.players.length ?? null,
       ),
+      scoreProgressionStatus,
     };
   });
 

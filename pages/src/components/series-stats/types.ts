@@ -39,6 +39,7 @@ export interface SeriesMatchDetail {
   readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus: ComponentLoaderStatus;
+  readonly scoreProgressionStatus: ComponentLoaderStatus;
   readonly scoreProgressionViewData: ScoreProgressionViewData | null;
 }
 
@@ -57,6 +58,7 @@ export interface SeriesStatsSummary {
   readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus: ComponentLoaderStatus;
+  readonly scoreProgressionStatus: ComponentLoaderStatus;
 }
 
 export interface SeriesStatsViewModel {

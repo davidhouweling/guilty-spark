@@ -20,6 +20,7 @@ export interface MatchEntryLoadedState {
   readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamKillMatrixData: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus: ComponentLoaderStatus;
+  readonly scoreProgressionStatus: ComponentLoaderStatus;
   readonly scoreProgressionViewData: ScoreProgressionViewData | null;
 }
 

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactElement } from "react";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
@@ -12,6 +13,7 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesTitle?: boolean;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 interface MatchSummaryItemProps {
@@ -62,9 +64,10 @@ interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
-function MatchDetailSection({ detail, noGutter, wide }: MatchDetailSectionProps): ReactElement {
+function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: MatchDetailSectionProps): ReactElement {
   return (
     <Container
       mobileDown="0"
@@ -90,7 +93,9 @@ function MatchDetailSection({ detail, noGutter, wide }: MatchDetailSectionProps)
           crossTeamData={detail.crossTeamKillMatrixData}
           swappedCrossTeamData={detail.swappedCrossTeamKillMatrixData}
           killMatrixStatus={detail.killMatrixStatus}
+          scoreProgressionStatus={detail.scoreProgressionStatus}
           scoreProgressionViewData={detail.scoreProgressionViewData}
+          onAnalyticsTabSelected={onAnalyticsTabSelected}
         />
       ) : (
         <Alert variant="warning">Failed to load detailed stats for match {detail.matchId}.</Alert>
@@ -108,6 +113,7 @@ export function SeriesStatsView({
   showSeriesTitle,
   noGutter,
   wide,
+  onAnalyticsTabSelected,
 }: SeriesStatsViewProps): ReactElement {
   return (
     <div className={styles.seriesStats}>
@@ -153,6 +159,7 @@ export function SeriesStatsView({
             crossTeamData={seriesStats.crossTeamKillMatrixData}
             swappedCrossTeamData={seriesStats.swappedCrossTeamKillMatrixData}
             killMatrixStatus={seriesStats.killMatrixStatus}
+            onAnalyticsTabSelected={onAnalyticsTabSelected}
           />
         </Container>
       )}
@@ -164,7 +171,13 @@ export function SeriesStatsView({
       </Container>
 
       {matchDetails.map((detail) => (
-        <MatchDetailSection key={detail.matchId} detail={detail} noGutter={noGutter} wide={wide} />
+        <MatchDetailSection
+          key={detail.matchId}
+          detail={detail}
+          noGutter={noGutter}
+          wide={wide}
+          onAnalyticsTabSelected={onAnalyticsTabSelected}
+        />
       ))}
     </div>
   );
