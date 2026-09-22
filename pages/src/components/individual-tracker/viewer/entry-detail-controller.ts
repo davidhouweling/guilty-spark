@@ -255,7 +255,7 @@ export class EntryDetailController {
       source.matchSource,
       source.analytics,
       ComponentLoaderStatus.LOADING,
-      source.teamColors,
+      this.resolveTeamColors(),
     );
     this.config.store.setMatchEntryLoaded(key, loadingState);
 
@@ -275,7 +275,7 @@ export class EntryDetailController {
         source.matchSource,
         source.analytics,
         ComponentLoaderStatus.LOADED,
-        source.teamColors,
+        this.resolveTeamColors(),
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
     } catch {
@@ -288,7 +288,7 @@ export class EntryDetailController {
         source.matchSource,
         source.analytics,
         ComponentLoaderStatus.ERROR,
-        source.teamColors,
+        this.resolveTeamColors(),
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
     }
@@ -369,6 +369,7 @@ export class EntryDetailController {
   ): Promise<void> {
     const loadingViewModel = buildSeriesViewModel({
       ...source,
+      teamColors: this.resolveTeamColors(),
       analyticsStatus: ComponentLoaderStatus.LOADING,
     });
     this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadingViewModel });
@@ -378,6 +379,7 @@ export class EntryDetailController {
     if (uniqueMatchIds.length === 0) {
       const loadedViewModel = buildSeriesViewModel({
         ...source,
+        teamColors: this.resolveTeamColors(),
         analyticsStatus: ComponentLoaderStatus.LOADED,
       });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
@@ -414,6 +416,7 @@ export class EntryDetailController {
 
       const loadedViewModel = buildSeriesViewModel({
         ...source,
+        teamColors: this.resolveTeamColors(),
         analyticsStatus: ComponentLoaderStatus.LOADED,
       });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
@@ -423,7 +426,11 @@ export class EntryDetailController {
       }
 
       source.requestedModules.delete(module);
-      const erroredViewModel = buildSeriesViewModel({ ...source, analyticsStatus: ComponentLoaderStatus.ERROR });
+      const erroredViewModel = buildSeriesViewModel({
+        ...source,
+        teamColors: this.resolveTeamColors(),
+        analyticsStatus: ComponentLoaderStatus.ERROR,
+      });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: erroredViewModel });
     }
   }
