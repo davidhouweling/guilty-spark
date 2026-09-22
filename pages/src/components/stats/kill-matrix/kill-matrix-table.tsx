@@ -36,7 +36,7 @@ interface KillMatrixTableProps {
   readonly teamColors?: readonly TeamColor[];
   readonly crossTeamData?: KillMatrixCrossTeamData;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData;
-  readonly useCrossTeamLayout?: boolean;
+  readonly useCrossTeamLayout?: boolean | undefined;
 }
 
 export function KillMatrixTable({
