@@ -28,7 +28,6 @@ export interface MatchStatsLoadedState {
 
 interface MatchAnalyticsSource {
   readonly matchSource: MatchStatsLoadedState;
-  readonly teamColors: readonly TeamColor[];
   analytics: MatchAnalytics | null;
   readonly requestedModules: Set<AnalyticsModule>;
   readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
@@ -40,7 +39,6 @@ interface SeriesAnalyticsSource {
   readonly rawMatches: readonly MatchStats[];
   readonly medalMetadata: MedalMetadata;
   readonly playerMap: Map<string, string>;
-  readonly teamColors: readonly TeamColor[];
   readonly analyticsByMatchId: Map<string, MatchAnalytics>;
   readonly requestedModules: Set<AnalyticsModule>;
   readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
@@ -245,7 +243,6 @@ export class EntryDetailController {
       this.config.store.setMatchEntryLoaded(key, loadingState);
       this.matchAnalyticsSources.set(key, {
         matchSource,
-        teamColors,
         analytics: null,
         requestedModules: new Set(),
         moduleStatuses: new Map(),
@@ -371,7 +368,6 @@ export class EntryDetailController {
         rawMatches,
         medalMetadata,
         playerMap,
-        teamColors,
         analyticsByMatchId: new Map(),
         requestedModules: new Set(),
         moduleStatuses: new Map(),
