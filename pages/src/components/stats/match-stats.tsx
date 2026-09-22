@@ -42,8 +42,8 @@ interface MatchStatsProps {
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
   readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
-  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
   readonly showHeader?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -67,8 +67,8 @@ export function MatchStats({
   swappedCrossTeamData,
   killMatrixStatus,
   scoreProgressionViewData,
-  onAnalyticsTabSelected,
   showHeader = true,
+  onAnalyticsTabSelected,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"players" | "timeline" | "kill-matrix">("players");
   const hasTimelineTab = scoreProgressionViewData != null || killMatrixStatus !== undefined;

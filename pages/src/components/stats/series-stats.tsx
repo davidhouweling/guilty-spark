@@ -30,8 +30,8 @@ interface SeriesStatsProps {
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
-  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
   readonly showHeader?: boolean;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
@@ -47,8 +47,8 @@ export function SeriesStats({
   crossTeamData,
   swappedCrossTeamData,
   killMatrixStatus,
-  onAnalyticsTabSelected,
   showHeader = true,
+  onAnalyticsTabSelected,
 }: SeriesStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;

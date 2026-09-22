@@ -112,7 +112,7 @@ export class EntryDetailController {
     const key = EntryDetailController.entryKey(item);
     if (item.type === "match") {
       const source = this.matchAnalyticsSources.get(key);
-      if (source == null || source.requestedModules.has(module)) {
+      if (source == null || this.isModuleSatisfied(source.requestedModules, module)) {
         return;
       }
 
@@ -122,12 +122,25 @@ export class EntryDetailController {
     }
 
     const source = this.seriesAnalyticsSources.get(key);
-    if (source == null || source.requestedModules.has(module)) {
+    if (source == null || this.isModuleSatisfied(source.requestedModules, module)) {
       return;
     }
 
     source.requestedModules.add(module);
     void this.fetchSeriesAnalyticsAsync(key, module, source);
+  }
+
+  /**
+   * The API always includes killMatrix when scoreProgression is requested (see
+   * api/services/analytics/analytics.ts), so a killMatrix request is redundant while
+   * scoreProgression has already been requested for the same entry.
+   */
+  private isModuleSatisfied(requestedModules: Set<AnalyticsModule>, module: AnalyticsModule): boolean {
+    if (requestedModules.has(module)) {
+      return true;
+    }
+
+    return module === "killMatrix" && requestedModules.has("scoreProgression");
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {

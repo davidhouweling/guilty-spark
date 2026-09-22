@@ -46,9 +46,9 @@ interface IndividualTrackerViewerProps {
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
-  readonly onLoadAnalytics?: ((item: ViewerTimelineItem, module: AnalyticsModule) => void) | undefined;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
+  readonly onLoadAnalytics?: ((item: ViewerTimelineItem, module: AnalyticsModule) => void) | undefined;
   readonly onLoadMore?: () => void;
 }
 
@@ -220,9 +220,9 @@ export function IndividualTrackerViewer({
   hasMore,
   loadingMore,
   onToggleEntry,
-  onLoadAnalytics,
   onBackToManage,
   onRefresh,
+  onLoadAnalytics,
   onLoadMore,
 }: IndividualTrackerViewerProps): React.ReactElement {
   const latestEntryRef = useRef<HTMLDivElement | null>(null);
