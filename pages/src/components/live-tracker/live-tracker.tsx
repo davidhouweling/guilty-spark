@@ -397,7 +397,13 @@ export function LiveTrackerView(): React.ReactElement {
               </Container>
             )}
             {hasState(state) && seriesStats && (
-              <Container mobileDown="0" className={classNames(styles.contentContainer, styles[viewMode])}>
+              <Container
+                mobileDown="0"
+                tabletUp="0"
+                desktopUp="0"
+                ultrawideUp="0"
+                className={classNames(styles.contentContainer, styles[viewMode])}
+              >
                 <SeriesStats
                   teamData={seriesStats.teamData}
                   playerData={seriesStats.playerData}
@@ -455,6 +461,9 @@ export function LiveTrackerView(): React.ReactElement {
                         <Container
                           key={match.matchId}
                           mobileDown="0"
+                          tabletUp="0"
+                          desktopUp="0"
+                          ultrawideUp="0"
                           className={classNames(styles.contentContainer, styles[viewMode])}
                         >
                           <MatchStatsView

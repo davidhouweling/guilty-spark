@@ -461,7 +461,7 @@ export function IndividualTrackerViewer({
                     >
                       <div ref={getEntryBodyRef(key)} className={styles.entryBody}>
                         <div className={styles.entryBodyInner}>
-                          <Container wide>
+                          <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
                             {state == null || (state.kind === "match" && state.state.status === "loading") ? (
                               <LoadingState text="Loading match stats..." />
                             ) : state.kind === "match" && state.state.status === "error" ? (
@@ -602,7 +602,7 @@ export function IndividualTrackerViewer({
                   >
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
-                        <Container wide>
+                        <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
                           {series.matches.length === 0 ? (
                             <div className={styles.preSeriesPanel}>
                               <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
