@@ -161,7 +161,7 @@ describe("useIndividualTrackerViewer", () => {
     expect(getMatchStatsSpy).not.toHaveBeenCalled();
   });
 
-  it("loads match stats before analytics completes for an expanded match entry", async () => {
+  it("loads match analytics when an expanded match analytics tab is selected", async () => {
     const matchId = "match-1";
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
       view: aFakeTrackerViewStateWith({
@@ -197,7 +197,9 @@ describe("useIndividualTrackerViewer", () => {
     const analyticsPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
       resolveAnalytics = resolve;
     });
-    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => analyticsPromise);
+    const getBatchMatchAnalyticsSpy = vi
+      .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+      .mockImplementation(async () => analyticsPromise);
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
@@ -223,6 +225,21 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
+      expect(state?.kind).toBe("match");
+      if (state?.kind === "match" && state.state.status === "loaded") {
+        expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.PENDING);
+      }
+    });
+
+    act(() => {
+      if (matchItem?.type === "match") {
+        result.current.onLoadAnalytics(matchItem, "killMatrix");
+      }
+    });
+
+    await waitFor(() => {
+      expect(getBatchMatchAnalyticsSpy).toHaveBeenCalledWith([matchId], ["killMatrix"], "tracker-1");
       const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
       expect(state?.kind).toBe("match");
       if (state?.kind === "match" && state.state.status === "loaded") {

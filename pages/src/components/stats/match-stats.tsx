@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import React, { useMemo, useState } from "react";
 import classNames from "classnames";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable } from "../table/sortable-table";
@@ -41,6 +42,7 @@ interface MatchStatsProps {
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
   readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
+  readonly onAnalyticsTabSelected?: (module: AnalyticsModule) => void;
   readonly showHeader?: boolean;
 }
 
@@ -65,6 +67,7 @@ export function MatchStats({
   swappedCrossTeamData,
   killMatrixStatus,
   scoreProgressionViewData,
+  onAnalyticsTabSelected,
   showHeader = true,
 }: MatchStatsProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<"players" | "timeline" | "kill-matrix">("players");
@@ -314,7 +317,14 @@ export function MatchStats({
           },
         ]}
         tabsClassName={styles.tabs}
-        onTabChange={setActiveTab}
+        onTabChange={(tab): void => {
+          setActiveTab(tab);
+          if (tab === "timeline") {
+            onAnalyticsTabSelected?.("scoreProgression");
+          } else if (tab === "kill-matrix") {
+            onAnalyticsTabSelected?.("killMatrix");
+          }
+        }}
       />
     </div>
   );

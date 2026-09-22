@@ -7,6 +7,7 @@ import { addMinutes, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Alert } from "../../alert/alert";
 import { Heading } from "../../heading/heading";
 import { Button } from "../../button/button";
@@ -45,6 +46,7 @@ interface IndividualTrackerViewerProps {
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
+  readonly onLoadAnalytics?: (item: ViewerTimelineItem, module: AnalyticsModule) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
   readonly onLoadMore?: () => void;
@@ -218,6 +220,7 @@ export function IndividualTrackerViewer({
   hasMore,
   loadingMore,
   onToggleEntry,
+  onLoadAnalytics,
   onBackToManage,
   onRefresh,
   onLoadMore,
@@ -483,6 +486,9 @@ export function IndividualTrackerViewer({
                                 swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
                                 killMatrixStatus={state.state.killMatrixStatus}
                                 scoreProgressionViewData={state.state.scoreProgressionViewData}
+                                onAnalyticsTabSelected={(module): void => {
+                                  onLoadAnalytics?.(item, module);
+                                }}
                                 showHeader={false}
                               />
                             ) : (
@@ -613,7 +619,14 @@ export function IndividualTrackerViewer({
                           ) : state.kind === "series" && state.state.status === "error" ? (
                             <Alert variant="error">{state.state.message}</Alert>
                           ) : state.kind === "series" && state.state.status === "loaded" ? (
-                            <SeriesStatsView {...state.state.viewModel} noGutter={true} wide={true} />
+                            <SeriesStatsView
+                              {...state.state.viewModel}
+                              noGutter={true}
+                              wide={true}
+                              onAnalyticsTabSelected={(module): void => {
+                                onLoadAnalytics?.(item, module);
+                              }}
+                            />
                           ) : (
                             <Alert variant="error">Unexpected entry state.</Alert>
                           )}

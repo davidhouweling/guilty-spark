@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { SeriesStats } from "../series-stats";
 import {
   aFakeMatchStatsDataWith,
@@ -201,6 +202,26 @@ describe("SeriesStats", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
 
     expect(screen.getByText("Kill matrix data is not available for this series yet.")).toBeInTheDocument();
+  });
+
+  it("requests kill matrix analytics when its tab is selected", () => {
+    const teamData = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const playerData = [aFakeMatchStatsDataWith({ teamId: 0 })];
+    const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule) => void>();
+
+    render(
+      <SeriesStats
+        teamData={teamData}
+        playerData={playerData}
+        title="Series Overview"
+        metadata={null}
+        onAnalyticsTabSelected={onAnalyticsTabSelected}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+
+    expect(onAnalyticsTabSelected).toHaveBeenCalledWith("killMatrix");
   });
 
   it("renders the union of player stat columns across all players", () => {
