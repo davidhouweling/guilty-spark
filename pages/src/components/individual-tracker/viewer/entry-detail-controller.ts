@@ -496,6 +496,8 @@ export class EntryDetailController {
     return {
       ...existing,
       ...incoming,
+      killMatrix: { ...existing.killMatrix, ...incoming.killMatrix },
+      scoreProgression: incoming.scoreProgression ?? existing.scoreProgression,
       requestedModules: [...new Set([...existing.requestedModules, ...incoming.requestedModules])],
     };
   }
