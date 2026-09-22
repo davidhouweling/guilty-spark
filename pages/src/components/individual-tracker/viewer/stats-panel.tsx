@@ -73,6 +73,7 @@ export function StatsPanel({ match, state }: StatsPanelProps): React.ReactElemen
             crossTeamData={state.crossTeamKillMatrixData}
             swappedCrossTeamData={state.swappedCrossTeamKillMatrixData}
             killMatrixStatus={state.killMatrixStatus}
+            scoreProgressionStatus={state.scoreProgressionStatus}
             scoreProgressionViewData={state.scoreProgressionViewData}
             showHeader={false}
           />

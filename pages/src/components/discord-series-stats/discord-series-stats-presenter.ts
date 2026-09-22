@@ -224,6 +224,7 @@ export class DiscordSeriesStatsPresenter {
         crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
         swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
         killMatrixStatus: snapshot.analyticsStatus,
+        scoreProgressionStatus: snapshot.analyticsStatus,
         scoreProgressionViewData: formatScoreProgression(
           analytics?.scoreProgression ?? null,
           teamColors,
@@ -260,6 +261,7 @@ export class DiscordSeriesStatsPresenter {
             crossTeamKillMatrixData: aggregatedCrossTeam?.crossTeamData ?? null,
             swappedCrossTeamKillMatrixData: aggregatedCrossTeam?.swappedCrossTeamData ?? null,
             killMatrixStatus: snapshot.analyticsStatus,
+            scoreProgressionStatus: snapshot.analyticsStatus,
           }
         : null;
 

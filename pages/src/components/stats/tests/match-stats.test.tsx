@@ -303,6 +303,7 @@ describe("MatchStats", () => {
         startTime="2024-01-01T00:00:00.000Z"
         endTime="2024-01-01T00:10:30.000Z"
         killMatrixStatus={ComponentLoaderStatus.PENDING}
+        scoreProgressionStatus={ComponentLoaderStatus.PENDING}
         onAnalyticsTabSelected={onAnalyticsTabSelected}
       />,
     );
@@ -331,7 +332,7 @@ describe("MatchStats", () => {
         startTime="2024-01-01T00:00:00.000Z"
         endTime="2024-01-01T00:10:30.000Z"
         scoreProgressionViewData={null}
-        killMatrixStatus={ComponentLoaderStatus.LOADING}
+        scoreProgressionStatus={ComponentLoaderStatus.LOADING}
       />,
     );
 
@@ -357,7 +358,7 @@ describe("MatchStats", () => {
         startTime="2024-01-01T00:00:00.000Z"
         endTime="2024-01-01T00:10:30.000Z"
         scoreProgressionViewData={null}
-        killMatrixStatus={ComponentLoaderStatus.LOADED}
+        scoreProgressionStatus={ComponentLoaderStatus.LOADED}
       />,
     );
 

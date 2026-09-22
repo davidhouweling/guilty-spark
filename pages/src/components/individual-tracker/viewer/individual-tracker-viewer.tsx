@@ -485,6 +485,7 @@ export function IndividualTrackerViewer({
                                 crossTeamData={state.state.crossTeamKillMatrixData}
                                 swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
                                 killMatrixStatus={state.state.killMatrixStatus}
+                                scoreProgressionStatus={state.state.scoreProgressionStatus}
                                 scoreProgressionViewData={state.state.scoreProgressionViewData}
                                 onAnalyticsTabSelected={(module): void => {
                                   onLoadAnalytics?.(item, module);

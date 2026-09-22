@@ -31,6 +31,7 @@ interface MatchAnalyticsSource {
   readonly teamColors: readonly TeamColor[];
   analytics: MatchAnalytics | null;
   readonly requestedModules: Set<AnalyticsModule>;
+  readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
 }
 
 interface SeriesAnalyticsSource {
@@ -42,6 +43,7 @@ interface SeriesAnalyticsSource {
   readonly teamColors: readonly TeamColor[];
   readonly analyticsByMatchId: Map<string, MatchAnalytics>;
   readonly requestedModules: Set<AnalyticsModule>;
+  readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
 }
 
 export interface EntryDetailControllerConfig {
@@ -79,6 +81,8 @@ export class EntryDetailController {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.matchAnalyticsSources.clear();
+    this.seriesAnalyticsSources.clear();
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -172,7 +176,8 @@ export class EntryDetailController {
   private toMatchEntryLoadedState(
     loadedState: MatchStatsLoadedState,
     analytics: MatchAnalytics | null,
-    analyticsStatus: ComponentLoaderStatus,
+    killMatrixStatus: ComponentLoaderStatus,
+    scoreProgressionStatus: ComponentLoaderStatus,
     teamColors: readonly TeamColor[],
   ): MatchEntryLoadedState {
     const { stats, playerMap, medalMetadata, gameMapThumbnailUrl } = loadedState;
@@ -211,7 +216,8 @@ export class EntryDetailController {
           : EMPTY_KILL_MATRIX_PIVOT_DATA,
       crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
       swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
-      killMatrixStatus: analyticsStatus,
+      killMatrixStatus,
+      scoreProgressionStatus,
       scoreProgressionViewData: formatScoreProgression(
         analytics?.scoreProgression ?? null,
         teamColors,
@@ -229,13 +235,20 @@ export class EntryDetailController {
       }
 
       const teamColors = this.resolveTeamColors();
-      const loadingState = this.toMatchEntryLoadedState(matchSource, null, ComponentLoaderStatus.PENDING, teamColors);
+      const loadingState = this.toMatchEntryLoadedState(
+        matchSource,
+        null,
+        ComponentLoaderStatus.PENDING,
+        ComponentLoaderStatus.PENDING,
+        teamColors,
+      );
       this.config.store.setMatchEntryLoaded(key, loadingState);
       this.matchAnalyticsSources.set(key, {
         matchSource,
         teamColors,
         analytics: null,
         requestedModules: new Set(),
+        moduleStatuses: new Map(),
       });
     } catch (error) {
       if (this.isDisposed) {
@@ -251,10 +264,12 @@ export class EntryDetailController {
     module: AnalyticsModule,
     source: MatchAnalyticsSource,
   ): Promise<void> {
+    source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
     const loadingState = this.toMatchEntryLoadedState(
       source.matchSource,
       source.analytics,
-      ComponentLoaderStatus.LOADING,
+      source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+      source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       this.resolveTeamColors(),
     );
     this.config.store.setMatchEntryLoaded(key, loadingState);
@@ -271,10 +286,13 @@ export class EntryDetailController {
 
       source.analytics = this.mergeAnalytics(source.analytics, results[matchId] ?? null);
       this.syncRequestedModules(source.requestedModules, source.analytics);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
+      this.markModulesLoaded(source.moduleStatuses, source.analytics);
       const loadedState = this.toMatchEntryLoadedState(
         source.matchSource,
         source.analytics,
-        ComponentLoaderStatus.LOADED,
+        source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
         this.resolveTeamColors(),
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
@@ -284,10 +302,12 @@ export class EntryDetailController {
       }
 
       source.requestedModules.delete(module);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
       const loadedState = this.toMatchEntryLoadedState(
         source.matchSource,
         source.analytics,
-        ComponentLoaderStatus.ERROR,
+        source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
         this.resolveTeamColors(),
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
@@ -339,7 +359,8 @@ export class EntryDetailController {
         playerMap,
         teamColors,
         analyticsByMatchId: new Map(),
-        analyticsStatus: ComponentLoaderStatus.PENDING,
+        killMatrixStatus: ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: ComponentLoaderStatus.PENDING,
       });
 
       const state: SeriesEntryLoadedState = { seriesId: series.id, viewModel };
@@ -353,6 +374,7 @@ export class EntryDetailController {
         teamColors,
         analyticsByMatchId: new Map(),
         requestedModules: new Set(),
+        moduleStatuses: new Map(),
       });
     } catch (error) {
       if (this.isDisposed) {
@@ -367,20 +389,24 @@ export class EntryDetailController {
     module: AnalyticsModule,
     source: SeriesAnalyticsSource,
   ): Promise<void> {
+    source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
     const loadingViewModel = buildSeriesViewModel({
       ...source,
       teamColors: this.resolveTeamColors(),
-      analyticsStatus: ComponentLoaderStatus.LOADING,
+      killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+      scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
     });
     this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadingViewModel });
 
     const requestedMatchIds = source.series.matches.map((match) => match.matchId);
     const uniqueMatchIds = [...new Set(requestedMatchIds)];
     if (uniqueMatchIds.length === 0) {
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
       const loadedViewModel = buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
-        analyticsStatus: ComponentLoaderStatus.LOADED,
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
       return;
@@ -409,15 +435,18 @@ export class EntryDetailController {
             if (mergedAnalytics != null) {
               source.analyticsByMatchId.set(matchId, mergedAnalytics);
               this.syncRequestedModules(source.requestedModules, mergedAnalytics);
+              this.markModulesLoaded(source.moduleStatuses, mergedAnalytics);
             }
           }
         }
       }
 
+      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
       const loadedViewModel = buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
-        analyticsStatus: ComponentLoaderStatus.LOADED,
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
     } catch {
@@ -426,10 +455,12 @@ export class EntryDetailController {
       }
 
       source.requestedModules.delete(module);
+      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
       const erroredViewModel = buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
-        analyticsStatus: ComponentLoaderStatus.ERROR,
+        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
+        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
       });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: erroredViewModel });
     }
@@ -442,6 +473,19 @@ export class EntryDetailController {
 
     for (const module of analytics.requestedModules) {
       requestedModules.add(module);
+    }
+  }
+
+  private markModulesLoaded(
+    moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>,
+    analytics: MatchAnalytics | null,
+  ): void {
+    if (analytics == null) {
+      return;
+    }
+
+    for (const module of analytics.requestedModules) {
+      moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
     }
   }
 

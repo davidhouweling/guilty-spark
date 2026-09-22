@@ -93,6 +93,7 @@ function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: 
           crossTeamData={detail.crossTeamKillMatrixData}
           swappedCrossTeamData={detail.swappedCrossTeamKillMatrixData}
           killMatrixStatus={detail.killMatrixStatus}
+          scoreProgressionStatus={detail.scoreProgressionStatus}
           scoreProgressionViewData={detail.scoreProgressionViewData}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
         />
