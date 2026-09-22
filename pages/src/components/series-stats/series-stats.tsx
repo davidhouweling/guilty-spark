@@ -13,7 +13,7 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesTitle?: boolean;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
-  readonly onAnalyticsTabSelected?: (module: AnalyticsModule) => void;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 interface MatchSummaryItemProps {
@@ -64,7 +64,7 @@ interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
-  readonly onAnalyticsTabSelected?: (module: AnalyticsModule) => void;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }
 
 function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: MatchDetailSectionProps): ReactElement {

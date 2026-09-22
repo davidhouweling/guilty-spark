@@ -46,7 +46,7 @@ interface IndividualTrackerViewerProps {
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
-  readonly onLoadAnalytics?: (item: ViewerTimelineItem, module: AnalyticsModule) => void;
+  readonly onLoadAnalytics?: ((item: ViewerTimelineItem, module: AnalyticsModule) => void) | undefined;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
   readonly onLoadMore?: () => void;

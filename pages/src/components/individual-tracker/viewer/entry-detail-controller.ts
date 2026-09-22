@@ -257,6 +257,7 @@ export class EntryDetailController {
       }
 
       source.analytics = this.mergeAnalytics(source.analytics, results[matchId] ?? null);
+      this.syncRequestedModules(source.requestedModules, source.analytics);
       const loadedState = this.toMatchEntryLoadedState(
         source.matchSource,
         source.analytics,
@@ -392,6 +393,7 @@ export class EntryDetailController {
             const mergedAnalytics = this.mergeAnalytics(source.analyticsByMatchId.get(matchId) ?? null, analytics);
             if (mergedAnalytics != null) {
               source.analyticsByMatchId.set(matchId, mergedAnalytics);
+              this.syncRequestedModules(source.requestedModules, mergedAnalytics);
             }
           }
         }
@@ -410,6 +412,16 @@ export class EntryDetailController {
       source.requestedModules.delete(module);
       const erroredViewModel = buildSeriesViewModel({ ...source, analyticsStatus: ComponentLoaderStatus.ERROR });
       this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: erroredViewModel });
+    }
+  }
+
+  private syncRequestedModules(requestedModules: Set<AnalyticsModule>, analytics: MatchAnalytics | null): void {
+    if (analytics == null) {
+      return;
+    }
+
+    for (const module of analytics.requestedModules) {
+      requestedModules.add(module);
     }
   }
 

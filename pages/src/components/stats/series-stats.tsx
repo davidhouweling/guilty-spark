@@ -30,7 +30,7 @@ interface SeriesStatsProps {
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
-  readonly onAnalyticsTabSelected?: (module: AnalyticsModule) => void;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
   readonly showHeader?: boolean;
 }
 

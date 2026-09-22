@@ -227,6 +227,7 @@ describe("useIndividualTrackerViewer", () => {
     await waitFor(() => {
       const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
       expect(state?.kind).toBe("match");
+      expect(state?.kind === "match" ? state.state.status : undefined).toBe("loaded");
       if (state?.kind === "match" && state.state.status === "loaded") {
         expect(state.state.killMatrixStatus).toBe(ComponentLoaderStatus.PENDING);
       }

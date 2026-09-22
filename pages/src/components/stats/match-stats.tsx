@@ -42,7 +42,7 @@ interface MatchStatsProps {
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
   readonly killMatrixStatus?: ComponentLoaderStatus;
   readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
-  readonly onAnalyticsTabSelected?: (module: AnalyticsModule) => void;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
   readonly showHeader?: boolean;
 }
 
