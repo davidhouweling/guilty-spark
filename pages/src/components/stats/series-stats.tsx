@@ -29,7 +29,7 @@ interface SeriesStatsProps {
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
-  readonly killMatrixStatus?: ComponentLoaderStatus;
+  readonly killMatrixStatus?: ComponentLoaderStatus | undefined;
   readonly showHeader?: boolean;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
 }

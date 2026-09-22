@@ -40,8 +40,8 @@ interface MatchStatsProps {
   readonly transposedKillMatrixPivotData?: KillMatrixPivotData;
   readonly crossTeamData?: KillMatrixCrossTeamData | null;
   readonly swappedCrossTeamData?: KillMatrixCrossTeamData | null;
-  readonly killMatrixStatus?: ComponentLoaderStatus;
-  readonly scoreProgressionStatus?: ComponentLoaderStatus;
+  readonly killMatrixStatus?: ComponentLoaderStatus | undefined;
+  readonly scoreProgressionStatus?: ComponentLoaderStatus | undefined;
   readonly scoreProgressionViewData?: ScoreProgressionViewData | null;
   readonly showHeader?: boolean;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
