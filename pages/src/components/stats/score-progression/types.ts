@@ -43,9 +43,11 @@ export interface TimelineGanttSegment {
   readonly endMs: number;
   readonly teamId: number | null;
   readonly color: string | null;
+  // rendered opacity of an occupied segment; the renderer's default when omitted
+  readonly opacity?: number | undefined;
 }
 
-export interface KothHillTeamProgress {
+export interface TeamPercentShare {
   readonly teamId: number;
   readonly name: string;
   readonly color: string;
@@ -60,7 +62,7 @@ export interface KothHillData {
   readonly winnerTeamId: number | null;
   readonly winnerColor: string | null;
   readonly winnerName: string | null;
-  readonly teamCaptureProgress: readonly KothHillTeamProgress[];
+  readonly teamCaptureProgress: readonly TeamPercentShare[];
 }
 
 export interface OddballRoundTeamScore {
@@ -112,6 +114,18 @@ export interface ScoreLinesViewData {
   readonly roundBoundaries: readonly number[];
 }
 
+export interface ZoneStripData {
+  readonly segments: readonly TimelineGanttSegment[];
+  // each team's share of the match spent holding more zones than the opponent
+  readonly teamShares: readonly TeamPercentShare[];
+}
+
+export interface StrongholdsViewData {
+  readonly kind: "strongholds";
+  readonly zoneStrip: ZoneStripData | null;
+  readonly scoreLines: ScoreLinesViewData;
+}
+
 export interface KothViewData {
   readonly kind: "koth";
   readonly durationMs: number;
@@ -126,7 +140,7 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type ScoreProgressionViewData = ScoreLinesViewData | KothViewData | OddballViewData;
+export type ScoreProgressionViewData = ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData;
 
 export type ChartType = "timeline" | "progression" | "delta";
 

@@ -34,6 +34,23 @@ describe("RowBar", () => {
     expect(coloredRects).toHaveLength(2);
   });
 
+  it("renders segment opacity when set and the 0.8 default when not", () => {
+    const row = aFakeTimelineGanttRowWith({
+      segments: [
+        { startMs: 0, endMs: 10000, teamId: 0, color: "#0000ff", opacity: 0.4 },
+        { startMs: 10000, endMs: 30000, teamId: 1, color: "#ff0000" },
+      ],
+    });
+    const { container } = render(
+      <svg>
+        <RowBar row={row} durationMs={30000} y={0} height={20} background={FAKE_BACKGROUND} />
+      </svg>,
+    );
+    const rects = Array.from(container.querySelectorAll("rect"));
+    expect(rects.find((r) => r.getAttribute("fill") === "#0000ff")?.getAttribute("opacity")).toBe("0.4");
+    expect(rects.find((r) => r.getAttribute("fill") === "#ff0000")?.getAttribute("opacity")).toBe("0.8");
+  });
+
   it("renders a rect for the unoccupied segment", () => {
     const { container } = render(
       <svg>
