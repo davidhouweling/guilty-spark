@@ -236,6 +236,8 @@ export function LiveTrackerView(): React.ReactElement {
     </>
   );
 
+  const statsGutter = viewMode === "wide" ? "0" : undefined;
+
   // Render streamer overlay if in streamer mode
   if (viewMode === "streamer" && state) {
     return (
@@ -399,9 +401,9 @@ export function LiveTrackerView(): React.ReactElement {
             {hasState(state) && seriesStats && (
               <Container
                 mobileDown="0"
-                tabletUp="0"
-                desktopUp="0"
-                ultrawideUp="0"
+                tabletUp={statsGutter}
+                desktopUp={statsGutter}
+                ultrawideUp={statsGutter}
                 className={classNames(styles.contentContainer, styles[viewMode])}
               >
                 <SeriesStats
@@ -461,9 +463,9 @@ export function LiveTrackerView(): React.ReactElement {
                         <Container
                           key={match.matchId}
                           mobileDown="0"
-                          tabletUp="0"
-                          desktopUp="0"
-                          ultrawideUp="0"
+                          tabletUp={statsGutter}
+                          desktopUp={statsGutter}
+                          ultrawideUp={statsGutter}
                           className={classNames(styles.contentContainer, styles[viewMode])}
                         >
                           <MatchStatsView
