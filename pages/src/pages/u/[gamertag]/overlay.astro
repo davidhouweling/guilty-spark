@@ -8,7 +8,7 @@ const { gamertag } = Astro.params;
 const isPreview = Astro.url.searchParams.get("preview") === "1";
 
 if (gamertag != null && gamertag !== "" && !isPreview) {
-  Astro.locals.cfContext.waitUntil(requestOverlayAutoStart(String(API_HOST), gamertag));
+  await requestOverlayAutoStart(String(API_HOST), gamertag);
 }
 ---
 
