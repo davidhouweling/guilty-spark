@@ -59,14 +59,20 @@ export function useFollowLiveDirectory({
   const previousGamertagRef = useRef<string | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isManualRetryRef = useRef(false);
 
   useEffect(() => {
     let isCancelled = false;
     const hasGamertagChanged = previousGamertagRef.current !== gamertag;
     previousGamertagRef.current = gamertag;
+    const isManualRetry = isManualRetryRef.current;
+    isManualRetryRef.current = false;
+    const shouldFetchDirectory = hasGamertagChanged || isManualRetry || directoryRef.current == null;
 
-    initialLoadDoneRef.current = false;
-    prevLiveTrackerIdRef.current = null;
+    if (shouldFetchDirectory) {
+      initialLoadDoneRef.current = false;
+      prevLiveTrackerIdRef.current = null;
+    }
     if (hasGamertagChanged) {
       setDirectory(null);
       setSelectedTrackerId(null);
@@ -132,7 +138,9 @@ export function useFollowLiveDirectory({
       }
     }
 
-    void fetchDirectory();
+    if (shouldFetchDirectory) {
+      void fetchDirectory();
+    }
 
     const dirSubscription = connection.subscribe((updatedDirectory) => {
       if (isCancelled || !initialLoadDoneRef.current) {
@@ -211,6 +219,7 @@ export function useFollowLiveDirectory({
   }, []);
 
   const onRetry = useCallback((): void => {
+    isManualRetryRef.current = true;
     setRetryCount((c) => c + 1);
   }, []);
 
