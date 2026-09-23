@@ -16,7 +16,7 @@ export type UserTrackerStatusResponse = z.infer<typeof userTrackerStatusContract
 export const userTrackerViewStateContract = defineContract(z.object({ state: userTrackerViewStateSchema.nullable() }));
 export type UserTrackerViewStateResponse = z.infer<typeof userTrackerViewStateContract.schema>;
 
-export const userTrackerAutoStartContract = defineContract(z.object({ success: z.boolean() }));
+export const userTrackerAutoStartContract = defineContract(z.object({ success: z.literal(true) }));
 export type UserTrackerAutoStartResponse = z.infer<typeof userTrackerAutoStartContract.schema>;
 
 export const userTrackerDirectoryMessageSchema = z.object({
