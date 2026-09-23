@@ -10,3 +10,9 @@ export interface CreateTrackerOptions {
   gamertag: string;
   xuid: string;
 }
+
+export interface CreateSeriesTrackerOptions {
+  userId: string;
+  guildId: string;
+  queueNumber: number;
+}

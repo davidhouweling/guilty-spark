@@ -267,6 +267,148 @@ describe("/api/individual-tracker manage routes", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 401 on start-series-tracker when not authenticated", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start-series-tracker", { guildId: "guild-1", queueNumber: 5 }),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 on start-series-tracker when the guild/queue has no active series", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start-series-tracker", { guildId: "guild-1", queueNumber: 5 }),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 429 on start-series-tracker when the user is at the series tracker limit", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+        guildId: "guild-1",
+        queueNumber: 5,
+        seriesContext: {
+          type: "started",
+          title: "Test Server",
+          subtitle: "Queue #5",
+          guildIconUrl: null,
+          teams: [],
+        },
+      });
+      vi.spyOn(services.individualTrackerService, "createSeriesTracker").mockRejectedValue(
+        new TrackerLimitReachedError(),
+      );
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start-series-tracker", { guildId: "guild-1", queueNumber: 5 }),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(429);
+    const body = await res.json<ErrorResponse>();
+    expect(body.error).toContain("limit");
+  });
+
+  it("starts a series tracker: creates the registry row with empty gamertag/xuid, calls the DO start, returns the tracker", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      startResponse: {
+        success: true,
+        state: aFakeIndividualTrackerStateWith({ trackerId: "series-tracker-1", gamertag: "", xuid: "" }),
+      },
+    });
+    const startSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "series-tracker-1",
+      Gamertag: "",
+      Xuid: "",
+      Status: "active",
+      TrackerType: "series",
+      SourceGuildId: "guild-1",
+      SourceQueueNumber: 5,
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      vi.spyOn(services.neatQueueService, "getActiveSeriesByQueue").mockResolvedValue({
+        guildId: "guild-1",
+        queueNumber: 5,
+        seriesContext: {
+          type: "started",
+          title: "Test Server",
+          subtitle: "Queue #5",
+          guildIconUrl: null,
+          teams: [],
+        },
+      });
+      vi.spyOn(services.individualTrackerService, "createSeriesTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start-series-tracker", { guildId: "guild-1", queueNumber: 5 }),
+      localEnv,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<TrackerResponse>();
+    expect(body.tracker.trackerId).toBe("series-tracker-1");
+    expect(body.tracker.gamertag).toBe("");
+    const startCall = Preconditions.checkExists(
+      startSpy.mock.calls.find(([input]) => input === "http://do/start"),
+      "expected a DO /start fetch call",
+    );
+    const startRequestBody: unknown = JSON.parse(startCall[1]?.body as string);
+    expect(startRequestBody).toMatchObject({
+      trackerKind: "series",
+      sourceGuildId: "guild-1",
+      sourceQueueNumber: 5,
+      xuid: "",
+      gamertag: "",
+    });
+  });
+
+  it("returns 400 on start-series-tracker when guildId is missing", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith());
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      postRequest("/api/individual-tracker/manage/start-series-tracker", { queueNumber: 5 }),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 404 on stop when the tracker is not owned", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });
