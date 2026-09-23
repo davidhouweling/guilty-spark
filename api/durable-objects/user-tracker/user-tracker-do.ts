@@ -110,6 +110,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private pushInProgress = false;
   private pendingPush = false;
   private pendingPushFallbackUserId: string | null = null;
+  private lastDirectoryRefreshError: Error | null = null;
   private pushCompletionPromise: Promise<void> | null = null;
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
@@ -431,6 +432,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     if (this.latestBuiltState?.state?.userId === userId) {
       return this.latestBuiltState;
     }
+    if (this.lastDirectoryRefreshError != null) {
+      throw this.lastDirectoryRefreshError;
+    }
     return refreshedStored;
   }
 
@@ -728,8 +732,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
 
       try {
+        this.lastDirectoryRefreshError = null;
         await this.refreshAndBroadcastIfChanged(fallbackUserId ?? undefined);
       } catch (error) {
+        this.lastDirectoryRefreshError =
+          error instanceof Error ? error : new Error("UserTracker directory refresh failed");
         const stored = await this.loadStateForErrorContext("UserTracker directory refresh error context load failed");
         const refreshMode = stored.viewState == null || dirtyTrackerCountAtRefreshStart === 0 ? "full" : "incremental";
         this.logService.error(

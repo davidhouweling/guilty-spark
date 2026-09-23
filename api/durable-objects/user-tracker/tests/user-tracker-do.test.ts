@@ -155,6 +155,21 @@ describe("UserTrackerDO", () => {
     expect(parsed.state?.directory.trackers).toHaveLength(1);
   });
 
+  it("returns an error when the initial directory build fails", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockRejectedValue(
+      new Error("directory unavailable"),
+    );
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(500);
+  });
+
   it("preserves enriched active series and pre-series player fields in follow directory entries", async () => {
     const trackerDo = aFakeIndividualTrackerDOWith({
       viewStateResponse: {
