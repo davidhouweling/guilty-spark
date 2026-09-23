@@ -8,6 +8,7 @@
   },
   "scripts": {
     "sync:legal-markdown": "node ./scripts/sync-legal-markdown.mjs",
+    "sync:astro": "astro sync",
     "start": "npm run sync:legal-markdown && astro dev",
     "dev": "npm run sync:legal-markdown && astro dev",
     "build": "npm run sync:legal-markdown && astro build",

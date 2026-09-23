@@ -32,6 +32,10 @@ jobs:
       - name: Sync legal markdown
         run: npm run sync:legal-markdown --workspace=pages
 
+      # eslint's type-aware rules need the generated pages/.astro types to resolve Astro globals
+      - name: Sync Astro types
+        run: npm run sync:astro --workspace=pages
+
       - name: Run format
         run: npm run format
 
