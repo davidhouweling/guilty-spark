@@ -17,16 +17,15 @@ describe("requestOverlayAutoStart()", () => {
     await requestOverlayAutoStart("https://api.example.com", "KnownTag");
 
     expect(fetchSpy).toHaveBeenCalledOnce();
-    const [url, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(String(url)).toBe("https://api.example.com/u/KnownTag/auto-start");
-    expect(init?.method).toBe("POST");
+    expect(fetchSpy).toHaveBeenCalledWith(new URL("https://api.example.com/u/KnownTag/auto-start"), { method: "POST" });
   });
 
   it("encodes gamertags containing characters that are not URL safe", async () => {
     await requestOverlayAutoStart("https://api.example.com", "Known Tag");
 
-    const [url] = fetchSpy.mock.calls[0] ?? [];
-    expect(String(url)).toBe("https://api.example.com/u/Known%20Tag/auto-start");
+    expect(fetchSpy).toHaveBeenCalledWith(new URL("https://api.example.com/u/Known%20Tag/auto-start"), {
+      method: "POST",
+    });
   });
 
   it("resolves without throwing when the request fails", async () => {
