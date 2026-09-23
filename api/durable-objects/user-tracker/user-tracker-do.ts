@@ -460,6 +460,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       ),
     );
 
+    await this.refreshAndBroadcastIfChanged(userId);
+    if (this.state.getWebSockets().length > 0) {
+      await this.ensureUpdateLoopStarted(await this.loadState());
+    }
+
     return userTrackerAutoStartContract.toResponse({ success: true }, { noStore: true });
   }
 
@@ -743,9 +748,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
   }
 
-  private async refreshAndBroadcastIfChanged(): Promise<void> {
+  private async refreshAndBroadcastIfChanged(fallbackUserId?: string): Promise<void> {
     const stored = await this.loadState();
-    const userId = stored.state?.userId;
+    const userId = stored.state?.userId ?? fallbackUserId;
     if (userId == null) {
       return;
     }

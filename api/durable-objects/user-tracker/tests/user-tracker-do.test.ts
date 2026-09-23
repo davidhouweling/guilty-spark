@@ -2216,21 +2216,52 @@ describe("UserTrackerDO", () => {
     expect(createTrackerSpy).toHaveBeenCalledWith({ userId: "user-1", gamertag: "KnownTag", xuid: "xuid-1" });
   });
 
-  it("auto-starts on the auto-start action even when a websocket client is already connected", async () => {
-    const localEnv = aFakeEnvWith();
+  it("refreshes a connected websocket after auto-start creates its first tracker", async () => {
+    const trackerRow = aFakeIndividualTrackersRow({
+      TrackerId: "t1",
+      UserId: "user-1",
+      Gamertag: "KnownTag",
+      Xuid: "xuid-1",
+      Status: "active",
+      IsLive: 1,
+    });
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
     const services = installFakeServicesWith({ env: localEnv });
-    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
-    const createTrackerSpy = vi
-      .spyOn(services.individualTrackerService, "createTracker")
-      .mockResolvedValue(aFakeIndividualTrackersRow({ UserId: "user-1", Gamertag: "KnownTag", Xuid: "xuid-1" }));
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([trackerRow]);
+    const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(trackerRow);
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
+    await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
     await localUserTrackerDO.fetch(
       new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
     );
 
     expect(createTrackerSpy).toHaveBeenCalledOnce();
+    const broadcast = Preconditions.checkExists(
+      webSocketAdapter.broadcasts.at(-1),
+      "expected auto-start to broadcast the refreshed directory",
+    );
+    const parsed = userTrackerDirectoryMessageContract.parse(broadcast);
+    expect(parsed.directory.liveTrackerId).toBe("t1");
+    expect(parsed.directory.trackers).toHaveLength(1);
   });
 
   it("returns 405 when the auto-start action is requested with a non-POST method", async () => {
