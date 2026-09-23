@@ -1877,16 +1877,16 @@ describe("UserTrackerDO", () => {
     ]);
     const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
     const alarmFailure = new Error("alarm queue failure");
-    vi.spyOn(
-      localUserTrackerDO as unknown as { queueDirectoryPush: () => Promise<void> },
-      "queueDirectoryPush",
-    ).mockRejectedValueOnce(alarmFailure);
 
     const initialResponse = await localUserTrackerDO.fetch(
       new Request("http://do/view-state?userId=user-1", { method: "GET" }),
     );
     expect(initialResponse.status).toBe(200);
 
+    vi.spyOn(
+      localUserTrackerDO as unknown as { queueDirectoryPush: () => Promise<void> },
+      "queueDirectoryPush",
+    ).mockRejectedValueOnce(alarmFailure);
     await localUserTrackerDO.alarm();
 
     expect(errorSpy).toHaveBeenCalled();
@@ -2260,6 +2260,79 @@ describe("UserTrackerDO", () => {
       "expected auto-start to broadcast the refreshed directory",
     );
     const parsed = userTrackerDirectoryMessageContract.parse(broadcast);
+    expect(parsed.directory.liveTrackerId).toBe("t1");
+    expect(parsed.directory.trackers).toHaveLength(1);
+  });
+
+  it("serializes an initial websocket directory build with auto-start", async () => {
+    const trackerRow = aFakeIndividualTrackersRow({
+      TrackerId: "t1",
+      UserId: "user-1",
+      Gamertag: "KnownTag",
+      Xuid: "xuid-1",
+      Status: "active",
+      IsLive: 1,
+    });
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    const harness = aPersistentStateHarness();
+    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([{} as WebSocket]);
+
+    let resolveInitialDirectory: (() => void) | undefined;
+    const initialDirectoryBlocked = new Promise<void>((resolve) => {
+      resolveInitialDirectory = resolve;
+    });
+    let lookupCount = 0;
+    const findTrackersSpy = vi
+      .spyOn(services.databaseService, "findIndividualTrackersByUserId")
+      .mockImplementation(async () => {
+        lookupCount += 1;
+        if (lookupCount === 1) {
+          await initialDirectoryBlocked;
+          return [];
+        }
+        if (lookupCount === 2) {
+          return [];
+        }
+        return [trackerRow];
+      });
+    vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(trackerRow);
+    const localUserTrackerDO = new UserTrackerDO(harness.state, localEnv, () => services, webSocketAdapter);
+
+    const websocketPromise = localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(findTrackersSpy).toHaveBeenCalledTimes(1);
+    });
+
+    const autoStartPromise = localUserTrackerDO.fetch(
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
+    );
+    await vi.waitFor(() => {
+      expect(findTrackersSpy).toHaveBeenCalledTimes(2);
+    });
+    Preconditions.checkExists(resolveInitialDirectory, "expected initial directory resolver")();
+
+    await Promise.all([websocketPromise, autoStartPromise]);
+
+    const initialMessage = Preconditions.checkExists(
+      webSocketAdapter.initialMessages.at(-1),
+      "expected websocket upgrade to include the post-auto-start directory",
+    );
+    const parsed = userTrackerDirectoryMessageContract.parse(initialMessage);
     expect(parsed.directory.liveTrackerId).toBe("t1");
     expect(parsed.directory.trackers).toHaveLength(1);
   });

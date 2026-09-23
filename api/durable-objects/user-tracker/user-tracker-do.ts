@@ -119,6 +119,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private trackerUpdateMarkersHydrationPromise: Promise<void> | null = null;
   private trackerMarkerPersistenceChain: Promise<void> = Promise.resolve();
   private autoStartQueue: Promise<void> = Promise.resolve();
+  private latestBuiltState: UserTrackerInternalState | null = null;
 
   constructor(
     state: DurableObjectState,
@@ -422,7 +423,15 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return stored;
     }
 
-    return await this.rebuildDirectoryState(userId);
+    await this.queueDirectoryPush(userId);
+    const refreshedStored = await this.loadState();
+    if (refreshedStored.state?.userId === userId) {
+      return refreshedStored;
+    }
+    if (this.latestBuiltState?.state?.userId === userId) {
+      return this.latestBuiltState;
+    }
+    return refreshedStored;
   }
 
   private getRequestedUserId(request: Request): string | null {
@@ -475,11 +484,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     await runAfterPrevious;
   }
 
-  private async rebuildDirectoryState(userId: string): Promise<UserTrackerInternalState> {
-    const directory = await this.buildDirectory(userId);
-    return await this.storeDirectoryState(userId, directory);
-  }
-
   private async buildDirectory(userId: string): Promise<TrackerDirectory> {
     const [allTrackers, rawStreamerSettings] = await Promise.all([
       this.databaseService.findIndividualTrackersByUserId(userId),
@@ -525,6 +529,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
 
     await this.state.storage.put(USER_TRACKER_STATE_KEY, nextState);
+    this.latestBuiltState = nextState;
     return nextState;
   }
 
