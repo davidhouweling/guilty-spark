@@ -1,4 +1,5 @@
 import type {
+  UserTrackerAutoStartResponse,
   UserTrackerStatusResponse,
   UserTrackerViewStateResponse,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
@@ -9,6 +10,7 @@ import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
 export interface FakeUserTrackerDOOpts {
   statusResponse?: UserTrackerStatusResponse;
   viewStateResponse?: UserTrackerViewStateResponse;
+  autoStartResponse?: UserTrackerAutoStartResponse;
   nudgeResponse?: UserTrackerNudgeResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
@@ -19,6 +21,7 @@ export type FakeUserTrackerDO = DurableObjectStub<UserTrackerDO> & Rpc.DurableOb
 export function aFakeUserTrackerDOWith(opts: FakeUserTrackerDOOpts = {}): FakeUserTrackerDO {
   const statusResponse: UserTrackerStatusResponse = opts.statusResponse ?? { state: null };
   const viewStateResponse: UserTrackerViewStateResponse = opts.viewStateResponse ?? { state: null };
+  const autoStartResponse: UserTrackerAutoStartResponse = opts.autoStartResponse ?? { success: true };
   const nudgeResponse: UserTrackerNudgeResponse = opts.nudgeResponse ?? { success: true };
   const { shouldThrowError = false, errorMessage = "Fake DO error" } = opts;
 
@@ -58,6 +61,14 @@ export function aFakeUserTrackerDOWith(opts: FakeUserTrackerDOOpts = {}): FakeUs
       case "/nudge": {
         return Promise.resolve(
           new Response(JSON.stringify(nudgeResponse), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      case "/auto-start": {
+        return Promise.resolve(
+          new Response(JSON.stringify(autoStartResponse), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           }),

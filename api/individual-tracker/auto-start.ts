@@ -42,8 +42,6 @@ async function revertStuckTracker(
   }
 }
 
-// Awaited by callers (not fire-and-forget): the directory response they build afterwards
-// should reflect the tracker this may have just started.
 export async function autoStartTrackerIfNeeded(
   env: Env,
   deps: AutoStartTrackerDeps,

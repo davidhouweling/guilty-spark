@@ -2199,7 +2199,7 @@ describe("UserTrackerDO", () => {
     });
   });
 
-  it("auto-starts a tracker when view-state is requested with gamertag and xuid and none is running", async () => {
+  it("auto-starts a tracker when the auto-start action is requested and none is running for the xuid", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
@@ -2208,44 +2208,87 @@ describe("UserTrackerDO", () => {
       .mockResolvedValue(aFakeIndividualTrackersRow({ UserId: "user-1", Gamertag: "KnownTag", Xuid: "xuid-1" }));
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
-    await localUserTrackerDO.fetch(
-      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    const res = await localUserTrackerDO.fetch(
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
     );
 
+    expect(res.status).toBe(200);
     expect(createTrackerSpy).toHaveBeenCalledWith({ userId: "user-1", gamertag: "KnownTag", xuid: "xuid-1" });
   });
 
-  it("skips the auto-start check when a websocket client is already connected", async () => {
+  it("auto-starts on the auto-start action even when a websocket client is already connected", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });
-    const findTrackersSpy = vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
-    const getSettingsForViewSpy = vi.spyOn(services.individualTrackerService, "getSettingsForView");
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const createTrackerSpy = vi
+      .spyOn(services.individualTrackerService, "createTracker")
+      .mockResolvedValue(aFakeIndividualTrackersRow({ UserId: "user-1", Gamertag: "KnownTag", Xuid: "xuid-1" }));
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
     await localUserTrackerDO.fetch(
-      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
     );
 
-    // buildDirectory() always reads settings/trackers once to render the response; both would be
-    // read a second time by the auto-start check if it weren't skipped for an already-connected client.
-    expect(getSettingsForViewSpy).toHaveBeenCalledTimes(1);
-    expect(findTrackersSpy).toHaveBeenCalledTimes(1);
+    expect(createTrackerSpy).toHaveBeenCalledOnce();
   });
 
-  it("does not attempt auto-start when gamertag or xuid are not provided", async () => {
+  it("returns 405 when the auto-start action is requested with a non-POST method", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const res = await localUserTrackerDO.fetch(
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    );
+
+    expect(res.status).toBe(405);
+  });
+
+  it("returns 400 from the auto-start action when gamertag or xuid are not provided", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker");
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const res = await localUserTrackerDO.fetch(new Request("http://do/auto-start?userId=user-1", { method: "POST" }));
+
+    expect(res.status).toBe(400);
+    expect(createTrackerSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-start when view-state is requested", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
     const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker");
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
-    await localUserTrackerDO.fetch(new Request("http://do/view-state?userId=user-1", { method: "GET" }));
+    await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    );
 
     expect(createTrackerSpy).not.toHaveBeenCalled();
   });
 
-  it("serializes concurrent view-state and websocket auto-start attempts so only one tracker is created for the xuid", async () => {
+  it("does not auto-start when a websocket connects", async () => {
+    const localEnv = aFakeEnvWith();
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
+    const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker");
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    await localUserTrackerDO.fetch(
+      new Request("http://do/websocket?userId=user-1&gamertag=KnownTag&xuid=xuid-1", {
+        method: "GET",
+        headers: { Upgrade: "websocket" },
+      }),
+    );
+
+    expect(createTrackerSpy).not.toHaveBeenCalled();
+  });
+
+  it("serializes concurrent auto-start attempts so only one tracker is created for the xuid", async () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });
 
@@ -2263,17 +2306,14 @@ describe("UserTrackerDO", () => {
       });
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
-    const viewStateRequest = localUserTrackerDO.fetch(
-      new Request("http://do/view-state?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "GET" }),
+    const firstRequest = localUserTrackerDO.fetch(
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
     );
-    const websocketRequest = localUserTrackerDO.fetch(
-      new Request("http://do/websocket?userId=user-1&gamertag=KnownTag&xuid=xuid-1", {
-        method: "GET",
-        headers: { Upgrade: "websocket" },
-      }),
+    const secondRequest = localUserTrackerDO.fetch(
+      new Request("http://do/auto-start?userId=user-1&gamertag=KnownTag&xuid=xuid-1", { method: "POST" }),
     );
 
-    await Promise.all([viewStateRequest, websocketRequest]);
+    await Promise.all([firstRequest, secondRequest]);
 
     expect(createTrackerSpy).toHaveBeenCalledTimes(1);
   });

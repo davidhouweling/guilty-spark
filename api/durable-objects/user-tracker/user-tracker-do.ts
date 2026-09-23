@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
+  userTrackerAutoStartContract,
   userTrackerDirectoryMessageContract,
   userTrackerStatusContract,
   userTrackerViewStateContract,
@@ -161,6 +162,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
               return new Response("Method Not Allowed", { status: 405 });
             }
             return await this.handleViewState(request);
+          }
+          case "auto-start": {
+            if (request.method !== "POST") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
+            return await this.handleAutoStart(request);
           }
           case "nudge": {
             if (request.method !== "POST") {
@@ -351,7 +358,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleViewState(request: Request): Promise<Response> {
-    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
 
     const response: UserTrackerViewStateResponse = {
@@ -391,7 +397,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
     if (stored?.state?.userId == null) {
       return new Response("Missing userId", { status: 400 });
@@ -433,21 +438,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return normalizedValue;
   }
 
-  // Guarded by autoStartQueue: /view-state and /websocket both route to this same DO instance
-  // (keyed by userId) and can be requested concurrently on first page load, so without this lock
-  // both could observe "no tracker yet" and each create/start a duplicate tracker for the xuid.
-  private async ensureAutoStartedTracker(request: Request): Promise<void> {
-    if (this.state.getWebSockets().length > 0) {
-      // A connected client already means this DO instance ran this check when that connection
-      // was established; skip the extra settings/tracker DB reads on every cached poll.
-      return;
-    }
-
+  private async handleAutoStart(request: Request): Promise<Response> {
     const userId = this.getRequestedUserId(request);
     const gamertag = this.getRequestedQueryParam(request, "gamertag");
     const xuid = this.getRequestedQueryParam(request, "xuid");
     if (userId == null || gamertag == null || xuid == null) {
-      return;
+      return new Response("Bad Request", { status: 400 });
     }
 
     await this.withAutoStartLock(async () =>
@@ -463,6 +459,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         { userId, gamertag, xuid },
       ),
     );
+
+    return userTrackerAutoStartContract.toResponse({ success: true }, { noStore: true });
   }
 
   private async withAutoStartLock(fn: () => Promise<void>): Promise<void> {

@@ -3,7 +3,13 @@ export const prerender = false;
 import OverlayLayout from "../../../layouts/overlay-layout.astro";
 import { API_HOST } from "../../../constants";
 import { FollowLiveApp } from "../../../apps/follow-live/create";
+import { requestOverlayAutoStart } from "../../../services/follow/overlay-auto-start";
 const { gamertag } = Astro.params;
+const isPreview = Astro.url.searchParams.get("preview") === "1";
+
+if (gamertag != null && gamertag !== "" && !isPreview) {
+  Astro.locals.cfContext.waitUntil(requestOverlayAutoStart(String(API_HOST), gamertag));
+}
 ---
 
 <OverlayLayout title={`${gamertag ?? ""} Overlay — Guilty Spark`}>

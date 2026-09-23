@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { parsePathParams } from "@guilty-spark/shared/base/request-parsing";
-import { userTrackerViewStateContract } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
+import {
+  userTrackerAutoStartContract,
+  userTrackerViewStateContract,
+} from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerDirectoryContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { UserTrackerDO } from "../../durable-objects/user-tracker/user-tracker-do";
@@ -50,8 +53,6 @@ export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const stub = getUserTrackerStub(env, identity.UserId);
       const url = new URL("http://do/view-state");
       url.searchParams.set("userId", identity.UserId);
-      url.searchParams.set("gamertag", identity.Gamertag ?? gamertag);
-      url.searchParams.set("xuid", identity.ProviderUserId);
 
       const response = await stub.fetch(url.toString(), { method: "GET" });
       if (!response.ok) {
@@ -89,8 +90,6 @@ export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (ro
       const stub = getUserTrackerStub(env, identity.UserId);
       const url = new URL("http://do/websocket");
       url.searchParams.set("userId", identity.UserId);
-      url.searchParams.set("gamertag", identity.Gamertag ?? gamertag);
-      url.searchParams.set("xuid", identity.ProviderUserId);
 
       const forwardedHeaders = new Headers(request.headers);
       forwardedHeaders.set("Upgrade", "websocket");
@@ -104,6 +103,40 @@ export const userTrackerFollowRoutesRegisterHandler: RoutesRegisterHandler = (ro
     } catch (error) {
       logService.error(error, new Map([["context", "Follow WebSocket error"]]));
       return new Response("Internal Server Error", { status: 500 });
+    }
+  });
+
+  router.post("/u/:gamertag/auto-start", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { databaseService, logService } = services;
+
+    try {
+      const parsedParams = parsePathParams(request.params, gamertagParamsSchema, "Invalid gamertag");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { gamertag } = parsedParams.data;
+
+      const identity = await databaseService.findActiveXboxIdentityByGamertag(gamertag);
+      if (identity == null) {
+        return errorContract.toResponse({ error: "Gamertag not found" }, { status: 404, noStore: true });
+      }
+
+      const stub = getUserTrackerStub(env, identity.UserId);
+      const url = new URL("http://do/auto-start");
+      url.searchParams.set("userId", identity.UserId);
+      url.searchParams.set("gamertag", identity.Gamertag ?? gamertag);
+      url.searchParams.set("xuid", identity.ProviderUserId);
+
+      const response = await stub.fetch(url.toString(), { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`UserTrackerDO auto-start request failed with status ${response.status.toString()}`);
+      }
+
+      return userTrackerAutoStartContract.toResponse({ success: true }, { noStore: true });
+    } catch (error) {
+      logService.error(error, new Map([["context", "Follow auto-start error"]]));
+      return errorContract.toResponse({ error: "Failed to auto-start tracker" }, { status: 500, noStore: true });
     }
   });
 };
