@@ -109,6 +109,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   };
   private pushInProgress = false;
   private pendingPush = false;
+  private pendingPushFallbackUserId: string | null = null;
   private pushCompletionPromise: Promise<void> | null = null;
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
@@ -460,10 +461,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       ),
     );
 
-    await this.refreshAndBroadcastIfChanged(userId);
-    if (this.state.getWebSockets().length > 0) {
-      await this.ensureUpdateLoopStarted(await this.loadState());
-    }
+    await this.queueDirectoryPushAndSyncAlarmAsync(userId);
 
     return userTrackerAutoStartContract.toResponse({ success: true }, { noStore: true });
   }
@@ -569,8 +567,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.queueDirectoryPushAndSyncAlarmAsync();
   }
 
-  private async queueDirectoryPushAndSyncAlarmAsync(): Promise<void> {
-    await this.queueDirectoryPush();
+  private async queueDirectoryPushAndSyncAlarmAsync(fallbackUserId?: string): Promise<void> {
+    await this.queueDirectoryPush(fallbackUserId);
 
     if (this.state.getWebSockets().length === 0) {
       return;
@@ -678,7 +676,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
   }
 
-  private async queueDirectoryPush(): Promise<void> {
+  private async queueDirectoryPush(fallbackUserId?: string): Promise<void> {
+    if (fallbackUserId != null) {
+      this.pendingPushFallbackUserId = fallbackUserId;
+    }
+
     if (this.pushInProgress) {
       this.pendingPush = true;
       return this.getOrCreatePushCompletionPromise();
@@ -716,10 +718,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     while (this.pendingPush) {
       this.pendingPush = false;
+      const fallbackUserId = this.pendingPushFallbackUserId;
+      this.pendingPushFallbackUserId = null;
       const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
 
       try {
-        await this.refreshAndBroadcastIfChanged();
+        await this.refreshAndBroadcastIfChanged(fallbackUserId ?? undefined);
       } catch (error) {
         const stored = await this.loadStateForErrorContext("UserTracker directory refresh error context load failed");
         const refreshMode = stored.viewState == null || dirtyTrackerCountAtRefreshStart === 0 ? "full" : "incremental";
