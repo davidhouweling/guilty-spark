@@ -46,4 +46,20 @@ describe("RealSeriesMatchesService.getSeriesMatches", () => {
       credentials: "include",
     });
   });
+
+  it("encodes the series anchor match ID in the request", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ playerXuidToGametag: {}, matches: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await service.getSeriesMatches(["match-1"], "tracker-1", "anchor/match 1");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.example.com/api/stats/series-matches?matchIds=match-1&trackerId=tracker-1&anchorMatchId=anchor%2Fmatch+1",
+      { credentials: "include" },
+    );
+  });
 });
