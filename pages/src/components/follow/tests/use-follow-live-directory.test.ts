@@ -424,6 +424,102 @@ describe("useFollowLiveDirectory", () => {
     }
   });
 
+  it("does not refetch the directory over HTTP when the websocket reconnects", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const getDirectorySpy = vi.spyOn(service, "getDirectory");
+      const connectDirectorySpy = vi.spyOn(service, "connectDirectory");
+      const { result } = renderHook(() =>
+        useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("connected");
+      });
+
+      expect(getDirectorySpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectDirectorySpy).toHaveBeenCalledTimes(2);
+      });
+
+      expect(getDirectorySpy).toHaveBeenCalledTimes(1);
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
+  it("keeps applying websocket directory updates after a reconnect", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const connectDirectorySpy = vi.spyOn(service, "connectDirectory");
+      const { result } = renderHook(() =>
+        useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("connected");
+      });
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(connectDirectorySpy).toHaveBeenCalledTimes(2);
+      });
+
+      act(() => {
+        service.lastConnection?.emitDirectory(
+          aDirectoryWith({
+            trackers: [aTrackerWith({ trackerId: "tracker-1", matches: [aMatchWith({ outcome: "Win" })] })],
+          }),
+        );
+      });
+
+      expect(result.current.directory?.trackers[0]?.matches.length).toBe(1);
+      expect(result.current.directoryStatus).toBe("connected");
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
+  it("refetches the directory on reconnect when the initial load failed", async () => {
+    const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
+
+    try {
+      const service = aFakeFollowLiveServiceWith({ directory: aDirectoryWith() });
+      const getDirectorySpy = vi.spyOn(service, "getDirectory").mockRejectedValueOnce(new Error("Network error"));
+      const { result } = renderHook(() =>
+        useFollowLiveDirectory({ followLiveService: service, gamertag: "Spartan One" }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.directoryStatus).toBe("error");
+      });
+
+      act(() => {
+        service.lastConnection?.emitStatus("error", "Connection lost");
+      });
+
+      await waitFor(() => {
+        expect(getDirectorySpy).toHaveBeenCalledTimes(2);
+      });
+
+      expect(result.current.directory).not.toBeNull();
+    } finally {
+      reconnectDelaySpy.mockRestore();
+    }
+  });
+
   it("does not update state after unmount when a reconnect timer fires", async () => {
     const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1);
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
