@@ -202,7 +202,7 @@ describe("SeriesOverviewEmbed", () => {
 
       expect(getGameTypeAndMapSpy).toHaveBeenCalledWith(sampleMatchStats.MatchInfo);
       expect(getReadableDurationSpy).toHaveBeenCalledWith(sampleMatchStats.MatchInfo.Duration, "en-US");
-      expect(getMatchScoreSpy).toHaveBeenCalledWith(sampleMatchStats, "en-US");
+      expect(getMatchScoreSpy).toHaveBeenCalledWith(sampleMatchStats, "en-US", [sampleMatchStats]);
 
       expect(output.embeds.length).toBeGreaterThan(0);
       const [firstEmbed] = output.embeds;

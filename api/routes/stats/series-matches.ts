@@ -18,8 +18,12 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         return queryParams.response;
       }
 
-      const { matchIds } = queryParams.data;
+      const { matchIds, anchorMatchId } = queryParams.data;
       const uniqueMatchIds = [...new Set(matchIds)];
+      const canonicalMatchIds =
+        anchorMatchId != null
+          ? [anchorMatchId, ...uniqueMatchIds.filter((id) => id !== anchorMatchId)]
+          : uniqueMatchIds;
       const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
       let resolvedHaloService = haloService;
@@ -43,12 +47,12 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
         }
       }
 
-      const matches = await resolvedHaloService.getMatchDetails(uniqueMatchIds);
+      const matches = await resolvedHaloService.getMatchDetails([...new Set(canonicalMatchIds)]);
       const matchesById: Record<string, MatchStats> = {};
       for (const match of matches) {
         matchesById[match.MatchId] = match;
       }
-      const orderedMatches = uniqueMatchIds
+      const orderedMatches = canonicalMatchIds
         .map((matchId) => matchesById[matchId])
         .filter((match): match is MatchStats => match != null);
 
@@ -57,7 +61,12 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
       });
 
       const responseMatches = await Promise.all(
-        orderedMatches.map(async (match) => {
+        uniqueMatchIds.map(async (matchId) => {
+          const match = matchesById[matchId];
+          if (match == null) {
+            throw new Error(`Missing match details for ${matchId}`);
+          }
+
           const [{ gameType, gameMap }, mapThumbnailUrl] = await Promise.all([
             resolvedHaloService.getGameTypeAndMapParts(match.MatchInfo),
             resolvedHaloService.getMapThumbnailUrl(
@@ -65,7 +74,7 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
               match.MatchInfo.MapVariant.VersionId,
             ),
           ]);
-          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US");
+          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US", orderedMatches);
 
           return {
             matchId: match.MatchId,

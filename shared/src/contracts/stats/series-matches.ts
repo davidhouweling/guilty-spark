@@ -13,6 +13,11 @@ const matchIdsQuerySchema = z
 
 export const seriesMatchesQuerySchema = z.object({
   matchIds: matchIdsQuerySchema,
+  anchorMatchId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value != null && value.length > 0 ? value : undefined)),
 });
 export type SeriesMatchesQuery = z.infer<typeof seriesMatchesQuerySchema>;
 

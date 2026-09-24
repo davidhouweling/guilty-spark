@@ -1145,7 +1145,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       const duration = getReadableDuration(match.MatchInfo.Duration, locale);
-      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, locale);
+      const { gameScore, gameSubScore } = this.haloService.getMatchScore(match, locale, matches);
 
       let gameType = "*Unknown Game Type*";
       let gameMap = "*Unknown Map*";

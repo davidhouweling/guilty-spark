@@ -1864,6 +1864,98 @@ describe("Halo service", () => {
 
       expect(result).toEqual(score);
     });
+
+    it("keeps a roster's score under the same column across games even when it swaps sides", () => {
+      const baseMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const basePlayer = Preconditions.checkExists(baseMatch.Players[0]);
+
+      function aMatchWithRosterScores(overrides: {
+        matchId: string;
+        startTime: string;
+        mapAssetId: string;
+        team0PlayerIds: string[];
+        team1PlayerIds: string[];
+        team0Score: number;
+        team1Score: number;
+      }): MatchStats {
+        const makePlayer = (playerId: string, teamId: number): MatchStats["Players"][0] => ({
+          ...basePlayer,
+          PlayerId: playerId,
+          LastTeamId: teamId,
+          PlayerTeamStats: [{ TeamId: teamId, Stats: Preconditions.checkExists(basePlayer.PlayerTeamStats[0]).Stats }],
+        });
+
+        return {
+          ...baseMatch,
+          MatchId: overrides.matchId,
+          MatchInfo: {
+            ...baseMatch.MatchInfo,
+            StartTime: overrides.startTime,
+            MapVariant: { ...baseMatch.MatchInfo.MapVariant, AssetId: overrides.mapAssetId },
+          },
+          Players: [
+            ...overrides.team0PlayerIds.map((playerId) => makePlayer(playerId, 0)),
+            ...overrides.team1PlayerIds.map((playerId) => makePlayer(playerId, 1)),
+          ],
+          Teams: [
+            {
+              ...Preconditions.checkExists(baseMatch.Teams[0]),
+              TeamId: 0,
+              Stats: {
+                ...Preconditions.checkExists(baseMatch.Teams[0]).Stats,
+                CoreStats: {
+                  ...Preconditions.checkExists(baseMatch.Teams[0]).Stats.CoreStats,
+                  Score: overrides.team0Score,
+                },
+              },
+            },
+            {
+              ...Preconditions.checkExists(baseMatch.Teams[1]),
+              TeamId: 1,
+              Stats: {
+                ...Preconditions.checkExists(baseMatch.Teams[1]).Stats,
+                CoreStats: {
+                  ...Preconditions.checkExists(baseMatch.Teams[1]).Stats.CoreStats,
+                  Score: overrides.team1Score,
+                },
+              },
+            },
+          ],
+        };
+      }
+
+      const rosterAWinsAsTeam0 = aMatchWithRosterScores({
+        matchId: "series-swap-game-1",
+        startTime: "2024-11-26T10:00:00.000Z",
+        mapAssetId: "map-a",
+        team0PlayerIds: ["xuid(1)", "xuid(2)"],
+        team1PlayerIds: ["xuid(3)", "xuid(4)"],
+        team0Score: 50,
+        team1Score: 30,
+      });
+      // Same two rosters, but roster A (xuid 1/2) is now on TeamId 1
+      const rosterALosesAsTeam1 = aMatchWithRosterScores({
+        matchId: "series-swap-game-2",
+        startTime: "2024-11-26T11:00:00.000Z",
+        mapAssetId: "map-b",
+        team0PlayerIds: ["xuid(3)", "xuid(4)"],
+        team1PlayerIds: ["xuid(1)", "xuid(2)"],
+        team0Score: 40,
+        team1Score: 20,
+      });
+      const seriesMatches = [rosterAWinsAsTeam0, rosterALosesAsTeam1];
+
+      // Roster A (anchored as the first column from game 1) should stay in the first column even
+      // though it plays as raw TeamId 1 in game 2 - a raw-order read would report "40:20" here.
+      expect(haloService.getMatchScore(rosterAWinsAsTeam0, "en-US", seriesMatches)).toEqual({
+        gameScore: "50:30",
+        gameSubScore: null,
+      });
+      expect(haloService.getMatchScore(rosterALosesAsTeam1, "en-US", seriesMatches)).toEqual({
+        gameScore: "20:40",
+        gameSubScore: null,
+      });
+    });
   });
 
   describe("getSeriesScore()", () => {
