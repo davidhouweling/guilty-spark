@@ -84,8 +84,8 @@ export function OverlayUrlsSection({
     <div className={styles.panel}>
       <Heading tagName="h2">Overlay URLs</Heading>
       <p className={styles.sectionDescription}>
-        Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow
-        whichever tracker is currently marked live.
+        Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow whichever
+        tracker is currently marked live.
       </p>
 
       {gamertag === null ? (

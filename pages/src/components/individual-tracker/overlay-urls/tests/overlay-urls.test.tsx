@@ -109,10 +109,7 @@ describe("OverlayUrlsSection", () => {
 
     await user.click(screen.getByRole("button", { name: "Open overlay with preview" }));
 
-    expect(openSpy).toHaveBeenCalledWith(
-      expect.stringContaining("previewMode=observer"),
-      "_blank",
-    );
+    expect(openSpy).toHaveBeenCalledWith(expect.stringContaining("previewMode=observer"), "_blank");
 
     vi.unstubAllGlobals();
   });
