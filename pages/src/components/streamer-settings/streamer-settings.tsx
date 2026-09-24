@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { Alert } from "../../alert/alert";
-import { Checkbox } from "../../checkbox/checkbox";
-import { Heading } from "../../heading/heading";
-import { TeamColorPicker } from "../../team-colors/team-color-picker";
-import { DisplaySettingsSection } from "../../live-tracker/settings/display-settings-section";
-import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settings-section";
-import { FontSizeSlider } from "../../live-tracker/settings/font-size-slider";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
-import { getTeamColorOrDefault } from "../../team-colors/team-colors";
+import { Alert } from "../alert/alert";
+import { Checkbox } from "../checkbox/checkbox";
+import { Heading } from "../heading/heading";
+import { TeamColorPicker } from "../team-colors/team-color-picker";
+import { DisplaySettingsSection } from "../live-tracker/settings/display-settings-section";
+import { TickerSettingsSection } from "../live-tracker/settings/ticker-settings-section";
+import { FontSizeSlider } from "../live-tracker/settings/font-size-slider";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../live-tracker/settings/types";
+import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import type { SaveStatus } from "./streamer-settings-store";
 import styles from "./streamer-settings.module.css";
 

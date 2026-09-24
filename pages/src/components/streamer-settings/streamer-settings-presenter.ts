@@ -7,8 +7,8 @@ import {
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
+import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../live-tracker/settings/types";
 import type { StreamerSettingsSnapshot, StreamerSettingsStore } from "./streamer-settings-store";
 
 const DEBOUNCE_MS = 450;

@@ -1,9 +1,9 @@
 import React from "react";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { Alert } from "../../alert/alert";
-import { Checkbox } from "../../checkbox/checkbox";
-import { Heading } from "../../heading/heading";
-import { Select } from "../../select/select";
+import { Alert } from "../alert/alert";
+import { Checkbox } from "../checkbox/checkbox";
+import { Heading } from "../heading/heading";
+import { Select } from "../select/select";
 import type { StatsHighlightsSectionViewModel } from "./types";
 import styles from "./stats-highlights.module.css";
 

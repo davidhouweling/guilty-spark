@@ -4,25 +4,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../../live-tracker/settings/types";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 import type { StreamerSettingsSectionViewProps } from "../streamer-settings";
 import { StreamerSettingsSectionView } from "../streamer-settings";
 
-vi.mock("../../../team-colors/team-color-picker", () => ({
+vi.mock("../../team-colors/team-color-picker", () => ({
   TeamColorPicker: ({ label }: { readonly label: string }): React.ReactElement => (
     <div data-testid={`color-picker-${label}`} />
   ),
 }));
 
-vi.mock("../../../live-tracker/settings/display-settings-section", () => ({
+vi.mock("../../live-tracker/settings/display-settings-section", () => ({
   DisplaySettingsSection: (): React.ReactElement => <div data-testid="display-settings-section" />,
 }));
 
-vi.mock("../../../live-tracker/settings/ticker-settings-section", () => ({
+vi.mock("../../live-tracker/settings/ticker-settings-section", () => ({
   TickerSettingsSection: (): React.ReactElement => <div data-testid="ticker-settings-section" />,
 }));
 
-vi.mock("../../../live-tracker/settings/font-size-slider", () => ({
+vi.mock("../../live-tracker/settings/font-size-slider", () => ({
   FontSizeSlider: ({ label }: { readonly label: string }): React.ReactElement => (
     <div data-testid={`font-size-slider-${label}`} />
   ),

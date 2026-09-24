@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { aFakeIndividualTrackerSettingsServiceWith } from "../../../../services/individual-tracker/fakes/settings.fake";
-import type { FakeIndividualTrackerSettingsService } from "../../../../services/individual-tracker/fakes/settings.fake";
+import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
+import type { FakeIndividualTrackerSettingsService } from "../../../services/individual-tracker/fakes/settings.fake";
 import { StreamerSettingsPresenter } from "../streamer-settings-presenter";
 import { StreamerSettingsStore } from "../streamer-settings-store";
 
