@@ -179,7 +179,7 @@ export class StreamerSettingsPresenter {
     applyParsedSettingsToStore(this.config.store, parsed, gamertag);
   }
 
-  public loadSettingsFromService(gamertag: string): void {
+  public loadSettingsFromService(gamertag: string | null): void {
     if (this.isDisposed) {
       return;
     }
@@ -187,7 +187,15 @@ export class StreamerSettingsPresenter {
     void this.loadSettingsFromServiceAsync(gamertag);
   }
 
-  private async loadSettingsFromServiceAsync(gamertag: string): Promise<void> {
+  public loadDemoSettings(gamertag: string): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.loadSettings({}, gamertag);
+    this.config.store.setLoaded();
+  }
+
+  private async loadSettingsFromServiceAsync(gamertag: string | null): Promise<void> {
     try {
       const settings = await this.config.settingsService.getSettings();
       if (this.isDisposed) {

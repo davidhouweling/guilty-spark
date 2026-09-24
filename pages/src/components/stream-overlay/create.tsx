@@ -8,7 +8,7 @@ import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";
 import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-store";
-import { StreamOverlayPresenter } from "./stream-overlay-presenter";
+import { STREAM_OVERLAY_DEMO_GAMERTAG, StreamOverlayPresenter } from "./stream-overlay-presenter";
 import { StreamOverlayStore } from "./stream-overlay-store";
 import { StreamOverlayShell } from "./stream-overlay";
 import styles from "./stream-overlay.module.css";
@@ -54,10 +54,14 @@ function StreamOverlayPageInternal({
   );
 
   useEffect(() => {
-    if (snapshot.authState !== "authenticated" || snapshot.gamertag === null) {
+    if (snapshot.authState === "loading") {
       return;
     }
-    settingsPresenter.loadSettingsFromService(snapshot.gamertag);
+    if (snapshot.authState === "authenticated") {
+      settingsPresenter.loadSettingsFromService(snapshot.gamertag);
+      return;
+    }
+    settingsPresenter.loadDemoSettings(snapshot.gamertag ?? STREAM_OVERLAY_DEMO_GAMERTAG);
   }, [settingsPresenter, snapshot.authState, snapshot.gamertag]);
 
   useEffect(() => {
@@ -82,8 +86,8 @@ function StreamOverlayPageInternal({
       <>
         <StatsHighlightsSection
           statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
-          saveStatus={settingsSnapshot.saveStatus}
-          saveErrorMessage={settingsSnapshot.saveErrorMessage}
+          saveStatus="idle"
+          saveErrorMessage={null}
           onStatsHighlightSlotsChange={(slots): void => {
             settingsPresenter.setStatsHighlightSlots(slots);
           }}
@@ -169,7 +173,7 @@ function StreamOverlayPageInternal({
       signInHref={buildSignInHref(apiHost)}
       overlayUrlsContent={
         <OverlayUrlsSection
-          gamertag={settingsSnapshot.gamertag}
+          gamertag={snapshot.gamertag}
           previewColorMode={settingsSnapshot.defaultColorMode}
           autoStart={settingsSnapshot.autoStart}
           disabled={isDemo}
@@ -184,8 +188,8 @@ function StreamOverlayPageInternal({
             <>
               <StatsHighlightsSection
                 statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
-                saveStatus={settingsSnapshot.saveStatus}
-                saveErrorMessage={settingsSnapshot.saveErrorMessage}
+                saveStatus="idle"
+                saveErrorMessage={null}
                 onStatsHighlightSlotsChange={(slots): void => {
                   settingsPresenter.setStatsHighlightSlots(slots);
                 }}
