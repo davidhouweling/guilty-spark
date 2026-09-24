@@ -132,7 +132,7 @@ export function StreamerSettingsSectionView({
 
   return (
     <div className={styles.panel}>
-      <Heading tagName="h2">Streamer Settings</Heading>
+      <Heading tagName="h3">Streamer Settings</Heading>
       <p className={styles.sectionDescription}>
         Customize overlay colors, ticker behavior, tab visibility, and text sizes.
       </p>
