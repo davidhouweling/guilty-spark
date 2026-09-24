@@ -1,0 +1,30 @@
+---
+import Layout from "../layouts/layout.astro";
+import Container from "../components/container/container.astro";
+import Heading from "../components/heading/heading.astro";
+import { API_HOST } from "../constants";
+import { StreamOverlayApp } from "../apps/stream-overlay/create";
+import styles from "./_styles/content-page.module.css";
+
+export const prerender = false;
+---
+
+<Layout
+  title="Stream Overlay Setup - Guilty Spark"
+  description="Sign in, grab your overlay URLs, and configure your Guilty Spark stream overlay in a few steps."
+>
+  <section class={styles.contentPage}>
+    <Container>
+      <header class={styles.heroBlock}>
+        <p class={styles.eyebrow}>Field Guide</p>
+        <Heading tagName="h1" class={styles.title}>Stream Overlay Setup</Heading>
+        <p class={styles.subtitle}>
+          Sign in, grab your overlay and viewer URLs, and configure your overlay — all from one page. Your tracker
+          starts automatically the moment your overlay URL is loaded in OBS.
+        </p>
+      </header>
+
+      <StreamOverlayApp client:only="react" apiHost={API_HOST} />
+    </Container>
+  </section>
+</Layout>

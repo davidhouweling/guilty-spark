@@ -10,6 +10,9 @@ const require = createRequire(import.meta.url);
 export default defineConfig({
   site: "https://guilty-spark.app",
   adapter: cloudflare(),
+  redirects: {
+    "/guides/obs-overlays": "/stream-overlay",
+  },
   integrations: [
     react(),
     sitemap({

@@ -1,0 +1,34 @@
+.panel {
+  align-items: center;
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.identity {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.gamertag {
+  color: var(--halo-white);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.signedInLabel {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.signInPrompt {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-2);
+}

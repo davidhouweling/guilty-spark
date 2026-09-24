@@ -43,6 +43,7 @@ export function OverlayUrlsSection({
   previewColorMode,
   autoStart,
   onAutoStartChange,
+  disabled = false,
 }: OverlayUrlsSectionProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,6 +158,7 @@ export function OverlayUrlsSection({
 
             <Checkbox
               checked={autoStart}
+              disabled={disabled}
               onChange={(checked): void => {
                 onAutoStartChange(checked);
               }}
