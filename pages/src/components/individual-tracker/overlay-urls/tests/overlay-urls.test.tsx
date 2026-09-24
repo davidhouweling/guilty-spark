@@ -54,13 +54,11 @@ describe("OverlayUrlsSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("disables all URL actions and auto-start when disabled", () => {
+  it("keeps identity URL actions available and disables settings actions when disabled", () => {
     render(<OverlayUrlsSection {...aFakeProps({ disabled: true })} />);
 
     expect(screen.getAllByRole("button")).toHaveLength(5);
-    for (const button of screen.getAllByRole("button")) {
-      expect(button).toBeDisabled();
-    }
+    expect(screen.getAllByRole("button").filter((button) => button.matches(":disabled"))).toHaveLength(1);
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 

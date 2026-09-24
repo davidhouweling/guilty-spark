@@ -77,6 +77,7 @@ function StreamOverlayPageInternal({
   );
 
   const isDemo = snapshot.authState !== "authenticated";
+  const settingsDisabled = isDemo || settingsSnapshot.loadStatus !== "loaded";
   const settingsContent =
     settingsSnapshot.loadStatus === "idle" || settingsSnapshot.loadStatus === "loading" ? (
       <Alert variant="info">Loading your saved overlay settings…</Alert>
@@ -176,14 +177,18 @@ function StreamOverlayPageInternal({
           gamertag={snapshot.gamertag}
           previewColorMode={settingsSnapshot.defaultColorMode}
           autoStart={settingsSnapshot.autoStart}
-          disabled={isDemo}
+          disabled={settingsDisabled}
           onAutoStartChange={(enabled): void => {
             settingsPresenter.setAutoStart(enabled);
           }}
         />
       }
       configureContent={
-        <div className={isDemo ? styles.demoLocked : undefined} aria-disabled={isDemo}>
+        <fieldset
+          disabled={settingsDisabled}
+          className={isDemo ? styles.demoLocked : undefined}
+          aria-label="Overlay settings"
+        >
           {isDemo ? (
             <>
               <StatsHighlightsSection
@@ -268,7 +273,7 @@ function StreamOverlayPageInternal({
           ) : (
             settingsContent
           )}
-        </div>
+        </fieldset>
       }
     />
   );
