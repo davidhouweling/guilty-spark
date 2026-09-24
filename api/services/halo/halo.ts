@@ -226,9 +226,9 @@ export class HaloService {
     const scoreString = scoreCompare.map((value) => value.toLocaleString(locale)).join(":");
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
-      const roundsCompare = teams.map((team) => team.Stats.CoreStats.RoundsWon).map((value) =>
-        value.toLocaleString(locale),
-      );
+      const roundsCompare = teams
+        .map((team) => team.Stats.CoreStats.RoundsWon)
+        .map((value) => value.toLocaleString(locale));
       const roundsString = roundsCompare.join(":");
 
       return { gameScore: roundsString, gameSubScore: scoreString };
