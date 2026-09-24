@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import {
+  userTrackerAutoStartContract,
   userTrackerDirectoryMessageContract,
   userTrackerStatusContract,
   userTrackerViewStateContract,
@@ -108,6 +109,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   };
   private pushInProgress = false;
   private pendingPush = false;
+  private pendingPushFallbackUserId: string | null = null;
+  private lastDirectoryRefreshError: Error | null = null;
   private pushCompletionPromise: Promise<void> | null = null;
   private resolvePushCompletion: (() => void) | null = null;
   private trackerSubscriptionsInstalled = false;
@@ -117,6 +120,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   private trackerUpdateMarkersHydrationPromise: Promise<void> | null = null;
   private trackerMarkerPersistenceChain: Promise<void> = Promise.resolve();
   private autoStartQueue: Promise<void> = Promise.resolve();
+  private latestBuiltState: UserTrackerInternalState | null = null;
 
   constructor(
     state: DurableObjectState,
@@ -161,6 +165,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
               return new Response("Method Not Allowed", { status: 405 });
             }
             return await this.handleViewState(request);
+          }
+          case "auto-start": {
+            if (request.method !== "POST") {
+              return new Response("Method Not Allowed", { status: 405 });
+            }
+            return await this.handleAutoStart(request);
           }
           case "nudge": {
             if (request.method !== "POST") {
@@ -351,7 +361,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async handleViewState(request: Request): Promise<Response> {
-    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
 
     const response: UserTrackerViewStateResponse = {
@@ -391,7 +400,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
-    await this.ensureAutoStartedTracker(request);
     const stored = await this.getOrBuildState(request);
     if (stored?.state?.userId == null) {
       return new Response("Missing userId", { status: 400 });
@@ -416,7 +424,18 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return stored;
     }
 
-    return await this.rebuildDirectoryState(userId);
+    await this.queueDirectoryPush(userId);
+    const refreshedStored = await this.loadState();
+    if (refreshedStored.state?.userId === userId) {
+      return refreshedStored;
+    }
+    if (this.latestBuiltState?.state?.userId === userId) {
+      return this.latestBuiltState;
+    }
+    if (this.lastDirectoryRefreshError != null) {
+      throw this.lastDirectoryRefreshError;
+    }
+    return refreshedStored;
   }
 
   private getRequestedUserId(request: Request): string | null {
@@ -433,21 +452,12 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     return normalizedValue;
   }
 
-  // Guarded by autoStartQueue: /view-state and /websocket both route to this same DO instance
-  // (keyed by userId) and can be requested concurrently on first page load, so without this lock
-  // both could observe "no tracker yet" and each create/start a duplicate tracker for the xuid.
-  private async ensureAutoStartedTracker(request: Request): Promise<void> {
-    if (this.state.getWebSockets().length > 0) {
-      // A connected client already means this DO instance ran this check when that connection
-      // was established; skip the extra settings/tracker DB reads on every cached poll.
-      return;
-    }
-
+  private async handleAutoStart(request: Request): Promise<Response> {
     const userId = this.getRequestedUserId(request);
     const gamertag = this.getRequestedQueryParam(request, "gamertag");
     const xuid = this.getRequestedQueryParam(request, "xuid");
     if (userId == null || gamertag == null || xuid == null) {
-      return;
+      return new Response("Bad Request", { status: 400 });
     }
 
     await this.withAutoStartLock(async () =>
@@ -463,6 +473,10 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         { userId, gamertag, xuid },
       ),
     );
+
+    await this.queueDirectoryPushAndSyncAlarmAsync(userId);
+
+    return userTrackerAutoStartContract.toResponse({ success: true }, { noStore: true });
   }
 
   private async withAutoStartLock(fn: () => Promise<void>): Promise<void> {
@@ -472,11 +486,6 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       () => undefined,
     );
     await runAfterPrevious;
-  }
-
-  private async rebuildDirectoryState(userId: string): Promise<UserTrackerInternalState> {
-    const directory = await this.buildDirectory(userId);
-    return await this.storeDirectoryState(userId, directory);
   }
 
   private async buildDirectory(userId: string): Promise<TrackerDirectory> {
@@ -524,6 +533,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
 
     await this.state.storage.put(USER_TRACKER_STATE_KEY, nextState);
+    this.latestBuiltState = nextState;
     return nextState;
   }
 
@@ -566,8 +576,8 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     void this.queueDirectoryPushAndSyncAlarmAsync();
   }
 
-  private async queueDirectoryPushAndSyncAlarmAsync(): Promise<void> {
-    await this.queueDirectoryPush();
+  private async queueDirectoryPushAndSyncAlarmAsync(fallbackUserId?: string): Promise<void> {
+    await this.queueDirectoryPush(fallbackUserId);
 
     if (this.state.getWebSockets().length === 0) {
       return;
@@ -675,7 +685,11 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     };
   }
 
-  private async queueDirectoryPush(): Promise<void> {
+  private async queueDirectoryPush(fallbackUserId?: string): Promise<void> {
+    if (fallbackUserId != null) {
+      this.pendingPushFallbackUserId = fallbackUserId;
+    }
+
     if (this.pushInProgress) {
       this.pendingPush = true;
       return this.getOrCreatePushCompletionPromise();
@@ -713,11 +727,16 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     while (this.pendingPush) {
       this.pendingPush = false;
+      const fallbackUserId = this.pendingPushFallbackUserId;
+      this.pendingPushFallbackUserId = null;
       const dirtyTrackerCountAtRefreshStart = this.dirtyTrackerIds.size;
 
       try {
-        await this.refreshAndBroadcastIfChanged();
+        this.lastDirectoryRefreshError = null;
+        await this.refreshAndBroadcastIfChanged(fallbackUserId ?? undefined);
       } catch (error) {
+        this.lastDirectoryRefreshError =
+          error instanceof Error ? error : new Error("UserTracker directory refresh failed");
         const stored = await this.loadStateForErrorContext("UserTracker directory refresh error context load failed");
         const refreshMode = stored.viewState == null || dirtyTrackerCountAtRefreshStart === 0 ? "full" : "incremental";
         this.logService.error(
@@ -745,9 +764,9 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
   }
 
-  private async refreshAndBroadcastIfChanged(): Promise<void> {
+  private async refreshAndBroadcastIfChanged(fallbackUserId?: string): Promise<void> {
     const stored = await this.loadState();
-    const userId = stored.state?.userId;
+    const userId = stored.state?.userId ?? fallbackUserId;
     if (userId == null) {
       return;
     }

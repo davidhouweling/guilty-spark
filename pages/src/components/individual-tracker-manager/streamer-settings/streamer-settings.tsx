@@ -287,7 +287,7 @@ export function StreamerSettingsSectionView({
                 onAutoStartChange(checked);
               }}
               label="Automatically start tracking when the overlay is used"
-              description="Start your individual tracker automatically the first time your viewer or overlay URL is opened, instead of needing to start it manually beforehand."
+              description="Start your individual tracker automatically when your overlay URL is loaded, instead of needing to start it manually beforehand. Your public viewer page never starts a tracker."
             />
           </div>
         </div>

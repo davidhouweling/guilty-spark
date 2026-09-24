@@ -17,6 +17,10 @@ function getRequest(path: string): Request {
   return new Request(`http://localhost${path}`, { method: "GET" });
 }
 
+function postRequest(path: string): Request {
+  return new Request(`http://localhost${path}`, { method: "POST" });
+}
+
 function wsRequest(path: string): Request {
   return new Request(`http://localhost${path}`, {
     method: "GET",
@@ -268,8 +272,21 @@ describe("/u/:gamertag follow routes", () => {
     });
   });
 
-  describe("auto-start identity forwarding", () => {
-    it("passes gamertag and xuid to UserTrackerDO so it can auto-start a tracker if needed", async () => {
+  describe("POST /u/:gamertag/auto-start", () => {
+    it("returns 404 when gamertag is not found", async () => {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(null);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(postRequest("/u/UnknownTag/auto-start"), env)) as Response;
+
+      expect(res.status).toBe(404);
+    });
+
+    it("passes userId, gamertag and xuid to the UserTrackerDO auto-start action", async () => {
       const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "KnownTag", ProviderUserId: "xuid-1" });
       const userTrackerDo = aFakeUserTrackerDOWith();
       const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
@@ -282,34 +299,15 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      await router.fetch(getRequest("/u/KnownTag"), localEnv);
+      const res = (await router.fetch(postRequest("/u/KnownTag/auto-start"), localEnv)) as Response;
 
-      const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
+      expect(res.status).toBe(200);
+      const rawUrl = getRawUrl(Preconditions.checkExists(userTrackerFetchSpy.mock.calls[0]?.[0]));
       const parsedUrl = new URL(rawUrl);
+      expect(parsedUrl.pathname).toBe("/auto-start");
+      expect(parsedUrl.searchParams.get("userId")).toBe("user-1");
       expect(parsedUrl.searchParams.get("gamertag")).toBe("KnownTag");
       expect(parsedUrl.searchParams.get("xuid")).toBe("xuid-1");
-    });
-
-    it("passes gamertag and xuid on the websocket route too", async () => {
-      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "WsTag", ProviderUserId: "xuid-2" });
-      const userTrackerDo = aFakeUserTrackerDOWith();
-      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
-      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
-
-      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-        const services = installFakeServicesWith({ env: localEnv });
-        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
-        return services;
-      });
-      userTrackerRoutesRegisterHandler(router, localInstallServices);
-
-      await router.fetch(wsRequest("/u/WsTag/ws"), localEnv);
-
-      const call = userTrackerFetchSpy.mock.calls[0]?.[0];
-      const request = call as Request;
-      const parsedUrl = new URL(request.url);
-      expect(parsedUrl.searchParams.get("gamertag")).toBe("WsTag");
-      expect(parsedUrl.searchParams.get("xuid")).toBe("xuid-2");
     });
 
     it("forwards the identity's canonical gamertag rather than the raw path param", async () => {
@@ -329,14 +327,13 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      await router.fetch(getRequest("/u/RequestedTag"), localEnv);
+      await router.fetch(postRequest("/u/RequestedTag/auto-start"), localEnv);
 
-      const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
-      const parsedUrl = new URL(rawUrl);
-      expect(parsedUrl.searchParams.get("gamertag")).toBe("CanonicalTag");
+      const rawUrl = getRawUrl(Preconditions.checkExists(userTrackerFetchSpy.mock.calls[0]?.[0]));
+      expect(new URL(rawUrl).searchParams.get("gamertag")).toBe("CanonicalTag");
     });
 
-    it("falls back to the validated path gamertag without throwing when identity.Gamertag is null", async () => {
+    it("falls back to the validated path gamertag when identity.Gamertag is null", async () => {
       const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: null, ProviderUserId: "xuid-1" });
       const userTrackerDo = aFakeUserTrackerDOWith();
       const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
@@ -349,12 +346,72 @@ describe("/u/:gamertag follow routes", () => {
       });
       userTrackerRoutesRegisterHandler(router, localInstallServices);
 
-      const res = (await router.fetch(getRequest("/u/RequestedTag"), localEnv)) as Response;
+      const res = (await router.fetch(postRequest("/u/RequestedTag/auto-start"), localEnv)) as Response;
 
       expect(res.status).toBe(200);
-      const rawUrl = getRawUrl(userTrackerFetchSpy.mock.calls[0]?.[0] ?? "http://do/view-state");
+      const rawUrl = getRawUrl(Preconditions.checkExists(userTrackerFetchSpy.mock.calls[0]?.[0]));
+      expect(new URL(rawUrl).searchParams.get("gamertag")).toBe("RequestedTag");
+    });
+
+    it("returns 500 when the UserTrackerDO auto-start action fails", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "KnownTag", ProviderUserId: "xuid-1" });
+      const userTrackerDo = aFakeUserTrackerDOWith({ shouldThrowError: true });
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      const res = (await router.fetch(postRequest("/u/KnownTag/auto-start"), localEnv)) as Response;
+
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("read routes", () => {
+    it("does not pass auto-start identity params on the directory route", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "KnownTag", ProviderUserId: "xuid-1" });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      await router.fetch(getRequest("/u/KnownTag"), localEnv);
+
+      const rawUrl = getRawUrl(Preconditions.checkExists(userTrackerFetchSpy.mock.calls[0]?.[0]));
       const parsedUrl = new URL(rawUrl);
-      expect(parsedUrl.searchParams.get("gamertag")).toBe("RequestedTag");
+      expect(parsedUrl.searchParams.get("gamertag")).toBeNull();
+      expect(parsedUrl.searchParams.get("xuid")).toBeNull();
+    });
+
+    it("does not pass auto-start identity params on the websocket route", async () => {
+      const identity = aFakeLinkedIdentitiesRow({ UserId: "user-1", Gamertag: "WsTag", ProviderUserId: "xuid-2" });
+      const userTrackerDo = aFakeUserTrackerDOWith();
+      const userTrackerFetchSpy = vi.spyOn(userTrackerDo, "fetch");
+      const localEnv = aFakeEnvWith({ USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerDo) });
+
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env: localEnv });
+        vi.spyOn(services.databaseService, "findActiveXboxIdentityByGamertag").mockResolvedValue(identity);
+        return services;
+      });
+      userTrackerRoutesRegisterHandler(router, localInstallServices);
+
+      await router.fetch(wsRequest("/u/WsTag/ws"), localEnv);
+
+      const rawUrl = getRawUrl(Preconditions.checkExists(userTrackerFetchSpy.mock.calls[0]?.[0]));
+      const parsedUrl = new URL(rawUrl);
+      expect(parsedUrl.searchParams.get("gamertag")).toBeNull();
+      expect(parsedUrl.searchParams.get("xuid")).toBeNull();
     });
   });
 });
