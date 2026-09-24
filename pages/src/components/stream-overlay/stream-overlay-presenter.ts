@@ -2,7 +2,7 @@ import type { AuthService } from "../../services/auth/types";
 import type { StreamOverlaySnapshot, StreamOverlayStore } from "./stream-overlay-store";
 
 // Shown to logged-out visitors so Steps 2 & 3 render with realistic sample data.
-export const STREAM_OVERLAY_DEMO_GAMERTAG = "SampleSpartan";
+export const STREAM_OVERLAY_DEMO_GAMERTAG = "343GuiltySpark";
 
 interface Config {
   readonly authService: AuthService;

@@ -54,6 +54,16 @@ describe("OverlayUrlsSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("disables all URL actions and auto-start when disabled", () => {
+    render(<OverlayUrlsSection {...aFakeProps({ disabled: true })} />);
+
+    expect(screen.getAllByRole("button")).toHaveLength(5);
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).toBeDisabled();
+    }
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+  });
+
   it("calls onAutoStartChange when the auto-start toggle is clicked", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn<(enabled: boolean) => void>();

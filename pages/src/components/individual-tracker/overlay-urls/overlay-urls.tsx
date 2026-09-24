@@ -98,6 +98,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   handleCopy("overlay", urls?.overlayUrl ?? "");
                 }}
@@ -107,6 +108,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   handleOpenUrl(urls?.overlayUrl ?? "");
                 }}
@@ -116,6 +118,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   handleOpenUrl(buildOverlayPreviewUrl(urls?.overlayUrl ?? "", previewColorMode));
                 }}
@@ -135,6 +138,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   handleCopy("view", urls?.viewUrl ?? "");
                 }}
@@ -144,6 +148,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   handleOpenUrl(urls?.viewUrl ?? "");
                 }}
