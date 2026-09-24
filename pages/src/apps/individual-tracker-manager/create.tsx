@@ -21,7 +21,6 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
         : createIndividualTrackerManagerPage({
             authService: services.authService,
             individualTrackerService: services.individualTrackerService,
-            settingsService: services.settingsService,
             individualTrackerViewService: services.individualTrackerViewService,
           }),
     [services],

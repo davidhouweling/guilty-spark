@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
-import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
 import type { LiveTrackersController } from "../live-trackers/types";
 import { IndividualTrackerPresenter } from "../individual-tracker-presenter";
 import { IndividualTrackerStore } from "../individual-tracker-store";
@@ -40,12 +39,8 @@ function aHarness(session: SessionResponse = AUTHENTICATED_SESSION): Harness {
   const store = new IndividualTrackerStore();
   const liveTrackersController = aFakeLiveTrackersController();
   const authService = aFakeAuthServiceWith({ session });
-  const settingsService = aFakeIndividualTrackerSettingsServiceWith({
-    styleFlags: { matchmakingMyStatsOnly: true },
-  });
   const presenter = new IndividualTrackerPresenter({
     authService,
-    settingsService,
     store,
     liveTrackersController,
   });
@@ -85,15 +80,6 @@ describe("IndividualTrackerPresenter", () => {
       await flushPromises();
       expect(presenter.getSnapshot().gamertag).toBe("ChiefSpartan");
     });
-
-    it("populates streamerSettings from settingsService", async () => {
-      const { presenter } = aHarness();
-      presenter.start();
-      await flushPromises();
-      expect(presenter.getSnapshot().streamerSettings).toMatchObject({
-        styleFlags: { matchmakingMyStatsOnly: true },
-      });
-    });
   });
 
   describe("load — unauthenticated", () => {
@@ -118,10 +104,8 @@ describe("IndividualTrackerPresenter", () => {
       const liveTrackersController = aFakeLiveTrackersController();
       const authService = aFakeAuthServiceWith();
       vi.spyOn(authService, "getSession").mockRejectedValue(new Error("network error"));
-      const settingsService = aFakeIndividualTrackerSettingsServiceWith();
       const presenter = new IndividualTrackerPresenter({
         authService,
-        settingsService,
         store,
         liveTrackersController,
       });
@@ -133,15 +117,12 @@ describe("IndividualTrackerPresenter", () => {
       expect(presenter.getSnapshot().errorMessage).not.toBeNull();
     });
 
-    it("sets authState to authenticated with empty settings when getSettings fails", async () => {
+    it("still sets session context when the session is authenticated", async () => {
       const store = new IndividualTrackerStore();
       const liveTrackersController = aFakeLiveTrackersController();
       const authService = aFakeAuthServiceWith({ session: AUTHENTICATED_SESSION });
-      const settingsService = aFakeIndividualTrackerSettingsServiceWith();
-      vi.spyOn(settingsService, "getSettings").mockRejectedValue(new Error("settings unavailable"));
       const presenter = new IndividualTrackerPresenter({
         authService,
-        settingsService,
         store,
         liveTrackersController,
       });
@@ -150,20 +131,7 @@ describe("IndividualTrackerPresenter", () => {
       await flushPromises();
 
       expect(presenter.getSnapshot().authState).toBe("authenticated");
-      expect(presenter.getSnapshot().streamerSettings).toEqual({});
       expect(liveTrackersController.setSessionContext).toHaveBeenCalledWith("u1", "ChiefSpartan", "xuid-1");
-    });
-  });
-
-  describe("setActiveSection", () => {
-    it("updates activeSection in the snapshot", async () => {
-      const { presenter } = aHarness();
-      presenter.start();
-      await flushPromises();
-
-      expect(presenter.getSnapshot().activeSection).toBe("stats-highlights");
-      presenter.setActiveSection("streamer-settings");
-      expect(presenter.getSnapshot().activeSection).toBe("streamer-settings");
     });
   });
 
