@@ -4,6 +4,6 @@ export interface OverlayUrlsSectionProps {
   readonly gamertag: string | null;
   readonly previewColorMode: StreamerViewColorMode;
   readonly autoStart: boolean;
+  readonly disabled?: boolean | undefined;
   readonly onAutoStartChange: (enabled: boolean) => void;
-  readonly disabled?: boolean;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import { OverlayUrlsSection } from "../individual-tracker/overlay-urls/overlay-urls";
@@ -53,10 +54,10 @@ function StreamOverlayPageInternal({
   );
 
   useEffect(() => {
-    if (snapshot.authState === "loading") {
+    if (snapshot.authState !== "authenticated" || snapshot.gamertag === null) {
       return;
     }
-    settingsPresenter.loadSettings({}, snapshot.gamertag);
+    settingsPresenter.loadSettingsFromService(snapshot.gamertag);
   }, [settingsPresenter, snapshot.authState, snapshot.gamertag]);
 
   useEffect(() => {
@@ -72,6 +73,93 @@ function StreamOverlayPageInternal({
   );
 
   const isDemo = snapshot.authState !== "authenticated";
+  const settingsContent =
+    settingsSnapshot.loadStatus === "idle" || settingsSnapshot.loadStatus === "loading" ? (
+      <Alert variant="info">Loading your saved overlay settings…</Alert>
+    ) : settingsSnapshot.loadStatus === "error" ? (
+      <Alert variant="error">{settingsSnapshot.loadErrorMessage ?? "Failed to load settings"}</Alert>
+    ) : (
+      <>
+        <StatsHighlightsSection
+          statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
+          saveStatus={settingsSnapshot.saveStatus}
+          saveErrorMessage={settingsSnapshot.saveErrorMessage}
+          onStatsHighlightSlotsChange={(slots): void => {
+            settingsPresenter.setStatsHighlightSlots(slots);
+          }}
+        />
+        <StreamerSettingsSectionView
+          defaultColorMode={settingsSnapshot.defaultColorMode}
+          playerTeamColor={settingsSnapshot.playerTeamColor}
+          playerEnemyColor={settingsSnapshot.playerEnemyColor}
+          observerTeamColor={settingsSnapshot.observerTeamColor}
+          observerEnemyColor={settingsSnapshot.observerEnemyColor}
+          displaySettings={settingsSnapshot.displaySettings}
+          tickerSettings={settingsSnapshot.tickerSettings}
+          inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
+          matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
+          inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
+          matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
+          disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
+          inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
+          matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
+          matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
+          inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
+          matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
+          fontSizeSettings={settingsSnapshot.fontSizeSettings}
+          saveStatus={settingsSnapshot.saveStatus}
+          saveErrorMessage={settingsSnapshot.saveErrorMessage}
+          onDefaultColorModeChange={(mode): void => {
+            settingsPresenter.setDefaultColorMode(mode);
+          }}
+          onPlayerColorsChange={(teamColor, enemyColor): void => {
+            settingsPresenter.setPlayerColors(teamColor, enemyColor);
+          }}
+          onObserverColorsChange={(teamColor, enemyColor): void => {
+            settingsPresenter.setObserverColors(teamColor, enemyColor);
+          }}
+          onDisplaySettingsChange={(updates): void => {
+            settingsPresenter.setDisplaySettings(updates);
+          }}
+          onTickerSettingsChange={(updates): void => {
+            settingsPresenter.setTickerSettings(updates);
+          }}
+          onInSeriesShowSeriesTabChange={(enabled): void => {
+            settingsPresenter.setInSeriesShowSeriesTab(enabled);
+          }}
+          onMatchmakingShowSummaryTabChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowSummaryTab(enabled);
+          }}
+          onInSeriesShowTabsChange={(enabled): void => {
+            settingsPresenter.setInSeriesShowTabs(enabled);
+          }}
+          onMatchmakingShowTabsChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowTabs(enabled);
+          }}
+          onDisableTeamPlayerNamesChange={(enabled): void => {
+            settingsPresenter.setDisableTeamPlayerNames(enabled);
+          }}
+          onInSeriesShowTickerChange={(enabled): void => {
+            settingsPresenter.setInSeriesShowTicker(enabled);
+          }}
+          onMatchmakingShowTickerChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowTicker(enabled);
+          }}
+          onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+            settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
+          }}
+          onInSeriesMyStatsOnlyChange={(enabled): void => {
+            settingsPresenter.setInSeriesMyStatsOnly(enabled);
+          }}
+          onMatchmakingMyStatsOnlyChange={(enabled): void => {
+            settingsPresenter.setMatchmakingMyStatsOnly(enabled);
+          }}
+          onFontSizesChange={(updates): void => {
+            settingsPresenter.setFontSizes(updates);
+          }}
+        />
+      </>
+    );
 
   return (
     <StreamOverlayShell
@@ -92,84 +180,90 @@ function StreamOverlayPageInternal({
       }
       configureContent={
         <div className={isDemo ? styles.demoLocked : undefined} aria-disabled={isDemo}>
-          <StatsHighlightsSection
-            statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
-            saveStatus={settingsSnapshot.saveStatus}
-            saveErrorMessage={settingsSnapshot.saveErrorMessage}
-            onStatsHighlightSlotsChange={(slots): void => {
-              settingsPresenter.setStatsHighlightSlots(slots);
-            }}
-          />
-          <StreamerSettingsSectionView
-            defaultColorMode={settingsSnapshot.defaultColorMode}
-            playerTeamColor={settingsSnapshot.playerTeamColor}
-            playerEnemyColor={settingsSnapshot.playerEnemyColor}
-            observerTeamColor={settingsSnapshot.observerTeamColor}
-            observerEnemyColor={settingsSnapshot.observerEnemyColor}
-            displaySettings={settingsSnapshot.displaySettings}
-            tickerSettings={settingsSnapshot.tickerSettings}
-            inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
-            matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
-            inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
-            matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
-            disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
-            inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
-            matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
-            matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
-            inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
-            matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
-            fontSizeSettings={settingsSnapshot.fontSizeSettings}
-            saveStatus={settingsSnapshot.saveStatus}
-            saveErrorMessage={settingsSnapshot.saveErrorMessage}
-            onDefaultColorModeChange={(mode): void => {
-              settingsPresenter.setDefaultColorMode(mode);
-            }}
-            onPlayerColorsChange={(teamColor, enemyColor): void => {
-              settingsPresenter.setPlayerColors(teamColor, enemyColor);
-            }}
-            onObserverColorsChange={(teamColor, enemyColor): void => {
-              settingsPresenter.setObserverColors(teamColor, enemyColor);
-            }}
-            onDisplaySettingsChange={(updates): void => {
-              settingsPresenter.setDisplaySettings(updates);
-            }}
-            onTickerSettingsChange={(updates): void => {
-              settingsPresenter.setTickerSettings(updates);
-            }}
-            onInSeriesShowSeriesTabChange={(enabled): void => {
-              settingsPresenter.setInSeriesShowSeriesTab(enabled);
-            }}
-            onMatchmakingShowSummaryTabChange={(enabled): void => {
-              settingsPresenter.setMatchmakingShowSummaryTab(enabled);
-            }}
-            onInSeriesShowTabsChange={(enabled): void => {
-              settingsPresenter.setInSeriesShowTabs(enabled);
-            }}
-            onMatchmakingShowTabsChange={(enabled): void => {
-              settingsPresenter.setMatchmakingShowTabs(enabled);
-            }}
-            onDisableTeamPlayerNamesChange={(enabled): void => {
-              settingsPresenter.setDisableTeamPlayerNames(enabled);
-            }}
-            onInSeriesShowTickerChange={(enabled): void => {
-              settingsPresenter.setInSeriesShowTicker(enabled);
-            }}
-            onMatchmakingShowTickerChange={(enabled): void => {
-              settingsPresenter.setMatchmakingShowTicker(enabled);
-            }}
-            onMatchmakingShowStatsHighlightsChange={(enabled): void => {
-              settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
-            }}
-            onInSeriesMyStatsOnlyChange={(enabled): void => {
-              settingsPresenter.setInSeriesMyStatsOnly(enabled);
-            }}
-            onMatchmakingMyStatsOnlyChange={(enabled): void => {
-              settingsPresenter.setMatchmakingMyStatsOnly(enabled);
-            }}
-            onFontSizesChange={(updates): void => {
-              settingsPresenter.setFontSizes(updates);
-            }}
-          />
+          {isDemo ? (
+            <>
+              <StatsHighlightsSection
+                statsHighlightSlots={settingsSnapshot.statsHighlightSlots}
+                saveStatus={settingsSnapshot.saveStatus}
+                saveErrorMessage={settingsSnapshot.saveErrorMessage}
+                onStatsHighlightSlotsChange={(slots): void => {
+                  settingsPresenter.setStatsHighlightSlots(slots);
+                }}
+              />
+              <StreamerSettingsSectionView
+                defaultColorMode={settingsSnapshot.defaultColorMode}
+                playerTeamColor={settingsSnapshot.playerTeamColor}
+                playerEnemyColor={settingsSnapshot.playerEnemyColor}
+                observerTeamColor={settingsSnapshot.observerTeamColor}
+                observerEnemyColor={settingsSnapshot.observerEnemyColor}
+                displaySettings={settingsSnapshot.displaySettings}
+                tickerSettings={settingsSnapshot.tickerSettings}
+                inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
+                matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
+                inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
+                matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
+                disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
+                inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
+                matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
+                matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
+                inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
+                matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
+                fontSizeSettings={settingsSnapshot.fontSizeSettings}
+                saveStatus={settingsSnapshot.saveStatus}
+                saveErrorMessage={settingsSnapshot.saveErrorMessage}
+                onDefaultColorModeChange={(mode): void => {
+                  settingsPresenter.setDefaultColorMode(mode);
+                }}
+                onPlayerColorsChange={(teamColor, enemyColor): void => {
+                  settingsPresenter.setPlayerColors(teamColor, enemyColor);
+                }}
+                onObserverColorsChange={(teamColor, enemyColor): void => {
+                  settingsPresenter.setObserverColors(teamColor, enemyColor);
+                }}
+                onDisplaySettingsChange={(updates): void => {
+                  settingsPresenter.setDisplaySettings(updates);
+                }}
+                onTickerSettingsChange={(updates): void => {
+                  settingsPresenter.setTickerSettings(updates);
+                }}
+                onInSeriesShowSeriesTabChange={(enabled): void => {
+                  settingsPresenter.setInSeriesShowSeriesTab(enabled);
+                }}
+                onMatchmakingShowSummaryTabChange={(enabled): void => {
+                  settingsPresenter.setMatchmakingShowSummaryTab(enabled);
+                }}
+                onInSeriesShowTabsChange={(enabled): void => {
+                  settingsPresenter.setInSeriesShowTabs(enabled);
+                }}
+                onMatchmakingShowTabsChange={(enabled): void => {
+                  settingsPresenter.setMatchmakingShowTabs(enabled);
+                }}
+                onDisableTeamPlayerNamesChange={(enabled): void => {
+                  settingsPresenter.setDisableTeamPlayerNames(enabled);
+                }}
+                onInSeriesShowTickerChange={(enabled): void => {
+                  settingsPresenter.setInSeriesShowTicker(enabled);
+                }}
+                onMatchmakingShowTickerChange={(enabled): void => {
+                  settingsPresenter.setMatchmakingShowTicker(enabled);
+                }}
+                onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+                  settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
+                }}
+                onInSeriesMyStatsOnlyChange={(enabled): void => {
+                  settingsPresenter.setInSeriesMyStatsOnly(enabled);
+                }}
+                onMatchmakingMyStatsOnlyChange={(enabled): void => {
+                  settingsPresenter.setMatchmakingMyStatsOnly(enabled);
+                }}
+                onFontSizesChange={(updates): void => {
+                  settingsPresenter.setFontSizes(updates);
+                }}
+              />
+            </>
+          ) : (
+            settingsContent
+          )}
         </div>
       }
     />

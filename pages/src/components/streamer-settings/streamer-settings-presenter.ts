@@ -33,7 +33,7 @@ function normalizeStatsHighlightSlots(
 function settingsToSnapshot(
   settings: StreamerViewSettings,
   snapshot: StreamerSettingsSnapshot,
-): Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag"> {
+): Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "loadStatus" | "loadErrorMessage" | "gamertag"> {
   const styleFlags = settings.styleFlags ?? {};
   const visibleSections = settings.visibleSections ?? {};
   const fontSizes = settings.layoutOptions?.fontSizes ?? {};
@@ -90,7 +90,10 @@ function settingsToSnapshot(
 
 function applyParsedSettingsToStore(
   store: StreamerSettingsStore,
-  parsed: Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
+  parsed: Omit<
+    StreamerSettingsSnapshot,
+    "saveStatus" | "saveErrorMessage" | "loadStatus" | "loadErrorMessage" | "gamertag"
+  >,
   gamertag: string | null,
 ): void {
   store.batchUpdate({ gamertag, ...parsed });
@@ -174,6 +177,31 @@ export class StreamerSettingsPresenter {
     const snapshot = this.config.store.getSnapshot();
     const parsed = settingsToSnapshot(settings, snapshot);
     applyParsedSettingsToStore(this.config.store, parsed, gamertag);
+  }
+
+  public loadSettingsFromService(gamertag: string): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setLoading();
+    void this.loadSettingsFromServiceAsync(gamertag);
+  }
+
+  private async loadSettingsFromServiceAsync(gamertag: string): Promise<void> {
+    try {
+      const settings = await this.config.settingsService.getSettings();
+      if (this.isDisposed) {
+        return;
+      }
+      this.loadSettings(settings, gamertag);
+      this.config.store.setLoaded();
+    } catch (error: unknown) {
+      if (this.isDisposed) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Failed to load settings";
+      this.config.store.setLoadError(message);
+    }
   }
 
   public setDefaultColorMode(mode: StreamerViewColorMode): void {

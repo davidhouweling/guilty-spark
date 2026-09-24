@@ -42,8 +42,8 @@ export function OverlayUrlsSection({
   gamertag,
   previewColorMode,
   autoStart,
-  onAutoStartChange,
   disabled = false,
+  onAutoStartChange,
 }: OverlayUrlsSectionProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
