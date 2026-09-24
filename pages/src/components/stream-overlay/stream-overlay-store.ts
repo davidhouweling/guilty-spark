@@ -7,10 +7,28 @@ export interface StreamOverlaySnapshot {
 }
 
 export class StreamOverlayStore {
-  public snapshot: StreamOverlaySnapshot = {
+  private snapshot: StreamOverlaySnapshot = {
     authState: "loading",
     gamertag: null,
     avatarUrl: null,
   };
-  public readonly subscribers = new Set<() => void>();
+  private readonly subscribers = new Set<() => void>();
+
+  public subscribe(listener: () => void): () => void {
+    this.subscribers.add(listener);
+    return (): void => {
+      this.subscribers.delete(listener);
+    };
+  }
+
+  public getSnapshot(): StreamOverlaySnapshot {
+    return this.snapshot;
+  }
+
+  public update(snapshot: StreamOverlaySnapshot): void {
+    this.snapshot = snapshot;
+    for (const subscriber of this.subscribers) {
+      subscriber();
+    }
+  }
 }

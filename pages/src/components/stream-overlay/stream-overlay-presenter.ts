@@ -27,14 +27,11 @@ export class StreamOverlayPresenter {
   }
 
   public subscribe(listener: () => void): () => void {
-    this.config.store.subscribers.add(listener);
-    return (): void => {
-      this.config.store.subscribers.delete(listener);
-    };
+    return this.config.store.subscribe(listener);
   }
 
   public getSnapshot(): StreamOverlaySnapshot {
-    return this.config.store.snapshot;
+    return this.config.store.getSnapshot();
   }
 
   private async load(seq: number): Promise<void> {
@@ -72,9 +69,6 @@ export class StreamOverlayPresenter {
   }
 
   private applySnapshot(updater: (s: StreamOverlaySnapshot) => StreamOverlaySnapshot): void {
-    this.config.store.snapshot = updater(this.config.store.snapshot);
-    for (const listener of this.config.store.subscribers) {
-      listener();
-    }
+    this.config.store.update(updater(this.config.store.getSnapshot()));
   }
 }
