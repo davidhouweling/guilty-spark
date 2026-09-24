@@ -138,10 +138,10 @@ export function StreamerSettingsSectionView({
       </p>
 
       <div className={styles.card}>
-        <Heading tagName="h3">Global Defaults</Heading>
+        <Heading tagName="h4">Global Defaults</Heading>
         <p className={styles.cardDescription}>These controls apply to both In Series and Matchmaking overlay states.</p>
         <div className={styles.subsection}>
-          <Heading tagName="h4">Default Color Mode</Heading>
+          <Heading tagName="h5">Default Color Mode</Heading>
           <p className={styles.cardDescription}>Configure the default color mode for the overlay.</p>
         </div>
         <div className={styles.modeToggle} role="group" aria-label="Default color mode">
@@ -176,7 +176,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4">Player Colors</Heading>
+          <Heading tagName="h5">Player Colors</Heading>
           <p className={styles.cardDescription}>Used whenever color mode is set to player.</p>
         </div>
         <div className={styles.pickerGrid}>
@@ -205,7 +205,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4">Observer Colors</Heading>
+          <Heading tagName="h5">Observer Colors</Heading>
           <p className={styles.cardDescription}>Global observer colors for fixed-team mode.</p>
         </div>
         <div className={styles.pickerGrid}>
@@ -234,7 +234,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4">Bottom section</Heading>
+          <Heading tagName="h5">Bottom section</Heading>
         </div>
         <TickerSettingsSection
           settings={tickerSettings}
@@ -246,7 +246,7 @@ export function StreamerSettingsSectionView({
         <hr className={styles.sectionDivider} />
 
         <div className={styles.subsection}>
-          <Heading tagName="h4">Text Sizes</Heading>
+          <Heading tagName="h5">Text Sizes</Heading>
           <p className={styles.cardDescription}>Adjust the size of text for different sections.</p>
         </div>
         <div className={styles.fontSizeContainer}>

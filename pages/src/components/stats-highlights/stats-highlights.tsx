@@ -27,7 +27,7 @@ export function StatsHighlightsSectionView({
 }: StatsHighlightsSectionViewProps): React.ReactElement {
   return (
     <div className={styles.panel}>
-      <Heading tagName="h2" styleAs="h3">
+      <Heading tagName="h3" styleAs="h3">
         Stats Highlights
       </Heading>
       <p className={styles.sectionDescription}>
@@ -68,7 +68,7 @@ export function StatsHighlightsSectionView({
 
       {isEnabled ? (
         <div className={styles.card}>
-          <Heading tagName="h3" styleAs="h5">
+          <Heading tagName="h4" styleAs="h5">
             Selected Highlights
           </Heading>
           <p className={styles.cardDescription}>
