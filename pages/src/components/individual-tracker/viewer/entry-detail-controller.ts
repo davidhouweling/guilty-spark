@@ -318,6 +318,7 @@ export class EntryDetailController {
       const uniqueMatchIds = [...new Set(requestedMatchIds)];
       const seriesDataChunks: SeriesMatchesResponse[] = [];
 
+      const seriesAnchorMatchId = series.matches[0]?.matchId;
       for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
         if (this.shouldAbort()) {
           return;
@@ -326,6 +327,7 @@ export class EntryDetailController {
         const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(
           batchMatchIds,
           this.config.trackerId,
+          seriesAnchorMatchId,
         );
         if (this.shouldAbort()) {
           return;

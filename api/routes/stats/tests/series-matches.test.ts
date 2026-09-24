@@ -102,6 +102,44 @@ describe("/api/stats/series-matches", () => {
     expect(body.matches.map((match) => match.matchId)).toEqual([firstMatch.MatchId, secondMatch.MatchId]);
   });
 
+  it("anchors score ordering to the series anchor when a later batch is requested", async () => {
+    const playerMatches = getPlayerMatches();
+    const [firstPlayerMatch, secondPlayerMatch] = playerMatches;
+    if (firstPlayerMatch == null || secondPlayerMatch == null) {
+      throw new Error("Expected at least two fake player matches");
+    }
+
+    const anchorMatch = getMatchStats(firstPlayerMatch.MatchId);
+    const batchMatch = getMatchStats(secondPlayerMatch.MatchId);
+    if (anchorMatch == null || batchMatch == null) {
+      throw new Error("Expected fake match stats");
+    }
+
+    const services = installFakeServicesWith({ env });
+    const getMatchDetailsSpy = vi
+      .spyOn(services.haloService, "getMatchDetails")
+      .mockResolvedValue([anchorMatch, batchMatch]);
+    vi.spyOn(services.haloService, "getMapThumbnailUrl").mockResolvedValue("data:,");
+    const getMatchScoreSpy = vi.spyOn(services.haloService, "getMatchScore");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      new Request(
+        `http://localhost/api/stats/series-matches?matchIds=${batchMatch.MatchId}&anchorMatchId=${anchorMatch.MatchId}`,
+      ),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(getMatchDetailsSpy).toHaveBeenCalledWith([anchorMatch.MatchId, batchMatch.MatchId]);
+    expect(getMatchScoreSpy).toHaveBeenCalledWith(
+      batchMatch,
+      "en-US",
+      expect.arrayContaining([anchorMatch, batchMatch]),
+    );
+  });
+
   it("returns a consistent 500 error payload when upstream fetches fail", async () => {
     const [playerMatch] = getPlayerMatches();
     if (playerMatch == null) {
