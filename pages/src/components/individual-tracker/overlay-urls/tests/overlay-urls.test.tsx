@@ -22,7 +22,7 @@ describe("OverlayUrlsSection", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the viewer and overlay URLs when gamertag is provided", () => {
+  it("renders the overlay and viewer URLs when gamertag is provided", () => {
     vi.stubGlobal("location", { origin: "https://example.com" });
     render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
@@ -65,7 +65,7 @@ describe("OverlayUrlsSection", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
-  it("calls the clipboard API when the view copy button is clicked", async () => {
+  it("calls the clipboard API when the viewer copy button is clicked", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
@@ -74,14 +74,14 @@ describe("OverlayUrlsSection", () => {
     render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
     const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-    await user.click(copyButtons[0]);
+    await user.click(copyButtons[1]);
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc"));
 
     vi.unstubAllGlobals();
   });
 
-  it("shows Copied! on the view button after a successful copy", async () => {
+  it("shows Copied! on the viewer copy button after a successful copy", async () => {
     const user = userEvent.setup({ delay: null });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.stubGlobal("navigator", {
@@ -92,7 +92,7 @@ describe("OverlayUrlsSection", () => {
     render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
     const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-    await user.click(copyButtons[0]);
+    await user.click(copyButtons[1]);
 
     expect(screen.getByRole("button", { name: "Copied!" })).toBeInTheDocument();
 

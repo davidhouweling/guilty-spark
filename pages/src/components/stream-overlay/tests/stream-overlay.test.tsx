@@ -18,7 +18,7 @@ describe("StreamOverlayShell", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Step 1: Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Step 2: Get your overlay URLs" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Step 2: Overlay and Viewer URLs" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Step 3: Configure your overlay" })).toBeInTheDocument();
     expect(screen.getByTestId("overlay-urls-content")).toBeInTheDocument();
     expect(screen.getByTestId("configure-content")).toBeInTheDocument();

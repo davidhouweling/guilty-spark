@@ -32,7 +32,7 @@ export function StreamOverlayShell({
 
       <section className={styles.step}>
         <Heading tagName="h2" className={styles.stepHeading}>
-          Step 2: Get your overlay URLs
+          Step 2: Overlay and Viewer URLs
         </Heading>
         {overlayUrlsContent}
       </section>

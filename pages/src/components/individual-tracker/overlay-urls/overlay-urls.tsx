@@ -82,12 +82,6 @@ export function OverlayUrlsSection({
 
   return (
     <div className={styles.panel}>
-      <Heading tagName="h2">Overlay URLs</Heading>
-      <p className={styles.sectionDescription}>
-        Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow whichever
-        tracker is currently marked live.
-      </p>
-
       {gamertag === null ? (
         <Alert variant="warning">
           No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
@@ -95,36 +89,21 @@ export function OverlayUrlsSection({
       ) : (
         <div className={styles.urlList}>
           <div className={styles.card}>
-            <Heading tagName="h3">Viewer URL</Heading>
-            <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
-            <p className={styles.urlText}>{urls?.viewUrl}</p>
-            <div className={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleOpenUrl(urls?.viewUrl ?? "");
-                }}
-              >
-                Open viewer
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleCopy("view", urls?.viewUrl ?? "");
-                }}
-              >
-                {copyTarget === "view" ? "Copied!" : "Copy"}
-              </Button>
-            </div>
-
-            <hr className={styles.sectionDivider} />
-
             <Heading tagName="h3">Overlay URL</Heading>
-            <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
+            <p className={styles.cardDescription}>
+              In your overlay software, such as OBS, add a Browser Source and use the URL below.
+            </p>
             <p className={styles.urlText}>{urls?.overlayUrl}</p>
             <div className={styles.buttonRow}>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={(): void => {
+                  handleCopy("overlay", urls?.overlayUrl ?? "");
+                }}
+              >
+                {copyTarget === "overlay" ? "Copied!" : "Copy"}
+              </Button>
               <Button
                 variant="secondary"
                 size="small"
@@ -143,14 +122,33 @@ export function OverlayUrlsSection({
               >
                 Open overlay with preview
               </Button>
+            </div>
+
+            <hr className={styles.sectionDivider} />
+
+            <Heading tagName="h3">Viewer URL</Heading>
+            <p className={styles.cardDescription}>
+              Share this with viewers to follow the active tracker showing stats of games and series you play.
+            </p>
+            <p className={styles.urlText}>{urls?.viewUrl}</p>
+            <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
                 onClick={(): void => {
-                  handleCopy("overlay", urls?.overlayUrl ?? "");
+                  handleCopy("view", urls?.viewUrl ?? "");
                 }}
               >
-                {copyTarget === "overlay" ? "Copied!" : "Copy"}
+                {copyTarget === "view" ? "Copied!" : "Copy"}
+              </Button>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={(): void => {
+                  handleOpenUrl(urls?.viewUrl ?? "");
+                }}
+              >
+                Open viewer
               </Button>
             </div>
 
@@ -163,7 +161,7 @@ export function OverlayUrlsSection({
                 onAutoStartChange(checked);
               }}
               label="Automatically start tracking when the overlay is used"
-              description="Start your individual tracker automatically when your overlay URL is loaded, instead of needing to start it manually beforehand. Your public viewer page never starts a tracker."
+              description="When this option is enabled, your individual tracker will start automatically whenever the overlay is used. Otherwise, you can start it manually via the Individual Tracker page from the Profile icon."
             />
           </div>
         </div>
