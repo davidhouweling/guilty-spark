@@ -66,7 +66,7 @@ export class SeriesOverviewEmbed {
     for (const seriesMatch of seriesMatches) {
       const gameTypeAndMap = await this.haloService.getGameTypeAndMap(seriesMatch.MatchInfo);
       const gameDuration = getReadableDuration(seriesMatch.MatchInfo.Duration, locale);
-      const { gameScore, gameSubScore } = this.haloService.getMatchScore(seriesMatch, locale);
+      const { gameScore, gameSubScore } = this.haloService.getMatchScore(seriesMatch, locale, seriesMatches);
 
       while (subs[0]) {
         const [substitution] = subs;

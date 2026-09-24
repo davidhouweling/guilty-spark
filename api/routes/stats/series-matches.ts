@@ -65,7 +65,7 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
               match.MatchInfo.MapVariant.VersionId,
             ),
           ]);
-          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US");
+          const { gameScore, gameSubScore } = resolvedHaloService.getMatchScore(match, "en-US", orderedMatches);
 
           return {
             matchId: match.MatchId,

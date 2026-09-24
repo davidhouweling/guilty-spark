@@ -213,12 +213,20 @@ export class HaloService {
     }
   }
 
-  getMatchScore(match: MatchStats, locale: string): { gameScore: string; gameSubScore: string | null } {
-    const scoreCompare = match.Teams.map((team) => team.Stats.CoreStats.Score);
+  // `seriesMatches` anchors column order to the series' first match roster (falls back to
+  // `[match]`, i.e. the match's own raw order, when no wider series context is available), so a
+  // team swapping sides mid-series is displayed under the same column as its other games.
+  getMatchScore(
+    match: MatchStats,
+    locale: string,
+    seriesMatches: MatchStats[] = [match],
+  ): { gameScore: string; gameSubScore: string | null } {
+    const teams = this.getCanonicalTeams(seriesMatches, match);
+    const scoreCompare = teams.map((team) => team.Stats.CoreStats.Score);
     const scoreString = scoreCompare.map((value) => value.toLocaleString(locale)).join(":");
 
     if (match.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
-      const roundsCompare = match.Teams.map((team) => team.Stats.CoreStats.RoundsWon).map((value) =>
+      const roundsCompare = teams.map((team) => team.Stats.CoreStats.RoundsWon).map((value) =>
         value.toLocaleString(locale),
       );
       const roundsString = roundsCompare.join(":");
@@ -235,7 +243,7 @@ export class HaloService {
       mapAssetId: match.MatchInfo.MapVariant.AssetId,
       mapVersionId: match.MatchInfo.MapVariant.VersionId,
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      teamOutcomes: this.getCanonicalTeamOutcomes(matches, match),
+      teamOutcomes: this.getCanonicalTeams(matches, match).map((team) => team.Outcome),
     }));
     const wins = computeSeriesTeamWins(entries);
     const score = wins.map((value) => value.toLocaleString(locale)).join(":") || (includeEmojis ? "🦅 0:0 🐍" : "0:0");
@@ -247,33 +255,33 @@ export class HaloService {
     return wins.length === 2 ? `🦅 ${score} 🐍` : score;
   }
 
-  // Reorders a match's team outcomes so array position tracks the series' first match's roster
+  // Reorders a match's teams so array position tracks the series' first match's roster
   // (seriesTeamId), not the match's own raw TeamId, so a team swapping sides mid-series doesn't
-  // get attributed to the wrong side.
-  private getCanonicalTeamOutcomes(matches: MatchStats[], match: MatchStats): number[] {
-    const rawOutcomes = match.Teams.map((team) => team.Outcome);
+  // get attributed to (or displayed under) the wrong side. Falls back to the match's own raw
+  // order when canonicalization isn't possible (e.g. a single non-2-team match).
+  private getCanonicalTeams(matches: MatchStats[], match: MatchStats): MatchStats["Teams"] {
     const [anchorMatch] = matches;
     if (anchorMatch == null || match.Teams.length !== 2) {
-      return rawOutcomes;
+      return match.Teams;
     }
 
     const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
     const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
     if (anchorRosters == null || matchTeamIdToSeriesTeamId == null) {
-      return rawOutcomes;
+      return match.Teams;
     }
 
-    const rawOutcomesByTeamId = new Map(match.Teams.map((team) => [team.TeamId, team.Outcome]));
+    const teamsByTeamId = new Map(match.Teams.map((team) => [team.TeamId, team]));
     const seriesTeamIdToMatchTeamId = new Map(
       Array.from(matchTeamIdToSeriesTeamId.entries(), ([matchTeamId, seriesTeamId]) => [seriesTeamId, matchTeamId]),
     );
 
-    return anchorRosters.map((roster) => {
+    const orderedTeams = anchorRosters.map((roster) => {
       const matchTeamId = seriesTeamIdToMatchTeamId.get(roster.matchTeamId);
-      return matchTeamId == null
-        ? MatchOutcome.DidNotFinish
-        : Preconditions.checkExists(rawOutcomesByTeamId.get(matchTeamId));
+      return matchTeamId == null ? undefined : teamsByTeamId.get(matchTeamId);
     });
+
+    return orderedTeams.every((team): team is MatchStats["Teams"][number] => team != null) ? orderedTeams : match.Teams;
   }
 
   async getPlayerXuidsToGametags(

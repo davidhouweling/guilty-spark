@@ -28,7 +28,7 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
       matches: [match],
     });
 
-    expect(getMatchScoreSpy).toHaveBeenCalledWith(match, Locale.German);
+    expect(getMatchScoreSpy).toHaveBeenCalledWith(match, Locale.German, [match]);
     expect(getSeriesScoreSpy).toHaveBeenCalledWith([match], Locale.German);
   });
 });

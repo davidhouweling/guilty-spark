@@ -164,7 +164,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
       ]);
       const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
-      const { gameScore, gameSubScore } = haloService.getMatchScore(match, resolvedLocale);
+      const { gameScore, gameSubScore } = haloService.getMatchScore(match, resolvedLocale, sortedMatches);
 
       const playerXuidToGametag: Record<string, string> = {};
       for (const player of match.Players) {
