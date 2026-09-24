@@ -161,7 +161,7 @@ describe("IndividualTrackerPresenter", () => {
       presenter.start();
       await flushPromises();
 
-      expect(presenter.getSnapshot().activeSection).toBe("live-trackers");
+      expect(presenter.getSnapshot().activeSection).toBe("stats-highlights");
       presenter.setActiveSection("streamer-settings");
       expect(presenter.getSnapshot().activeSection).toBe("streamer-settings");
     });

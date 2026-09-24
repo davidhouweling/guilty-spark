@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { useMemo } from "react";
 import { Button } from "../button/button";
+import { Collapsible } from "../collapsible/collapsible";
 import { Heading } from "../heading/heading";
 import { LoadingState } from "../loading-state/loading-state";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
@@ -32,11 +33,6 @@ export function IndividualTrackerShell({
   const sectionTabs = useMemo(
     (): readonly TabbedSectionTab<IndividualTrackerSectionId>[] => [
       {
-        id: "live-trackers",
-        label: "Live Trackers",
-        content: liveTrackersContent,
-      },
-      {
         id: "stats-highlights",
         label: "Stats Highlights",
         content: statsHighlightsContent,
@@ -47,7 +43,7 @@ export function IndividualTrackerShell({
         content: streamerSettingsContent,
       },
     ],
-    [liveTrackersContent, statsHighlightsContent, streamerSettingsContent],
+    [statsHighlightsContent, streamerSettingsContent],
   );
 
   return (
@@ -67,12 +63,17 @@ export function IndividualTrackerShell({
       )}
 
       {authState === "authenticated" && (
-        <TabbedSection
-          tabs={sectionTabs}
-          selectedTabId={activeSection}
-          onTabChange={onSectionChange}
-          tabListAriaLabel="Individual tracker sections"
-        />
+        <>
+          <TabbedSection
+            tabs={sectionTabs}
+            selectedTabId={activeSection}
+            onTabChange={onSectionChange}
+            tabListAriaLabel="Individual tracker sections"
+          />
+          <div className={styles.advancedSection}>
+            <Collapsible title="Advanced: Manage Trackers">{liveTrackersContent}</Collapsible>
+          </div>
+        </>
       )}
     </div>
   );

@@ -8,7 +8,7 @@ function aFakeProps(): React.ComponentProps<typeof IndividualTrackerShell> {
   return {
     authState: "loading" as const,
     errorMessage: null,
-    activeSection: "live-trackers" as const,
+    activeSection: "stats-highlights" as const,
     onSignIn: (): void => undefined,
     onSectionChange: (): void => undefined,
     liveTrackersContent: <div>Live Trackers</div>,
@@ -50,7 +50,7 @@ describe("IndividualTrackerShell", () => {
     expect(onSignIn).toHaveBeenCalledOnce();
   });
 
-  it("shows active section content and hides inactive section when authenticated", () => {
+  it("shows the active tab content, hides the inactive tab, and renders live trackers in the Advanced section when authenticated", () => {
     render(
       <IndividualTrackerShell
         {...aFakeProps()}
@@ -61,29 +61,29 @@ describe("IndividualTrackerShell", () => {
       />,
     );
 
-    expect(screen.getByText("Live Trackers content")).toBeVisible();
-    expect(screen.queryByText("Stats Highlights content")).not.toBeVisible();
+    expect(screen.getByText("Stats Highlights content")).toBeVisible();
     expect(screen.queryByText("Streamer Settings content")).not.toBeVisible();
+    expect(screen.queryByText("Live Trackers content")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Advanced: Manage Trackers" }));
+
+    expect(screen.getByText("Live Trackers content")).toBeVisible();
   });
 
   it("calls onSectionChange when a tab is clicked", () => {
-    const onSectionChange = vi.fn<(id: "live-trackers" | "stats-highlights" | "streamer-settings") => void>();
+    const onSectionChange = vi.fn<(id: "stats-highlights" | "streamer-settings") => void>();
 
     render(<IndividualTrackerShell {...aFakeProps()} authState="authenticated" onSectionChange={onSectionChange} />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Stats Highlights" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Streamer Settings" }));
 
-    expect(onSectionChange).toHaveBeenCalledWith("stats-highlights");
+    expect(onSectionChange).toHaveBeenCalledWith("streamer-settings");
   });
 
-  it("renders stats highlights between live trackers and streamer settings", () => {
+  it("renders the stats highlights and streamer settings tabs, without a live trackers tab", () => {
     render(<IndividualTrackerShell {...aFakeProps()} authState="authenticated" />);
 
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Live Trackers",
-      "Stats Highlights",
-      "Streamer Settings",
-    ]);
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Stats Highlights", "Streamer Settings"]);
   });
 
   it("shows the streamer settings panel when selected", () => {
