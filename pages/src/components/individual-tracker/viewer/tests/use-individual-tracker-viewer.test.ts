@@ -917,7 +917,7 @@ describe("useIndividualTrackerViewer", () => {
       expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds, "tracker-1");
+    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds, "tracker-1", matchIds[0]);
 
     const state = result.current.snapshot.entryStates.get("series:series-1");
     expect(state?.kind).toBe("series");
@@ -1124,9 +1124,9 @@ describe("useIndividualTrackerViewer", () => {
       expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(3);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30), "tracker-1");
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60), "tracker-1");
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61), "tracker-1");
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30), "tracker-1", matchIds[0]);
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60), "tracker-1", matchIds[0]);
+    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61), "tracker-1", matchIds[0]);
   });
 
   it("uses the latest chronological match for series team cards", async () => {
