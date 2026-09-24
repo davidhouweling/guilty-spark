@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../../alert/alert";
-import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Heading } from "../../heading/heading";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
@@ -11,46 +10,10 @@ import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settin
 import { FontSizeSlider } from "../../live-tracker/settings/font-size-slider";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
-import {
-  buildIndividualTrackerPublicOverlayPath,
-  buildIndividualTrackerPublicViewPath,
-} from "../../individual-tracker/routes";
 import type { SaveStatus } from "./streamer-settings-store";
 import styles from "./streamer-settings.module.css";
 
-type CopyTarget = "idle" | "view" | "overlay";
-
-interface StreamerUrls {
-  readonly viewUrl: string;
-  readonly overlayUrl: string;
-}
-
-function buildStreamerUrls(gamertag: string): StreamerUrls {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return {
-    viewUrl: `${origin}${buildIndividualTrackerPublicViewPath(gamertag)}`,
-    overlayUrl: `${origin}${buildIndividualTrackerPublicOverlayPath(gamertag)}`,
-  };
-}
-
-function buildOverlayPreviewUrl(overlayUrl: string, previewMode: StreamerViewColorMode): string {
-  const url = new URL(overlayUrl, typeof window === "undefined" ? "http://localhost" : window.location.origin);
-  url.searchParams.set("preview", "1");
-  url.searchParams.set("previewMode", previewMode);
-  return url.toString();
-}
-
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export interface StreamerSettingsSectionViewProps {
-  readonly gamertag: string | null;
   readonly defaultColorMode: StreamerViewColorMode;
   readonly playerTeamColor: string;
   readonly playerEnemyColor: string;
@@ -68,7 +31,6 @@ export interface StreamerSettingsSectionViewProps {
   readonly matchmakingShowStatsHighlights: boolean;
   readonly inSeriesMyStatsOnly: boolean;
   readonly matchmakingMyStatsOnly: boolean;
-  readonly autoStart: boolean;
   readonly fontSizeSettings: FontSizeSettings;
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
@@ -87,12 +49,10 @@ export interface StreamerSettingsSectionViewProps {
   readonly onMatchmakingShowStatsHighlightsChange: (enabled: boolean) => void;
   readonly onInSeriesMyStatsOnlyChange: (enabled: boolean) => void;
   readonly onMatchmakingMyStatsOnlyChange: (enabled: boolean) => void;
-  readonly onAutoStartChange: (enabled: boolean) => void;
   readonly onFontSizesChange: (updates: Partial<FontSizeSettings>) => void;
 }
 
 export function StreamerSettingsSectionView({
-  gamertag,
   defaultColorMode,
   playerTeamColor,
   playerEnemyColor,
@@ -110,7 +70,6 @@ export function StreamerSettingsSectionView({
   matchmakingShowStatsHighlights,
   inSeriesMyStatsOnly,
   matchmakingMyStatsOnly,
-  autoStart,
   fontSizeSettings,
   saveStatus,
   saveErrorMessage,
@@ -129,23 +88,11 @@ export function StreamerSettingsSectionView({
   onMatchmakingShowStatsHighlightsChange,
   onInSeriesMyStatsOnlyChange,
   onMatchmakingMyStatsOnlyChange,
-  onAutoStartChange,
   onFontSizesChange,
 }: StreamerSettingsSectionViewProps): React.ReactElement {
-  const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
   const [showSaveToast, setShowSaveToast] = useState(false);
   const prevSaveStatusRef = useRef<SaveStatus>("idle");
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return (): void => {
-      if (copyTimerRef.current !== null) {
-        clearTimeout(copyTimerRef.current);
-      }
-    };
-  }, []);
-
-  const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
   const selectedPlayerTeamColor = getTeamColorOrDefault(playerTeamColor, 0);
   const selectedPlayerEnemyColor = getTeamColorOrDefault(playerEnemyColor, 1);
   const selectedObserverTeamColor = getTeamColorOrDefault(observerTeamColor, 0);
@@ -183,115 +130,12 @@ export function StreamerSettingsSectionView({
     };
   }, [showSaveToast, saveStatus]);
 
-  const handleCopy = (target: "view" | "overlay", url: string): void => {
-    void copyToClipboard(url).then((ok) => {
-      if (!ok) {
-        return;
-      }
-      setCopyTarget(target);
-      if (copyTimerRef.current !== null) {
-        clearTimeout(copyTimerRef.current);
-      }
-      copyTimerRef.current = setTimeout(() => {
-        copyTimerRef.current = null;
-        setCopyTarget("idle");
-      }, 1500);
-    });
-  };
-
-  const handleOpenUrl = (url: string): void => {
-    if (typeof window !== "undefined") {
-      window.open(url, "_blank");
-    }
-  };
-
   return (
     <div className={styles.panel}>
       <Heading tagName="h2">Streamer Settings</Heading>
       <p className={styles.sectionDescription}>
-        Configure the stable public URLs for your active tracker viewer and OBS overlay. These routes follow whichever
-        tracker is currently marked live.
+        Customize overlay colors, ticker behavior, tab visibility, and text sizes.
       </p>
-
-      {gamertag === null ? (
-        <Alert variant="warning">
-          No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
-        </Alert>
-      ) : (
-        <div className={styles.urlList}>
-          <div className={styles.card}>
-            <Heading tagName="h3">Viewer URL</Heading>
-            <p className={styles.cardDescription}>Share this with viewers to follow the active tracker.</p>
-            <p className={styles.urlText}>{urls?.viewUrl}</p>
-            <div className={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleOpenUrl(urls?.viewUrl ?? "");
-                }}
-              >
-                Open viewer
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleCopy("view", urls?.viewUrl ?? "");
-                }}
-              >
-                {copyTarget === "view" ? "Copied!" : "Copy"}
-              </Button>
-            </div>
-
-            <hr className={styles.sectionDivider} />
-
-            <Heading tagName="h3">Overlay URL</Heading>
-            <p className={styles.cardDescription}>Use this in OBS as a Browser Source.</p>
-            <p className={styles.urlText}>{urls?.overlayUrl}</p>
-            <div className={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleOpenUrl(urls?.overlayUrl ?? "");
-                }}
-              >
-                Open overlay
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleOpenUrl(buildOverlayPreviewUrl(urls?.overlayUrl ?? "", defaultColorMode));
-                }}
-              >
-                Open overlay with preview
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={(): void => {
-                  handleCopy("overlay", urls?.overlayUrl ?? "");
-                }}
-              >
-                {copyTarget === "overlay" ? "Copied!" : "Copy"}
-              </Button>
-            </div>
-
-            <hr className={styles.sectionDivider} />
-
-            <Checkbox
-              checked={autoStart}
-              onChange={(checked): void => {
-                onAutoStartChange(checked);
-              }}
-              label="Automatically start tracking when the overlay is used"
-              description="Start your individual tracker automatically when your overlay URL is loaded, instead of needing to start it manually beforehand. Your public viewer page never starts a tracker."
-            />
-          </div>
-        </div>
-      )}
 
       <div className={styles.card}>
         <Heading tagName="h3">Global Defaults</Heading>

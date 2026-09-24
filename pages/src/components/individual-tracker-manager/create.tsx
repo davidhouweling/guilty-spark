@@ -3,6 +3,7 @@ import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import { OverlayUrlsSection } from "../individual-tracker/overlay-urls/overlay-urls";
 import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
 import { IndividualTrackerShell } from "./individual-tracker";
@@ -91,81 +92,86 @@ function IndividualTrackerManagerPageInternal({
         />
       }
       streamerSettingsContent={
-        <StreamerSettingsSectionView
-          gamertag={settingsSnapshot.gamertag}
-          defaultColorMode={settingsSnapshot.defaultColorMode}
-          playerTeamColor={settingsSnapshot.playerTeamColor}
-          playerEnemyColor={settingsSnapshot.playerEnemyColor}
-          observerTeamColor={settingsSnapshot.observerTeamColor}
-          observerEnemyColor={settingsSnapshot.observerEnemyColor}
-          displaySettings={settingsSnapshot.displaySettings}
-          tickerSettings={settingsSnapshot.tickerSettings}
-          inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
-          matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
-          inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
-          matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
-          disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
-          inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
-          matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
-          matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
-          inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
-          matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
-          autoStart={settingsSnapshot.autoStart}
-          fontSizeSettings={settingsSnapshot.fontSizeSettings}
-          saveStatus={settingsSnapshot.saveStatus}
-          saveErrorMessage={settingsSnapshot.saveErrorMessage}
-          onDefaultColorModeChange={(mode): void => {
-            settingsPresenter.setDefaultColorMode(mode);
-          }}
-          onPlayerColorsChange={(teamColor, enemyColor): void => {
-            settingsPresenter.setPlayerColors(teamColor, enemyColor);
-          }}
-          onObserverColorsChange={(teamColor, enemyColor): void => {
-            settingsPresenter.setObserverColors(teamColor, enemyColor);
-          }}
-          onDisplaySettingsChange={(updates): void => {
-            settingsPresenter.setDisplaySettings(updates);
-          }}
-          onTickerSettingsChange={(updates): void => {
-            settingsPresenter.setTickerSettings(updates);
-          }}
-          onInSeriesShowSeriesTabChange={(enabled): void => {
-            settingsPresenter.setInSeriesShowSeriesTab(enabled);
-          }}
-          onMatchmakingShowSummaryTabChange={(enabled): void => {
-            settingsPresenter.setMatchmakingShowSummaryTab(enabled);
-          }}
-          onInSeriesShowTabsChange={(enabled): void => {
-            settingsPresenter.setInSeriesShowTabs(enabled);
-          }}
-          onMatchmakingShowTabsChange={(enabled): void => {
-            settingsPresenter.setMatchmakingShowTabs(enabled);
-          }}
-          onDisableTeamPlayerNamesChange={(enabled): void => {
-            settingsPresenter.setDisableTeamPlayerNames(enabled);
-          }}
-          onInSeriesShowTickerChange={(enabled): void => {
-            settingsPresenter.setInSeriesShowTicker(enabled);
-          }}
-          onMatchmakingShowTickerChange={(enabled): void => {
-            settingsPresenter.setMatchmakingShowTicker(enabled);
-          }}
-          onMatchmakingShowStatsHighlightsChange={(enabled): void => {
-            settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
-          }}
-          onInSeriesMyStatsOnlyChange={(enabled): void => {
-            settingsPresenter.setInSeriesMyStatsOnly(enabled);
-          }}
-          onMatchmakingMyStatsOnlyChange={(enabled): void => {
-            settingsPresenter.setMatchmakingMyStatsOnly(enabled);
-          }}
-          onAutoStartChange={(enabled): void => {
-            settingsPresenter.setAutoStart(enabled);
-          }}
-          onFontSizesChange={(updates): void => {
-            settingsPresenter.setFontSizes(updates);
-          }}
-        />
+        <>
+          <OverlayUrlsSection
+            gamertag={settingsSnapshot.gamertag}
+            previewColorMode={settingsSnapshot.defaultColorMode}
+            autoStart={settingsSnapshot.autoStart}
+            onAutoStartChange={(enabled): void => {
+              settingsPresenter.setAutoStart(enabled);
+            }}
+          />
+          <StreamerSettingsSectionView
+            defaultColorMode={settingsSnapshot.defaultColorMode}
+            playerTeamColor={settingsSnapshot.playerTeamColor}
+            playerEnemyColor={settingsSnapshot.playerEnemyColor}
+            observerTeamColor={settingsSnapshot.observerTeamColor}
+            observerEnemyColor={settingsSnapshot.observerEnemyColor}
+            displaySettings={settingsSnapshot.displaySettings}
+            tickerSettings={settingsSnapshot.tickerSettings}
+            inSeriesShowSeriesTab={settingsSnapshot.inSeriesShowSeriesTab}
+            matchmakingShowSummaryTab={settingsSnapshot.matchmakingShowSummaryTab}
+            inSeriesShowTabs={settingsSnapshot.inSeriesShowTabs}
+            matchmakingShowTabs={settingsSnapshot.matchmakingShowTabs}
+            disableTeamPlayerNames={settingsSnapshot.disableTeamPlayerNames}
+            inSeriesShowTicker={settingsSnapshot.inSeriesShowTicker}
+            matchmakingShowTicker={settingsSnapshot.matchmakingShowTicker}
+            matchmakingShowStatsHighlights={settingsSnapshot.matchmakingShowStatsHighlights}
+            inSeriesMyStatsOnly={settingsSnapshot.inSeriesMyStatsOnly}
+            matchmakingMyStatsOnly={settingsSnapshot.matchmakingMyStatsOnly}
+            fontSizeSettings={settingsSnapshot.fontSizeSettings}
+            saveStatus={settingsSnapshot.saveStatus}
+            saveErrorMessage={settingsSnapshot.saveErrorMessage}
+            onDefaultColorModeChange={(mode): void => {
+              settingsPresenter.setDefaultColorMode(mode);
+            }}
+            onPlayerColorsChange={(teamColor, enemyColor): void => {
+              settingsPresenter.setPlayerColors(teamColor, enemyColor);
+            }}
+            onObserverColorsChange={(teamColor, enemyColor): void => {
+              settingsPresenter.setObserverColors(teamColor, enemyColor);
+            }}
+            onDisplaySettingsChange={(updates): void => {
+              settingsPresenter.setDisplaySettings(updates);
+            }}
+            onTickerSettingsChange={(updates): void => {
+              settingsPresenter.setTickerSettings(updates);
+            }}
+            onInSeriesShowSeriesTabChange={(enabled): void => {
+              settingsPresenter.setInSeriesShowSeriesTab(enabled);
+            }}
+            onMatchmakingShowSummaryTabChange={(enabled): void => {
+              settingsPresenter.setMatchmakingShowSummaryTab(enabled);
+            }}
+            onInSeriesShowTabsChange={(enabled): void => {
+              settingsPresenter.setInSeriesShowTabs(enabled);
+            }}
+            onMatchmakingShowTabsChange={(enabled): void => {
+              settingsPresenter.setMatchmakingShowTabs(enabled);
+            }}
+            onDisableTeamPlayerNamesChange={(enabled): void => {
+              settingsPresenter.setDisableTeamPlayerNames(enabled);
+            }}
+            onInSeriesShowTickerChange={(enabled): void => {
+              settingsPresenter.setInSeriesShowTicker(enabled);
+            }}
+            onMatchmakingShowTickerChange={(enabled): void => {
+              settingsPresenter.setMatchmakingShowTicker(enabled);
+            }}
+            onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+              settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
+            }}
+            onInSeriesMyStatsOnlyChange={(enabled): void => {
+              settingsPresenter.setInSeriesMyStatsOnly(enabled);
+            }}
+            onMatchmakingMyStatsOnlyChange={(enabled): void => {
+              settingsPresenter.setMatchmakingMyStatsOnly(enabled);
+            }}
+            onFontSizesChange={(updates): void => {
+              settingsPresenter.setFontSizes(updates);
+            }}
+          />
+        </>
       }
     />
   );
