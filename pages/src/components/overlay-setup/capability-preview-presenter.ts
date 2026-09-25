@@ -1,9 +1,15 @@
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
-import { createCapabilityPreviewData, createFixtureCapabilityPreviewData } from "./capability-preview-data";
+import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import {
+  createCapabilityPreviewData,
+  createCapabilityPreviewDataFromLiveView,
+  createFixtureCapabilityPreviewData,
+} from "./capability-preview-data";
 import type { CapabilityPreviewStore } from "./capability-preview-store";
 
 interface Config {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly store: CapabilityPreviewStore;
 }
 
@@ -39,6 +45,19 @@ export class CapabilityPreviewPresenter {
     fallback: ReturnType<typeof createFixtureCapabilityPreviewData>,
   ): Promise<void> {
     try {
+      const activeView = await this.getActiveViewAsync();
+      if (requestId !== this.requestId) {
+        return;
+      }
+      if (activeView !== null) {
+        this.config.store.update({
+          status: "loaded",
+          data: createCapabilityPreviewDataFromLiveView(gamertag, activeView),
+          errorMessage: null,
+        });
+        return;
+      }
+
       const [matchmaking, custom] = await Promise.all([
         this.config.individualTrackerService.getMatchHistory(xuid, 0, 10, "all"),
         this.config.individualTrackerService.getMatchHistory(xuid, 0, 10, "custom"),
@@ -60,6 +79,23 @@ export class CapabilityPreviewPresenter {
         data: fallback,
         errorMessage: "History preview unavailable. Showing an example preview.",
       });
+    }
+  }
+
+  private async getActiveViewAsync(): Promise<Awaited<ReturnType<IndividualTrackerViewService["getView"]>>["view"] | null> {
+    try {
+      const trackerList = await this.config.individualTrackerService.getTrackers();
+      const activeTracker = trackerList.trackers.find((tracker) => {
+        const status = trackerList.statuses[tracker.trackerId]?.status;
+        return status === "active" || status === "paused";
+      });
+      if (activeTracker === undefined) {
+        return null;
+      }
+      const response = await this.config.individualTrackerViewService.getView(activeTracker.trackerId);
+      return response.view;
+    } catch {
+      return null;
     }
   }
 }

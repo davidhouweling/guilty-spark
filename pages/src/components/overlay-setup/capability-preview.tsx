@@ -64,84 +64,6 @@ function OverlayHeader({ title, subtitle }: { readonly title: string; readonly s
   );
 }
 
-function MatchmakingPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
-  return (
-    <div className={styles.canvas}>
-      <div className={styles.gameBackdrop} aria-hidden="true" />
-      <div className={styles.overlayContent}>
-        <OverlayHeader
-          title="MATCHMAKING"
-          subtitle={`Ranked Arena // ${data.matchmaking.map} · ${data.matchmaking.score}`}
-        />
-        <div className={styles.matchScoreline}>
-          <div className={styles.teamBlock}>
-            <span className={styles.teamMark}>EAGLE</span>
-            <strong>50</strong>
-          </div>
-          <span className={styles.scoreDivider}>:</span>
-          <div className={classNames(styles.teamBlock, styles.teamBlockEnemy)}>
-            <span className={styles.teamMark}>COBRA</span>
-            <strong>41</strong>
-          </div>
-        </div>
-        <div className={styles.overlayActions}>
-          <button type="button" onClick={(): void => onPanelChange(openPanel === "score" ? null : "score")}>
-            Scoreboard
-          </button>
-          <button type="button" onClick={(): void => onPanelChange(openPanel === "stats" ? null : "stats")}>
-            Player stats
-          </button>
-        </div>
-        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
-        {openPanel === "stats" ? <StatsPanel /> : null}
-        <div className={styles.bottomTicker}>
-          <span>soundmanD</span>
-          <span>1,248 score</span>
-          <span>1.72 KDA</span>
-          <span>03:42</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SeriesPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
-  return (
-    <div className={styles.canvas}>
-      <div className={classNames(styles.gameBackdrop, styles.seriesBackdrop)} aria-hidden="true" />
-      <div className={styles.overlayContent}>
-        <OverlayHeader title={`SERIES ${data.series.score}`} subtitle="NeatQueue // Best of 5" />
-        <div className={styles.seriesTrack}>
-          {data.series.matches.map((match) => (
-            <button key={match.label} type="button" className={styles.seriesMatch} onClick={(): void => onPanelChange("stats")}>
-              <span>{match.label}</span>
-              <strong>{match.result}</strong>
-              <small>{match.map}</small>
-              <em>{match.score}</em>
-            </button>
-          ))}
-        </div>
-        <div className={styles.overlayActions}>
-          <button type="button" onClick={(): void => onPanelChange(openPanel === "score" ? null : "score")}>
-            Series score
-          </button>
-          <button type="button" onClick={(): void => onPanelChange(openPanel === "stats" ? null : "stats")}>
-            Series stats
-          </button>
-        </div>
-        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
-        {openPanel === "stats" ? <StatsPanel /> : null}
-        <div className={styles.bottomTicker}>
-          <span>soundmanD</span>
-          <span>Series lead</span>
-          <span>2 wins</span>
-          <span>Next: Recharge</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function TickerPanel({ rows }: { readonly rows: readonly { readonly name: string; readonly score: string; readonly kda: string }[] }): ReactElement {
   return (
     <div className={styles.floatingPanel}>
@@ -166,6 +88,84 @@ function StatsPanel(): ReactElement {
         <span>Win rate<strong>68%</strong></span>
         <span>Accuracy<strong>54.2%</strong></span>
         <span>Avg. KDA<strong>1.72</strong></span>
+      </div>
+    </div>
+  );
+}
+
+function MatchmakingPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
+  return (
+    <div className={styles.canvas}>
+      <div className={styles.gameBackdrop} aria-hidden="true" />
+      <div className={styles.overlayContent}>
+        <OverlayHeader
+          title="MATCHMAKING"
+          subtitle={`Ranked Arena // ${data.matchmaking.map} · ${data.matchmaking.score}`}
+        />
+        <div className={styles.matchScoreline}>
+          <div className={styles.teamBlock}>
+            <span className={styles.teamMark}>EAGLE</span>
+            <strong>50</strong>
+          </div>
+          <span className={styles.scoreDivider}>:</span>
+          <div className={classNames(styles.teamBlock, styles.teamBlockEnemy)}>
+            <span className={styles.teamMark}>COBRA</span>
+            <strong>41</strong>
+          </div>
+        </div>
+        <div className={styles.overlayActions}>
+          <button type="button" onClick={(): void => { onPanelChange(openPanel === "score" ? null : "score"); }}>
+            Scoreboard
+          </button>
+          <button type="button" onClick={(): void => { onPanelChange(openPanel === "stats" ? null : "stats"); }}>
+            Player stats
+          </button>
+        </div>
+        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
+        {openPanel === "stats" ? <StatsPanel /> : null}
+        <div className={styles.bottomTicker}>
+          <span>soundmanD</span>
+          <span>1,248 score</span>
+          <span>1.72 KDA</span>
+          <span>03:42</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeriesPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
+  return (
+    <div className={styles.canvas}>
+      <div className={classNames(styles.gameBackdrop, styles.seriesBackdrop)} aria-hidden="true" />
+      <div className={styles.overlayContent}>
+        <OverlayHeader title={`SERIES ${data.series.score}`} subtitle="NeatQueue // Best of 5" />
+        <div className={styles.seriesTrack}>
+          {data.series.matches.map((match) => (
+            <button key={match.label} type="button" className={styles.seriesMatch} onClick={(): void => { onPanelChange("stats"); }}>
+              <span>{match.label}</span>
+              <strong>{match.result}</strong>
+              <small>{match.map}</small>
+              <em>{match.score}</em>
+            </button>
+          ))}
+        </div>
+        <div className={styles.overlayActions}>
+          <button type="button" onClick={(): void => { onPanelChange(openPanel === "score" ? null : "score"); }}>
+            Series score
+          </button>
+          <button type="button" onClick={(): void => { onPanelChange(openPanel === "stats" ? null : "stats"); }}>
+            Series stats
+          </button>
+        </div>
+        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
+        {openPanel === "stats" ? <StatsPanel /> : null}
+        <div className={styles.bottomTicker}>
+          <span>soundmanD</span>
+          <span>Series lead</span>
+          <span>2 wins</span>
+          <span>Next: Recharge</span>
+        </div>
       </div>
     </div>
   );

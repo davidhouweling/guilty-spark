@@ -22,6 +22,7 @@ export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement
             authService: services.authService,
             settingsService: services.settingsService,
             individualTrackerService: services.individualTrackerService,
+            individualTrackerViewService: services.individualTrackerViewService,
             apiHost,
           }),
     [services, apiHost],

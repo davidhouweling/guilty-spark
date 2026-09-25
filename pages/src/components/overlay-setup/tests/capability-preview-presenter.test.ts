@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { aFakeIndividualTrackerServiceWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { createFixtureCapabilityPreviewData } from "../capability-preview-data";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
@@ -31,13 +32,18 @@ function aMatch(overrides: Partial<TrackerMatchHistoryEntry> = {}): TrackerMatch
 describe("CapabilityPreviewPresenter", () => {
   it("maps authenticated matchmaking and custom history into preview data", async () => {
     const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getTrackers").mockResolvedValue({ trackers: [], statuses: {} });
     const matchmaking = aMatch({ mapName: "Streets", resultString: "50 - 42" });
     const custom = aMatch({ category: "custom", isMatchmaking: false, mapName: "Recharge", resultString: "50 - 45" });
     vi.spyOn(service, "getMatchHistory")
       .mockResolvedValueOnce({ matches: [matchmaking], suggestedGroupings: [] })
       .mockResolvedValueOnce({ matches: [custom], suggestedGroupings: [] });
     const store = new CapabilityPreviewStore(createFixtureCapabilityPreviewData("ChiefSpartan"));
-    const presenter = new CapabilityPreviewPresenter({ individualTrackerService: service, store });
+    const presenter = new CapabilityPreviewPresenter({
+      individualTrackerService: service,
+      individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+      store,
+    });
 
     presenter.load("ChiefSpartan", "xuid-1", false);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -52,7 +58,11 @@ describe("CapabilityPreviewPresenter", () => {
     const service = aFakeIndividualTrackerServiceWith();
     const getMatchHistory = vi.spyOn(service, "getMatchHistory");
     const store = new CapabilityPreviewStore(createFixtureCapabilityPreviewData("soundmanD"));
-    const presenter = new CapabilityPreviewPresenter({ individualTrackerService: service, store });
+    const presenter = new CapabilityPreviewPresenter({
+      individualTrackerService: service,
+      individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
+      store,
+    });
 
     presenter.load("soundmanD", null, true);
 
