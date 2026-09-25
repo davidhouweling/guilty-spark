@@ -6,8 +6,8 @@ export interface OverlayUrlsSectionProps {
   readonly previewColorMode: StreamerViewColorMode;
   readonly autoStart: boolean;
   readonly disabled?: boolean | undefined;
+  readonly settingsDisabled?: boolean | undefined;
   readonly errorMessage?: string | null | undefined;
-  readonly isDemo?: boolean | undefined;
   readonly loading?: boolean | undefined;
   readonly onAutoStartChange: (enabled: boolean) => void;
 }
@@ -15,7 +15,6 @@ export interface OverlayUrlsSectionProps {
 export interface OverlayUrlsViewModel {
   readonly viewUrl: string;
   readonly overlayUrl: string;
-  readonly overlayOpenUrl: string;
   readonly previewOverlayUrl: string;
   readonly copyOverlayLabel: string;
   readonly copyViewerLabel: string;

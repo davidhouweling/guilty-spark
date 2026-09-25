@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
@@ -9,6 +9,9 @@ import { createOverlaySetupPage } from "../create";
 import { OverlaySetupShell } from "../overlay-setup";
 
 describe("OverlaySetupShell", () => {
+  afterEach(() => {
+    cleanup();
+  });
   it("renders all three steps with their content", () => {
     render(
       <OverlaySetupShell
@@ -61,5 +64,30 @@ describe("OverlaySetupShell", () => {
     expect(screen.getByRole("button", { name: "Open viewer" })).toBeEnabled();
 
     resolveSettings({});
+  });
+
+  it("disables every overlay URL action and shows the clean overlay URL when logged out", async () => {
+    const authService: AuthService = {
+      getSession: async () => Promise.resolve({ authenticated: false }),
+      logout: async () => Promise.resolve(),
+    };
+    const settingsService: IndividualTrackerSettingsService = {
+      getSettings: async () => Promise.resolve({}),
+      updateSettings: async (settings) => Promise.resolve(settings),
+    };
+    const OverlaySetupPage = createOverlaySetupPage({
+      authService,
+      settingsService,
+      apiHost: "https://api.example.com",
+    });
+
+    render(<OverlaySetupPage />);
+
+    expect(await screen.findByRole("button", { name: "Open overlay" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Open viewer" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copy overlay URL" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copy viewer URL" })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /automatically start tracking/i })).toBeDisabled();
+    expect(screen.getByText(/\/overlay$/)).toBeInTheDocument();
   });
 });

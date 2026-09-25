@@ -18,7 +18,7 @@ export class OverlayUrlsPresenter {
   }
 
   public present(
-    props: Pick<OverlayUrlsSectionProps, "gamertag" | "previewColorMode" | "isDemo">,
+    props: Pick<OverlayUrlsSectionProps, "gamertag" | "previewColorMode">,
     snapshot: OverlayUrlsSnapshot,
   ): OverlayUrlsViewModel {
     const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -26,12 +26,10 @@ export class OverlayUrlsPresenter {
     const overlayUrl =
       props.gamertag === null ? "" : `${origin}${buildIndividualTrackerPublicOverlayPath(props.gamertag)}`;
     const previewOverlayUrl = this.buildPreviewUrl(overlayUrl, props.previewColorMode);
-    const overlayOpenUrl = props.isDemo === true ? previewOverlayUrl : overlayUrl;
 
     return {
       viewUrl,
-      overlayUrl: props.isDemo === true ? overlayOpenUrl : overlayUrl,
-      overlayOpenUrl,
+      overlayUrl,
       previewOverlayUrl,
       copyOverlayLabel: snapshot.copyTarget === "overlay" ? "Copied overlay URL" : "Copy overlay URL",
       copyViewerLabel: snapshot.copyTarget === "view" ? "Copied viewer URL" : "Copy viewer URL",

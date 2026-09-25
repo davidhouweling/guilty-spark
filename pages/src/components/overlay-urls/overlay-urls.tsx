@@ -6,8 +6,7 @@ import { Heading } from "../heading/heading";
 import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
 
-export interface OverlayUrlsViewProps
-  extends Omit<OverlayUrlsSectionProps, "isDemo" | "previewColorMode">, OverlayUrlsViewModel {
+export interface OverlayUrlsViewProps extends Omit<OverlayUrlsSectionProps, "previewColorMode">, OverlayUrlsViewModel {
   readonly onCopy: (target: "view" | "overlay", url: string) => void;
   readonly onOpen: (url: string) => void;
 }
@@ -16,12 +15,12 @@ export function OverlayUrlsSection({
   gamertag,
   autoStart,
   disabled = false,
+  settingsDisabled = false,
   errorMessage = null,
   loading = false,
   onAutoStartChange,
   viewUrl,
   overlayUrl,
-  overlayOpenUrl,
   previewOverlayUrl,
   copyOverlayLabel,
   copyViewerLabel,
@@ -46,14 +45,15 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               In your overlay software, such as OBS, add a Browser Source and use the URL below.
             </p>
-            <p className={styles.urlText}>{overlayUrl}</p>
+            <p className={styles.urlText}>{disabled ? `Example: ${overlayUrl}` : overlayUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
                 ariaLabel={copyOverlayLabel}
+                disabled={disabled}
                 onClick={(): void => {
-                  onCopy("overlay", overlayOpenUrl);
+                  onCopy("overlay", overlayUrl);
                 }}
               >
                 {copyTarget === "overlay" ? "Copied!" : "Copy"}
@@ -61,8 +61,9 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
-                  onOpen(overlayOpenUrl);
+                  onOpen(overlayUrl);
                 }}
               >
                 Open overlay
@@ -70,7 +71,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
-                disabled={disabled}
+                disabled={disabled || settingsDisabled}
                 onClick={(): void => {
                   onOpen(previewOverlayUrl);
                 }}
@@ -85,12 +86,13 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               Share this with viewers to follow the active tracker showing stats of games and series you play.
             </p>
-            <p className={styles.urlText}>{viewUrl}</p>
+            <p className={styles.urlText}>{disabled ? `Example: ${viewUrl}` : viewUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
                 ariaLabel={copyViewerLabel}
+                disabled={disabled}
                 onClick={(): void => {
                   onCopy("view", viewUrl);
                 }}
@@ -100,6 +102,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   onOpen(viewUrl);
                 }}
@@ -112,7 +115,7 @@ export function OverlayUrlsSection({
 
             <Checkbox
               checked={autoStart}
-              disabled={disabled}
+              disabled={disabled || settingsDisabled}
               onChange={(checked): void => {
                 onAutoStartChange(checked);
               }}
