@@ -82,7 +82,9 @@ export class CapabilityPreviewPresenter {
     }
   }
 
-  private async getActiveViewAsync(): Promise<Awaited<ReturnType<IndividualTrackerViewService["getView"]>>["view"] | null> {
+  private async getActiveViewAsync(): Promise<
+    Awaited<ReturnType<IndividualTrackerViewService["getView"]>>["view"] | null
+  > {
     try {
       const trackerList = await this.config.individualTrackerService.getTrackers();
       const activeTracker = trackerList.trackers.find((tracker) => {

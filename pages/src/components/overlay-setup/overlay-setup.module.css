@@ -45,7 +45,7 @@
     grid-column: 2;
     grid-row: 1 / span 3;
     position: sticky;
-    top: var(--space-6);
+    top: calc(70px + var(--space-6));
   }
 
   .step {

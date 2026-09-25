@@ -95,29 +95,33 @@ export function createCapabilityPreviewData(
   };
 }
 
-export function createCapabilityPreviewDataFromLiveView(gamertag: string, view: TrackerLiveView): CapabilityPreviewData {
+export function createCapabilityPreviewDataFromLiveView(
+  gamertag: string,
+  view: TrackerLiveView,
+): CapabilityPreviewData {
   const matchmakingMatches = view.matches.filter((match) => match.isMatchmaking);
   const matchmakingMatch = matchmakingMatches.length === 0 ? null : matchmakingMatches[0];
   const firstSeries = view.series.at(0);
-  const seriesMatches = firstSeries === undefined
-    ? []
-    : firstSeries.matchIds.map((matchId, index) => {
-        const match = view.matches.find((candidate) => candidate.matchId === matchId);
-        if (match === undefined) {
+  const seriesMatches =
+    firstSeries === undefined
+      ? []
+      : firstSeries.matchIds.map((matchId, index) => {
+          const match = view.matches.find((candidate) => candidate.matchId === matchId);
+          if (match === undefined) {
+            return {
+              label: `Game ${String(index + 1)}`,
+              map: `Match ${String(index + 1)}`,
+              score: "Pending",
+              result: "T",
+            } satisfies CapabilityPreviewMatch;
+          }
           return {
             label: `Game ${String(index + 1)}`,
-            map: `Match ${String(index + 1)}`,
-            score: "Pending",
-            result: "T",
+            map: match.mapName,
+            score: match.score,
+            result: match.outcome === "Win" ? "W" : match.outcome === "Loss" ? "L" : "T",
           } satisfies CapabilityPreviewMatch;
-        }
-        return {
-          label: `Game ${String(index + 1)}`,
-          map: match.mapName,
-          score: match.score,
-          result: match.outcome === "Win" ? "W" : match.outcome === "Loss" ? "L" : "T",
-        } satisfies CapabilityPreviewMatch;
-      });
+        });
   const resolvedSeriesMatches = seriesMatches.length > 0 ? seriesMatches : FALLBACK_MATCHES;
   const seriesWins = resolvedSeriesMatches.filter((match) => match.result === "W").length;
   const seriesLosses = resolvedSeriesMatches.filter((match) => match.result === "L").length;
