@@ -1,18 +1,26 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import classNames from "classnames";
-import type { CapabilityPreviewData, CapabilityPreviewMatch } from "./capability-preview-data";
+import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
+import { IndividualTrackerViewer } from "../individual-tracker/viewer/individual-tracker-viewer";
+import type { IndividualTrackerViewerRenderModel, ViewerMatchTab, ViewerTimelineItem } from "../individual-tracker/viewer/types";
+import { StreamerOverlay } from "../streamer-overlay/streamer-overlay";
+import { TeamDetailsContent } from "../streamer-overlay/team-details-content";
+import { TopSection } from "../streamer-overlay/top-section";
+import type { OverlayTab } from "../streamer-overlay/tabs-bar";
+import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import { createFixtureCapabilityPreviewData } from "./capability-preview-data";
+import type { CapabilityPreviewData } from "./capability-preview-data";
 import styles from "./capability-preview.module.css";
 
 type PreviewTab = "matchmaking" | "series" | "viewer";
-type OverlayPanel = "score" | "stats" | null;
 
 export interface CapabilityPreviewProps {
   readonly gamertag: string;
   readonly sourceLabel: string;
   readonly isExample: boolean;
   readonly data?: CapabilityPreviewData | undefined;
+  readonly previewMode: "player" | "observer";
 }
 
 const PREVIEW_TABS: readonly { readonly id: PreviewTab; readonly label: string }[] = [
@@ -42,205 +50,168 @@ function PreviewTabs({ activeTab, onChange }: { readonly activeTab: PreviewTab; 
   );
 }
 
-function PreviewSourceLabel({ label, isExample }: { readonly label: string; readonly isExample: boolean }): ReactElement {
-  return (
-    <div className={styles.sourceLabel}>
-      <span className={styles.liveDot} aria-hidden="true" />
-      {isExample ? "Example preview" : "Preview"} · {label}
-    </div>
-  );
-}
-
-function OverlayHeader({ title, subtitle }: { readonly title: string; readonly subtitle: string }): ReactElement {
-  return (
-    <header className={styles.overlayHeader}>
-      <div>
-        <p className={styles.overlayEyebrow}>GUILTY SPARK // LIVE FEED</p>
-        <h3>{title}</h3>
-        <p>{subtitle}</p>
-      </div>
-      <span className={styles.modePill}>LIVE</span>
-    </header>
-  );
-}
-
-function TickerPanel({ rows }: { readonly rows: readonly { readonly name: string; readonly score: string; readonly kda: string }[] }): ReactElement {
-  return (
-    <div className={styles.floatingPanel}>
-      <div className={styles.panelTitle}>MATCH STATS</div>
-      {rows.map((row) => (
-        <div key={row.name} className={styles.panelRow}>
-          <span>{row.name}</span>
-          <strong>{row.score}</strong>
-          <span>{row.kda} KDA</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function StatsPanel(): ReactElement {
-  return (
-    <div className={styles.floatingPanel}>
-      <div className={styles.panelTitle}>PLAYER PROFILE</div>
-      <div className={styles.statsGrid}>
-        <span>Rank<strong>Diamond 5</strong></span>
-        <span>Win rate<strong>68%</strong></span>
-        <span>Accuracy<strong>54.2%</strong></span>
-        <span>Avg. KDA<strong>1.72</strong></span>
-      </div>
-    </div>
-  );
-}
-
-function MatchmakingPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
-  return (
-    <div className={styles.canvas}>
-      <div className={styles.gameBackdrop} aria-hidden="true" />
-      <div className={styles.overlayContent}>
-        <OverlayHeader
-          title="MATCHMAKING"
-          subtitle={`Ranked Arena // ${data.matchmaking.map} · ${data.matchmaking.score}`}
-        />
-        <div className={styles.matchScoreline}>
-          <div className={styles.teamBlock}>
-            <span className={styles.teamMark}>EAGLE</span>
-            <strong>50</strong>
-          </div>
-          <span className={styles.scoreDivider}>:</span>
-          <div className={classNames(styles.teamBlock, styles.teamBlockEnemy)}>
-            <span className={styles.teamMark}>COBRA</span>
-            <strong>41</strong>
-          </div>
-        </div>
-        <div className={styles.overlayActions}>
-          <button type="button" onClick={(): void => { onPanelChange(openPanel === "score" ? null : "score"); }}>
-            Scoreboard
-          </button>
-          <button type="button" onClick={(): void => { onPanelChange(openPanel === "stats" ? null : "stats"); }}>
-            Player stats
-          </button>
-        </div>
-        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
-        {openPanel === "stats" ? <StatsPanel /> : null}
-        <div className={styles.bottomTicker}>
-          <span>soundmanD</span>
-          <span>1,248 score</span>
-          <span>1.72 KDA</span>
-          <span>03:42</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SeriesPreview({ data, onPanelChange, openPanel }: { readonly data: CapabilityPreviewData; readonly onPanelChange: (panel: OverlayPanel) => void; readonly openPanel: OverlayPanel }): ReactElement {
-  return (
-    <div className={styles.canvas}>
-      <div className={classNames(styles.gameBackdrop, styles.seriesBackdrop)} aria-hidden="true" />
-      <div className={styles.overlayContent}>
-        <OverlayHeader title={`SERIES ${data.series.score}`} subtitle="NeatQueue // Best of 5" />
-        <div className={styles.seriesTrack}>
-          {data.series.matches.map((match) => (
-            <button key={match.label} type="button" className={styles.seriesMatch} onClick={(): void => { onPanelChange("stats"); }}>
-              <span>{match.label}</span>
-              <strong>{match.result}</strong>
-              <small>{match.map}</small>
-              <em>{match.score}</em>
-            </button>
-          ))}
-        </div>
-        <div className={styles.overlayActions}>
-          <button type="button" onClick={(): void => { onPanelChange(openPanel === "score" ? null : "score"); }}>
-            Series score
-          </button>
-          <button type="button" onClick={(): void => { onPanelChange(openPanel === "stats" ? null : "stats"); }}>
-            Series stats
-          </button>
-        </div>
-        {openPanel === "score" ? <TickerPanel rows={data.matchmaking.rows} /> : null}
-        {openPanel === "stats" ? <StatsPanel /> : null}
-        <div className={styles.bottomTicker}>
-          <span>soundmanD</span>
-          <span>Series lead</span>
-          <span>2 wins</span>
-          <span>Next: Recharge</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ViewerPreview({ data }: { readonly data: CapabilityPreviewData }): ReactElement {
-  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
-
-  return (
-    <div className={styles.viewerCanvas}>
-      <header className={styles.viewerHeader}>
-        <div>
-          <p className={styles.overlayEyebrow}>PUBLIC VIEWER</p>
-          <h3>{data.gamertag}</h3>
-          <p>Recent matches and series history</p>
-        </div>
-        <span className={styles.viewerStatus}>TRACKING</span>
-      </header>
-      <div className={styles.viewerSummary}>
-        <div><span>Series</span><strong>{data.viewer.seriesScore}</strong></div>
-        <div><span>Matches</span><strong>{String(data.viewer.matches.length)}</strong></div>
-        <div><span>Win rate</span><strong>68%</strong></div>
-      </div>
-      <div className={styles.viewerList}>
-        {data.viewer.matches.map((match: CapabilityPreviewMatch) => {
-          const isExpanded = expandedMatch === match.label;
-          return (
-            <button
-              key={match.label}
-              type="button"
-              className={styles.viewerMatch}
-              aria-expanded={isExpanded}
-              onClick={(): void => {
-                setExpandedMatch(isExpanded ? null : match.label);
-              }}
-            >
-              <span className={styles.resultBadge}>{match.result}</span>
-              <span><strong>{match.map}</strong><small>{match.label}</small></span>
-              <span className={styles.viewerScore}>{match.score}</span>
-              <span className={styles.chevron} aria-hidden="true">{isExpanded ? "-" : "+"}</span>
-              {isExpanded ? <span className={styles.matchDetails}>KDA 1.72 · Accuracy 54.2% · 12 minutes</span> : null}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export function CapabilityPreview({ gamertag, sourceLabel, isExample, data: suppliedData }: CapabilityPreviewProps): ReactElement {
-  const [activeTab, setActiveTab] = useState<PreviewTab>("matchmaking");
-  const [openPanel, setOpenPanel] = useState<OverlayPanel>(null);
-  const data = suppliedData ?? createFixtureCapabilityPreviewData(gamertag);
-
-  const handleTabChange = (tab: PreviewTab): void => {
-    setActiveTab(tab);
-    setOpenPanel(null);
+function buildMatchTab(match: CapabilityPreviewData["series"]["matches"][number], index: number): ViewerMatchTab {
+  return {
+    matchId: `${match.label}-${String(index)}`,
+    mapName: match.map,
+    mapBackgroundUrl: "",
+    gameVariantCategory: 6,
+    isMatchmaking: false,
+    gameModeName: "Slayer",
+    duration: "10 minutes",
+    outcome: normalizeOutcomeString(match.result === "W" ? "Win" : match.result === "L" ? "Loss" : "Tie"),
+    score: match.score,
+    killsDeathsAssistsKda: "1.72",
+    damageDealtTakenRatio: "1.20",
+    colorHex: match.result === "W" ? "#8cffbe" : "#ff7382",
+    startTime: "Today",
+    endTime: "Today",
   };
+}
+
+function buildViewerRenderModel(data: CapabilityPreviewData): IndividualTrackerViewerRenderModel {
+  const matches = data.viewer.matches.map(buildMatchTab);
+  return {
+    trackerId: "preview",
+    gamertag: data.gamertag,
+    status: "active",
+    isLive: true,
+    hasActiveSeries: true,
+    activeSeriesContext: {
+      title: `Series ${data.viewer.seriesScore}`,
+      subtitle: "Preview series",
+      teams: [],
+    },
+    lastUpdateTime: new Date().toISOString(),
+    timeline: [
+      {
+        type: "series",
+        series: {
+          id: "preview-series",
+          title: `Series ${data.viewer.seriesScore}`,
+          subtitle: "Preview series",
+          isActive: true,
+          teams: [],
+          matchBackgroundUrls: [],
+          score: data.viewer.seriesScore,
+          duration: "30 minutes",
+          killsDeathsAssistsKda: "1.72",
+          damageDealtTakenRatio: "1.20",
+          startTime: "Today",
+          endTime: "Today",
+          matches,
+          iconMatches: matches,
+          colorHex: "#5fe7e0",
+        },
+      },
+    ],
+    accumulated: { total: matches.length, wins: matches.filter((match) => match.outcome === "Win").length, losses: matches.filter((match) => match.outcome === "Loss").length, ties: 0 },
+    statsHighlights: [],
+    preSeriesPlayerInfo: undefined,
+    teamColors: [getTeamColorOrDefault("salmon", 0), getTeamColorOrDefault("cerulean", 1)],
+  };
+}
+
+function RealStreamerOverlay({ data, previewMode, series }: { readonly data: CapabilityPreviewData; readonly previewMode: "player" | "observer"; readonly series: boolean }): ReactElement {
+  const teamColors = [getTeamColorOrDefault("salmon", 0), getTeamColorOrDefault("cerulean", 1)];
+  const tabs: readonly OverlayTab[] = data.series.matches.map((match, index) => ({
+    type: "match",
+    index,
+    matchId: `${match.label}-${String(index)}`,
+    label: match.label,
+    score: match.score,
+    teamColor: teamColors[index % 2]?.hex,
+    icon: "",
+  }));
+  const topSection = (
+    <TopSection
+      title={series ? `Series ${data.series.score}` : "Matchmaking"}
+      subtitle={series ? "NeatQueue // live series" : `Ranked Arena // ${data.matchmaking.map}`}
+      iconUrl={null}
+      showScore={true}
+      showTeamDetails={false}
+      seriesScore={series ? data.series.score.replace(" - ", ":") : data.matchmaking.score.replace(" - ", ":")}
+      teamColors={teamColors}
+      teamLeft={<TeamDetailsContent team={{ players: [{ id: data.gamertag, displayName: data.gamertag }] }} teamName="Eagle" disableTeamPlayerNames={false} renderPlayerNameContent={(_id, name): ReactElement => <>{name}</>} />}
+      teamRight={<TeamDetailsContent team={{ players: [{ id: "preview-opponent", displayName: "RavenSix" }] }} teamName="Cobra" disableTeamPlayerNames={false} renderPlayerNameContent={(_id, name): ReactElement => <>{name}</>} />}
+    />
+  );
+
+  return (
+    <div className={styles.gameplayFrame} style={{ backgroundImage: `url(${previewMode === "player" ? "/in-game-player.jpg" : "/in-game-observer.jpg"})` }}>
+      <StreamerOverlay
+        topSection={topSection}
+        teamColors={teamColors}
+        tabs={tabs}
+        showTabs={true}
+        showTicker={true}
+        showPreview={true}
+        previewMode={previewMode}
+        fontSizeStyles={{}}
+        settingsUi={null}
+        currentMatchGroup={{ matchIndex: 0, label: data.gamertag, rows: [] }}
+        activeTabIndex={0}
+        selectedTab={0}
+        isPanelOpen={false}
+        panelContent={null}
+        onTabClick={(): void => undefined}
+        onScrollComplete={(): void => undefined}
+        onClosePanel={(): void => undefined}
+      />
+    </div>
+  );
+}
+
+function RealViewer({ data }: { readonly data: CapabilityPreviewData }): ReactElement {
+  const [expandedEntryKeys, setExpandedEntryKeys] = useState<ReadonlySet<string>>(new Set());
+
+  const handleToggleEntry = (item: ViewerTimelineItem): void => {
+    const key = item.type === "match" ? `match:${item.match.matchId}` : `series:${item.series.id}`;
+    const next = new Set(expandedEntryKeys);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    setExpandedEntryKeys(next);
+  };
+
+  return (
+    <div className={styles.gameplayFrame} style={{ backgroundImage: "url(/in-game-observer.jpg)" }}>
+      <IndividualTrackerViewer
+        renderModel={buildViewerRenderModel(data)}
+        connectionStatus="connected"
+        expandedEntryKeys={expandedEntryKeys}
+        entryStates={new Map()}
+        canManage={false}
+        refreshPending={false}
+        onToggleEntry={handleToggleEntry}
+        onBackToManage={(): void => undefined}
+        onRefresh={(): void => undefined}
+      />
+    </div>
+  );
+}
+
+export function CapabilityPreview({ gamertag, sourceLabel, isExample, data: suppliedData, previewMode }: CapabilityPreviewProps): ReactElement {
+  const [activeTab, setActiveTab] = useState<PreviewTab>("matchmaking");
+  const data = suppliedData ?? createFixtureCapabilityPreviewData(gamertag);
 
   return (
     <section className={styles.previewRegion} aria-label="Guilty Spark capability preview">
       <div className={styles.previewToolbar}>
-        <PreviewTabs activeTab={activeTab} onChange={handleTabChange} />
-        <PreviewSourceLabel label={sourceLabel || gamertag} isExample={isExample} />
+        <PreviewTabs activeTab={activeTab} onChange={setActiveTab} />
+        <div className={styles.sourceLabel}>
+          <span className={styles.liveDot} aria-hidden="true" />
+          {isExample ? "Example preview" : "Preview"} · {sourceLabel || gamertag}
+        </div>
       </div>
       <div className={styles.previewFrame}>
-        {activeTab === "matchmaking" ? (
-          <MatchmakingPreview data={data} openPanel={openPanel} onPanelChange={setOpenPanel} />
-        ) : null}
-        {activeTab === "series" ? (
-          <SeriesPreview data={data} openPanel={openPanel} onPanelChange={setOpenPanel} />
-        ) : null}
-        {activeTab === "viewer" ? <ViewerPreview data={data} /> : null}
+        {activeTab === "matchmaking" ? <RealStreamerOverlay data={data} previewMode={previewMode} series={false} /> : null}
+        {activeTab === "series" ? <RealStreamerOverlay data={data} previewMode={previewMode} series={true} /> : null}
+        {activeTab === "viewer" ? <RealViewer data={data} /> : null}
       </div>
-      <p className={styles.previewHint}>Interactive preview · select a tab or explore the controls inside</p>
+      <p className={styles.previewHint}>Live overlay components · preview data</p>
     </section>
   );
 }

@@ -226,6 +226,7 @@ function OverlaySetupPageInternal({
           gamertag={snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG}
           sourceLabel={snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG}
           isExample={isDemo}
+          previewMode={settingsSnapshot.defaultColorMode}
           data={previewSnapshot.data}
         />
       }
