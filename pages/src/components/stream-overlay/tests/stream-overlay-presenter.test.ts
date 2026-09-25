@@ -71,6 +71,22 @@ describe("StreamOverlayPresenter", () => {
     });
   });
 
+  it("resets to loading before retrying after a session error", async () => {
+    const store = new StreamOverlayStore();
+    const authService = aFakeAuthServiceWith();
+    authService.getSession = async (): Promise<never> => Promise.reject(new Error("network failure"));
+    const presenter = new StreamOverlayPresenter({ authService, store });
+
+    presenter.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(presenter.getSnapshot().authState).toBe("error");
+
+    authService.getSession = async (): Promise<never> => new Promise(() => undefined);
+    presenter.start();
+
+    expect(presenter.getSnapshot().authState).toBe("loading");
+  });
+
   it("notifies subscribers when the snapshot changes", async () => {
     const store = new StreamOverlayStore();
     const authService = aFakeAuthServiceWith({ session: { authenticated: false } });

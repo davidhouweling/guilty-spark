@@ -19,6 +19,12 @@ export class StreamOverlayPresenter {
 
   public start(): void {
     const seq = ++this.loadSeq;
+    this.config.store.update({
+      authState: "loading",
+      gamertag: null,
+      avatarUrl: null,
+      errorMessage: null,
+    });
     void this.load(seq);
   }
 

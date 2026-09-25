@@ -289,7 +289,7 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <Heading tagName="h3">In Series UI</Heading>
+        <Heading tagName="h4">In Series UI</Heading>
         <p className={styles.cardDescription}>
           Controls in this section apply when the overlay is currently in a series.
         </p>
@@ -389,7 +389,7 @@ export function StreamerSettingsSectionView({
       </div>
 
       <div className={styles.card}>
-        <Heading tagName="h3">Matchmaking UI</Heading>
+        <Heading tagName="h4">Matchmaking UI</Heading>
         <p className={styles.cardDescription}>
           Controls in this section apply when no active series context is present.
         </p>
