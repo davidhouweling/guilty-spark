@@ -100,6 +100,19 @@ describe("OverlayUrlsSection", () => {
     vi.unstubAllGlobals();
   });
 
+  it("uses preview mode for demo overlay URLs", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    vi.stubGlobal("location", { origin: "https://example.com" });
+
+    renderSection(aFakeProps({ gamertag: "343GuiltySpark", isDemo: true }));
+
+    await user.click(screen.getByRole("button", { name: "Copy overlay URL" }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("preview=1"));
+  });
+
   it("calls the clipboard API when the viewer copy button is clicked", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);

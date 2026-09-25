@@ -1,16 +1,6 @@
 import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "../routes";
-import type { OverlayUrlsSectionProps } from "./types";
+import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import type { OverlayUrlsCopyTarget, OverlayUrlsSnapshot, OverlayUrlsStore } from "./overlay-urls-store";
-
-export interface OverlayUrlsViewModel {
-  readonly viewUrl: string;
-  readonly overlayUrl: string;
-  readonly overlayOpenUrl: string;
-  readonly previewOverlayUrl: string;
-  readonly copyOverlayLabel: string;
-  readonly copyViewerLabel: string;
-  readonly copyTarget: OverlayUrlsCopyTarget;
-}
 
 interface Config {
   readonly store: OverlayUrlsStore;
@@ -30,13 +20,14 @@ export class OverlayUrlsPresenter {
   ): OverlayUrlsViewModel {
     const origin = typeof window === "undefined" ? "" : window.location.origin;
     const viewUrl = props.gamertag === null ? "" : `${origin}${buildIndividualTrackerPublicViewPath(props.gamertag)}`;
-    const overlayUrl = props.gamertag === null ? "" : `${origin}${buildIndividualTrackerPublicOverlayPath(props.gamertag)}`;
+    const overlayUrl =
+      props.gamertag === null ? "" : `${origin}${buildIndividualTrackerPublicOverlayPath(props.gamertag)}`;
     const previewOverlayUrl = this.buildPreviewUrl(overlayUrl, props.previewColorMode);
-    const overlayOpenUrl = props.isDemo ? previewOverlayUrl : overlayUrl;
+    const overlayOpenUrl = props.isDemo === true ? previewOverlayUrl : overlayUrl;
 
     return {
       viewUrl,
-      overlayUrl: props.isDemo ? overlayOpenUrl : overlayUrl,
+      overlayUrl: props.isDemo === true ? overlayOpenUrl : overlayUrl,
       overlayOpenUrl,
       previewOverlayUrl,
       copyOverlayLabel: snapshot.copyTarget === "overlay" ? "Copied overlay URL" : "Copy overlay URL",

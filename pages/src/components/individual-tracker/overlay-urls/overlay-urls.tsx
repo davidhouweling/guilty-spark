@@ -3,9 +3,8 @@ import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Heading } from "../../heading/heading";
-import type { OverlayUrlsSectionProps } from "./types";
+import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
-import type { OverlayUrlsViewModel } from "./overlay-urls-presenter";
 
 export interface OverlayUrlsViewProps
   extends Omit<OverlayUrlsSectionProps, "isDemo" | "previewColorMode">, OverlayUrlsViewModel {

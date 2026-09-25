@@ -10,7 +10,12 @@ export function createOverlayUrlsSection(): (props: OverlayUrlsSectionProps) => 
     const store = useMemo(() => new OverlayUrlsStore(), []);
     const presenter = useMemo(() => new OverlayUrlsPresenter({ store }), [store]);
 
-    useEffect(() => (): void => presenter.dispose(), [presenter]);
+    useEffect(
+      () => (): void => {
+        presenter.dispose();
+      },
+      [presenter],
+    );
 
     const snapshot = useSyncExternalStore(
       (listener) => store.subscribe(listener),
