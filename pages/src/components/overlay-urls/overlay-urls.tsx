@@ -7,7 +7,7 @@ import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
 
 export interface OverlayUrlsViewProps
-  extends Omit<OverlayUrlsSectionProps, "isDemo" | "previewColorMode">, OverlayUrlsViewModel {
+  extends Omit<OverlayUrlsSectionProps, "previewColorMode">, OverlayUrlsViewModel {
   readonly onCopy: (target: "view" | "overlay", url: string) => void;
   readonly onOpen: (url: string) => void;
 }
@@ -16,12 +16,12 @@ export function OverlayUrlsSection({
   gamertag,
   autoStart,
   disabled = false,
+  settingsDisabled = false,
   errorMessage = null,
   loading = false,
   onAutoStartChange,
   viewUrl,
   overlayUrl,
-  overlayOpenUrl,
   previewOverlayUrl,
   copyOverlayLabel,
   copyViewerLabel,
@@ -52,8 +52,9 @@ export function OverlayUrlsSection({
                 variant="secondary"
                 size="small"
                 ariaLabel={copyOverlayLabel}
+                disabled={disabled}
                 onClick={(): void => {
-                  onCopy("overlay", overlayOpenUrl);
+                  onCopy("overlay", overlayUrl);
                 }}
               >
                 {copyTarget === "overlay" ? "Copied!" : "Copy"}
@@ -61,8 +62,9 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
-                  onOpen(overlayOpenUrl);
+                  onOpen(overlayUrl);
                 }}
               >
                 Open overlay
@@ -70,7 +72,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
-                disabled={disabled}
+                disabled={disabled || settingsDisabled}
                 onClick={(): void => {
                   onOpen(previewOverlayUrl);
                 }}
@@ -91,6 +93,7 @@ export function OverlayUrlsSection({
                 variant="secondary"
                 size="small"
                 ariaLabel={copyViewerLabel}
+                disabled={disabled}
                 onClick={(): void => {
                   onCopy("view", viewUrl);
                 }}
@@ -100,6 +103,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                disabled={disabled}
                 onClick={(): void => {
                   onOpen(viewUrl);
                 }}
@@ -112,7 +116,7 @@ export function OverlayUrlsSection({
 
             <Checkbox
               checked={autoStart}
-              disabled={disabled}
+              disabled={disabled || settingsDisabled}
               onChange={(checked): void => {
                 onAutoStartChange(checked);
               }}

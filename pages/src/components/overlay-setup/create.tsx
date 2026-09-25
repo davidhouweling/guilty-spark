@@ -79,7 +79,8 @@ function OverlaySetupPageInternal({
   const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
   const isDemo = snapshot.authState !== "authenticated";
-  const settingsDisabled = isDemo || settingsSnapshot.loadStatus !== "loaded";
+  const settingsLoading = settingsSnapshot.loadStatus !== "loaded";
+  const settingsFormDisabled = isDemo || settingsLoading;
   const settingsContent =
     snapshot.authState === "error" ? (
       <Alert variant="error">{snapshot.errorMessage ?? "Failed to load session."}</Alert>
@@ -185,9 +186,9 @@ function OverlaySetupPageInternal({
           gamertag={snapshot.gamertag}
           previewColorMode={settingsSnapshot.defaultColorMode}
           autoStart={settingsSnapshot.autoStart}
-          disabled={settingsDisabled}
+          disabled={isDemo}
+          settingsDisabled={settingsLoading}
           errorMessage={snapshot.authState === "error" ? snapshot.errorMessage : null}
-          isDemo={isDemo}
           loading={snapshot.authState === "loading"}
           onAutoStartChange={(enabled): void => {
             settingsPresenter.setAutoStart(enabled);
@@ -196,7 +197,7 @@ function OverlaySetupPageInternal({
       }
       configureContent={
         <fieldset
-          disabled={settingsDisabled}
+          disabled={settingsFormDisabled}
           className={classNames(styles.settingsFieldset, isDemo && styles.demoLocked)}
           aria-label="Overlay settings"
         >

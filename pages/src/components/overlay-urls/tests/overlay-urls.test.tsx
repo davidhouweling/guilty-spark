@@ -66,11 +66,24 @@ describe("OverlayUrlsSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps identity URL actions available and disables settings actions when disabled", () => {
+  it("disables every action when disabled", () => {
     renderSection(aFakeProps({ disabled: true }));
 
     expect(screen.getAllByRole("button")).toHaveLength(5);
-    expect(screen.getAllByRole("button").filter((button) => button.matches(":disabled"))).toHaveLength(1);
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).toBeDisabled();
+    }
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+  });
+
+  it("keeps identity URL actions enabled while only settings are disabled", () => {
+    renderSection(aFakeProps({ settingsDisabled: true }));
+
+    expect(screen.getByRole("button", { name: "Copy overlay URL" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open overlay" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Copy viewer URL" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open viewer" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open overlay with preview" })).toBeDisabled();
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
@@ -98,19 +111,6 @@ describe("OverlayUrlsSection", () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc/overlay"));
 
     vi.unstubAllGlobals();
-  });
-
-  it("uses preview mode for demo overlay URLs", async () => {
-    const user = userEvent.setup();
-    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
-    vi.stubGlobal("location", { origin: "https://example.com" });
-
-    renderSection(aFakeProps({ gamertag: "343GuiltySpark", isDemo: true }));
-
-    await user.click(screen.getByRole("button", { name: "Copy overlay URL" }));
-
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("preview=1"));
   });
 
   it("calls the clipboard API when the viewer copy button is clicked", async () => {
