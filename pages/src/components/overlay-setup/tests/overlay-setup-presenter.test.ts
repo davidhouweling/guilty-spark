@@ -32,6 +32,7 @@ describe("OverlaySetupPresenter", () => {
     expect(presenter.getSnapshot()).toEqual({
       authState: "authenticated",
       gamertag: "TestSpartan",
+      xuid: "123",
       avatarUrl: "https://example.com/avatar.png",
       errorMessage: null,
     });
@@ -49,6 +50,7 @@ describe("OverlaySetupPresenter", () => {
     expect(presenter.getSnapshot()).toEqual({
       authState: "unauthenticated",
       gamertag: OVERLAY_SETUP_DEMO_GAMERTAG,
+      xuid: null,
       avatarUrl: null,
       errorMessage: null,
     });
@@ -66,6 +68,7 @@ describe("OverlaySetupPresenter", () => {
     expect(presenter.getSnapshot()).toEqual({
       authState: "error",
       gamertag: null,
+      xuid: null,
       avatarUrl: null,
       errorMessage: "Failed to load session. Please refresh the page.",
     });

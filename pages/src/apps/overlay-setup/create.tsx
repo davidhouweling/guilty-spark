@@ -21,6 +21,7 @@ export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement
         : createOverlaySetupPage({
             authService: services.authService,
             settingsService: services.settingsService,
+            individualTrackerService: services.individualTrackerService,
             apiHost,
           }),
     [services, apiHost],

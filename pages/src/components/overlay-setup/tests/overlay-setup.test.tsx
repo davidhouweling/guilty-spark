@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
+import { aFakeIndividualTrackerServiceWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import { createOverlaySetupPage } from "../create";
 import { OverlaySetupShell } from "../overlay-setup";
@@ -20,6 +21,7 @@ describe("OverlaySetupShell", () => {
         avatarUrl={null}
         signInHref="https://api.example.com/auth/microsoft/start"
         overlayUrlsContent={<div data-testid="overlay-urls-content" />}
+        previewContent={<div data-testid="preview-content" />}
         configureContent={<div data-testid="configure-content" />}
       />,
     );
@@ -53,6 +55,7 @@ describe("OverlaySetupShell", () => {
     const OverlaySetupPage = createOverlaySetupPage({
       authService,
       settingsService,
+      individualTrackerService: aFakeIndividualTrackerServiceWith(),
       apiHost: "https://api.example.com",
     });
 
@@ -78,6 +81,7 @@ describe("OverlaySetupShell", () => {
     const OverlaySetupPage = createOverlaySetupPage({
       authService,
       settingsService,
+      individualTrackerService: aFakeIndividualTrackerServiceWith(),
       apiHost: "https://api.example.com",
     });
 

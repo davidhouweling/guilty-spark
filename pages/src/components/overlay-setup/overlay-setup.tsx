@@ -10,6 +10,7 @@ export interface OverlaySetupShellProps {
   readonly avatarUrl: string | null;
   readonly signInHref: string;
   readonly overlayUrlsContent: ReactNode;
+  readonly previewContent: ReactNode;
   readonly configureContent: ReactNode;
   readonly errorMessage?: string | null | undefined;
   readonly onRetry?: (() => void) | undefined;
@@ -21,12 +22,13 @@ export function OverlaySetupShell({
   avatarUrl,
   signInHref,
   overlayUrlsContent,
+  previewContent,
   configureContent,
   errorMessage,
   onRetry,
 }: OverlaySetupShellProps): ReactElement {
   return (
-    <div className={styles.container}>
+    <div className={styles.pageGrid}>
       <section className={styles.step}>
         <Heading tagName="h2" className={styles.stepHeading}>
           Step 1: Sign in
@@ -47,6 +49,8 @@ export function OverlaySetupShell({
         </Heading>
         {overlayUrlsContent}
       </section>
+
+      <div className={styles.previewSlot}>{previewContent}</div>
 
       <section className={styles.step}>
         <Heading tagName="h2" className={styles.stepHeading}>
