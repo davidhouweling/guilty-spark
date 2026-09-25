@@ -6,8 +6,7 @@ import { Heading } from "../heading/heading";
 import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
 
-export interface OverlayUrlsViewProps
-  extends Omit<OverlayUrlsSectionProps, "previewColorMode">, OverlayUrlsViewModel {
+export interface OverlayUrlsViewProps extends Omit<OverlayUrlsSectionProps, "previewColorMode">, OverlayUrlsViewModel {
   readonly onCopy: (target: "view" | "overlay", url: string) => void;
   readonly onOpen: (url: string) => void;
 }
