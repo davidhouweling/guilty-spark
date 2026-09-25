@@ -1,3 +1,4 @@
+import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
 
 export interface CapabilityPreviewMatch {
@@ -72,7 +73,7 @@ export function createCapabilityPreviewData(
   customMatches: readonly TrackerMatchHistoryEntry[],
 ): CapabilityPreviewData {
   const fixture = createFixtureCapabilityPreviewData(gamertag);
-  const latestMatch = matchmakingMatches[0];
+  const latestMatch = matchmakingMatches.at(0);
   const seriesMatches = customMatches.slice(0, 5).map(toPreviewMatch);
   const resolvedSeriesMatches = seriesMatches.length > 0 ? seriesMatches : fixture.series.matches;
   const seriesWins = resolvedSeriesMatches.filter((match) => match.result === "W").length;
@@ -89,6 +90,52 @@ export function createCapabilityPreviewData(
             score: latestMatch.resultString,
             rows: [{ name: gamertag, score: latestMatch.resultString, kda: "Recent match" }],
           },
+    series: { score: seriesScore, matches: resolvedSeriesMatches },
+    viewer: { seriesScore, matches: resolvedSeriesMatches },
+  };
+}
+
+export function createCapabilityPreviewDataFromLiveView(gamertag: string, view: TrackerLiveView): CapabilityPreviewData {
+  const matchmakingMatches = view.matches.filter((match) => match.isMatchmaking);
+  const matchmakingMatch = matchmakingMatches.length === 0 ? null : matchmakingMatches[0];
+  const firstSeries = view.series.at(0);
+  const seriesMatches = firstSeries === undefined
+    ? []
+    : firstSeries.matchIds.map((matchId, index) => {
+        const match = view.matches.find((candidate) => candidate.matchId === matchId);
+        if (match === undefined) {
+          return {
+            label: `Game ${String(index + 1)}`,
+            map: `Match ${String(index + 1)}`,
+            score: "Pending",
+            result: "T",
+          } satisfies CapabilityPreviewMatch;
+        }
+        return {
+          label: `Game ${String(index + 1)}`,
+          map: match.mapName,
+          score: match.score,
+          result: match.outcome === "Win" ? "W" : match.outcome === "Loss" ? "L" : "T",
+        } satisfies CapabilityPreviewMatch;
+      });
+  const resolvedSeriesMatches = seriesMatches.length > 0 ? seriesMatches : FALLBACK_MATCHES;
+  const seriesWins = resolvedSeriesMatches.filter((match) => match.result === "W").length;
+  const seriesLosses = resolvedSeriesMatches.filter((match) => match.result === "L").length;
+  const seriesScore = `${String(seriesWins)} - ${String(seriesLosses)}`;
+
+  return {
+    gamertag,
+    matchmaking: {
+      map: matchmakingMatch === null ? "Matchmaking" : matchmakingMatch.mapName,
+      score: matchmakingMatch === null ? "Live" : matchmakingMatch.score,
+      rows: [
+        {
+          name: gamertag,
+          score: matchmakingMatch === null ? "Live match" : matchmakingMatch.killsDeathsAssistsKda,
+          kda: "Live tracker",
+        },
+      ],
+    },
     series: { score: seriesScore, matches: resolvedSeriesMatches },
     viewer: { seriesScore, matches: resolvedSeriesMatches },
   };

@@ -5,6 +5,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
 import { aFakeIndividualTrackerServiceWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import { createOverlaySetupPage } from "../create";
 import { OverlaySetupShell } from "../overlay-setup";
@@ -56,6 +57,7 @@ describe("OverlaySetupShell", () => {
       authService,
       settingsService,
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
+      individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       apiHost: "https://api.example.com",
     });
 
@@ -82,6 +84,7 @@ describe("OverlaySetupShell", () => {
       authService,
       settingsService,
       individualTrackerService: aFakeIndividualTrackerServiceWith(),
+      individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       apiHost: "https://api.example.com",
     });
 

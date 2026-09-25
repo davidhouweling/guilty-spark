@@ -5,6 +5,7 @@ import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
+import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import { createOverlayUrlsSection } from "../overlay-urls/create";
 import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
@@ -23,6 +24,7 @@ export interface CreateOverlaySetupPageConfig {
   readonly authService: AuthService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly apiHost: string;
 }
 
@@ -254,9 +256,10 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
       () =>
         new CapabilityPreviewPresenter({
           individualTrackerService: config.individualTrackerService,
+          individualTrackerViewService: config.individualTrackerViewService,
           store: previewStore,
         }),
-      [previewStore],
+      [config.individualTrackerService, config.individualTrackerViewService, previewStore],
     );
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
