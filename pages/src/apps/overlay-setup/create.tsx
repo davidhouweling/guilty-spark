@@ -3,22 +3,22 @@ import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { createStreamOverlayPage } from "../../components/stream-overlay/create";
+import { createOverlaySetupPage } from "../../components/overlay-setup/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 
-interface StreamOverlayAppProps {
+interface OverlaySetupAppProps {
   readonly apiHost: string;
 }
 
-export function StreamOverlayApp({ apiHost }: StreamOverlayAppProps): ReactElement {
+export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
-  const StreamOverlayPage = useMemo(
+  const OverlaySetupPage = useMemo(
     () =>
       services == null
         ? null
-        : createStreamOverlayPage({
+        : createOverlaySetupPage({
             authService: services.authService,
             settingsService: services.settingsService,
             apiHost,
@@ -60,7 +60,7 @@ export function StreamOverlayApp({ apiHost }: StreamOverlayAppProps): ReactEleme
       status={state}
       loading={<LoadingState text="Loading stream overlay setup..." />}
       error={<ErrorState message="Failed to load stream overlay setup" />}
-      loaded={StreamOverlayPage != null ? <StreamOverlayPage /> : <ErrorState message="Services failed to load" />}
+      loaded={OverlaySetupPage != null ? <OverlaySetupPage /> : <ErrorState message="Services failed to load" />}
     />
   );
 }

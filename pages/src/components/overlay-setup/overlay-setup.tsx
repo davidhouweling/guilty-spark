@@ -2,9 +2,9 @@ import type { ReactElement, ReactNode } from "react";
 import { Heading } from "../heading/heading";
 import { LoginStatusSection } from "./login-status/login-status";
 import type { LoginStatusAuthState } from "./login-status/types";
-import styles from "./stream-overlay.module.css";
+import styles from "./overlay-setup.module.css";
 
-export interface StreamOverlayShellProps {
+export interface OverlaySetupShellProps {
   readonly authState: LoginStatusAuthState;
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
@@ -15,7 +15,7 @@ export interface StreamOverlayShellProps {
   readonly onRetry?: (() => void) | undefined;
 }
 
-export function StreamOverlayShell({
+export function OverlaySetupShell({
   authState,
   gamertag,
   avatarUrl,
@@ -24,7 +24,7 @@ export function StreamOverlayShell({
   configureContent,
   errorMessage,
   onRetry,
-}: StreamOverlayShellProps): ReactElement {
+}: OverlaySetupShellProps): ReactElement {
   return (
     <div className={styles.container}>
       <section className={styles.step}>

@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { aFakeAuthServiceWith } from "../../../services/auth/fakes/auth.fake";
-import { StreamOverlayPresenter, STREAM_OVERLAY_DEMO_GAMERTAG } from "../stream-overlay-presenter";
-import { StreamOverlayStore } from "../stream-overlay-store";
+import { OverlaySetupPresenter, OVERLAY_SETUP_DEMO_GAMERTAG } from "../overlay-setup-presenter";
+import { OverlaySetupStore } from "../overlay-setup-store";
 
-describe("StreamOverlayPresenter", () => {
+describe("OverlaySetupPresenter", () => {
   it("starts in the loading auth state", () => {
-    const store = new StreamOverlayStore();
-    const presenter = new StreamOverlayPresenter({ authService: aFakeAuthServiceWith(), store });
+    const store = new OverlaySetupStore();
+    const presenter = new OverlaySetupPresenter({ authService: aFakeAuthServiceWith(), store });
 
     expect(presenter.getSnapshot().authState).toBe("loading");
   });
 
   it("loads the authenticated session's gamertag and avatar", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith({
       session: {
         authenticated: true,
@@ -23,7 +23,7 @@ describe("StreamOverlayPresenter", () => {
         xboxXuid: "123",
       },
     });
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
 
     presenter.start();
     await Promise.resolve();
@@ -38,9 +38,9 @@ describe("StreamOverlayPresenter", () => {
   });
 
   it("falls back to demo data when unauthenticated", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith({ session: { authenticated: false } });
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
 
     presenter.start();
     await Promise.resolve();
@@ -48,17 +48,17 @@ describe("StreamOverlayPresenter", () => {
 
     expect(presenter.getSnapshot()).toEqual({
       authState: "unauthenticated",
-      gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
+      gamertag: OVERLAY_SETUP_DEMO_GAMERTAG,
       avatarUrl: null,
       errorMessage: null,
     });
   });
 
   it("preserves the session failure instead of falling back to demo data", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith();
     authService.getSession = async (): Promise<never> => Promise.reject(new Error("network failure"));
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
 
     presenter.start();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -72,10 +72,10 @@ describe("StreamOverlayPresenter", () => {
   });
 
   it("resets to loading before retrying after a session error", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith();
     authService.getSession = async (): Promise<never> => Promise.reject(new Error("network failure"));
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
 
     presenter.start();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -88,9 +88,9 @@ describe("StreamOverlayPresenter", () => {
   });
 
   it("notifies subscribers when the snapshot changes", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith({ session: { authenticated: false } });
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
     let notified = false;
     const unsubscribe = presenter.subscribe(() => {
       notified = true;
@@ -105,9 +105,9 @@ describe("StreamOverlayPresenter", () => {
   });
 
   it("ignores a stale load after dispose", async () => {
-    const store = new StreamOverlayStore();
+    const store = new OverlaySetupStore();
     const authService = aFakeAuthServiceWith({ session: { authenticated: false } });
-    const presenter = new StreamOverlayPresenter({ authService, store });
+    const presenter = new OverlaySetupPresenter({ authService, store });
 
     presenter.start();
     presenter.dispose();

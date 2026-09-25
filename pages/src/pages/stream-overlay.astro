@@ -3,7 +3,7 @@ import Layout from "../layouts/layout.astro";
 import Container from "../components/container/container.astro";
 import Heading from "../components/heading/heading.astro";
 import { API_HOST } from "../constants";
-import { StreamOverlayApp } from "../apps/stream-overlay/create";
+import { OverlaySetupApp } from "../apps/overlay-setup/create";
 import styles from "./_styles/content-page.module.css";
 
 export const prerender = false;
@@ -24,7 +24,7 @@ export const prerender = false;
         </p>
       </header>
 
-      <StreamOverlayApp client:only="react" apiHost={API_HOST} />
+      <OverlaySetupApp client:only="react" apiHost={API_HOST} />
     </Container>
   </section>
 </Layout>

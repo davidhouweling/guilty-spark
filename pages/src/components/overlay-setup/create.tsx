@@ -9,12 +9,12 @@ import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";
 import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-store";
-import { STREAM_OVERLAY_DEMO_GAMERTAG, StreamOverlayPresenter } from "./stream-overlay-presenter";
-import { StreamOverlayStore } from "./stream-overlay-store";
-import { StreamOverlayShell } from "./stream-overlay";
-import styles from "./stream-overlay.module.css";
+import { OVERLAY_SETUP_DEMO_GAMERTAG, OverlaySetupPresenter } from "./overlay-setup-presenter";
+import { OverlaySetupStore } from "./overlay-setup-store";
+import { OverlaySetupShell } from "./overlay-setup";
+import styles from "./overlay-setup.module.css";
 
-export interface CreateStreamOverlayPageConfig {
+export interface CreateOverlaySetupPageConfig {
   readonly authService: AuthService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly apiHost: string;
@@ -26,21 +26,21 @@ function buildSignInHref(apiHost: string): string {
   return startUrl.toString();
 }
 
-interface StreamOverlayPageInternalProps {
-  readonly presenter: StreamOverlayPresenter;
+interface OverlaySetupPageInternalProps {
+  readonly presenter: OverlaySetupPresenter;
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly apiHost: string;
   readonly StatsHighlightsSection: ReturnType<typeof createStatsHighlightsSection>;
 }
 
-function StreamOverlayPageInternal({
+function OverlaySetupPageInternal({
   presenter,
   settingsPresenter,
   settingsStore,
   apiHost,
   StatsHighlightsSection,
-}: StreamOverlayPageInternalProps): ReactElement {
+}: OverlaySetupPageInternalProps): ReactElement {
   useEffect(() => {
     presenter.start();
     return (): void => {
@@ -62,7 +62,7 @@ function StreamOverlayPageInternal({
       settingsPresenter.loadSettingsFromService(snapshot.gamertag);
       return;
     }
-    settingsPresenter.loadDemoSettings(snapshot.gamertag ?? STREAM_OVERLAY_DEMO_GAMERTAG);
+    settingsPresenter.loadDemoSettings(snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG);
   }, [settingsPresenter, snapshot.authState, snapshot.gamertag]);
 
   useEffect(() => {
@@ -171,7 +171,7 @@ function StreamOverlayPageInternal({
     );
 
   return (
-    <StreamOverlayShell
+    <OverlaySetupShell
       authState={snapshot.authState}
       gamertag={snapshot.gamertag}
       avatarUrl={snapshot.avatarUrl}
@@ -207,19 +207,19 @@ function StreamOverlayPageInternal({
   );
 }
 
-export function createStreamOverlayPage(config: CreateStreamOverlayPageConfig): () => ReactElement {
+export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): () => ReactElement {
   const Component = (): ReactElement => {
-    const store = useMemo(() => new StreamOverlayStore(), []);
+    const store = useMemo(() => new OverlaySetupStore(), []);
     const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
     const StatsHighlightsSection = useMemo(() => createStatsHighlightsSection(), []);
-    const presenter = useMemo(() => new StreamOverlayPresenter({ authService: config.authService, store }), [store]);
+    const presenter = useMemo(() => new OverlaySetupPresenter({ authService: config.authService, store }), [store]);
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
       [settingsStore],
     );
 
     return (
-      <StreamOverlayPageInternal
+      <OverlaySetupPageInternal
         presenter={presenter}
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}

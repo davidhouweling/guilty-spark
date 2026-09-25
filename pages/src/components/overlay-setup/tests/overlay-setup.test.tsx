@@ -5,13 +5,13 @@ import { render, screen } from "@testing-library/react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
-import { createStreamOverlayPage } from "../create";
-import { StreamOverlayShell } from "../stream-overlay";
+import { createOverlaySetupPage } from "../create";
+import { OverlaySetupShell } from "../overlay-setup";
 
-describe("StreamOverlayShell", () => {
+describe("OverlaySetupShell", () => {
   it("renders all three steps with their content", () => {
     render(
-      <StreamOverlayShell
+      <OverlaySetupShell
         authState="authenticated"
         gamertag="TestSpartan"
         avatarUrl={null}
@@ -47,13 +47,13 @@ describe("StreamOverlayShell", () => {
       getSettings: async () => settingsPromise,
       updateSettings: async (settings) => Promise.resolve(settings),
     };
-    const StreamOverlayPage = createStreamOverlayPage({
+    const OverlaySetupPage = createOverlaySetupPage({
       authService,
       settingsService,
       apiHost: "https://api.example.com",
     });
 
-    render(<StreamOverlayPage />);
+    render(<OverlaySetupPage />);
 
     expect(await screen.findByText("Loading your saved overlay settings…")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /automatically start tracking/i })).toBeDisabled();

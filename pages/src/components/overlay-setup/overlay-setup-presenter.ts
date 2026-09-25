@@ -1,15 +1,15 @@
 import type { AuthService } from "../../services/auth/types";
-import type { StreamOverlaySnapshot, StreamOverlayStore } from "./stream-overlay-store";
+import type { OverlaySetupSnapshot, OverlaySetupStore } from "./overlay-setup-store";
 
 // Shown to logged-out visitors so Steps 2 & 3 render with realistic sample data.
-export const STREAM_OVERLAY_DEMO_GAMERTAG = "343GuiltySpark";
+export const OVERLAY_SETUP_DEMO_GAMERTAG = "343GuiltySpark";
 
 interface Config {
   readonly authService: AuthService;
-  readonly store: StreamOverlayStore;
+  readonly store: OverlaySetupStore;
 }
 
-export class StreamOverlayPresenter {
+export class OverlaySetupPresenter {
   private readonly config: Config;
   private loadSeq = 0;
 
@@ -36,7 +36,7 @@ export class StreamOverlayPresenter {
     return this.config.store.subscribe(listener);
   }
 
-  public getSnapshot(): StreamOverlaySnapshot {
+  public getSnapshot(): OverlaySetupSnapshot {
     return this.config.store.getSnapshot();
   }
 
@@ -51,7 +51,7 @@ export class StreamOverlayPresenter {
       if (!session.authenticated) {
         this.applySnapshot(() => ({
           authState: "unauthenticated",
-          gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
+          gamertag: OVERLAY_SETUP_DEMO_GAMERTAG,
           avatarUrl: null,
           errorMessage: null,
         }));
@@ -77,7 +77,7 @@ export class StreamOverlayPresenter {
     }
   }
 
-  private applySnapshot(updater: (s: StreamOverlaySnapshot) => StreamOverlaySnapshot): void {
+  private applySnapshot(updater: (s: OverlaySetupSnapshot) => OverlaySetupSnapshot): void {
     this.config.store.update(updater(this.config.store.getSnapshot()));
   }
 }

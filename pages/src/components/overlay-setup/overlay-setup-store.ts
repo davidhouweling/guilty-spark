@@ -1,14 +1,14 @@
-export type StreamOverlayAuthState = "loading" | "unauthenticated" | "authenticated" | "error";
+export type OverlaySetupAuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 
-export interface StreamOverlaySnapshot {
-  readonly authState: StreamOverlayAuthState;
+export interface OverlaySetupSnapshot {
+  readonly authState: OverlaySetupAuthState;
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
   readonly errorMessage: string | null;
 }
 
-export class StreamOverlayStore {
-  private snapshot: StreamOverlaySnapshot = {
+export class OverlaySetupStore {
+  private snapshot: OverlaySetupSnapshot = {
     authState: "loading",
     gamertag: null,
     avatarUrl: null,
@@ -23,11 +23,11 @@ export class StreamOverlayStore {
     };
   }
 
-  public getSnapshot(): StreamOverlaySnapshot {
+  public getSnapshot(): OverlaySetupSnapshot {
     return this.snapshot;
   }
 
-  public update(snapshot: StreamOverlaySnapshot): void {
+  public update(snapshot: OverlaySetupSnapshot): void {
     this.snapshot = snapshot;
     for (const subscriber of this.subscribers) {
       subscriber();
