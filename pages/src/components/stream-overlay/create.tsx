@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import classNames from "classnames";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
@@ -79,7 +80,9 @@ function StreamOverlayPageInternal({
   const isDemo = snapshot.authState !== "authenticated";
   const settingsDisabled = isDemo || settingsSnapshot.loadStatus !== "loaded";
   const settingsContent =
-    settingsSnapshot.loadStatus === "idle" || settingsSnapshot.loadStatus === "loading" ? (
+    snapshot.authState === "error" ? (
+      <Alert variant="error">{snapshot.errorMessage ?? "Failed to load session."}</Alert>
+    ) : settingsSnapshot.loadStatus === "idle" || settingsSnapshot.loadStatus === "loading" ? (
       <Alert variant="info">Loading your saved overlay settings…</Alert>
     ) : settingsSnapshot.loadStatus === "error" ? (
       <Alert variant="error">{settingsSnapshot.loadErrorMessage ?? "Failed to load settings"}</Alert>
@@ -182,6 +185,8 @@ function StreamOverlayPageInternal({
           previewColorMode={settingsSnapshot.defaultColorMode}
           autoStart={settingsSnapshot.autoStart}
           disabled={settingsDisabled}
+          errorMessage={snapshot.authState === "error" ? snapshot.errorMessage : null}
+          isDemo={isDemo}
           onAutoStartChange={(enabled): void => {
             settingsPresenter.setAutoStart(enabled);
           }}
@@ -190,7 +195,7 @@ function StreamOverlayPageInternal({
       configureContent={
         <fieldset
           disabled={settingsDisabled}
-          className={isDemo ? styles.demoLocked : undefined}
+          className={classNames(styles.settingsFieldset, isDemo && styles.demoLocked)}
           aria-label="Overlay settings"
         >
           {settingsContent}

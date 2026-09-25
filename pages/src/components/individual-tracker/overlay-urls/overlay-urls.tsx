@@ -43,6 +43,8 @@ export function OverlayUrlsSection({
   previewColorMode,
   autoStart,
   disabled = false,
+  errorMessage = null,
+  isDemo = false,
   onAutoStartChange,
 }: OverlayUrlsSectionProps): React.ReactElement {
   const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
@@ -57,6 +59,7 @@ export function OverlayUrlsSection({
   }, []);
 
   const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
+  const overlayUrl = urls === null ? null : buildOverlayPreviewUrl(urls.overlayUrl, previewColorMode);
 
   const handleCopy = (target: "view" | "overlay", url: string): void => {
     async function copyAndSetStatus(): Promise<void> {
@@ -85,7 +88,9 @@ export function OverlayUrlsSection({
 
   return (
     <div className={styles.panel}>
-      {gamertag === null ? (
+      {errorMessage !== null ? (
+        <Alert variant="error">{errorMessage}</Alert>
+      ) : gamertag === null ? (
         <Alert variant="warning">
           No active Xbox identity is linked. Link an Xbox account to generate shareable URLs.
         </Alert>
@@ -96,14 +101,14 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               In your overlay software, such as OBS, add a Browser Source and use the URL below.
             </p>
-            <p className={styles.urlText}>{urls?.overlayUrl}</p>
+            <p className={styles.urlText}>{isDemo ? overlayUrl : urls?.overlayUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
                 ariaLabel={copyTarget === "overlay" ? "Copied overlay URL" : "Copy overlay URL"}
                 onClick={(): void => {
-                  handleCopy("overlay", urls?.overlayUrl ?? "");
+                  handleCopy("overlay", isDemo ? (overlayUrl ?? "") : (urls?.overlayUrl ?? ""));
                 }}
               >
                 {copyTarget === "overlay" ? "Copied!" : "Copy"}
@@ -112,7 +117,7 @@ export function OverlayUrlsSection({
                 variant="secondary"
                 size="small"
                 onClick={(): void => {
-                  handleOpenUrl(urls?.overlayUrl ?? "");
+                  handleOpenUrl(isDemo ? (overlayUrl ?? "") : (urls?.overlayUrl ?? ""));
                 }}
               >
                 Open overlay

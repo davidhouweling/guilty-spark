@@ -5,5 +5,7 @@ export interface OverlayUrlsSectionProps {
   readonly previewColorMode: StreamerViewColorMode;
   readonly autoStart: boolean;
   readonly disabled?: boolean | undefined;
+  readonly errorMessage?: string | null | undefined;
+  readonly isDemo?: boolean | undefined;
   readonly onAutoStartChange: (enabled: boolean) => void;
 }
