@@ -34,7 +34,7 @@ export function IndividualTrackerShell({
         </div>
       )}
 
-      {authState === "authenticated" && <div className={styles.liveTrackers}>{liveTrackersContent}</div>}
+      {authState === "authenticated" && <>{liveTrackersContent}</>}
     </div>
   );
 }

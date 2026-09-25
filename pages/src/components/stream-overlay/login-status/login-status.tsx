@@ -11,6 +11,7 @@ export function LoginStatusSection({
   gamertag,
   avatarUrl,
   signInHref,
+  errorMessage,
 }: LoginStatusSectionProps): ReactElement {
   if (authState === "loading") {
     return (
@@ -39,6 +40,7 @@ export function LoginStatusSection({
   return (
     <div className={styles.panel}>
       <div>
+        {errorMessage != null && <p className={styles.errorMessage}>{errorMessage}</p>}
         <p className={styles.signInPrompt}>Sign in with your Microsoft account to get your own overlay URLs.</p>
         <Button href={signInHref}>Sign in with Microsoft</Button>
       </div>

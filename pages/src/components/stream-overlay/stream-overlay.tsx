@@ -9,6 +9,7 @@ export interface StreamOverlayShellProps {
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
   readonly signInHref: string;
+  readonly errorMessage?: string | null | undefined;
   readonly overlayUrlsContent: ReactNode;
   readonly configureContent: ReactNode;
 }
@@ -18,6 +19,7 @@ export function StreamOverlayShell({
   gamertag,
   avatarUrl,
   signInHref,
+  errorMessage,
   overlayUrlsContent,
   configureContent,
 }: StreamOverlayShellProps): ReactElement {
@@ -27,7 +29,13 @@ export function StreamOverlayShell({
         <Heading tagName="h2" className={styles.stepHeading}>
           Step 1: Sign in
         </Heading>
-        <LoginStatusSection authState={authState} gamertag={gamertag} avatarUrl={avatarUrl} signInHref={signInHref} />
+        <LoginStatusSection
+          authState={authState}
+          gamertag={gamertag}
+          avatarUrl={avatarUrl}
+          signInHref={signInHref}
+          errorMessage={errorMessage}
+        />
       </section>
 
       <section className={styles.step}>

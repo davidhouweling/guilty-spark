@@ -33,6 +33,7 @@ describe("StreamOverlayPresenter", () => {
       authState: "authenticated",
       gamertag: "TestSpartan",
       avatarUrl: "https://example.com/avatar.png",
+      errorMessage: null,
     });
   });
 
@@ -49,10 +50,11 @@ describe("StreamOverlayPresenter", () => {
       authState: "unauthenticated",
       gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
       avatarUrl: null,
+      errorMessage: null,
     });
   });
 
-  it("falls back to demo data when the session request fails", async () => {
+  it("preserves the session failure instead of falling back to demo data", async () => {
     const store = new StreamOverlayStore();
     const authService = aFakeAuthServiceWith();
     authService.getSession = async (): Promise<never> => Promise.reject(new Error("network failure"));
@@ -63,8 +65,9 @@ describe("StreamOverlayPresenter", () => {
 
     expect(presenter.getSnapshot()).toEqual({
       authState: "unauthenticated",
-      gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
+      gamertag: null,
       avatarUrl: null,
+      errorMessage: "Failed to load session. Please refresh the page.",
     });
   });
 

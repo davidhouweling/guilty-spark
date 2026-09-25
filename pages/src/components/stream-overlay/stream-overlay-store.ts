@@ -4,6 +4,7 @@ export interface StreamOverlaySnapshot {
   readonly authState: StreamOverlayAuthState;
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
+  readonly errorMessage: string | null;
 }
 
 export class StreamOverlayStore {
@@ -11,6 +12,7 @@ export class StreamOverlayStore {
     authState: "loading",
     gamertag: null,
     avatarUrl: null,
+    errorMessage: null,
   };
   private readonly subscribers = new Set<() => void>();
 

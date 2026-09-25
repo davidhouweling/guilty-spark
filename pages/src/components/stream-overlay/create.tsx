@@ -172,6 +172,7 @@ function StreamOverlayPageInternal({
       gamertag={snapshot.gamertag}
       avatarUrl={snapshot.avatarUrl}
       signInHref={buildSignInHref(apiHost)}
+      errorMessage={snapshot.errorMessage}
       overlayUrlsContent={
         <OverlayUrlsSection
           gamertag={snapshot.gamertag}

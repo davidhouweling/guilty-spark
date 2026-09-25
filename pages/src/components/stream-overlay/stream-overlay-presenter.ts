@@ -47,6 +47,7 @@ export class StreamOverlayPresenter {
           authState: "unauthenticated",
           gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
           avatarUrl: null,
+          errorMessage: null,
         }));
         return;
       }
@@ -55,6 +56,7 @@ export class StreamOverlayPresenter {
         authState: "authenticated",
         gamertag: session.xboxGamertag ?? null,
         avatarUrl: session.avatarUrl ?? null,
+        errorMessage: null,
       }));
     } catch {
       if (seq !== this.loadSeq) {
@@ -62,8 +64,9 @@ export class StreamOverlayPresenter {
       }
       this.applySnapshot(() => ({
         authState: "unauthenticated",
-        gamertag: STREAM_OVERLAY_DEMO_GAMERTAG,
+        gamertag: null,
         avatarUrl: null,
+        errorMessage: "Failed to load session. Please refresh the page.",
       }));
     }
   }

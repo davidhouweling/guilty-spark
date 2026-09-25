@@ -5,4 +5,5 @@ export interface LoginStatusSectionProps {
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
   readonly signInHref: string;
+  readonly errorMessage?: string | null | undefined;
 }
