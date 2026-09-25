@@ -1,55 +1,23 @@
 import type { ReactElement, ReactNode } from "react";
-import { useMemo } from "react";
 import { Button } from "../button/button";
 import { Heading } from "../heading/heading";
 import { LoadingState } from "../loading-state/loading-state";
-import { TabbedSection } from "../tabbed-section/tabbed-section";
-import type { TabbedSectionTab } from "../tabbed-section/types";
-import type { IndividualTrackerAuthState, IndividualTrackerSectionId } from "./individual-tracker-store";
+import type { IndividualTrackerAuthState } from "./individual-tracker-store";
 import styles from "./individual-tracker.module.css";
 
 interface IndividualTrackerShellProps {
   readonly authState: IndividualTrackerAuthState;
   readonly errorMessage: string | null;
-  readonly activeSection: IndividualTrackerSectionId;
   readonly onSignIn: () => void;
-  readonly onSectionChange: (id: IndividualTrackerSectionId) => void;
   readonly liveTrackersContent: ReactNode;
-  readonly statsHighlightsContent: ReactNode;
-  readonly streamerSettingsContent: ReactNode;
 }
 
 export function IndividualTrackerShell({
   authState,
   errorMessage,
-  activeSection,
   onSignIn,
-  onSectionChange,
   liveTrackersContent,
-  statsHighlightsContent,
-  streamerSettingsContent,
 }: IndividualTrackerShellProps): ReactElement {
-  const sectionTabs = useMemo(
-    (): readonly TabbedSectionTab<IndividualTrackerSectionId>[] => [
-      {
-        id: "live-trackers",
-        label: "Live Trackers",
-        content: liveTrackersContent,
-      },
-      {
-        id: "stats-highlights",
-        label: "Stats Highlights",
-        content: statsHighlightsContent,
-      },
-      {
-        id: "streamer-settings",
-        label: "Streamer Settings",
-        content: streamerSettingsContent,
-      },
-    ],
-    [liveTrackersContent, statsHighlightsContent, streamerSettingsContent],
-  );
-
   return (
     <div className={styles.container}>
       <Heading tagName="h1" spacing={6}>
@@ -66,14 +34,7 @@ export function IndividualTrackerShell({
         </div>
       )}
 
-      {authState === "authenticated" && (
-        <TabbedSection
-          tabs={sectionTabs}
-          selectedTabId={activeSection}
-          onTabChange={onSectionChange}
-          tabListAriaLabel="Individual tracker sections"
-        />
-      )}
+      {authState === "authenticated" && <>{liveTrackersContent}</>}
     </div>
   );
 }

@@ -1,16 +1,9 @@
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../services/auth/types";
-import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { LiveTrackersController } from "./live-trackers/types";
-import type {
-  IndividualTrackerSectionId,
-  IndividualTrackerSnapshot,
-  IndividualTrackerStore,
-} from "./individual-tracker-store";
+import type { IndividualTrackerSnapshot, IndividualTrackerStore } from "./individual-tracker-store";
 
 interface Config {
   readonly authService: AuthService;
-  readonly settingsService: IndividualTrackerSettingsService;
   readonly store: IndividualTrackerStore;
   readonly liveTrackersController: LiveTrackersController;
 }
@@ -43,10 +36,6 @@ export class IndividualTrackerPresenter {
     return this.config.store.snapshot;
   }
 
-  public setActiveSection(sectionId: IndividualTrackerSectionId): void {
-    this.applySnapshot((s) => ({ ...s, activeSection: sectionId }));
-  }
-
   public signIn(): void {
     const loginUrl = new URL("/login", window.location.origin);
     loginUrl.searchParams.set("redirect", window.location.pathname);
@@ -67,12 +56,6 @@ export class IndividualTrackerPresenter {
         return;
       }
 
-      const settings = await this.config.settingsService.getSettings().catch((): StreamerViewSettings => ({}));
-
-      if (seq !== this.loadSeq) {
-        return;
-      }
-
       this.config.liveTrackersController.setSessionContext(
         session.userId,
         session.xboxGamertag ?? null,
@@ -83,7 +66,6 @@ export class IndividualTrackerPresenter {
         ...s,
         authState: "authenticated",
         errorMessage: null,
-        streamerSettings: settings,
         gamertag: session.xboxGamertag ?? null,
       }));
     } catch {

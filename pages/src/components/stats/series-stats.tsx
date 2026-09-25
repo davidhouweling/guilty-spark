@@ -159,7 +159,7 @@ export function SeriesStats({
           const playerStat = row.player.values.find((s) => s.name === stat.name);
           return playerStat?.value ?? 0;
         },
-        cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
+        cell: (_value: unknown, row: MatchStatsRow): React.ReactNode => {
           const playerStat = row.player.values.find((s) => s.name === stat.name);
           if (playerStat == null) {
             return "—";

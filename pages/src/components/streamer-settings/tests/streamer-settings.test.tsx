@@ -4,25 +4,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../../live-tracker/settings/types";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 import type { StreamerSettingsSectionViewProps } from "../streamer-settings";
 import { StreamerSettingsSectionView } from "../streamer-settings";
 
-vi.mock("../../../team-colors/team-color-picker", () => ({
+vi.mock("../../team-colors/team-color-picker", () => ({
   TeamColorPicker: ({ label }: { readonly label: string }): React.ReactElement => (
     <div data-testid={`color-picker-${label}`} />
   ),
 }));
 
-vi.mock("../../../live-tracker/settings/display-settings-section", () => ({
+vi.mock("../../live-tracker/settings/display-settings-section", () => ({
   DisplaySettingsSection: (): React.ReactElement => <div data-testid="display-settings-section" />,
 }));
 
-vi.mock("../../../live-tracker/settings/ticker-settings-section", () => ({
+vi.mock("../../live-tracker/settings/ticker-settings-section", () => ({
   TickerSettingsSection: (): React.ReactElement => <div data-testid="ticker-settings-section" />,
 }));
 
-vi.mock("../../../live-tracker/settings/font-size-slider", () => ({
+vi.mock("../../live-tracker/settings/font-size-slider", () => ({
   FontSizeSlider: ({ label }: { readonly label: string }): React.ReactElement => (
     <div data-testid={`font-size-slider-${label}`} />
   ),
@@ -58,7 +58,6 @@ const DEFAULT_FONT_SIZE_SETTINGS: FontSizeSettings = {
 
 function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): StreamerSettingsSectionViewProps {
   return {
-    gamertag: "gamertag-123",
     defaultColorMode: "player",
     playerTeamColor: "cerulean",
     playerEnemyColor: "salmon",
@@ -76,7 +75,6 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     matchmakingShowStatsHighlights: true,
     inSeriesMyStatsOnly: false,
     matchmakingMyStatsOnly: false,
-    autoStart: true,
     fontSizeSettings: DEFAULT_FONT_SIZE_SETTINGS,
     saveStatus: "idle",
     saveErrorMessage: null,
@@ -95,7 +93,6 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onMatchmakingShowStatsHighlightsChange: (): void => undefined,
     onInSeriesMyStatsOnlyChange: (): void => undefined,
     onMatchmakingMyStatsOnlyChange: (): void => undefined,
-    onAutoStartChange: (): void => undefined,
     onFontSizesChange: (): void => undefined,
     ...overrides,
   };
@@ -105,67 +102,6 @@ describe("StreamerSettingsSectionView", () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
-  });
-
-  describe("URL panel", () => {
-    it("renders the viewer and overlay URLs when gamertag is provided", () => {
-      vi.stubGlobal("location", { origin: "https://example.com" });
-      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
-
-      expect(screen.getByText("https://example.com/u/gamertag-abc")).toBeInTheDocument();
-      expect(screen.getByText(/\/u\/gamertag-abc\/overlay/)).toBeInTheDocument();
-
-      vi.unstubAllGlobals();
-    });
-
-    it("renders a warning alert when gamertag is null", () => {
-      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: null })} />);
-
-      expect(screen.getByText(/No active Xbox identity is linked/)).toBeInTheDocument();
-    });
-
-    it("does not render the auto-start toggle when gamertag is null", () => {
-      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: null })} />);
-
-      expect(
-        screen.queryByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
-      ).not.toBeInTheDocument();
-    });
-
-    it("calls the clipboard API when the view copy button is clicked", async () => {
-      const user = userEvent.setup();
-      const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
-      vi.stubGlobal("navigator", { clipboard: { writeText } });
-      vi.stubGlobal("location", { origin: "https://example.com" });
-
-      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
-
-      const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-      await user.click(copyButtons[0]);
-
-      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc"));
-
-      vi.unstubAllGlobals();
-    });
-
-    it("shows Copied! on the view button after a successful copy", async () => {
-      const user = userEvent.setup({ delay: null });
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      vi.stubGlobal("navigator", {
-        clipboard: { writeText: vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined) },
-      });
-      vi.stubGlobal("location", { origin: "https://example.com" });
-
-      render(<StreamerSettingsSectionView {...aFakeProps({ gamertag: "gamertag-abc" })} />);
-
-      const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-      await user.click(copyButtons[0]);
-
-      expect(screen.getByRole("button", { name: "Copied!" })).toBeInTheDocument();
-
-      vi.useRealTimers();
-      vi.unstubAllGlobals();
-    });
   });
 
   describe("presentation defaults", () => {
@@ -304,14 +240,6 @@ describe("StreamerSettingsSectionView", () => {
       expect(screen.getByRole("checkbox", { name: /disable toggling to player names/i })).toBeInTheDocument();
     });
 
-    it("renders the auto-start toggle", () => {
-      render(<StreamerSettingsSectionView {...aFakeProps()} />);
-
-      expect(
-        screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
-      ).toBeInTheDocument();
-    });
-
     it("renders font size sliders for all sections", () => {
       render(<StreamerSettingsSectionView {...aFakeProps()} />);
 
@@ -445,19 +373,6 @@ describe("StreamerSettingsSectionView", () => {
       render(<StreamerSettingsSectionView {...aFakeProps({ onDisableTeamPlayerNamesChange: onChange })} />);
 
       await user.click(screen.getByRole("checkbox", { name: /disable toggling to player names/i }));
-
-      expect(onChange).toHaveBeenCalledWith(true);
-    });
-
-    it("calls onAutoStartChange when the auto-start toggle is clicked", async () => {
-      const user = userEvent.setup();
-      const onChange = vi.fn<(enabled: boolean) => void>();
-
-      render(<StreamerSettingsSectionView {...aFakeProps({ autoStart: false, onAutoStartChange: onChange })} />);
-
-      await user.click(
-        screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
-      );
 
       expect(onChange).toHaveBeenCalledWith(true);
     });

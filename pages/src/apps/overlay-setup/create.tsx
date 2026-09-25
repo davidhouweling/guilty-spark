@@ -3,27 +3,27 @@ import type { ReactElement } from "react";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { createIndividualTrackerManagerPage } from "../../components/individual-tracker-manager/create";
+import { createOverlaySetupPage } from "../../components/overlay-setup/create";
 import type { Services } from "./services";
 import { installServices } from "./services";
 
-interface IndividualTrackerManagerAppProps {
+interface OverlaySetupAppProps {
   readonly apiHost: string;
 }
 
-export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManagerAppProps): ReactElement {
+export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement {
   const [state, setState] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
-  const IndividualTrackerManagerPage = useMemo(
+  const OverlaySetupPage = useMemo(
     () =>
       services == null
         ? null
-        : createIndividualTrackerManagerPage({
+        : createOverlaySetupPage({
             authService: services.authService,
-            individualTrackerService: services.individualTrackerService,
-            individualTrackerViewService: services.individualTrackerViewService,
+            settingsService: services.settingsService,
+            apiHost,
           }),
-    [services],
+    [services, apiHost],
   );
 
   useEffect(() => {
@@ -58,15 +58,9 @@ export function IndividualTrackerManagerApp({ apiHost }: IndividualTrackerManage
   return (
     <ComponentLoader
       status={state}
-      loading={<LoadingState text="Loading tracker manager..." />}
-      error={<ErrorState message="Failed to load tracker manager" />}
-      loaded={
-        IndividualTrackerManagerPage != null ? (
-          <IndividualTrackerManagerPage />
-        ) : (
-          <ErrorState message="Services failed to load" />
-        )
-      }
+      loading={<LoadingState text="Loading stream overlay setup..." />}
+      error={<ErrorState message="Failed to load stream overlay setup" />}
+      loaded={OverlaySetupPage != null ? <OverlaySetupPage /> : <ErrorState message="Services failed to load" />}
     />
   );
 }

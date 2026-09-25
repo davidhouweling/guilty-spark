@@ -7,9 +7,10 @@ import type {
   IndividualStatsHighlightOption,
   StreamerViewColorMode,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../live-tracker/settings/types";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type LoadStatus = "idle" | "loading" | "loaded" | "error";
 
 export interface StreamerSettingsSnapshot {
   readonly gamertag: string | null;
@@ -35,6 +36,8 @@ export interface StreamerSettingsSnapshot {
   readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
   readonly saveStatus: SaveStatus;
   readonly saveErrorMessage: string | null;
+  readonly loadStatus: LoadStatus;
+  readonly loadErrorMessage: string | null;
 }
 
 const DEFAULT_STYLE_FLAGS = DEFAULT_STREAMER_VIEW_SETTINGS.styleFlags;
@@ -101,6 +104,8 @@ export class StreamerSettingsStore {
       statsHighlightSlots: DEFAULT_STATS_HIGHLIGHT_SLOTS,
       saveStatus: "idle",
       saveErrorMessage: null,
+      loadStatus: "idle",
+      loadErrorMessage: null,
     };
   }
 
@@ -153,6 +158,18 @@ export class StreamerSettingsStore {
 
   public setSaving(): void {
     this.update({ saveStatus: "saving", saveErrorMessage: null });
+  }
+
+  public setLoading(): void {
+    this.update({ loadStatus: "loading", loadErrorMessage: null });
+  }
+
+  public setLoaded(): void {
+    this.update({ loadStatus: "loaded", loadErrorMessage: null });
+  }
+
+  public setLoadError(message: string): void {
+    this.update({ loadStatus: "error", loadErrorMessage: message });
   }
 
   public setSaved(): void {

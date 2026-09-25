@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { aFakeIndividualTrackerSettingsServiceWith } from "../../../../services/individual-tracker/fakes/settings.fake";
-import type { FakeIndividualTrackerSettingsService } from "../../../../services/individual-tracker/fakes/settings.fake";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
+import type { FakeIndividualTrackerSettingsService } from "../../../services/individual-tracker/fakes/settings.fake";
 import { StreamerSettingsPresenter } from "../streamer-settings-presenter";
 import { StreamerSettingsStore } from "../streamer-settings-store";
 
@@ -36,6 +37,39 @@ describe("StreamerSettingsPresenter", () => {
       presenter.loadSettings({ styleFlags: { colorMode: "observer" } }, null);
 
       expect(store.getSnapshot().defaultColorMode).toBe("observer");
+    });
+
+    describe("loadSettingsFromService", () => {
+      it("loads saved settings before marking the store as loaded", async () => {
+        const { store, presenter, settingsService } = aHarness();
+        settingsService.getSettings = async (): Promise<StreamerViewSettings> =>
+          Promise.resolve({ styleFlags: { colorMode: "observer" } });
+
+        presenter.loadSettingsFromService("gamertag-123");
+        expect(store.getSnapshot().loadStatus).toBe("loading");
+
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(store.getSnapshot().loadStatus).toBe("loaded");
+        expect(store.getSnapshot().defaultColorMode).toBe("observer");
+        expect(store.getSnapshot().gamertag).toBe("gamertag-123");
+      });
+
+      it("records a load error without applying defaults as saved settings", async () => {
+        const { store, presenter, settingsService } = aHarness();
+        settingsService.getSettings = async (): Promise<never> => Promise.reject(new Error("Network error"));
+
+        presenter.loadSettingsFromService("gamertag-123");
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(store.getSnapshot().loadStatus).toBe("error");
+        expect(store.getSnapshot().loadErrorMessage).toBe("Network error");
+        expect(store.getSnapshot().gamertag).toBeNull();
+      });
     });
 
     it("applies player colors from style flags to the store", () => {

@@ -1,0 +1,30 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.stepHeading {
+  margin-bottom: var(--space-2);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settingsFieldset {
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.demoLocked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  opacity: 0.6;
+  pointer-events: none;
+}

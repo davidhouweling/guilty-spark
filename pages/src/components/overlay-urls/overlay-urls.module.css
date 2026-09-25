@@ -1,0 +1,57 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionDescription {
+  color: var(--halo-gray);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.urlList {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.card {
+  background: color-mix(in srgb, var(--halo-bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 20%, transparent);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.cardDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.urlText {
+  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--halo-white);
+  margin: 0;
+  min-height: 2.5rem;
+  overflow-wrap: anywhere;
+  padding: var(--space-2);
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sectionDivider {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 22%, transparent);
+  margin: var(--space-1) 0;
+}

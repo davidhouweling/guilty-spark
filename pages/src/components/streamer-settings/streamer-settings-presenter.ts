@@ -7,8 +7,8 @@ import {
   INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
-import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
+import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
+import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../live-tracker/settings/types";
 import type { StreamerSettingsSnapshot, StreamerSettingsStore } from "./streamer-settings-store";
 
 const DEBOUNCE_MS = 450;
@@ -33,7 +33,7 @@ function normalizeStatsHighlightSlots(
 function settingsToSnapshot(
   settings: StreamerViewSettings,
   snapshot: StreamerSettingsSnapshot,
-): Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag"> {
+): Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "loadStatus" | "loadErrorMessage" | "gamertag"> {
   const styleFlags = settings.styleFlags ?? {};
   const visibleSections = settings.visibleSections ?? {};
   const fontSizes = settings.layoutOptions?.fontSizes ?? {};
@@ -90,7 +90,10 @@ function settingsToSnapshot(
 
 function applyParsedSettingsToStore(
   store: StreamerSettingsStore,
-  parsed: Omit<StreamerSettingsSnapshot, "saveStatus" | "saveErrorMessage" | "gamertag">,
+  parsed: Omit<
+    StreamerSettingsSnapshot,
+    "saveStatus" | "saveErrorMessage" | "loadStatus" | "loadErrorMessage" | "gamertag"
+  >,
   gamertag: string | null,
 ): void {
   store.batchUpdate({ gamertag, ...parsed });
@@ -174,6 +177,39 @@ export class StreamerSettingsPresenter {
     const snapshot = this.config.store.getSnapshot();
     const parsed = settingsToSnapshot(settings, snapshot);
     applyParsedSettingsToStore(this.config.store, parsed, gamertag);
+  }
+
+  public loadSettingsFromService(gamertag: string | null): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.config.store.setLoading();
+    void this.loadSettingsFromServiceAsync(gamertag);
+  }
+
+  public loadDemoSettings(gamertag: string): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.loadSettings({}, gamertag);
+    this.config.store.setLoaded();
+  }
+
+  private async loadSettingsFromServiceAsync(gamertag: string | null): Promise<void> {
+    try {
+      const settings = await this.config.settingsService.getSettings();
+      if (this.isDisposed) {
+        return;
+      }
+      this.loadSettings(settings, gamertag);
+      this.config.store.setLoaded();
+    } catch (error: unknown) {
+      if (this.isDisposed) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Failed to load settings";
+      this.config.store.setLoadError(message);
+    }
   }
 
   public setDefaultColorMode(mode: StreamerViewColorMode): void {
