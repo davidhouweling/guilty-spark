@@ -4,7 +4,7 @@ import classNames from "classnames";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import { OverlayUrlsSection } from "../individual-tracker/overlay-urls/overlay-urls";
+import { createOverlayUrlsSection } from "../individual-tracker/overlay-urls/create";
 import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";
@@ -76,6 +76,7 @@ function StreamOverlayPageInternal({
     () => settingsStore.getSnapshot(),
     () => settingsStore.getSnapshot(),
   );
+  const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
   const isDemo = snapshot.authState !== "authenticated";
   const settingsDisabled = isDemo || settingsSnapshot.loadStatus !== "loaded";
@@ -187,6 +188,7 @@ function StreamOverlayPageInternal({
           disabled={settingsDisabled}
           errorMessage={snapshot.authState === "error" ? snapshot.errorMessage : null}
           isDemo={isDemo}
+          loading={snapshot.authState === "loading"}
           onAutoStartChange={(enabled): void => {
             settingsPresenter.setAutoStart(enabled);
           }}

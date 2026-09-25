@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { OverlayUrlsSectionProps } from "../types";
-import { OverlayUrlsSection } from "../overlay-urls";
+import { createOverlayUrlsSection } from "../create";
 
 function aFakeProps(overrides?: Partial<OverlayUrlsSectionProps>): OverlayUrlsSectionProps {
   return {
@@ -17,6 +17,11 @@ function aFakeProps(overrides?: Partial<OverlayUrlsSectionProps>): OverlayUrlsSe
 }
 
 describe("OverlayUrlsSection", () => {
+  function renderSection(props: OverlayUrlsSectionProps): void {
+    const OverlayUrlsSection = createOverlayUrlsSection();
+    render(<OverlayUrlsSection {...props} />);
+  }
+
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
@@ -24,7 +29,7 @@ describe("OverlayUrlsSection", () => {
 
   it("renders the overlay and viewer URLs when gamertag is provided", () => {
     vi.stubGlobal("location", { origin: "https://example.com" });
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+    renderSection(aFakeProps({ gamertag: "gamertag-abc" }));
 
     expect(screen.getByText("https://example.com/u/gamertag-abc")).toBeInTheDocument();
     expect(screen.getByText(/\/u\/gamertag-abc\/overlay/)).toBeInTheDocument();
@@ -33,13 +38,20 @@ describe("OverlayUrlsSection", () => {
   });
 
   it("renders a warning alert when gamertag is null", () => {
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: null })} />);
+    renderSection(aFakeProps({ gamertag: null }));
 
     expect(screen.getByText(/No active Xbox identity is linked/)).toBeInTheDocument();
   });
 
+  it("renders a loading state while authentication is unresolved", () => {
+    renderSection(aFakeProps({ gamertag: null, loading: true }));
+
+    expect(screen.getByText("Checking your session…")).toBeInTheDocument();
+    expect(screen.queryByText(/No active Xbox identity is linked/)).not.toBeInTheDocument();
+  });
+
   it("does not render the auto-start toggle when gamertag is null", () => {
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: null })} />);
+    renderSection(aFakeProps({ gamertag: null }));
 
     expect(
       screen.queryByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
@@ -47,7 +59,7 @@ describe("OverlayUrlsSection", () => {
   });
 
   it("renders the auto-start toggle when gamertag is provided", () => {
-    render(<OverlayUrlsSection {...aFakeProps()} />);
+    renderSection(aFakeProps());
 
     expect(
       screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }),
@@ -55,7 +67,7 @@ describe("OverlayUrlsSection", () => {
   });
 
   it("keeps identity URL actions available and disables settings actions when disabled", () => {
-    render(<OverlayUrlsSection {...aFakeProps({ disabled: true })} />);
+    renderSection(aFakeProps({ disabled: true }));
 
     expect(screen.getAllByRole("button")).toHaveLength(5);
     expect(screen.getAllByRole("button").filter((button) => button.matches(":disabled"))).toHaveLength(1);
@@ -66,7 +78,7 @@ describe("OverlayUrlsSection", () => {
     const user = userEvent.setup();
     const onChange = vi.fn<(enabled: boolean) => void>();
 
-    render(<OverlayUrlsSection {...aFakeProps({ autoStart: false, onAutoStartChange: onChange })} />);
+    renderSection(aFakeProps({ autoStart: false, onAutoStartChange: onChange }));
 
     await user.click(screen.getByRole("checkbox", { name: /automatically start tracking when the overlay is used/i }));
 
@@ -79,7 +91,7 @@ describe("OverlayUrlsSection", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     vi.stubGlobal("location", { origin: "https://example.com" });
 
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+    renderSection(aFakeProps({ gamertag: "gamertag-abc" }));
 
     await user.click(screen.getByRole("button", { name: "Copy overlay URL" }));
 
@@ -94,7 +106,7 @@ describe("OverlayUrlsSection", () => {
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     vi.stubGlobal("location", { origin: "https://example.com" });
 
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+    renderSection(aFakeProps({ gamertag: "gamertag-abc" }));
 
     await user.click(screen.getByRole("button", { name: "Copy viewer URL" }));
 
@@ -111,7 +123,7 @@ describe("OverlayUrlsSection", () => {
     });
     vi.stubGlobal("location", { origin: "https://example.com" });
 
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+    renderSection(aFakeProps({ gamertag: "gamertag-abc" }));
 
     await user.click(screen.getByRole("button", { name: "Copy viewer URL" }));
 
@@ -126,7 +138,7 @@ describe("OverlayUrlsSection", () => {
     vi.stubGlobal("location", { origin: "https://example.com" });
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
 
-    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc", previewColorMode: "observer" })} />);
+    renderSection(aFakeProps({ gamertag: "gamertag-abc", previewColorMode: "observer" }));
 
     await user.click(screen.getByRole("button", { name: "Open overlay with preview" }));
 

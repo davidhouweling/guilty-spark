@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import { OverlayUrlsSection } from "../individual-tracker/overlay-urls/overlay-urls";
+import { createOverlayUrlsSection } from "../individual-tracker/overlay-urls/create";
 import { StreamerSettingsPresenter } from "./streamer-settings-presenter";
 import { StreamerSettingsStore } from "./streamer-settings-store";
 import { StreamerSettingsSectionView } from "./streamer-settings";
@@ -27,6 +27,7 @@ function StreamerSettingsSectionInternal({
   const { settingsService } = config;
   const store = useMemo(() => new StreamerSettingsStore(), []);
   const presenter = useMemo(() => new StreamerSettingsPresenter({ settingsService, store }), [settingsService, store]);
+  const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
   useEffect(() => {
     presenter.loadSettings(settings, gamertag);

@@ -1,94 +1,40 @@
-import React, { useEffect, useRef, useState } from "react";
+import type { ReactElement } from "react";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Heading } from "../../heading/heading";
-import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "../routes";
 import type { OverlayUrlsSectionProps } from "./types";
 import styles from "./overlay-urls.module.css";
+import type { OverlayUrlsViewModel } from "./overlay-urls-presenter";
 
-type CopyTarget = "idle" | "view" | "overlay";
-
-interface StreamerUrls {
-  readonly viewUrl: string;
-  readonly overlayUrl: string;
-}
-
-function buildStreamerUrls(gamertag: string): StreamerUrls {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return {
-    viewUrl: `${origin}${buildIndividualTrackerPublicViewPath(gamertag)}`,
-    overlayUrl: `${origin}${buildIndividualTrackerPublicOverlayPath(gamertag)}`,
-  };
-}
-
-function buildOverlayPreviewUrl(overlayUrl: string, previewMode: OverlayUrlsSectionProps["previewColorMode"]): string {
-  const url = new URL(overlayUrl, typeof window === "undefined" ? "http://localhost" : window.location.origin);
-  url.searchParams.set("preview", "1");
-  url.searchParams.set("previewMode", previewMode);
-  return url.toString();
-}
-
-async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
+export interface OverlayUrlsViewProps
+  extends Omit<OverlayUrlsSectionProps, "isDemo" | "previewColorMode">, OverlayUrlsViewModel {
+  readonly onCopy: (target: "view" | "overlay", url: string) => void;
+  readonly onOpen: (url: string) => void;
 }
 
 export function OverlayUrlsSection({
   gamertag,
-  previewColorMode,
   autoStart,
   disabled = false,
   errorMessage = null,
-  isDemo = false,
+  loading = false,
   onAutoStartChange,
-}: OverlayUrlsSectionProps): React.ReactElement {
-  const [copyTarget, setCopyTarget] = useState<CopyTarget>("idle");
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return (): void => {
-      if (copyTimerRef.current !== null) {
-        clearTimeout(copyTimerRef.current);
-      }
-    };
-  }, []);
-
-  const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
-  const overlayUrl = urls === null ? null : buildOverlayPreviewUrl(urls.overlayUrl, previewColorMode);
-
-  const handleCopy = (target: "view" | "overlay", url: string): void => {
-    async function copyAndSetStatus(): Promise<void> {
-      const ok = await copyToClipboard(url);
-      if (!ok) {
-        return;
-      }
-      setCopyTarget(target);
-      if (copyTimerRef.current !== null) {
-        clearTimeout(copyTimerRef.current);
-      }
-      copyTimerRef.current = setTimeout(() => {
-        copyTimerRef.current = null;
-        setCopyTarget("idle");
-      }, 1500);
-    }
-
-    void copyAndSetStatus();
-  };
-
-  const handleOpenUrl = (url: string): void => {
-    if (typeof window !== "undefined") {
-      window.open(url, "_blank");
-    }
-  };
-
+  viewUrl,
+  overlayUrl,
+  overlayOpenUrl,
+  previewOverlayUrl,
+  copyOverlayLabel,
+  copyViewerLabel,
+  copyTarget,
+  onCopy,
+  onOpen,
+}: OverlayUrlsViewProps): ReactElement {
   return (
     <div className={styles.panel}>
-      {errorMessage !== null ? (
+      {loading ? (
+        <Alert variant="info">Checking your session…</Alert>
+      ) : errorMessage !== null ? (
         <Alert variant="error">{errorMessage}</Alert>
       ) : gamertag === null ? (
         <Alert variant="warning">
@@ -101,14 +47,14 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               In your overlay software, such as OBS, add a Browser Source and use the URL below.
             </p>
-            <p className={styles.urlText}>{isDemo ? overlayUrl : urls?.overlayUrl}</p>
+            <p className={styles.urlText}>{overlayUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
-                ariaLabel={copyTarget === "overlay" ? "Copied overlay URL" : "Copy overlay URL"}
+                ariaLabel={copyOverlayLabel}
                 onClick={(): void => {
-                  handleCopy("overlay", isDemo ? (overlayUrl ?? "") : (urls?.overlayUrl ?? ""));
+                  onCopy("overlay", overlayOpenUrl);
                 }}
               >
                 {copyTarget === "overlay" ? "Copied!" : "Copy"}
@@ -117,7 +63,7 @@ export function OverlayUrlsSection({
                 variant="secondary"
                 size="small"
                 onClick={(): void => {
-                  handleOpenUrl(isDemo ? (overlayUrl ?? "") : (urls?.overlayUrl ?? ""));
+                  onOpen(overlayOpenUrl);
                 }}
               >
                 Open overlay
@@ -127,7 +73,7 @@ export function OverlayUrlsSection({
                 size="small"
                 disabled={disabled}
                 onClick={(): void => {
-                  handleOpenUrl(buildOverlayPreviewUrl(urls?.overlayUrl ?? "", previewColorMode));
+                  onOpen(previewOverlayUrl);
                 }}
               >
                 Open overlay with preview
@@ -140,14 +86,14 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               Share this with viewers to follow the active tracker showing stats of games and series you play.
             </p>
-            <p className={styles.urlText}>{urls?.viewUrl}</p>
+            <p className={styles.urlText}>{viewUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
                 size="small"
-                ariaLabel={copyTarget === "view" ? "Copied viewer URL" : "Copy viewer URL"}
+                ariaLabel={copyViewerLabel}
                 onClick={(): void => {
-                  handleCopy("view", urls?.viewUrl ?? "");
+                  onCopy("view", viewUrl);
                 }}
               >
                 {copyTarget === "view" ? "Copied!" : "Copy"}
@@ -156,7 +102,7 @@ export function OverlayUrlsSection({
                 variant="secondary"
                 size="small"
                 onClick={(): void => {
-                  handleOpenUrl(urls?.viewUrl ?? "");
+                  onOpen(viewUrl);
                 }}
               >
                 Open viewer
