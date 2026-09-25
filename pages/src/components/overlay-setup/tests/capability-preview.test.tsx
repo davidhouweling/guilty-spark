@@ -17,7 +17,7 @@ describe("CapabilityPreview", () => {
   it("starts on the matchmaking overlay preview with its source label", () => {
     render(<CapabilityPreview gamertag="soundmanD" sourceLabel="soundmanD" isExample previewMode="player" />);
 
-    expect(screen.getByRole("tab", { name: "Matchmaking overlay" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Matchmaking overlay" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Example preview · soundmanD")).toBeInTheDocument();
     expect(screen.getByText("Matchmaking")).toBeInTheDocument();
   });
@@ -26,11 +26,11 @@ describe("CapabilityPreview", () => {
     const user = userEvent.setup();
     render(<CapabilityPreview gamertag="ChiefSpartan" sourceLabel="ChiefSpartan" isExample={false} previewMode="observer" />);
 
-    await user.click(screen.getByRole("tab", { name: "Series overlay" }));
+    await user.click(screen.getByRole("button", { name: "Series overlay" }));
     expect(screen.getByText("Series 2 - 1")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: "Viewer" }));
-    expect(screen.getByRole("tab", { name: "Viewer" })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
+    expect(screen.getByRole("button", { name: "Viewer" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("supports internal overlay and viewer interactions", async () => {
@@ -40,7 +40,7 @@ describe("CapabilityPreview", () => {
     await user.click(screen.getByRole("button", { name: /Game 1/ }));
     expect(screen.getByRole("button", { name: /Game 1/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("tab", { name: "Viewer" }));
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
     const match = screen.getByRole("button", { name: /Series Series 2 - 1/ });
     await user.click(match);
     expect(match).toHaveAttribute("aria-expanded", "true");

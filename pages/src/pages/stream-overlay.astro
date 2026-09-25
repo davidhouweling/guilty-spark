@@ -14,7 +14,7 @@ export const prerender = false;
   description="Sign in, grab your overlay URLs, and configure your Guilty Spark stream overlay in a few steps."
 >
   <section class={styles.contentPage}>
-    <Container class="wide">
+    <Container>
       <header class={styles.heroBlock}>
         <p class={styles.eyebrow}>Field Guide</p>
         <Heading tagName="h1" class={styles.title}>Stream Overlay Setup</Heading>
@@ -24,6 +24,8 @@ export const prerender = false;
         </p>
       </header>
 
+    </Container>
+    <Container class="wide">
       <OverlaySetupApp client:only="react" apiHost={API_HOST} />
     </Container>
   </section>

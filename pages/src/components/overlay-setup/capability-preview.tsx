@@ -1,6 +1,5 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
-import classNames from "classnames";
 import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
 import { IndividualTrackerViewer } from "../individual-tracker/viewer/individual-tracker-viewer";
 import type { IndividualTrackerViewerRenderModel, ViewerMatchTab, ViewerTimelineItem } from "../individual-tracker/viewer/types";
@@ -8,6 +7,8 @@ import { StreamerOverlay } from "../streamer-overlay/streamer-overlay";
 import { TeamDetailsContent } from "../streamer-overlay/team-details-content";
 import { TopSection } from "../streamer-overlay/top-section";
 import type { OverlayTab } from "../streamer-overlay/tabs-bar";
+import { TabbedSection } from "../tabbed-section/tabbed-section";
+import type { TabbedSectionTab } from "../tabbed-section/types";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import { createFixtureCapabilityPreviewData } from "./capability-preview-data";
 import type { CapabilityPreviewData } from "./capability-preview-data";
@@ -23,32 +24,11 @@ export interface CapabilityPreviewProps {
   readonly previewMode: "player" | "observer";
 }
 
-const PREVIEW_TABS: readonly { readonly id: PreviewTab; readonly label: string }[] = [
-  { id: "matchmaking", label: "Matchmaking overlay" },
-  { id: "series", label: "Series overlay" },
-  { id: "viewer", label: "Viewer" },
+const PREVIEW_TABS: readonly TabbedSectionTab<PreviewTab>[] = [
+  { id: "matchmaking", label: "Matchmaking overlay", content: null },
+  { id: "series", label: "Series overlay", content: null },
+  { id: "viewer", label: "Viewer", content: null },
 ];
-
-function PreviewTabs({ activeTab, onChange }: { readonly activeTab: PreviewTab; readonly onChange: (tab: PreviewTab) => void }): ReactElement {
-  return (
-    <div className={styles.tabBar} role="tablist" aria-label="Preview capability">
-      {PREVIEW_TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          className={classNames(styles.tab, activeTab === tab.id && styles.tabActive)}
-          onClick={(): void => {
-            onChange(tab.id);
-          }}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function buildMatchTab(match: CapabilityPreviewData["series"]["matches"][number], index: number): ViewerMatchTab {
   return {
@@ -200,7 +180,14 @@ export function CapabilityPreview({ gamertag, sourceLabel, isExample, data: supp
   return (
     <section className={styles.previewRegion} aria-label="Guilty Spark capability preview">
       <div className={styles.previewToolbar}>
-        <PreviewTabs activeTab={activeTab} onChange={setActiveTab} />
+        <TabbedSection
+          tabs={PREVIEW_TABS}
+          variant="navigation"
+          selectedTabId={activeTab}
+          tabListAriaLabel="Preview capability"
+          onTabChange={setActiveTab}
+          tabsClassName={styles.previewTabs}
+        />
         <div className={styles.sourceLabel}>
           <span className={styles.liveDot} aria-hidden="true" />
           {isExample ? "Example preview" : "Preview"} · {sourceLabel || gamertag}
