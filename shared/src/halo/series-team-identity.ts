@@ -105,7 +105,9 @@ export function buildPresentAtBeginningTeamRosters(match: MatchStats): MatchTeam
     return null;
   }
 
-  return Array.from(rosters.entries()).map(([matchTeamId, xuids]) => ({ matchTeamId, xuids }));
+  return Array.from(rosters.entries())
+    .sort(([leftTeamId], [rightTeamId]) => leftTeamId - rightTeamId)
+    .map(([matchTeamId, xuids]) => ({ matchTeamId, xuids }));
 }
 
 /**

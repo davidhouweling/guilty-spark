@@ -1933,6 +1933,7 @@ describe("Halo service", () => {
         team0Score: 50,
         team1Score: 30,
       });
+      rosterAWinsAsTeam0.Players.reverse();
       // Same two rosters, but roster A (xuid 1/2) is now on TeamId 1
       const rosterALosesAsTeam1 = aMatchWithRosterScores({
         matchId: "series-swap-game-2",

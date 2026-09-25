@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { aFakeMatchStatsWith, aFakePlayerWith } from "../fakes/data";
 import type { MatchTeamRoster, SeriesTeamRoster } from "../series-team-identity";
-import { resolveSeriesTeamMapping } from "../series-team-identity";
+import { buildPresentAtBeginningTeamRosters, resolveSeriesTeamMapping } from "../series-team-identity";
 
 function aSeriesTeamRoster(overrides: Partial<SeriesTeamRoster> = {}): SeriesTeamRoster {
   return {
@@ -123,5 +124,18 @@ describe("resolveSeriesTeamMapping", () => {
   it("returns null when the number of teams is not exactly two on either side", () => {
     expect(resolveSeriesTeamMapping([aSeriesTeamRoster()], [aMatchTeamRoster(), aMatchTeamRoster()])).toBeNull();
     expect(resolveSeriesTeamMapping([aSeriesTeamRoster(), aSeriesTeamRoster()], [aMatchTeamRoster()])).toBeNull();
+  });
+});
+
+describe("buildPresentAtBeginningTeamRosters", () => {
+  it("orders rosters by TeamId rather than the order players appear in match stats", () => {
+    const match = aFakeMatchStatsWith({
+      Players: [
+        aFakePlayerWith({ PlayerId: "xuid(team-1-player)", LastTeamId: 1 }),
+        aFakePlayerWith({ PlayerId: "xuid(team-0-player)", LastTeamId: 0 }),
+      ],
+    });
+
+    expect(buildPresentAtBeginningTeamRosters(match)?.map((roster) => roster.matchTeamId)).toEqual([0, 1]);
   });
 });
