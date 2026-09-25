@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { Container } from "../container/container";
 import { Heading } from "../heading/heading";
 import { LoginStatusSection } from "./login-status/login-status";
 import type { LoginStatusAuthState } from "./login-status/types";
@@ -28,7 +29,8 @@ export function OverlaySetupShell({
   onRetry,
 }: OverlaySetupShellProps): ReactElement {
   return (
-    <div className={styles.pageGrid}>
+    <Container wide>
+      <div className={styles.pageGrid}>
       <section className={styles.step}>
         <Heading tagName="h2" className={styles.stepHeading}>
           Step 1: Sign in
@@ -58,6 +60,7 @@ export function OverlaySetupShell({
         </Heading>
         {configureContent}
       </section>
-    </div>
+      </div>
+    </Container>
   );
 }
