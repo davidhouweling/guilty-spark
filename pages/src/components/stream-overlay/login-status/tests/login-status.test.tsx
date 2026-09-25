@@ -30,7 +30,7 @@ describe("LoginStatusSection", () => {
     render(<LoginStatusSection {...aFakeProps({ authState: "authenticated", gamertag: "TestSpartan" })} />);
 
     expect(screen.getByText("Logged in as")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "TestSpartan" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "TestSpartan", level: 3 })).toBeInTheDocument();
   });
 
   it("shows a sign-in CTA linking to the sign-in href when unauthenticated", () => {

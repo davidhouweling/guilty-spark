@@ -27,7 +27,7 @@ export function LoginStatusSection({
           <ProfileAvatar avatarUrl={avatarUrl} />
           <div>
             <p className={styles.signedInLabel}>Logged in as</p>
-            <Heading tagName="h2" className={styles.gamertag}>
+            <Heading tagName="h3" className={styles.gamertag}>
               {gamertag ?? "Unknown Spartan"}
             </Heading>
           </div>
