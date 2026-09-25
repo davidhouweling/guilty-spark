@@ -59,7 +59,8 @@ export function OverlayUrlsSection({
   const urls = gamertag !== null ? buildStreamerUrls(gamertag) : null;
 
   const handleCopy = (target: "view" | "overlay", url: string): void => {
-    void copyToClipboard(url).then((ok) => {
+    async function copyAndSetStatus(): Promise<void> {
+      const ok = await copyToClipboard(url);
       if (!ok) {
         return;
       }
@@ -71,7 +72,9 @@ export function OverlayUrlsSection({
         copyTimerRef.current = null;
         setCopyTarget("idle");
       }, 1500);
-    });
+    }
+
+    void copyAndSetStatus();
   };
 
   const handleOpenUrl = (url: string): void => {
