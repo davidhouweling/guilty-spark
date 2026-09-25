@@ -73,6 +73,21 @@ describe("OverlayUrlsSection", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
+  it("calls the clipboard API when the overlay copy button is clicked", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    vi.stubGlobal("location", { origin: "https://example.com" });
+
+    render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
+
+    await user.click(screen.getByRole("button", { name: "Copy overlay URL" }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc/overlay"));
+
+    vi.unstubAllGlobals();
+  });
+
   it("calls the clipboard API when the viewer copy button is clicked", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
@@ -81,15 +96,14 @@ describe("OverlayUrlsSection", () => {
 
     render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
-    const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-    await user.click(copyButtons[1]);
+    await user.click(screen.getByRole("button", { name: "Copy viewer URL" }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("/u/gamertag-abc"));
 
     vi.unstubAllGlobals();
   });
 
-  it("shows Copied! on the viewer copy button after a successful copy", async () => {
+  it("shows a copied state on the viewer copy button after a successful copy", async () => {
     const user = userEvent.setup({ delay: null });
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.stubGlobal("navigator", {
@@ -99,10 +113,9 @@ describe("OverlayUrlsSection", () => {
 
     render(<OverlayUrlsSection {...aFakeProps({ gamertag: "gamertag-abc" })} />);
 
-    const copyButtons = screen.getAllByRole("button", { name: "Copy" });
-    await user.click(copyButtons[1]);
+    await user.click(screen.getByRole("button", { name: "Copy viewer URL" }));
 
-    expect(screen.getByRole("button", { name: "Copied!" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copied viewer URL" })).toBeInTheDocument();
 
     vi.useRealTimers();
     vi.unstubAllGlobals();

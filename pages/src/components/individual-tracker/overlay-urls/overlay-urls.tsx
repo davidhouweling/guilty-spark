@@ -101,6 +101,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                ariaLabel={copyTarget === "overlay" ? "Copied overlay URL" : "Copy overlay URL"}
                 onClick={(): void => {
                   handleCopy("overlay", urls?.overlayUrl ?? "");
                 }}
@@ -139,6 +140,7 @@ export function OverlayUrlsSection({
               <Button
                 variant="secondary"
                 size="small"
+                ariaLabel={copyTarget === "view" ? "Copied viewer URL" : "Copy viewer URL"}
                 onClick={(): void => {
                   handleCopy("view", urls?.viewUrl ?? "");
                 }}
