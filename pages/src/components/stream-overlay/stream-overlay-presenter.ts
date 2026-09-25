@@ -63,7 +63,7 @@ export class StreamOverlayPresenter {
         return;
       }
       this.applySnapshot(() => ({
-        authState: "unauthenticated",
+        authState: "error",
         gamertag: null,
         avatarUrl: null,
         errorMessage: "Failed to load session. Please refresh the page.",

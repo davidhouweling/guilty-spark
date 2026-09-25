@@ -64,7 +64,7 @@ describe("StreamOverlayPresenter", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(presenter.getSnapshot()).toEqual({
-      authState: "unauthenticated",
+      authState: "error",
       gamertag: null,
       avatarUrl: null,
       errorMessage: "Failed to load session. Please refresh the page.",

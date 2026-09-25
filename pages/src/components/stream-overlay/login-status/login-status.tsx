@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { Button } from "../../button/button";
+import { ErrorState } from "../../error-state/error-state";
 import { Heading } from "../../heading/heading";
 import { LoadingState } from "../../loading-state/loading-state";
 import { ProfileAvatar } from "../../header/profile-avatar";
@@ -12,6 +13,7 @@ export function LoginStatusSection({
   avatarUrl,
   signInHref,
   errorMessage,
+  onRetry,
 }: LoginStatusSectionProps): ReactElement {
   if (authState === "loading") {
     return (
@@ -37,10 +39,17 @@ export function LoginStatusSection({
     );
   }
 
+  if (authState === "error") {
+    return (
+      <div className={styles.panel}>
+        <ErrorState message={errorMessage ?? "Failed to load session."} onRetry={onRetry} />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.panel}>
       <div>
-        {errorMessage != null && <p className={styles.errorMessage}>{errorMessage}</p>}
         <p className={styles.signInPrompt}>Sign in with your Microsoft account to get your own overlay URLs.</p>
         <Button href={signInHref}>Sign in with Microsoft</Button>
       </div>

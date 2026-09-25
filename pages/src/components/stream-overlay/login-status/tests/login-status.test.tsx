@@ -45,4 +45,20 @@ describe("LoginStatusSection", () => {
       "https://api.example.com/auth/microsoft/start",
     );
   });
+
+  it("renders a retry action for failed session loads", () => {
+    render(
+      <LoginStatusSection
+        {...aFakeProps({
+          authState: "error",
+          errorMessage: "Failed to load session. Please refresh the page.",
+          onRetry: () => undefined,
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Connection Failed")).toBeInTheDocument();
+    expect(screen.getByText("Failed to load session. Please refresh the page.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry Connection" })).toBeInTheDocument();
+  });
 });

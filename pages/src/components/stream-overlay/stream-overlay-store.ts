@@ -1,4 +1,4 @@
-export type StreamOverlayAuthState = "loading" | "unauthenticated" | "authenticated";
+export type StreamOverlayAuthState = "loading" | "unauthenticated" | "authenticated" | "error";
 
 export interface StreamOverlaySnapshot {
   readonly authState: StreamOverlayAuthState;

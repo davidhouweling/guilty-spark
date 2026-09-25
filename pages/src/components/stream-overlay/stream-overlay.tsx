@@ -10,6 +10,7 @@ export interface StreamOverlayShellProps {
   readonly avatarUrl: string | null;
   readonly signInHref: string;
   readonly errorMessage?: string | null | undefined;
+  readonly onRetry?: (() => void) | undefined;
   readonly overlayUrlsContent: ReactNode;
   readonly configureContent: ReactNode;
 }
@@ -20,6 +21,7 @@ export function StreamOverlayShell({
   avatarUrl,
   signInHref,
   errorMessage,
+  onRetry,
   overlayUrlsContent,
   configureContent,
 }: StreamOverlayShellProps): ReactElement {
@@ -35,6 +37,7 @@ export function StreamOverlayShell({
           avatarUrl={avatarUrl}
           signInHref={signInHref}
           errorMessage={errorMessage}
+          onRetry={onRetry}
         />
       </section>
 

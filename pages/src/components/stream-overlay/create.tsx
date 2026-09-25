@@ -54,7 +54,7 @@ function StreamOverlayPageInternal({
   );
 
   useEffect(() => {
-    if (snapshot.authState === "loading") {
+    if (snapshot.authState === "loading" || snapshot.authState === "error") {
       return;
     }
     if (snapshot.authState === "authenticated") {
@@ -173,6 +173,9 @@ function StreamOverlayPageInternal({
       avatarUrl={snapshot.avatarUrl}
       signInHref={buildSignInHref(apiHost)}
       errorMessage={snapshot.errorMessage}
+      onRetry={(): void => {
+        presenter.start();
+      }}
       overlayUrlsContent={
         <OverlayUrlsSection
           gamertag={snapshot.gamertag}
