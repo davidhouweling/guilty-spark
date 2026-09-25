@@ -76,6 +76,25 @@ describe("OverlayUrlsSection", () => {
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
+  it("prefixes the URLs with 'Example:' when disabled", () => {
+    vi.stubGlobal("location", { origin: "https://example.com" });
+    renderSection(aFakeProps({ gamertag: "343GuiltySpark", disabled: true }));
+
+    expect(screen.getByText("Example: https://example.com/u/343GuiltySpark")).toBeInTheDocument();
+    expect(screen.getByText(/^Example: .*\/overlay$/)).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("does not prefix the URLs when not disabled", () => {
+    vi.stubGlobal("location", { origin: "https://example.com" });
+    renderSection(aFakeProps({ gamertag: "gamertag-abc" }));
+
+    expect(screen.queryByText(/^Example:/)).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
   it("keeps identity URL actions enabled while only settings are disabled", () => {
     renderSection(aFakeProps({ settingsDisabled: true }));
 

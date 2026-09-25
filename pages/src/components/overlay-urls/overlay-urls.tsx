@@ -46,7 +46,7 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               In your overlay software, such as OBS, add a Browser Source and use the URL below.
             </p>
-            <p className={styles.urlText}>{overlayUrl}</p>
+            <p className={styles.urlText}>{disabled ? `Example: ${overlayUrl}` : overlayUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
@@ -87,7 +87,7 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               Share this with viewers to follow the active tracker showing stats of games and series you play.
             </p>
-            <p className={styles.urlText}>{viewUrl}</p>
+            <p className={styles.urlText}>{disabled ? `Example: ${viewUrl}` : viewUrl}</p>
             <div className={styles.buttonRow}>
               <Button
                 variant="secondary"
