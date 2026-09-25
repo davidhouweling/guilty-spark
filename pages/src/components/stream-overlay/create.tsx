@@ -4,7 +4,7 @@ import classNames from "classnames";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import { createOverlayUrlsSection } from "../individual-tracker/overlay-urls/create";
+import { createOverlayUrlsSection } from "../overlay-urls/create";
 import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";

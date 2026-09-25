@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import { createOverlayUrlsSection } from "../individual-tracker/overlay-urls/create";
+import { createOverlayUrlsSection } from "../overlay-urls/create";
 import { StreamerSettingsPresenter } from "./streamer-settings-presenter";
 import { StreamerSettingsStore } from "./streamer-settings-store";
 import { StreamerSettingsSectionView } from "./streamer-settings";

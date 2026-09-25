@@ -1,4 +1,4 @@
-import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "../routes";
+import { buildIndividualTrackerPublicOverlayPath, buildIndividualTrackerPublicViewPath } from "../individual-tracker/routes";
 import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import type { OverlayUrlsCopyTarget, OverlayUrlsSnapshot, OverlayUrlsStore } from "./overlay-urls-store";
 

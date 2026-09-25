@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
-import { Alert } from "../../alert/alert";
-import { Button } from "../../button/button";
-import { Checkbox } from "../../checkbox/checkbox";
-import { Heading } from "../../heading/heading";
+import { Alert } from "../alert/alert";
+import { Button } from "../button/button";
+import { Checkbox } from "../checkbox/checkbox";
+import { Heading } from "../heading/heading";
 import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
 
