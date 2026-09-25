@@ -9,10 +9,10 @@ export interface StreamOverlayShellProps {
   readonly gamertag: string | null;
   readonly avatarUrl: string | null;
   readonly signInHref: string;
-  readonly errorMessage?: string | null | undefined;
-  readonly onRetry?: (() => void) | undefined;
   readonly overlayUrlsContent: ReactNode;
   readonly configureContent: ReactNode;
+  readonly errorMessage?: string | null | undefined;
+  readonly onRetry?: (() => void) | undefined;
 }
 
 export function StreamOverlayShell({
@@ -20,10 +20,10 @@ export function StreamOverlayShell({
   gamertag,
   avatarUrl,
   signInHref,
-  errorMessage,
-  onRetry,
   overlayUrlsContent,
   configureContent,
+  errorMessage,
+  onRetry,
 }: StreamOverlayShellProps): ReactElement {
   return (
     <div className={styles.container}>
