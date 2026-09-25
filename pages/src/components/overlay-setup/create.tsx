@@ -4,11 +4,16 @@ import classNames from "classnames";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
+import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import { createOverlayUrlsSection } from "../overlay-urls/create";
 import { createStatsHighlightsSection } from "../stats-highlights/create";
 import { StreamerSettingsPresenter } from "../streamer-settings/streamer-settings-presenter";
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";
 import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-store";
+import { CapabilityPreview } from "./capability-preview";
+import { createFixtureCapabilityPreviewData } from "./capability-preview-data";
+import { CapabilityPreviewPresenter } from "./capability-preview-presenter";
+import { CapabilityPreviewStore } from "./capability-preview-store";
 import { OVERLAY_SETUP_DEMO_GAMERTAG, OverlaySetupPresenter } from "./overlay-setup-presenter";
 import { OverlaySetupStore } from "./overlay-setup-store";
 import { OverlaySetupShell } from "./overlay-setup";
@@ -17,6 +22,7 @@ import styles from "./overlay-setup.module.css";
 export interface CreateOverlaySetupPageConfig {
   readonly authService: AuthService;
   readonly settingsService: IndividualTrackerSettingsService;
+  readonly individualTrackerService: IndividualTrackerService;
   readonly apiHost: string;
 }
 
@@ -28,6 +34,8 @@ function buildSignInHref(apiHost: string): string {
 
 interface OverlaySetupPageInternalProps {
   readonly presenter: OverlaySetupPresenter;
+  readonly previewPresenter: CapabilityPreviewPresenter;
+  readonly previewStore: CapabilityPreviewStore;
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly apiHost: string;
@@ -36,6 +44,8 @@ interface OverlaySetupPageInternalProps {
 
 function OverlaySetupPageInternal({
   presenter,
+  previewPresenter,
+  previewStore,
   settingsPresenter,
   settingsStore,
   apiHost,
@@ -66,15 +76,29 @@ function OverlaySetupPageInternal({
   }, [settingsPresenter, snapshot.authState, snapshot.gamertag]);
 
   useEffect(() => {
+    previewPresenter.load(
+      snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG,
+      snapshot.xuid,
+      snapshot.authState !== "authenticated",
+    );
+  }, [previewPresenter, snapshot.authState, snapshot.gamertag, snapshot.xuid]);
+
+  useEffect(() => {
     return (): void => {
       settingsPresenter.dispose();
+      previewPresenter.dispose();
     };
-  }, [settingsPresenter]);
+  }, [previewPresenter, settingsPresenter]);
 
   const settingsSnapshot = useSyncExternalStore(
     (listener) => settingsStore.subscribe(listener),
     () => settingsStore.getSnapshot(),
     () => settingsStore.getSnapshot(),
+  );
+  const previewSnapshot = useSyncExternalStore(
+    (listener) => previewStore.subscribe(listener),
+    () => previewStore.getSnapshot(),
+    () => previewStore.getSnapshot(),
   );
   const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
@@ -195,6 +219,14 @@ function OverlaySetupPageInternal({
           }}
         />
       }
+      previewContent={
+        <CapabilityPreview
+          gamertag={snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG}
+          sourceLabel={snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG}
+          isExample={isDemo}
+          data={previewSnapshot.data}
+        />
+      }
       configureContent={
         <fieldset
           disabled={settingsFormDisabled}
@@ -214,6 +246,18 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
     const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
     const StatsHighlightsSection = useMemo(() => createStatsHighlightsSection(), []);
     const presenter = useMemo(() => new OverlaySetupPresenter({ authService: config.authService, store }), [store]);
+    const previewStore = useMemo(
+      () => new CapabilityPreviewStore(createFixtureCapabilityPreviewData(OVERLAY_SETUP_DEMO_GAMERTAG)),
+      [],
+    );
+    const previewPresenter = useMemo(
+      () =>
+        new CapabilityPreviewPresenter({
+          individualTrackerService: config.individualTrackerService,
+          store: previewStore,
+        }),
+      [previewStore],
+    );
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),
       [settingsStore],
@@ -222,6 +266,8 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
     return (
       <OverlaySetupPageInternal
         presenter={presenter}
+        previewPresenter={previewPresenter}
+        previewStore={previewStore}
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}
         apiHost={config.apiHost}

@@ -3,6 +3,7 @@ export type OverlaySetupAuthState = "loading" | "unauthenticated" | "authenticat
 export interface OverlaySetupSnapshot {
   readonly authState: OverlaySetupAuthState;
   readonly gamertag: string | null;
+  readonly xuid: string | null;
   readonly avatarUrl: string | null;
   readonly errorMessage: string | null;
 }
@@ -11,6 +12,7 @@ export class OverlaySetupStore {
   private snapshot: OverlaySetupSnapshot = {
     authState: "loading",
     gamertag: null,
+    xuid: null,
     avatarUrl: null,
     errorMessage: null,
   };

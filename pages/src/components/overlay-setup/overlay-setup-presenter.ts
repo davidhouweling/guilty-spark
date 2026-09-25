@@ -22,6 +22,7 @@ export class OverlaySetupPresenter {
     this.config.store.update({
       authState: "loading",
       gamertag: null,
+      xuid: null,
       avatarUrl: null,
       errorMessage: null,
     });
@@ -52,6 +53,7 @@ export class OverlaySetupPresenter {
         this.applySnapshot(() => ({
           authState: "unauthenticated",
           gamertag: OVERLAY_SETUP_DEMO_GAMERTAG,
+          xuid: null,
           avatarUrl: null,
           errorMessage: null,
         }));
@@ -61,6 +63,7 @@ export class OverlaySetupPresenter {
       this.applySnapshot(() => ({
         authState: "authenticated",
         gamertag: session.xboxGamertag ?? null,
+        xuid: session.xboxXuid ?? null,
         avatarUrl: session.avatarUrl ?? null,
         errorMessage: null,
       }));
@@ -71,6 +74,7 @@ export class OverlaySetupPresenter {
       this.applySnapshot(() => ({
         authState: "error",
         gamertag: null,
+        xuid: null,
         avatarUrl: null,
         errorMessage: "Failed to load session. Please refresh the page.",
       }));
