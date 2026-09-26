@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.2.6",
-    "@astrojs/react": "^6.0.5",
+    "@astrojs/react": "^7.0.0",
     "@astrojs/sitemap": "^3.7.4",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^9.2.4",
