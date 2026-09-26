@@ -1,6 +1,9 @@
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  getStreamerViewTeamColorIds,
+  withStreamerViewSettingsDefaults,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -55,15 +58,15 @@ export class IndividualTrackerViewerPresenter {
 
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {
     const streamerSettings = withStreamerViewSettingsDefaults(snapshot.view?.streamerSettings);
-    const { styleFlags } = streamerSettings;
+    const { teamColorId, enemyColorId } = getStreamerViewTeamColorIds(streamerSettings);
     return {
       renderModel:
         snapshot.view == null
           ? null
           : buildViewerRenderModel({
               view: snapshot.view,
-              preferredTeamColorId: styleFlags?.playerTeamColor ?? styleFlags?.teamColor,
-              preferredEnemyColorId: styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor,
+              preferredTeamColorId: teamColorId,
+              preferredEnemyColorId: enemyColorId,
             }),
       connectionStatus: snapshot.connectionStatus,
       refreshPending: snapshot.refreshPending,

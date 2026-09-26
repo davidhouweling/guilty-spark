@@ -2,9 +2,52 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STREAMER_VIEW_SETTINGS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+  getStreamerViewTeamColorIds,
   parseStreamerViewSettings,
   withStreamerViewSettingsDefaults,
 } from "../streamer-view-settings";
+
+describe("getStreamerViewTeamColorIds()", () => {
+  it("uses the player colours when the colour mode is player", () => {
+    const colors = getStreamerViewTeamColorIds({
+      styleFlags: {
+        colorMode: "player",
+        playerTeamColor: "cerulean",
+        playerEnemyColor: "salmon",
+        observerTeamColor: "mint",
+        observerEnemyColor: "lavender",
+      },
+    });
+
+    expect(colors).toEqual({ teamColorId: "cerulean", enemyColorId: "salmon" });
+  });
+
+  it("uses the observer colours when the colour mode is observer", () => {
+    const colors = getStreamerViewTeamColorIds({
+      styleFlags: {
+        colorMode: "observer",
+        playerTeamColor: "cerulean",
+        playerEnemyColor: "salmon",
+        observerTeamColor: "mint",
+        observerEnemyColor: "lavender",
+      },
+    });
+
+    expect(colors).toEqual({ teamColorId: "mint", enemyColorId: "lavender" });
+  });
+
+  it("falls back to legacy colour fields when player colours are missing", () => {
+    const colors = getStreamerViewTeamColorIds({
+      styleFlags: { teamColor: "legacy-team", enemyColor: "legacy-enemy" },
+    });
+
+    expect(colors).toEqual({ teamColorId: "legacy-team", enemyColorId: "legacy-enemy" });
+  });
+
+  it("returns undefined colours when no settings are supplied", () => {
+    expect(getStreamerViewTeamColorIds(undefined)).toEqual({ teamColorId: undefined, enemyColorId: undefined });
+  });
+});
 
 describe("DEFAULT_STREAMER_VIEW_SETTINGS", () => {
   it("uses the default stats highlight slot count", () => {
