@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../alert/alert";
@@ -15,6 +15,7 @@ import styles from "./capability-preview.module.css";
 export type CapabilityPreviewTab = "matchmaking" | "series" | "viewer";
 
 export interface CapabilityPreviewProps {
+  readonly activeTab: CapabilityPreviewTab;
   readonly gamertag: string | null;
   readonly isAuthenticated: boolean;
   readonly settingsReady: boolean;
@@ -25,12 +26,13 @@ export interface CapabilityPreviewProps {
   readonly OverlayPage: (props: IndividualTrackerOverlayPageProps) => ReactElement;
   readonly ViewerPage: (props: IndividualTrackerViewerPageProps) => ReactElement;
   readonly onActivateMode: (mode: CapabilityPreviewTab) => void;
+  readonly onTabChange: (mode: CapabilityPreviewTab) => void;
   readonly onRetry: (mode: CapabilityPreviewTab) => void;
 }
 
 const PREVIEW_TABS: readonly TabbedSectionTab<CapabilityPreviewTab>[] = [
-  { id: "matchmaking", label: "Matchmaking overlay", content: null },
   { id: "series", label: "Series overlay", content: null },
+  { id: "matchmaking", label: "Matchmaking overlay", content: null },
   { id: "viewer", label: "Viewer", content: null },
 ];
 
@@ -81,6 +83,7 @@ function OverlayModeContent({
 }
 
 export function CapabilityPreview({
+  activeTab,
   gamertag,
   isAuthenticated,
   settingsReady,
@@ -91,9 +94,9 @@ export function CapabilityPreview({
   OverlayPage,
   ViewerPage,
   onActivateMode,
+  onTabChange,
   onRetry,
 }: CapabilityPreviewProps): ReactElement {
-  const [activeTab, setActiveTab] = useState<CapabilityPreviewTab>("matchmaking");
   const { containerRef, scale } = usePreviewScale();
   useEffect(() => {
     if (settingsReady) {
@@ -183,9 +186,7 @@ export function CapabilityPreview({
           selectedTabId={activeTab}
           tabListAriaLabel="Preview capability"
           tabsClassName={styles.previewTabs}
-          onTabChange={(tab): void => {
-            setActiveTab(tab);
-          }}
+          onTabChange={onTabChange}
         />
         <span className={styles.sourceLabel}>
           {isExample ? <span className={styles.exampleMark}>Example:</span> : null}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { Alert } from "../alert/alert";
@@ -66,6 +66,8 @@ function OverlaySetupPageInternal({
   apiHost,
   StatsHighlightsSection,
 }: OverlaySetupPageInternalProps): ReactElement {
+  const [activePreviewTab, setActivePreviewTab] = useState<CapabilityPreviewTab>("series");
+
   useEffect(() => {
     presenter.start();
     return (): void => {
@@ -150,6 +152,7 @@ function OverlaySetupPageInternal({
           saveStatus="idle"
           saveErrorMessage={null}
           onStatsHighlightSlotsChange={(slots): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setStatsHighlightSlots(slots);
           }}
         />
@@ -184,39 +187,54 @@ function OverlaySetupPageInternal({
             settingsPresenter.setObserverColors(teamColor, enemyColor);
           }}
           onDisplaySettingsChange={(updates): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setDisplaySettings(updates);
           }}
           onTickerSettingsChange={(updates): void => {
             settingsPresenter.setTickerSettings(updates);
           }}
+          onInSeriesTickerSettingsChange={(updates): void => {
+            setActivePreviewTab("series");
+            settingsPresenter.setTickerSettings(updates);
+          }}
           onInSeriesShowSeriesTabChange={(enabled): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setInSeriesShowSeriesTab(enabled);
           }}
           onMatchmakingShowSummaryTabChange={(enabled): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setMatchmakingShowSummaryTab(enabled);
           }}
           onInSeriesShowTabsChange={(enabled): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setInSeriesShowTabs(enabled);
           }}
           onMatchmakingShowTabsChange={(enabled): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setMatchmakingShowTabs(enabled);
           }}
           onDisableTeamPlayerNamesChange={(enabled): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setDisableTeamPlayerNames(enabled);
           }}
           onInSeriesShowTickerChange={(enabled): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setInSeriesShowTicker(enabled);
           }}
           onMatchmakingShowTickerChange={(enabled): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setMatchmakingShowTicker(enabled);
           }}
           onMatchmakingShowStatsHighlightsChange={(enabled): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
           }}
           onInSeriesMyStatsOnlyChange={(enabled): void => {
+            setActivePreviewTab("series");
             settingsPresenter.setInSeriesMyStatsOnly(enabled);
           }}
           onMatchmakingMyStatsOnlyChange={(enabled): void => {
+            setActivePreviewTab("matchmaking");
             settingsPresenter.setMatchmakingMyStatsOnly(enabled);
           }}
           onFontSizesChange={(updates): void => {
@@ -251,6 +269,7 @@ function OverlaySetupPageInternal({
       }
       previewContent={
         <CapabilityPreview
+          activeTab={activePreviewTab}
           gamertag={snapshot.gamertag}
           isAuthenticated={snapshot.authState === "authenticated"}
           settingsReady={previewSettingsReady}
@@ -261,6 +280,7 @@ function OverlaySetupPageInternal({
           OverlayPage={OverlayPage}
           ViewerPage={ViewerPage}
           onActivateMode={onPreviewModeSelected}
+          onTabChange={setActivePreviewTab}
           onRetry={(mode): void => {
             previewPresenter.retry(
               mode === "viewer" ? "matchmaking" : mode,

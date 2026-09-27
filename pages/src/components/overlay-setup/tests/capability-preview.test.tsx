@@ -1,5 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
+import { useState } from "react";
+import type { ReactElement } from "react";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -16,7 +18,7 @@ import type { SeriesMatchesService } from "../../../services/stats/series-matche
 import { createIndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
 import { CapabilityPreview } from "../capability-preview";
-import type { CapabilityPreviewProps } from "../capability-preview";
+import type { CapabilityPreviewProps, CapabilityPreviewTab } from "../capability-preview";
 import type { CapabilityPreviewModeSnapshot } from "../capability-preview-store";
 
 vi.mock("../../icons/team-icon", () => ({
@@ -67,6 +69,13 @@ function aLoadedPreview(response: OverlayPreviewResponse): CapabilityPreviewMode
   return { status: "loaded", data: response, errorMessage: null };
 }
 
+type CapabilityPreviewHarnessProps = Omit<CapabilityPreviewProps, "activeTab" | "onTabChange">;
+
+function CapabilityPreviewHarness(props: CapabilityPreviewHarnessProps): ReactElement {
+  const [activeTab, setActiveTab] = useState<CapabilityPreviewTab>("series");
+  return <CapabilityPreview {...props} activeTab={activeTab} onTabChange={setActiveTab} />;
+}
+
 afterEach(() => {
   cleanup();
 });
@@ -77,7 +86,6 @@ beforeEach(() => {
 
 describe("CapabilityPreview", () => {
   it("activates the selected mode after settings are ready", async () => {
-    const user = userEvent.setup();
     const previewService = aFakeOverlayPreviewServiceWith();
     const [matchmaking, series] = await Promise.all([
       previewService.getPreview("matchmaking"),
@@ -85,7 +93,7 @@ describe("CapabilityPreview", () => {
     ]);
     const pages = createPageComponents();
     const onActivateMode = vi.fn();
-    const props: CapabilityPreviewProps = {
+    const props: CapabilityPreviewHarnessProps = {
       gamertag: "soundmanD",
       isAuthenticated: false,
       settingsReady: false,
@@ -98,12 +106,12 @@ describe("CapabilityPreview", () => {
       onActivateMode,
       onRetry: vi.fn(),
     };
-    const { rerender } = render(<CapabilityPreview {...props} />);
+    const { rerender } = render(<CapabilityPreviewHarness {...props} />);
 
-    await user.click(screen.getByRole("button", { name: "Series overlay" }));
+    expect(screen.getByRole("button", { name: "Series overlay" })).toHaveAttribute("aria-pressed", "true");
     expect(onActivateMode).not.toHaveBeenCalled();
 
-    rerender(<CapabilityPreview {...props} settingsReady />);
+    rerender(<CapabilityPreviewHarness {...props} settingsReady />);
     await waitFor(() => {
       expect(onActivateMode).toHaveBeenCalledWith("series");
     });
@@ -119,7 +127,7 @@ describe("CapabilityPreview", () => {
     const pages = createPageComponents();
 
     render(
-      <CapabilityPreview
+      <CapabilityPreviewHarness
         gamertag="343GuiltySpark"
         isAuthenticated={false}
         settingsReady={true}
@@ -166,7 +174,7 @@ describe("CapabilityPreview", () => {
     const pages = createPageComponents();
 
     render(
-      <CapabilityPreview
+      <CapabilityPreviewHarness
         gamertag={null}
         isAuthenticated={false}
         settingsReady={true}

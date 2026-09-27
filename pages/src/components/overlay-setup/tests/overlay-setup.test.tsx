@@ -42,6 +42,17 @@ function previewDependencies(): Pick<
   };
 }
 
+function getSettingsCheckbox(section: "In Series" | "Matchmaking", label: string): HTMLElement {
+  const checkbox = screen.getAllByRole("checkbox").find((input) => {
+    const parentLabel = input.closest("label");
+    return parentLabel?.textContent.includes(`${section} ${label}`) ?? false;
+  });
+  if (checkbox === undefined) {
+    throw new Error(`Expected ${section} ${label} checkbox`);
+  }
+  return checkbox;
+}
+
 describe("OverlaySetupShell", () => {
   afterEach(() => {
     cleanup();
@@ -137,5 +148,42 @@ describe("OverlaySetupShell", () => {
     await user.click(observerButton);
     expect(observerButton).toHaveAttribute("aria-pressed", "true");
     expect(updateSettings).not.toHaveBeenCalled();
+  });
+
+  it("switches the preview to the UI section being configured", async () => {
+    const user = userEvent.setup();
+    const settingsService: IndividualTrackerSettingsService = {
+      getSettings: async () => Promise.resolve({}),
+      updateSettings: async (settings) => Promise.resolve(settings),
+    };
+    const authService: AuthService = {
+      getSession: async () => Promise.resolve({ authenticated: false }),
+      logout: async () => Promise.resolve(),
+    };
+    const OverlaySetupPage = createOverlaySetupPage({
+      authService,
+      settingsService,
+      ...previewDependencies(),
+      apiHost: "https://api.example.com",
+    });
+
+    render(<OverlaySetupPage />);
+
+    const seriesTab = await screen.findByRole("button", { name: "Series overlay" });
+    const matchmakingTab = screen.getByRole("button", { name: "Matchmaking overlay" });
+    expect(seriesTab).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByRole("heading", { name: "Matchmaking UI" })).toBeInTheDocument();
+
+    await user.click(getSettingsCheckbox("Matchmaking", "Show tabs"));
+    expect(matchmakingTab).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(getSettingsCheckbox("In Series", "Show tabs"));
+    expect(seriesTab).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(getSettingsCheckbox("In Series", "Display Pre-Series Player Info"));
+    expect(seriesTab).toHaveAttribute("aria-pressed", "true");
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Highlight 1" }), "kda");
+    expect(matchmakingTab).toHaveAttribute("aria-pressed", "true");
   });
 });

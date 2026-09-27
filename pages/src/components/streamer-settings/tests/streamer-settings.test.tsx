@@ -83,6 +83,7 @@ function aFakeProps(overrides?: Partial<StreamerSettingsSectionViewProps>): Stre
     onObserverColorsChange: (): void => undefined,
     onDisplaySettingsChange: (): void => undefined,
     onTickerSettingsChange: (): void => undefined,
+    onInSeriesTickerSettingsChange: (): void => undefined,
     onInSeriesShowSeriesTabChange: (): void => undefined,
     onMatchmakingShowSummaryTabChange: (): void => undefined,
     onInSeriesShowTabsChange: (): void => undefined,
