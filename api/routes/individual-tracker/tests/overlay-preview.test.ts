@@ -215,11 +215,14 @@ describe("/api/individual-tracker/overlay-preview", () => {
   it("uses preview settings as an ephemeral override over saved user settings", async () => {
     const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
     let updateSettingsCalled = false;
+    let savedSettingsLookup:
+      | MockInstance<ReturnType<typeof installFakeServicesWith>["individualTrackerService"]["getSettingsForView"]>
+      | undefined;
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = withSession(withHistory(stats))({ env });
-      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
-        visibleSections: { statsHighlightSlots: ["total-games"] },
-      });
+      savedSettingsLookup = vi
+        .spyOn(services.individualTrackerService, "getSettingsForView")
+        .mockRejectedValue(new Error("Saved settings unavailable"));
       vi.spyOn(services.individualTrackerService, "updateSettings").mockImplementation(async () => {
         updateSettingsCalled = true;
         return Promise.resolve({});
@@ -239,6 +242,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
 
     expect(body.view.streamerSettings?.styleFlags?.colorMode).toBe("observer");
     expect(body.view.statsHighlights?.map((highlight) => highlight.label)).toEqual(["KDA"]);
+    expect(savedSettingsLookup).not.toHaveBeenCalled();
     expect(updateSettingsCalled).toBe(false);
   });
 

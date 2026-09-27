@@ -87,11 +87,10 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
 
       const { identity, clearCookie } = await resolvePreviewIdentity(request, authService, logService);
 
-      let savedStreamerSettings: StreamerViewSettings | undefined;
-      if (identity.userId != null) {
-        savedStreamerSettings = await individualTrackerService.getSettingsForView(identity.userId);
+      let streamerSettings: StreamerViewSettings | undefined = previewSettings;
+      if (streamerSettings === undefined && identity.userId != null) {
+        streamerSettings = await individualTrackerService.getSettingsForView(identity.userId);
       }
-      const streamerSettings = previewSettings ?? savedStreamerSettings;
 
       const configuredSlots = streamerSettings?.visibleSections?.statsHighlightSlots?.filter(
         isIndividualStatsHighlightOption,
