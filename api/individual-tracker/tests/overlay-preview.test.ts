@@ -7,6 +7,7 @@ import { aFakeHaloServiceWith } from "../../services/halo/fakes/halo.fake";
 import { getPlayerMatches } from "../../services/halo/fakes/data";
 import { aFakeLogServiceWith } from "../../services/log/fakes/log.fake";
 import { buildOverlayPreviewView } from "../overlay-preview";
+import type { HaloService } from "../../services/halo/halo";
 
 const TRACKED_XUID = "1111111111";
 
@@ -32,7 +33,7 @@ function aPlayerMatch(stats: MatchStats): PlayerMatchHistory {
   return { ...template, MatchId: stats.MatchId, MatchInfo: stats.MatchInfo };
 }
 
-function aPreviewService(stats: readonly MatchStats[]) {
+function aPreviewService(stats: readonly MatchStats[]): HaloService {
   const haloService = aFakeHaloServiceWith();
   vi.spyOn(haloService, "getPlayerMatches").mockResolvedValue(stats.map(aPlayerMatch));
   vi.spyOn(haloService, "getMatchDetails").mockImplementation(async (matchIds) =>
@@ -50,7 +51,7 @@ function aPreviewService(stats: readonly MatchStats[]) {
   return haloService;
 }
 
-function buildPreview(
+async function buildPreview(
   haloService: ReturnType<typeof aFakeHaloServiceWith>,
   mode: "matchmaking" | "series",
 ): Promise<Awaited<ReturnType<typeof buildOverlayPreviewView>>> {
