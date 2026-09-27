@@ -2,7 +2,7 @@ import type {
   OverlayPreviewMode,
   OverlayPreviewResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
-import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { OverlayPreviewService } from "../overlay-preview-types";
 import { aFakeTrackerViewStateWith, aFakeTrackerSeriesGroupWith } from "./view.fake";
 
@@ -16,7 +16,7 @@ const DEMO_HIGHLIGHTS = [
 ] as const;
 
 function getDemoHighlights(
-  statsHighlightSlots: readonly IndividualStatsHighlightOption[] | undefined,
+  statsHighlightSlots: readonly string[] | undefined,
 ): { readonly label: string; readonly value: string }[] {
   return DEMO_HIGHLIGHTS.filter((highlight) => statsHighlightSlots === undefined || statsHighlightSlots.includes(highlight.slot))
     .map(({ label, value }) => ({ label, value }));
@@ -24,8 +24,9 @@ function getDemoHighlights(
 
 function createResponse(
   mode: OverlayPreviewMode,
-  statsHighlightSlots: readonly IndividualStatsHighlightOption[] | undefined,
+  previewSettings: StreamerViewSettings | undefined,
 ): OverlayPreviewResponse {
+  const statsHighlightSlots = previewSettings?.visibleSections?.statsHighlightSlots;
   const baseView = aFakeTrackerViewStateWith({ gamertag: DEMO_GAMERTAG });
   const matches = baseView.matches.map((match) => ({ ...match, isMatchmaking: mode === "matchmaking" }));
 
@@ -75,7 +76,7 @@ function createResponse(
 
 export function aFakeOverlayPreviewServiceWith(): OverlayPreviewService {
   return {
-    getPreview: async (mode, statsHighlightSlots): Promise<OverlayPreviewResponse> =>
-      Promise.resolve(createResponse(mode, statsHighlightSlots)),
+    getPreview: async (mode, previewSettings): Promise<OverlayPreviewResponse> =>
+      Promise.resolve(createResponse(mode, previewSettings)),
   };
 }

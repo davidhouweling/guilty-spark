@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { overlayPreviewContract } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeTrackerViewStateWith } from "../fakes/view.fake";
 import { RealOverlayPreviewService } from "../overlay-preview";
 
@@ -16,10 +17,12 @@ describe("RealOverlayPreviewService", () => {
 
     const result = await service.getPreview("series");
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/individual-tracker/overlay-preview?mode=series",
-      { credentials: "include" },
-    );
+    expect(fetchSpy).toHaveBeenCalledWith("https://api.example.com/api/individual-tracker/overlay-preview", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "series" }),
+    });
     expect(result).toEqual({ view, mode: "series", isExample: true });
   });
 
@@ -35,17 +38,23 @@ describe("RealOverlayPreviewService", () => {
     await expect(service.getPreview("matchmaking")).rejects.toThrow("Preview unavailable");
   });
 
-  it("sends local stats-highlight slot selections with the mode query", async () => {
+  it("sends local preview settings in the POST body", async () => {
     const view = aFakeTrackerViewStateWith({ gamertag: "soundmanD" });
     const response = overlayPreviewContract.toResponse({ view, mode: "matchmaking", isExample: true });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
     const service = new RealOverlayPreviewService({ apiHost: "https://api.example.com" });
 
-    await service.getPreview("matchmaking", ["kda", "total-games"]);
+    const previewSettings: StreamerViewSettings = {
+      visibleSections: { statsHighlightSlots: ["kda", "total-games"] },
+    };
+    await service.getPreview("matchmaking", previewSettings);
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://api.example.com/api/individual-tracker/overlay-preview?mode=matchmaking&statsHighlightSlots=kda%2Ctotal-games",
-      { credentials: "include" },
+      "https://api.example.com/api/individual-tracker/overlay-preview",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ mode: "matchmaking", previewSettings }),
+      }),
     );
   });
 });

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeOverlayPreviewServiceWith } from "../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
 import { CapabilityPreviewStore } from "../capability-preview-store";
@@ -56,16 +57,19 @@ describe("CapabilityPreviewPresenter", () => {
     });
   });
 
-  it("forwards locally selected stats-highlight slots to the endpoint", async () => {
+  it("forwards local preview settings to the endpoint", async () => {
     const { presenter, store, previewService } = createHarness();
     const getPreview = vi.spyOn(previewService, "getPreview");
+    const previewSettings: StreamerViewSettings = {
+      visibleSections: { statsHighlightSlots: ["kda", "total-games"] },
+    };
 
-    presenter.load("matchmaking", ["kda", "total-games"]);
+    presenter.load("matchmaking", previewSettings);
 
     await vi.waitFor(() => {
       expect(store.getSnapshot().matchmaking.status).toBe("loaded");
     });
-    expect(getPreview).toHaveBeenCalledWith("matchmaking", ["kda", "total-games"]);
+    expect(getPreview).toHaveBeenCalledWith("matchmaking", previewSettings);
   });
 
   it("records an endpoint error for only the mode that failed", async () => {

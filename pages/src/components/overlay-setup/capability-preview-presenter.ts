@@ -1,5 +1,5 @@
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
-import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import type { CapabilityPreviewStore } from "./capability-preview-store";
 
@@ -17,17 +17,17 @@ export class CapabilityPreviewPresenter {
     this.config = config;
   }
 
-  public load(mode: OverlayPreviewMode, statsHighlightSlots?: readonly IndividualStatsHighlightOption[]): void {
+  public load(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings  ): void {
     this.isDisposed = false;
     const requestId = (this.requestIds.get(mode) ?? 0) + 1;
     this.requestIds.set(mode, requestId);
     this.config.store.setLoading(mode);
-    void this.loadAsync(mode, requestId, statsHighlightSlots);
+    void this.loadAsync(mode, requestId, previewSettings);
   }
 
-  public reload(statsHighlightSlots?: readonly IndividualStatsHighlightOption[]): void {
-    this.load("matchmaking", statsHighlightSlots);
-    this.load("series", statsHighlightSlots);
+  public reload(previewSettings?: StreamerViewSettings  ): void {
+    this.load("matchmaking", previewSettings);
+    this.load("series", previewSettings);
   }
 
   public dispose(): void {
@@ -40,10 +40,10 @@ export class CapabilityPreviewPresenter {
   private async loadAsync(
     mode: OverlayPreviewMode,
     requestId: number,
-    statsHighlightSlots: readonly IndividualStatsHighlightOption[] | undefined,
+    previewSettings: StreamerViewSettings | undefined,
   ): Promise<void> {
     try {
-      const response = await this.config.previewService.getPreview(mode, statsHighlightSlots);
+      const response = await this.config.previewService.getPreview(mode, previewSettings);
       if (this.isStale(mode, requestId)) {
         return;
       }

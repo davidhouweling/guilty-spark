@@ -1,7 +1,10 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
-import { overlayPreviewContract } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
-import type { OverlayPreviewMode, OverlayPreviewResponse  } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
-import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import {
+  overlayPreviewContract,
+  overlayPreviewRequestSchema,
+} from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { OverlayPreviewMode, OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { OverlayPreviewService } from "./overlay-preview-types";
 
 interface RealOverlayPreviewServiceOptions {
@@ -17,29 +20,32 @@ export class RealOverlayPreviewService implements OverlayPreviewService {
 
   public async getPreview(
     mode: OverlayPreviewMode,
-    statsHighlightSlots?: readonly IndividualStatsHighlightOption[]  ,
+    previewSettings?: StreamerViewSettings  ,
   ): Promise<OverlayPreviewResponse> {
     const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const query = new URLSearchParams({ mode });
-    if (statsHighlightSlots !== undefined) {
-      query.set("statsHighlightSlots", statsHighlightSlots.join(","));
-    }
-    const response = await fetch(`${baseUrl}/api/individual-tracker/overlay-preview?${query.toString()}`, {
+    const body = overlayPreviewRequestSchema.parse({
+      mode,
+      ...(previewSettings !== undefined ? { previewSettings } : {}),
+    });
+    const response = await fetch(`${baseUrl}/api/individual-tracker/overlay-preview`, {
+      method: "POST",
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
-      const body = await response.text();
+      const errorBody = await response.text();
       let message = `Request failed (${String(response.status)})`;
-      if (body !== "") {
+      if (errorBody !== "") {
         try {
-          const parsed = errorContract.safeParse(JSON.parse(body));
+          const parsed = errorContract.safeParse(JSON.parse(errorBody));
           if (parsed.success && parsed.data.error !== "") {
             message = parsed.data.error;
           }
         } catch {
-          if (body !== "") {
-            message = body;
+          if (errorBody !== "") {
+            message = errorBody;
           }
         }
       }
