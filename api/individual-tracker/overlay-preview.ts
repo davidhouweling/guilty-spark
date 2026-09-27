@@ -1,4 +1,5 @@
-import { MatchType } from "halo-infinite-api";
+import { compareAsc, compareDesc, isValid, max, parseISO } from "date-fns";
+import { MatchType, RequestError } from "halo-infinite-api";
 import type { MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type {
@@ -6,8 +7,10 @@ import type {
   TrackerSeriesTeam,
   TrackerViewState,
 } from "@guilty-spark/shared/contracts/individual-tracker/view";
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  StreamerViewSettings,
+  IndividualStatsHighlightOption,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   analyzeMatchGroupings,
   buildMatchScore,
@@ -25,6 +28,7 @@ import {
 } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { StatsHighlightAccumulatedTotals } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { HaloService } from "../services/halo/halo";
+import type { LogService } from "../services/log/types";
 
 /** Shared demo identity shown to signed-out visitors, surfaced via `isExample` in the response. */
 export const OVERLAY_PREVIEW_DEMO_GAMERTAG = "soundmanD";
@@ -36,11 +40,12 @@ const STATS_DISPLAY_LOCALE = "en-US";
 
 export interface BuildOverlayPreviewViewOptions {
   readonly haloService: HaloService;
+  readonly logService: LogService;
   readonly xuid: string;
   readonly gamertag: string;
   readonly mode: OverlayPreviewMode;
   readonly statsHighlightSlots: readonly IndividualStatsHighlightOption[];
-  readonly streamerSettings?: StreamerViewSettings;
+  readonly streamerSettings?: StreamerViewSettings | undefined;
 }
 
 interface ResolvedPreviewMatch {
@@ -53,8 +58,45 @@ function isMatchmakingMatch(match: PlayerMatchHistory): boolean {
   return match.MatchInfo.Playlist != null;
 }
 
+function parsePreviewTime(value: string): Date {
+  const date = parseISO(value);
+  if (!isValid(date)) {
+    throw new Error(`Invalid preview match timestamp: ${value}`);
+  }
+  return date;
+}
+
+function isPreviewAuthError(error: unknown): boolean {
+  if (error instanceof RequestError) {
+    return error.response.status === 401;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b401\b|unauthorized|expired|spartan token/i.test(message);
+}
+
+async function resolvePlaylistName(
+  haloService: HaloService,
+  logService: LogService,
+  playlist: PlayerMatchHistory["MatchInfo"]["Playlist"],
+): Promise<string | null> {
+  if (playlist == null) {
+    return null;
+  }
+  try {
+    const name = await haloService.getPlaylistName(playlist.AssetId, playlist.VersionId);
+    return name === "" ? null : name;
+  } catch (error) {
+    if (isPreviewAuthError(error)) {
+      throw error;
+    }
+    logService.warn(error, new Map([["context", "Overlay preview: getPlaylistName failed"]]));
+    return null;
+  }
+}
+
 async function toPreviewMatch(
   haloService: HaloService,
+  logService: LogService,
   match: PlayerMatchHistory,
   stats: MatchStats,
   xuid: string,
@@ -62,9 +104,7 @@ async function toPreviewMatch(
   const [{ gameMap }, mapBackgroundUrl, matchmakingPlaylist] = await Promise.all([
     haloService.getGameTypeAndMapParts(match.MatchInfo),
     haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
-    match.MatchInfo.Playlist != null
-      ? haloService.getPlaylistName(match.MatchInfo.Playlist.AssetId, match.MatchInfo.Playlist.VersionId)
-      : Promise.resolve(null),
+    resolvePlaylistName(haloService, logService, match.MatchInfo.Playlist),
   ]);
 
   const trackedStats = computeTrackedPlayerSummaryStats(stats, xuid);
@@ -137,29 +177,48 @@ function selectLatestSeries(resolved: readonly ResolvedPreviewMatch[]): readonly
     .filter((grouping) => grouping.length > 0);
 
   if (candidates.length === 0) {
-    return resolved.filter((entry) => !entry.summary.isMatchmaking);
+    return [];
   }
 
   const latest = candidates
     .map((grouping) => ({
       grouping,
-      endedAt: Math.max(...grouping.map((entry) => Date.parse(entry.summary.endTime))),
+      endedAt: max(grouping.map((entry) => parsePreviewTime(entry.summary.endTime))),
     }))
-    .sort((left, right) => right.endedAt - left.endedAt)
+    .sort((left, right) => compareDesc(left.endedAt, right.endedAt))
     .at(0);
 
   return latest?.grouping ?? [];
 }
 
-function buildStatsHighlights(
+async function buildStatsHighlights(
   resolved: readonly ResolvedPreviewMatch[],
   xuid: string,
   statsHighlightSlots: readonly IndividualStatsHighlightOption[],
-): TrackerViewState["statsHighlights"] {
+  haloService: HaloService,
+  logService: LogService,
+): Promise<TrackerViewState["statsHighlights"]> {
   let totals: StatsHighlightAccumulatedTotals | undefined;
   for (const entry of resolved) {
     totals = accumulateMatchStatsForPlayer(totals, entry.stats, xuid) ?? totals;
   }
+
+  const needsRank = statsHighlightSlots.some(
+    (slot) => slot === "current-rank" || slot === "season-peak" || slot === "all-time-peak",
+  );
+  const needsEsra = statsHighlightSlots.includes("esra");
+  const [csrResult, esraResult] = await Promise.allSettled([
+    needsRank ? haloService.getRankedArenaCsrs([xuid]) : Promise.resolve(null),
+    needsEsra ? haloService.getPlayerEsra(xuid) : Promise.resolve(null),
+  ]);
+  if (csrResult.status === "rejected") {
+    logService.warn(csrResult.reason, new Map([["context", "Overlay preview: getRankedArenaCsrs failed"]]));
+  }
+  if (esraResult.status === "rejected") {
+    logService.warn(esraResult.reason, new Map([["context", "Overlay preview: getPlayerEsra failed"]]));
+  }
+  const csr = csrResult.status === "fulfilled" ? (csrResult.value?.get(xuid) ?? null) : null;
+  const esra = esraResult.status === "fulfilled" ? esraResult.value : null;
 
   return [
     ...computeStatsHighlightItems(
@@ -174,12 +233,15 @@ function buildStatsHighlights(
         totals,
       },
       statsHighlightSlots,
+      csr,
+      esra,
     ),
   ];
 }
 
 async function resolveHistory(
   haloService: HaloService,
+  logService: LogService,
   xuid: string,
   mode: OverlayPreviewMode,
 ): Promise<ResolvedPreviewMatch[]> {
@@ -195,13 +257,15 @@ async function resolveHistory(
   const resolved = await Promise.all(
     history.map(async (match) => {
       const stats = detailsById.get(match.MatchId);
-      return stats == null ? null : await toPreviewMatch(haloService, match, stats, xuid);
+      return stats == null ? null : await toPreviewMatch(haloService, logService, match, stats, xuid);
     }),
   );
 
   return resolved
     .filter((entry): entry is ResolvedPreviewMatch => entry !== null)
-    .sort((left, right) => Date.parse(left.summary.startTime) - Date.parse(right.summary.startTime));
+    .sort((left, right) =>
+      compareAsc(parsePreviewTime(left.summary.startTime), parsePreviewTime(right.summary.startTime)),
+    );
 }
 
 /**
@@ -209,8 +273,8 @@ async function resolveHistory(
  * enrichment helpers the tracker DO uses so the preview matches production rendering.
  */
 export async function buildOverlayPreviewView(options: BuildOverlayPreviewViewOptions): Promise<TrackerViewState> {
-  const { haloService, xuid, gamertag, mode, statsHighlightSlots, streamerSettings } = options;
-  const resolved = await resolveHistory(haloService, xuid, mode);
+  const { haloService, logService, xuid, gamertag, mode, statsHighlightSlots, streamerSettings } = options;
+  const resolved = await resolveHistory(haloService, logService, xuid, mode);
   const now = new Date().toISOString();
 
   const base = {
@@ -230,7 +294,7 @@ export async function buildOverlayPreviewView(options: BuildOverlayPreviewViewOp
       matches: resolved.map((entry) => entry.summary),
       series: [],
       hasActiveSeries: false,
-      statsHighlights: buildStatsHighlights(resolved, xuid, statsHighlightSlots),
+      statsHighlights: await buildStatsHighlights(resolved, xuid, statsHighlightSlots, haloService, logService),
     };
   }
 
@@ -240,9 +304,8 @@ export async function buildOverlayPreviewView(options: BuildOverlayPreviewViewOp
   }
 
   const xuidToGamertag = await haloService.getPlayerXuidsToGametags(seriesMatches.map((entry) => entry.stats));
-  const anchor = Preconditions.checkExists(seriesMatches.at(-1), "Series preview requires at least one match");
   const first = Preconditions.checkExists(seriesMatches.at(0), "Series preview requires at least one match");
-  const teams = buildSeriesTeams(anchor.stats, xuidToGamertag);
+  const teams = buildSeriesTeams(first.stats, xuidToGamertag);
   const title = `${gamertag} series`;
   const subtitle = `${seriesMatches.length.toString()} games`;
 

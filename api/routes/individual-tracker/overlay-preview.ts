@@ -9,8 +9,10 @@ import {
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
   isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { IndividualStatsHighlightOption } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type {
+  StreamerViewSettings,
+  IndividualStatsHighlightOption,
+} from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   OVERLAY_PREVIEW_DEMO_GAMERTAG,
   OVERLAY_PREVIEW_DEMO_XUID,
@@ -65,11 +67,11 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
       const configuredSlots = streamerSettings?.visibleSections?.statsHighlightSlots?.filter(
         isIndividualStatsHighlightOption,
       );
-      const statsHighlightSlots: readonly IndividualStatsHighlightOption[] =
-        configuredSlots != null && configuredSlots.length > 0 ? configuredSlots : DEFAULT_SLOTS;
+      const statsHighlightSlots: readonly IndividualStatsHighlightOption[] = configuredSlots ?? DEFAULT_SLOTS;
 
       const view = await buildOverlayPreviewView({
         haloService,
+        logService,
         xuid: identity.xuid,
         gamertag: identity.gamertag,
         mode,
@@ -77,10 +79,7 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
         ...(streamerSettings !== undefined ? { streamerSettings } : {}),
       });
 
-      return overlayPreviewContract.toResponse(
-        { view, mode, isExample: identity.userId === null },
-        { noStore: true },
-      );
+      return overlayPreviewContract.toResponse({ view, mode, isExample: identity.userId === null }, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Overlay preview error"]]));
       return errorContract.toResponse({ error: "Failed to build overlay preview" }, { status: 500, noStore: true });

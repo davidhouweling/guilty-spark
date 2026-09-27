@@ -1,6 +1,7 @@
 import type { AutoRouterType } from "itty-router";
 import type { MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 import { aFakeMatchStatsWith } from "@guilty-spark/shared/halo/fakes/data";
 import { overlayPreviewContract } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -8,7 +9,7 @@ import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
-import { getPlayerMatches } from "../../../services/halo/fakes/data";
+import { getPlayerMatches, getRankedArenaCsrsData } from "../../../services/halo/fakes/data";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
 
 const TRACKED_XUID = "1111111111";
@@ -24,6 +25,18 @@ function aCustomMatch(matchId: string, startTime: string): MatchStats {
 function aPlayerMatch(stats: MatchStats): PlayerMatchHistory {
   const template = Preconditions.checkExists(getPlayerMatches().at(0), "player match fixture");
   return { ...template, MatchId: stats.MatchId, MatchInfo: stats.MatchInfo };
+}
+
+function aSwappedMatch(matchId: string, startTime: string): MatchStats {
+  const base = aCustomMatch(matchId, startTime);
+  return {
+    ...base,
+    Players: base.Players.map((player) => ({
+      ...player,
+      LastTeamId: 1 - player.LastTeamId,
+      PlayerTeamStats: player.PlayerTeamStats.map((team) => ({ ...team, TeamId: 1 - team.TeamId })),
+    })),
+  };
 }
 
 function withHistory(stats: readonly MatchStats[]): typeof installFakeServicesWith {
@@ -73,9 +86,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
 
   it("serves the session user's own identity when authenticated", async () => {
     const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
-    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() =>
-      withSession(withHistory(stats))({ env }),
-    );
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withSession(withHistory(stats))({ env }));
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
@@ -106,7 +117,10 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview?mode=series"), env)) as Response;
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.mode).toBe("series");
@@ -114,6 +128,207 @@ describe("/api/individual-tracker/overlay-preview", () => {
     expect(body.view.series).toHaveLength(1);
     expect(body.view.series[0]?.matchIds).toEqual(["series-1", "series-2"]);
     expect(body.view.activeSeriesContext?.title).toBe(body.view.series[0]?.title);
+  });
+
+  it("does not fabricate a series from unrelated custom matches", async () => {
+    const first = aCustomMatch("unrelated-1", "2026-09-01T10:00:00.000Z");
+    const second = aCustomMatch("unrelated-2", "2026-09-01T10:30:00.000Z");
+    const stats = [
+      first,
+      {
+        ...second,
+        Players: second.Players.map((player, index) =>
+          index === 0 ? { ...player, PlayerId: "xuid(9999999999)" } : player,
+        ),
+      },
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.hasActiveSeries).toBe(false);
+    expect(body.view.series).toEqual([]);
+    expect(body.view.matches).toEqual([]);
+  });
+
+  it("uses the latest chronological grouping and anchors teams to its first match after a side swap", async () => {
+    const earlierBase = aCustomMatch("earlier-1", "2026-09-01T09:00:00.000Z");
+    const earlierSecondBase = aCustomMatch("earlier-2", "2026-09-01T09:30:00.000Z");
+    const earlier = {
+      ...earlierBase,
+      Players: earlierBase.Players.map((player, index) =>
+        index === 0 ? { ...player, PlayerId: "xuid(9999999999)" } : player,
+      ),
+    };
+    const earlierSecond = {
+      ...earlierSecondBase,
+      Players: earlierSecondBase.Players.map((player, index) =>
+        index === 0 ? { ...player, PlayerId: "xuid(9999999999)" } : player,
+      ),
+    };
+    const first = aCustomMatch("latest-1", "2026-09-01T10:00:00.000Z");
+    const swapped = aSwappedMatch("latest-2", "2026-09-01T10:30:00.000Z");
+    const stats = [swapped, earlierSecond, first, earlier];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+        new Map([
+          ["1111111111", "First teammate"],
+          ["3333333333", "First opponent"],
+        ]),
+      );
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.series[0]?.matchIds).toEqual(["latest-1", "latest-2"]);
+    expect(body.view.series[0]?.teams?.[0]?.players[0]?.gamertag).toBe("First teammate");
+    expect(body.view.series[0]?.teams?.[1]?.players[0]?.gamertag).toBe("First opponent");
+    expect(body.view.activeSeriesContext?.teams).toEqual(body.view.series[0]?.teams);
+  });
+
+  it("keeps a preview available when playlist metadata fails", async () => {
+    const base = aCustomMatch("match-1", "2026-09-01T10:00:00.000Z");
+    const playlist = { AssetKind: 2, AssetId: "playlist-1", VersionId: "version-1" };
+    const stats = [{ ...base, MatchInfo: { ...base.MatchInfo, Playlist: playlist } }];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getPlaylistName").mockRejectedValue(new Error("metadata unavailable"));
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(res.status).toBe(200);
+    expect(body.view.matches[0]?.isMatchmaking).toBe(true);
+    expect(body.view.matches[0]?.matchmakingPlaylist).toBeUndefined();
+  });
+
+  it("does not swallow playlist authentication failures", async () => {
+    const base = aCustomMatch("match-1", "2026-09-01T10:00:00.000Z");
+    const stats = [
+      {
+        ...base,
+        MatchInfo: {
+          ...base.MatchInfo,
+          Playlist: {
+            AssetKind: 2,
+            AssetId: "playlist-1",
+            VersionId: "version-1",
+          },
+        },
+      },
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getPlaylistName").mockRejectedValue(new Error("Spartan token expired"));
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+
+    expect(res.status).toBe(500);
+  });
+
+  it("fetches rank data only for configured rank slots and renders the rank value", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const csr = Preconditions.checkExists(getRankedArenaCsrsData().get("0000000000001"), "rank fixture");
+    const rankLookup = vi
+      .fn<() => Promise<Map<string, typeof csr>>>()
+      .mockResolvedValue(new Map([[TRACKED_XUID, csr]]));
+    let esraLookup:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["haloService"]["getPlayerEsra"]> | undefined;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: ["current-rank"] },
+      });
+      vi.spyOn(services.haloService, "getRankedArenaCsrs").mockImplementation(rankLookup);
+      esraLookup = vi.spyOn(services.haloService, "getPlayerEsra");
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(rankLookup).toHaveBeenCalledWith([TRACKED_XUID]);
+    expect(esraLookup).not.toHaveBeenCalled();
+    expect(body.view.statsHighlights?.[0]?.value).toBe("1,451");
+    expect(body.view.statsHighlights?.[0]?.rankIcon?.rankTier).toBe("Diamond");
+  });
+
+  it("preserves an authenticated user's explicitly empty highlight slots", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: [] },
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.statsHighlights).toEqual([]);
+  });
+
+  it("fetches ESRA only when selected and renders its value", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    let rankLookup:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["haloService"]["getRankedArenaCsrs"]> | undefined;
+    let esraLookup:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["haloService"]["getPlayerEsra"]> | undefined;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: ["esra"] },
+      });
+      rankLookup = vi.spyOn(services.haloService, "getRankedArenaCsrs");
+      esraLookup = vi.spyOn(services.haloService, "getPlayerEsra").mockResolvedValue({
+        esra: 1451,
+        lastRankedGamePlayed: "2026-09-01T10:00:00.000Z",
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(rankLookup).not.toHaveBeenCalled();
+    expect(esraLookup).toHaveBeenCalledWith(TRACKED_XUID);
+    expect(body.view.statsHighlights?.[0]?.value).toBe("1,451");
+    expect(body.view.statsHighlights?.[0]?.rankIcon).toBeDefined();
+  });
+
+  it("rejects an invalid match timestamp rather than selecting an arbitrary series", async () => {
+    const stats = [aCustomMatch("series-1", "not-a-date"), aCustomMatch("series-2", "2026-09-01T10:30:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(500);
   });
 
   it("rejects an unknown preview mode", async () => {
