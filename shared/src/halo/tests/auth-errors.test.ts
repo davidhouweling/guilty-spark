@@ -8,12 +8,10 @@ describe("isHaloAuthError", () => {
   });
 
   it("does not treat other typed HTTP errors as auth failures", () => {
-    expect(isHaloAuthError(new RequestError(new URL("https://halo"), new Response(null, { status: 500 })))).toBe(
-      false,
-    );
+    expect(isHaloAuthError(new RequestError(new URL("https://halo"), new Response(null, { status: 500 })))).toBe(false);
   });
 
-  it.each(["401 Unauthorized", "Expired Spartan token", "request unauthorized"]) (
+  it.each(["401 Unauthorized", "Expired Spartan token", "request unauthorized"])(
     "recognizes an opaque auth error message: %s",
     (message) => {
       expect(isHaloAuthError(new Error(message))).toBe(true);
