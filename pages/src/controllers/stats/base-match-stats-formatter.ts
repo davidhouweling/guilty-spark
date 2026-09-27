@@ -61,10 +61,7 @@ export abstract class BaseMatchStatsFormatter {
       const playerStats: MatchStatsPlayerData[] = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = getPlayerXuid(teamPlayer);
-        const playerGamertag =
-          teamPlayer.PlayerType === 1
-            ? (players.get(playerXuid) ?? "*Unknown*")
-            : "Bot";
+        const playerGamertag = teamPlayer.PlayerType === 1 ? (players.get(playerXuid) ?? "*Unknown*") : "Bot";
 
         const playerTeamStats = Preconditions.checkExists(
           teamPlayer.PlayerTeamStats.find((pts) => pts.TeamId === team.TeamId),

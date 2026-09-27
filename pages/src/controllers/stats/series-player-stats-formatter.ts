@@ -40,10 +40,7 @@ export class SeriesPlayerStatsFormatter {
       const playerStats: MatchStatsPlayerData[] = [];
       for (const teamPlayer of teamPlayers) {
         const playerXuid = getPlayerXuid(teamPlayer);
-        const playerGamertag =
-          teamPlayer.PlayerType === 1
-            ? (players.get(playerXuid) ?? "*Unknown*")
-            : "Bot";
+        const playerGamertag = teamPlayer.PlayerType === 1 ? (players.get(playerXuid) ?? "*Unknown*") : "Bot";
 
         const stats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
         const outputStats = this.transformStats(seriesBestValues, teamBestValues, stats);
