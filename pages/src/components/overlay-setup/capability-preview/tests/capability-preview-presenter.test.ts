@@ -166,11 +166,17 @@ describe("CapabilityPreviewPresenter", () => {
     expect(getPreview).toHaveBeenLastCalledWith("series", undefined);
   });
 
-  it("refreshes only requested modes when settings change", async () => {
+  it("refreshes only matchmaking when highlight slots change", async () => {
     const { presenter, store, previewService } = createHarness();
     const getPreview = vi.spyOn(previewService, "getPreview");
-    const initialSettings: StreamerViewSettings = { styleFlags: { colorMode: "player" } };
-    const updatedSettings: StreamerViewSettings = { styleFlags: { colorMode: "observer" } };
+    const initialSettings: StreamerViewSettings = {
+      styleFlags: { colorMode: "player" },
+      visibleSections: { statsHighlightSlots: ["kda"] },
+    };
+    const updatedSettings: StreamerViewSettings = {
+      styleFlags: { colorMode: "observer" },
+      visibleSections: { statsHighlightSlots: ["esra"] },
+    };
 
     presenter.updateSettings(initialSettings);
     presenter.load("series", initialSettings);
@@ -183,18 +189,19 @@ describe("CapabilityPreviewPresenter", () => {
 
     await vi.waitFor(() => {
       expect(store.getSnapshot().matchmaking.status).toBe("loaded");
-      expect(store.getSnapshot().series.status).toBe("loaded");
     });
-    expect(getPreview).toHaveBeenCalledTimes(4);
-    expect(getPreview).toHaveBeenNthCalledWith(3, "matchmaking", updatedSettings);
-    expect(getPreview).toHaveBeenNthCalledWith(4, "series", updatedSettings);
+    expect(store.getSnapshot().series.status).toBe("loaded");
+    expect(getPreview).toHaveBeenCalledTimes(3);
+    expect(getPreview).toHaveBeenNthCalledWith(3, "matchmaking", {
+      visibleSections: { statsHighlightSlots: ["esra"] },
+    });
   });
 
   it("keeps an unrequested series preview idle when settings change", async () => {
     const { presenter, store, previewService } = createHarness();
     const getPreview = vi.spyOn(previewService, "getPreview");
-    const initialSettings: StreamerViewSettings = { styleFlags: { colorMode: "player" } };
-    const updatedSettings: StreamerViewSettings = { styleFlags: { colorMode: "observer" } };
+    const initialSettings: StreamerViewSettings = { visibleSections: { statsHighlightSlots: ["kda"] } };
+    const updatedSettings: StreamerViewSettings = { visibleSections: { statsHighlightSlots: ["esra"] } };
 
     presenter.updateSettings(initialSettings);
     await vi.waitFor(() => {
@@ -209,6 +216,54 @@ describe("CapabilityPreviewPresenter", () => {
 
     expect(store.getSnapshot().series.status).toBe("idle");
     expect(getPreview).toHaveBeenLastCalledWith("matchmaking", updatedSettings);
+  });
+
+  it("does not reload previews when only display settings change", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+    const playerSettings: StreamerViewSettings = {
+      styleFlags: { colorMode: "player", playerTeamColor: "cerulean" },
+      visibleSections: { statsHighlightSlots: ["kda"] },
+    };
+    const observerSettings: StreamerViewSettings = {
+      styleFlags: { colorMode: "observer", observerTeamColor: "salmon" },
+      visibleSections: { statsHighlightSlots: ["kda"] },
+    };
+
+    presenter.updateSettings(playerSettings);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+    });
+
+    presenter.updateSettings(observerSettings);
+
+    expect(getPreview).toHaveBeenCalledOnce();
+    expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+  });
+
+  it("reloads requested modes when preview identity changes", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+    const previewSettings: StreamerViewSettings = { visibleSections: { statsHighlightSlots: ["kda"] } };
+
+    presenter.updateSettings(previewSettings, "demo");
+    presenter.load("series", previewSettings, "demo");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+      expect(store.getSnapshot().series.status).toBe("loaded");
+    });
+
+    presenter.updateSettings(previewSettings, "authenticated:Spartan");
+
+    await vi.waitFor(() => {
+      expect(getPreview).toHaveBeenCalledTimes(4);
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+      expect(store.getSnapshot().series.status).toBe("loaded");
+    });
+    expect(getPreview).toHaveBeenNthCalledWith(3, "matchmaking", {
+      visibleSections: { statsHighlightSlots: ["kda"] },
+    });
+    expect(getPreview).toHaveBeenNthCalledWith(4, "series", undefined);
   });
 
   it("deduplicates repeated loads with identical settings", async () => {

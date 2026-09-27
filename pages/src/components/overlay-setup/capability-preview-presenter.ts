@@ -12,21 +12,31 @@ export class CapabilityPreviewPresenter {
   private readonly config: Config;
   private readonly requestIds = new Map<OverlayPreviewMode, number>();
   private readonly settingsKeys = new Map<OverlayPreviewMode, string>();
+  private identityKey: string | undefined;
   private isDisposed = false;
 
   public constructor(config: Config) {
     this.config = config;
   }
 
-  public load(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings): void {
+  public load(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings, identityKey?: string): void {
+    if (identityKey !== undefined) {
+      this.identityKey = identityKey;
+    }
     this.loadMode(mode, previewSettings, false);
   }
 
-  public retry(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings): void {
+  public retry(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings, identityKey?: string): void {
+    if (identityKey !== undefined) {
+      this.identityKey = identityKey;
+    }
     this.loadMode(mode, previewSettings, true);
   }
 
-  public updateSettings(previewSettings?: StreamerViewSettings): void {
+  public updateSettings(previewSettings?: StreamerViewSettings, identityKey?: string): void {
+    if (identityKey !== undefined) {
+      this.identityKey = identityKey;
+    }
     const snapshot = this.config.store.getSnapshot();
     for (const mode of ["matchmaking", "series"] as const) {
       if (mode === "matchmaking" || snapshot[mode].status !== "idle") {
@@ -37,7 +47,12 @@ export class CapabilityPreviewPresenter {
 
   private loadMode(mode: OverlayPreviewMode, previewSettings: StreamerViewSettings | undefined, force: boolean): void {
     this.isDisposed = false;
-    const settingsKey = JSON.stringify(previewSettings ?? null);
+    const statsHighlightSlots =
+      mode === "matchmaking" ? previewSettings?.visibleSections?.statsHighlightSlots : undefined;
+    const settingsKey = JSON.stringify({
+      identityKey: this.identityKey,
+      statsHighlightSlots: statsHighlightSlots ?? null,
+    });
     if (!force && this.settingsKeys.get(mode) === settingsKey) {
       return;
     }
@@ -45,7 +60,11 @@ export class CapabilityPreviewPresenter {
     const requestId = (this.requestIds.get(mode) ?? 0) + 1;
     this.requestIds.set(mode, requestId);
     this.config.store.setLoading(mode);
-    void this.loadAsync(mode, requestId, previewSettings);
+    const requestSettings =
+      statsHighlightSlots === undefined
+        ? undefined
+        : { visibleSections: { statsHighlightSlots: [...statsHighlightSlots] } };
+    void this.loadAsync(mode, requestId, requestSettings);
   }
 
   public reload(previewSettings?: StreamerViewSettings): void {
@@ -55,6 +74,7 @@ export class CapabilityPreviewPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.identityKey = undefined;
     this.settingsKeys.clear();
     for (const mode of ["matchmaking", "series"] as const) {
       this.requestIds.set(mode, (this.requestIds.get(mode) ?? 0) + 1);

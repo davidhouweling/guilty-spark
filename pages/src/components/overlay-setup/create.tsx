@@ -104,22 +104,24 @@ function OverlaySetupPageInternal({
   );
   const previewStreamerSettings = useMemo(() => snapshotToSettings(settingsSnapshot), [settingsSnapshot]);
   const previewSettingsReady = settingsSnapshot.loadStatus === "loaded" || settingsSnapshot.loadStatus === "error";
+  const previewIdentityKey =
+    snapshot.authState === "authenticated" ? `authenticated:${snapshot.gamertag ?? ""}` : "demo";
   const onPreviewModeSelected = useMemo(
     () =>
       (tab: CapabilityPreviewTab): void => {
         if (!previewSettingsReady) {
           return;
         }
-        previewPresenter.load(tab === "viewer" ? "matchmaking" : tab, previewStreamerSettings);
+        previewPresenter.load(tab === "viewer" ? "matchmaking" : tab, previewStreamerSettings, previewIdentityKey);
       },
-    [previewPresenter, previewSettingsReady, previewStreamerSettings],
+    [previewIdentityKey, previewPresenter, previewSettingsReady, previewStreamerSettings],
   );
   useEffect(() => {
     if (snapshot.authState === "loading" || !previewSettingsReady) {
       return;
     }
-    previewPresenter.updateSettings(previewStreamerSettings);
-  }, [previewPresenter, previewSettingsReady, previewStreamerSettings, snapshot.authState]);
+    previewPresenter.updateSettings(previewStreamerSettings, previewIdentityKey);
+  }, [previewIdentityKey, previewPresenter, previewSettingsReady, previewStreamerSettings, snapshot.authState]);
 
   const previewSnapshot = useSyncExternalStore(
     (listener) => previewStore.subscribe(listener),
@@ -260,7 +262,11 @@ function OverlaySetupPageInternal({
           ViewerPage={ViewerPage}
           onActivateMode={onPreviewModeSelected}
           onRetry={(mode): void => {
-            previewPresenter.retry(mode === "viewer" ? "matchmaking" : mode, previewStreamerSettings);
+            previewPresenter.retry(
+              mode === "viewer" ? "matchmaking" : mode,
+              previewStreamerSettings,
+              previewIdentityKey,
+            );
           }}
         />
       }
