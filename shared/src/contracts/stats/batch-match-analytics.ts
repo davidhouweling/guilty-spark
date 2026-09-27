@@ -2,6 +2,8 @@ import { z } from "zod";
 import { defineContract } from "../base";
 import { matchAnalyticsSchema, requestedModulesQuerySchema } from "./match-analytics";
 
+export const BATCH_MATCH_ANALYTICS_MAX_MATCH_IDS = 5;
+
 const matchIdsQuerySchema = z
   .string()
   .transform((raw) => {
@@ -10,7 +12,7 @@ const matchIdsQuerySchema = z
       .map((id) => id.trim())
       .filter((id) => id.length > 0);
   })
-  .pipe(z.array(z.string()).min(1).max(30));
+  .pipe(z.array(z.string()).min(1).max(BATCH_MATCH_ANALYTICS_MAX_MATCH_IDS));
 
 export const batchMatchAnalyticsQuerySchema = z.object({
   matchIds: matchIdsQuerySchema,

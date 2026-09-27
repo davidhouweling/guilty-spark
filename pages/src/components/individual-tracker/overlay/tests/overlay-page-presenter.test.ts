@@ -154,6 +154,33 @@ describe("OverlayPagePresenter", () => {
     expect(getMatchStats).toHaveBeenCalledTimes(1);
   });
 
+  it("loads analytics for preloaded matches in one batch service call", async () => {
+    const store = new OverlayPageStore();
+    const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchMatchAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
+    const haloClient = aFakeHaloClientWith({
+      getMatchStats: vi.fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId }))),
+    });
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+      matchAnalyticsService,
+    });
+    const matchIds = Array.from({ length: 12 }, (_, index) => `match-${index.toString()}`);
+
+    presenter.preloadMatchStats(matchIds);
+
+    await waitFor(() => {
+      expect([...store.getSnapshot().matchStatsByMatchId.values()]).toHaveLength(matchIds.length);
+      expect([...store.getSnapshot().matchStatsByMatchId.values()].every((state) => state.status === "loaded")).toBe(
+        true,
+      );
+    });
+    expect(getBatchMatchAnalytics).toHaveBeenCalledOnce();
+    expect(getBatchMatchAnalytics).toHaveBeenCalledWith(matchIds, ["killMatrix", "scoreProgression"]);
+  });
+
   it("maps load failures to error states", async () => {
     const store = new OverlayPageStore();
     const haloClient = aFakeHaloClientWith({

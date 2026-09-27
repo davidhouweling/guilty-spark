@@ -17,6 +17,16 @@ function aFakeAnalyticsResponseWith(overrides: Partial<MatchAnalytics> = {}): Ma
   };
 }
 
+function getFetchUrl(input: Parameters<typeof globalThis.fetch>[0]): URL {
+  if (typeof input === "string") {
+    return new URL(input);
+  }
+  if (input instanceof URL) {
+    return input;
+  }
+  return new URL(input.url);
+}
+
 describe("RealMatchAnalyticsService.getBatchMatchAnalytics", () => {
   let fetchSpy: MockInstance<typeof globalThis.fetch>;
   let service: RealMatchAnalyticsService;
@@ -87,6 +97,31 @@ describe("RealMatchAnalyticsService.getBatchMatchAnalytics", () => {
     const result = await service.getBatchMatchAnalytics(["match-ok", "match-fail"]);
 
     expect(result).toEqual({ "match-ok": analytics, "match-fail": null });
+  });
+
+  it("splits large requests into batches of five and merges the results", async () => {
+    const analytics = aFakeAnalyticsResponseWith();
+    const matchIds = Array.from({ length: 12 }, (_, index) => `match-${index.toString()}`);
+    const batches = [matchIds.slice(0, 5), matchIds.slice(5, 10), matchIds.slice(10)];
+    for (const batch of batches) {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ results: Object.fromEntries(batch.map((matchId) => [matchId, analytics])) }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }
+
+    const result = await service.getBatchMatchAnalytics(matchIds, ["killMatrix", "scoreProgression"], "tracker-1");
+
+    expect(result).toEqual(Object.fromEntries(matchIds.map((matchId) => [matchId, analytics])));
+    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy.mock.calls.map(([input]) => getFetchUrl(input).searchParams.get("matchIds"))).toEqual(
+      batches.map((batch) => batch.join(",")),
+    );
+    expect(
+      fetchSpy.mock.calls.every(([input]) => getFetchUrl(input).searchParams.get("trackerId") === "tracker-1"),
+    ).toBe(true);
   });
 
   it("omits trackerId query param when trackerId is blank after trimming", async () => {

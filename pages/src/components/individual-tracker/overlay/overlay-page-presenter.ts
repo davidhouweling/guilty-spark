@@ -70,13 +70,22 @@ export class OverlayPagePresenter {
   }
 
   public preloadMatchStats(matchIds: readonly string[]): void {
+    const matchIdsToLoad: string[] = [];
     for (const matchId of matchIds) {
       const existingState = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
       if (existingState?.status === "loaded" || existingState?.status === "loading") {
         continue;
       }
 
-      void this.loadMatchStatsAsync(matchId);
+      matchIdsToLoad.push(matchId);
+    }
+    if (matchIdsToLoad.length === 0) {
+      return;
+    }
+
+    const analyticsPromise = this.loadMatchAnalyticsAsync(matchIdsToLoad);
+    for (const matchId of matchIdsToLoad) {
+      void this.loadMatchStatsAsync(matchId, analyticsPromise);
     }
   }
 
@@ -270,7 +279,10 @@ export class OverlayPagePresenter {
     };
   }
 
-  private async loadMatchStatsAsync(matchId: string): Promise<void> {
+  private async loadMatchStatsAsync(
+    matchId: string,
+    analyticsPromise: Promise<OverlayAnalyticsLoadResult> = this.loadMatchAnalyticsAsync([matchId]),
+  ): Promise<void> {
     this.config.store.setMatchStatsState(matchId, { status: "loading" });
 
     try {
@@ -280,8 +292,6 @@ export class OverlayPagePresenter {
       }
 
       const xuids = stats.Players.filter((player) => player.PlayerType === 1).map((player) => getPlayerXuid(player));
-
-      const analyticsPromise = this.loadMatchAnalyticsAsync(matchId);
 
       const [users, medalMetadata] = await Promise.all([
         this.config.haloClient.getUsers(xuids).catch(() => []),
@@ -333,12 +343,12 @@ export class OverlayPagePresenter {
     }
   }
 
-  private async loadMatchAnalyticsAsync(matchId: string): Promise<OverlayAnalyticsLoadResult> {
+  private async loadMatchAnalyticsAsync(matchIds: readonly string[]): Promise<OverlayAnalyticsLoadResult> {
     try {
-      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
-        [matchId],
-        ["killMatrix", "scoreProgression"],
-      );
+      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(matchIds, [
+        "killMatrix",
+        "scoreProgression",
+      ]);
 
       return {
         status: ComponentLoaderStatus.LOADED,
