@@ -1,0 +1,85 @@
+.previewRegion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.previewToolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.previewTabs {
+  margin-bottom: 0;
+}
+
+.sourceLabel {
+  align-items: center;
+  color: var(--halo-gray);
+  display: flex;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.exampleMark {
+  color: var(--halo-warning, #f0b44d);
+}
+
+.previewFrame {
+  aspect-ratio: 16 / 9;
+  background: var(--halo-bg);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 35%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
+  overflow: hidden;
+  position: relative;
+  transition:
+    box-shadow var(--transition-base) ease,
+    transform var(--transition-base) ease;
+}
+
+.previewFrame:hover,
+.previewFrame:focus-within {
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+}
+
+@media (--tablet-viewport) {
+  .previewFrame:hover,
+  .previewFrame:focus-within {
+    transform: scale(1.018);
+    z-index: 3;
+  }
+}
+
+/* A transformed ancestor contains the fixed-position overlay root within the 1080p stage. */
+.stage {
+  left: 0;
+  position: absolute;
+  top: 0;
+  transform-origin: top left;
+}
+
+.previewState {
+  align-items: center;
+  background: var(--halo-bg);
+  color: var(--halo-gray);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.previewHint {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  margin: 0;
+  text-align: right;
+}
