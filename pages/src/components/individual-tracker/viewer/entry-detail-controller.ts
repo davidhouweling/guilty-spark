@@ -3,6 +3,7 @@ import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
@@ -506,10 +507,10 @@ export class EntryDetailController {
 
   private resolveTeamColors(): readonly TeamColor[] {
     const snapshot = this.config.store.getSnapshot();
-    const styleFlags = snapshot.view?.streamerSettings?.styleFlags;
+    const { teamColorId, enemyColorId } = getStreamerViewTeamColorIds(snapshot.view?.streamerSettings);
     return [
-      getTeamColorOrDefault(styleFlags?.playerTeamColor ?? styleFlags?.teamColor ?? DEFAULT_TEAM_COLORS[0], 0),
-      getTeamColorOrDefault(styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor ?? DEFAULT_TEAM_COLORS[1], 1),
+      getTeamColorOrDefault(teamColorId ?? DEFAULT_TEAM_COLORS[0], 0),
+      getTeamColorOrDefault(enemyColorId ?? DEFAULT_TEAM_COLORS[1], 1),
     ];
   }
 }
