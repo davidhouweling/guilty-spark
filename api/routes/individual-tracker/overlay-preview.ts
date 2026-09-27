@@ -1,8 +1,8 @@
-import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
+import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
   overlayPreviewContract,
-  overlayPreviewQuerySchema,
+  overlayPreviewRequestSchema,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
@@ -74,21 +74,21 @@ async function resolvePreviewIdentity(
 export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   // Deliberately session-optional and takes no gamertag: callers only ever get their own data or
   // the shared demo identity, so this cannot be used to read another user's history.
-  router.get("/api/individual-tracker/overlay-preview", async (request, env: Env) => {
+  router.post("/api/individual-tracker/overlay-preview", async (request, env: Env) => {
     const services = installServices({ env });
     const { authService, haloService, individualTrackerService, logService, userTokenProvider } = services;
 
     try {
-      const parsedQuery = parseQueryParams(new URL(request.url), overlayPreviewQuerySchema, "Invalid preview mode");
-      if (!parsedQuery.success) {
-        return parsedQuery.response;
+      const parsedBody = await parseJsonBody(request, overlayPreviewRequestSchema, "Invalid preview request");
+      if (!parsedBody.success) {
+        return parsedBody.response;
       }
-      const { mode } = parsedQuery.data;
+      const { mode, previewSettings } = parsedBody.data;
 
       const { identity, clearCookie } = await resolvePreviewIdentity(request, authService, logService);
 
-      let streamerSettings: StreamerViewSettings | undefined;
-      if (identity.userId != null) {
+      let streamerSettings: StreamerViewSettings | undefined = previewSettings;
+      if (streamerSettings === undefined && identity.userId != null) {
         streamerSettings = await individualTrackerService.getSettingsForView(identity.userId);
       }
 
