@@ -65,7 +65,7 @@ describe("OverlaySetupPresenter", () => {
 
     expect(presenter.getSnapshot()).toEqual({
       authState: "error",
-      gamertag: null,
+      gamertag: OVERLAY_SETUP_DEMO_GAMERTAG,
       avatarUrl: null,
       errorMessage: "Failed to load session. Please refresh the page.",
     });
