@@ -271,12 +271,24 @@ async function resolveHistory(
     return [];
   }
 
-  const details = await haloService.getMatchDetails(history.map((match) => match.MatchId));
-  const detailsById = new Map(details.map((match) => [match.MatchId, match]));
-
   const resolved = await Promise.all(
     history.map(async (match) => {
-      const stats = detailsById.get(match.MatchId);
+      let stats: MatchStats | undefined;
+      try {
+        stats = (await haloService.getMatchDetails([match.MatchId])).find((detail) => detail.MatchId === match.MatchId);
+      } catch (error) {
+        if (isPreviewAuthError(error)) {
+          throw error;
+        }
+        logService.warn(
+          error,
+          new Map([
+            ["context", "Overlay preview: getMatchDetails failed"],
+            ["matchId", match.MatchId],
+          ]),
+        );
+        return null;
+      }
       return stats == null ? null : await toPreviewMatch(haloService, logService, match, stats, xuid);
     }),
   );

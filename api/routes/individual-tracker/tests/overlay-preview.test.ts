@@ -44,7 +44,9 @@ function withHistory(stats: readonly MatchStats[]): typeof installFakeServicesWi
   return (opts) => {
     const services = installFakeServicesWith(opts);
     vi.spyOn(services.haloService, "getPlayerMatches").mockResolvedValue(stats.map(aPlayerMatch));
-    vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([...stats]);
+    vi.spyOn(services.haloService, "getMatchDetails").mockImplementation(async (ids) =>
+      Promise.resolve(stats.filter((match) => ids.includes(match.MatchId))),
+    );
     return services;
   };
 }
@@ -356,7 +358,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
       vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
         visibleSections: { statsHighlightSlots: ["total-games"] },
       });
-      fetchedDetails = vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(stats);
+      fetchedDetails = vi.spyOn(services.haloService, "getMatchDetails");
       return services;
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
@@ -364,9 +366,61 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
-    expect(fetchedDetails).toHaveBeenCalledWith(["boundary", "long"]);
+    expect(fetchedDetails).toHaveBeenCalledTimes(2);
+    expect(fetchedDetails).toHaveBeenCalledWith(["boundary"]);
+    expect(fetchedDetails).toHaveBeenCalledWith(["long"]);
     expect(body.view.matches.map((match) => match.matchId)).toEqual(["boundary", "long"]);
     expect(body.view.statsHighlights?.[0]?.value).toBe("2");
+  });
+
+  it("keeps other matches and highlights when one detail request fails", async () => {
+    const stats = [
+      aCustomMatch("unavailable", "2026-09-01T10:00:00.000Z"),
+      aCustomMatch("available", "2026-09-01T10:30:00.000Z"),
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: ["total-games"] },
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockImplementation(async (ids) => {
+        if (ids.includes("unavailable")) {
+          return Promise.reject(new Error("match details unavailable"));
+        }
+        return Promise.resolve(stats.filter((match) => ids.includes(match.MatchId)));
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(res.status).toBe(200);
+    expect(body.view.matches.map((match) => match.matchId)).toEqual(["available"]);
+    expect(body.view.statsHighlights?.[0]?.value).toBe("1");
+  });
+
+  it("does not swallow match-detail authentication failures", async () => {
+    const stats = [
+      aCustomMatch("expired", "2026-09-01T10:00:00.000Z"),
+      aCustomMatch("available", "2026-09-01T10:30:00.000Z"),
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getMatchDetails").mockImplementation(async (ids) => {
+        if (ids.includes("expired")) {
+          return Promise.reject(new Error("Spartan token expired"));
+        }
+        return Promise.resolve(stats.filter((match) => ids.includes(match.MatchId)));
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+
+    expect(res.status).toBe(500);
   });
 
   it("keeps a preview available when playlist metadata fails", async () => {
