@@ -145,6 +145,86 @@ describe("CapabilityPreviewPresenter", () => {
     expect(matchmaking.data.view.gamertag).toBe("Restarted Spartan");
   });
 
+  it("loads matchmaking initially and keeps series lazy until requested", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+
+    presenter.updateSettings();
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+    });
+    expect(store.getSnapshot().series.status).toBe("idle");
+    expect(getPreview).toHaveBeenCalledTimes(1);
+    expect(getPreview).toHaveBeenCalledWith("matchmaking", undefined);
+
+    presenter.load("series");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().series.status).toBe("loaded");
+    });
+    expect(getPreview).toHaveBeenCalledTimes(2);
+    expect(getPreview).toHaveBeenLastCalledWith("series", undefined);
+  });
+
+  it("refreshes only requested modes when settings change", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+    const initialSettings: StreamerViewSettings = { styleFlags: { colorMode: "player" } };
+    const updatedSettings: StreamerViewSettings = { styleFlags: { colorMode: "observer" } };
+
+    presenter.updateSettings(initialSettings);
+    presenter.load("series", initialSettings);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+      expect(store.getSnapshot().series.status).toBe("loaded");
+    });
+
+    presenter.updateSettings(updatedSettings);
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+      expect(store.getSnapshot().series.status).toBe("loaded");
+    });
+    expect(getPreview).toHaveBeenCalledTimes(4);
+    expect(getPreview).toHaveBeenNthCalledWith(3, "matchmaking", updatedSettings);
+    expect(getPreview).toHaveBeenNthCalledWith(4, "series", updatedSettings);
+  });
+
+  it("keeps an unrequested series preview idle when settings change", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+    const initialSettings: StreamerViewSettings = { styleFlags: { colorMode: "player" } };
+    const updatedSettings: StreamerViewSettings = { styleFlags: { colorMode: "observer" } };
+
+    presenter.updateSettings(initialSettings);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+    });
+
+    presenter.updateSettings(updatedSettings);
+    await vi.waitFor(() => {
+      expect(getPreview).toHaveBeenCalledTimes(2);
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+    });
+
+    expect(store.getSnapshot().series.status).toBe("idle");
+    expect(getPreview).toHaveBeenLastCalledWith("matchmaking", updatedSettings);
+  });
+
+  it("deduplicates repeated loads with identical settings", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const getPreview = vi.spyOn(previewService, "getPreview");
+    const previewSettings: StreamerViewSettings = { styleFlags: { colorMode: "observer" } };
+
+    presenter.updateSettings(previewSettings);
+    presenter.updateSettings(previewSettings);
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().matchmaking.status).toBe("loaded");
+    });
+    expect(getPreview).toHaveBeenCalledOnce();
+  });
+
   it("forwards local preview settings and preserves their fake preview output", async () => {
     const { presenter, store, previewService } = createHarness();
     const getPreview = vi.spyOn(previewService, "getPreview");

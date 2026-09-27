@@ -17,6 +17,7 @@ import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-st
 import { createIndividualTrackerOverlayPage } from "../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import { CapabilityPreview } from "./capability-preview";
+import type { CapabilityPreviewTab } from "./capability-preview";
 import { CapabilityPreviewPresenter } from "./capability-preview-presenter";
 import { CapabilityPreviewStore } from "./capability-preview-store";
 import { OVERLAY_SETUP_DEMO_GAMERTAG, OverlaySetupPresenter } from "./overlay-setup-presenter";
@@ -102,12 +103,23 @@ function OverlaySetupPageInternal({
     () => settingsStore.getSnapshot(),
   );
   const previewStreamerSettings = useMemo(() => snapshotToSettings(settingsSnapshot), [settingsSnapshot]);
+  const previewSettingsReady = settingsSnapshot.loadStatus === "loaded" || settingsSnapshot.loadStatus === "error";
+  const onPreviewModeSelected = useMemo(
+    () =>
+      (tab: CapabilityPreviewTab): void => {
+        if (!previewSettingsReady) {
+          return;
+        }
+        previewPresenter.load(tab === "viewer" ? "matchmaking" : tab, previewStreamerSettings);
+      },
+    [previewPresenter, previewSettingsReady, previewStreamerSettings],
+  );
   useEffect(() => {
-    if (snapshot.authState === "loading") {
+    if (snapshot.authState === "loading" || !previewSettingsReady) {
       return;
     }
-    previewPresenter.reload(previewStreamerSettings);
-  }, [previewPresenter, previewStreamerSettings, snapshot.authState]);
+    previewPresenter.updateSettings(previewStreamerSettings);
+  }, [previewPresenter, previewSettingsReady, previewStreamerSettings, snapshot.authState]);
 
   const previewSnapshot = useSyncExternalStore(
     (listener) => previewStore.subscribe(listener),
@@ -239,14 +251,16 @@ function OverlaySetupPageInternal({
         <CapabilityPreview
           gamertag={snapshot.gamertag}
           isAuthenticated={snapshot.authState === "authenticated"}
+          settingsReady={previewSettingsReady}
           previewMode={settingsSnapshot.defaultColorMode}
           streamerSettings={previewStreamerSettings}
           matchmaking={previewSnapshot.matchmaking}
           series={previewSnapshot.series}
           OverlayPage={OverlayPage}
           ViewerPage={ViewerPage}
+          onActivateMode={onPreviewModeSelected}
           onRetry={(mode): void => {
-            previewPresenter.load(mode === "viewer" ? "matchmaking" : mode, previewStreamerSettings);
+            previewPresenter.retry(mode === "viewer" ? "matchmaking" : mode, previewStreamerSettings);
           }}
         />
       }
