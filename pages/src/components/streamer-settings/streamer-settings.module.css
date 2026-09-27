@@ -124,7 +124,7 @@
   gap: var(--space-3);
 }
 
-@media (--desktop-viewport) {
+@media (--ultrawide-viewport) {
   .pickerGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
