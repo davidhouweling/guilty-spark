@@ -1,5 +1,6 @@
 import type { RoutesRegisterHandler } from "../base/types";
 import { trackerManageRoutesRegisterHandler } from "./manage";
+import { trackerOverlayPreviewRoutesRegisterHandler } from "./overlay-preview";
 import { trackerProfileRoutesRegisterHandler } from "./profile";
 import { trackerSearchRoutesRegisterHandler } from "./search";
 import { trackerSettingsRoutesRegisterHandler } from "./settings";
@@ -11,4 +12,5 @@ export const individualTrackerRoutesRegisterHandler: RoutesRegisterHandler = (ro
   trackerSearchRoutesRegisterHandler(router, installServices);
   trackerSettingsRoutesRegisterHandler(router, installServices);
   trackerViewRoutesRegisterHandler(router, installServices);
+  trackerOverlayPreviewRoutesRegisterHandler(router, installServices);
 };

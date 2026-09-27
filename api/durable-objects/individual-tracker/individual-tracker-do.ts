@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { addMilliseconds, compareAsc, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { z } from "zod";
-import { MatchType, RequestError } from "halo-infinite-api";
+import { MatchType } from "halo-infinite-api";
 import type { PlayerMatchHistory, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
@@ -47,6 +47,7 @@ import {
   UNKNOWN_KDA_DISPLAY,
 } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { isHaloAuthError } from "@guilty-spark/shared/halo/auth-errors";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import type { MatchTeamRoster, SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
 import { resolveSeriesTeamMapping } from "@guilty-spark/shared/halo/series-team-identity";
@@ -55,7 +56,7 @@ import {
   getDefaultSeriesGroupSubtitle,
   getDefaultSeriesGroupTitle,
 } from "@guilty-spark/shared/individual-tracker/series-grouping";
-import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { getDurationInSeconds, MINIMUM_COMPLETE_MATCH_DURATION_SECONDS } from "@guilty-spark/shared/halo/duration";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -323,7 +324,7 @@ function isEligibleForActiveSeries(
   matchDurationSeconds: number,
   activeSeries: ActiveSeries,
 ): boolean {
-  if (matchDurationSeconds < 120) {
+  if (matchDurationSeconds < MINIMUM_COMPLETE_MATCH_DURATION_SECONDS) {
     return false;
   }
 
@@ -677,7 +678,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       trackerState.matchIds.push(matchId);
       knownIds.add(matchId);
       const durationSeconds = getDurationInSeconds(match.MatchInfo.Duration);
-      if (durationSeconds >= 120) {
+      if (durationSeconds >= MINIMUM_COMPLETE_MATCH_DURATION_SECONDS) {
         trackerState.selectedMatchIds.push(matchId);
       }
       if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
@@ -761,7 +762,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
         const durationSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
         // NaN/negative durations (e.g. missing or malformed timestamps) must not silently bypass
-        // isEligibleForActiveSeries's `< 120` guard - `NaN < 120` is false, not true.
+        // isEligibleForActiveSeries's minimum-duration guard (`NaN < minimum` is false).
         if (
           Number.isFinite(durationSeconds) &&
           durationSeconds >= 0 &&
@@ -1170,11 +1171,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
   }
 
   private isAuthError(error: unknown): boolean {
-    if (error instanceof RequestError) {
-      return error.response.status === 401;
-    }
-    const message = error instanceof Error ? error.message : String(error);
-    return /\b401\b|unauthorized|expired|spartan token/i.test(message);
+    return isHaloAuthError(error);
   }
 
   private handleError(trackerState: IndividualTrackerInternalState, error: unknown): void {
