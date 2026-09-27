@@ -2,12 +2,13 @@ import type { AutoRouterType } from "itty-router";
 import type { MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import { aFakeMatchStatsWith } from "@guilty-spark/shared/halo/fakes/data";
+import { aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
 import { overlayPreviewContract } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeAuthSessionWith } from "../../../services/auth/fakes/data";
+import { aFakeAuthSessionWith, aFakeSessionTokenPayload } from "../../../services/auth/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { getPlayerMatches, getRankedArenaCsrsData } from "../../../services/halo/fakes/data";
 import { individualTrackerRoutesRegisterHandler } from "../individual-tracker";
@@ -94,6 +95,54 @@ describe("/api/individual-tracker/overlay-preview", () => {
 
     expect(body.isExample).toBe(false);
     expect(body.view.gamertag).toBe("ChiefSpartan");
+  });
+
+  it("refreshes an expired session before selecting the user's preview and settings", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+        aFakeAuthSessionWith({
+          userId: "user-123",
+          xboxXuid: TRACKED_XUID,
+          xboxGamertag: "ChiefSpartan",
+          isExpired: true,
+        }),
+      );
+      vi.spyOn(services.authService, "refreshSession").mockResolvedValue(aFakeSessionTokenPayload());
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: [] },
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.isExample).toBe(false);
+    expect(body.view.gamertag).toBe("ChiefSpartan");
+    expect(body.view.statsHighlights).toEqual([]);
+  });
+
+  it("falls back to the demo and clears an unrefreshable session cookie", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+        aFakeAuthSessionWith({ isExpired: true, xboxXuid: TRACKED_XUID, xboxGamertag: "ChiefSpartan" }),
+      );
+      vi.spyOn(services.authService, "refreshSession").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.isExample).toBe(true);
+    expect(body.view.gamertag).toBe("soundmanD");
+    expect(res.headers.get("set-cookie")).toBeTruthy();
   });
 
   it("defaults to the matchmaking mode with no active series", async () => {
@@ -198,6 +247,64 @@ describe("/api/individual-tracker/overlay-preview", () => {
     expect(body.view.activeSeriesContext?.teams).toEqual(body.view.series[0]?.teams);
   });
 
+  it("excludes late joiners from the anchor roster while retaining the grouped series", async () => {
+    const first = aCustomMatch("series-1", "2026-09-01T10:00:00.000Z");
+    const latePlayer = aFakePlayerWith({
+      PlayerId: "xuid(9999999999)",
+      LastTeamId: 0,
+      ParticipationInfo: {
+        ...Preconditions.checkExists(first.Players[0], "anchor player").ParticipationInfo,
+        PresentAtBeginning: false,
+      },
+    });
+    const stats = [
+      { ...first, Players: [...first.Players, latePlayer] },
+      aCustomMatch("series-2", "2026-09-01T10:30:00.000Z"),
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.series[0]?.matchIds).toEqual(["series-1", "series-2"]);
+    expect(body.view.series[0]?.teams?.[0]?.players).toHaveLength(
+      first.Players.filter((player) => player.LastTeamId === 0).length,
+    );
+  });
+
+  it("excludes sub-two-minute games before fetching details and computing highlights", async () => {
+    const short = aCustomMatch("short", "2026-09-01T10:00:00.000Z");
+    const boundary = aCustomMatch("boundary", "2026-09-01T10:30:00.000Z");
+    const long = aCustomMatch("long", "2026-09-01T11:00:00.000Z");
+    const stats = [
+      { ...short, MatchInfo: { ...short.MatchInfo, Duration: "PT1M59.9S" } },
+      { ...boundary, MatchInfo: { ...boundary.MatchInfo, Duration: "PT2M" } },
+      long,
+    ];
+    let fetchedDetails:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["haloService"]["getMatchDetails"]> | undefined;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: ["total-games"] },
+      });
+      fetchedDetails = vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(stats);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(fetchedDetails).toHaveBeenCalledWith(["boundary", "long"]);
+    expect(body.view.matches.map((match) => match.matchId)).toEqual(["boundary", "long"]);
+    expect(body.view.statsHighlights?.[0]?.value).toBe("2");
+  });
+
   it("keeps a preview available when playlist metadata fails", async () => {
     const base = aCustomMatch("match-1", "2026-09-01T10:00:00.000Z");
     const playlist = { AssetKind: 2, AssetId: "playlist-1", VersionId: "version-1" };
@@ -287,6 +394,36 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.view.statsHighlights).toEqual([]);
+  });
+
+  it("caps configured highlights at the tracker maximum after filtering", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: {
+          statsHighlightSlots: [
+            "kills",
+            "deaths",
+            "assists",
+            "kda",
+            "accuracy",
+            "damage-dealt",
+            "total-games",
+            "current-rank",
+            "esra",
+            "matchmaking-games",
+          ],
+        },
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.statsHighlights).toHaveLength(INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT);
   });
 
   it("fetches ESRA only when selected and renders its value", async () => {

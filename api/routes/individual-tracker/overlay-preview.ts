@@ -7,6 +7,7 @@ import {
 import {
   DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS,
   INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT,
+  INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
   isIndividualStatsHighlightOption,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type {
@@ -19,6 +20,8 @@ import {
   buildOverlayPreviewView,
 } from "../../individual-tracker/overlay-preview";
 import type { RoutesRegisterHandler } from "../base/types";
+import type { AuthService } from "../../services/auth/auth";
+import type { LogService } from "../../services/log/types";
 
 interface PreviewIdentity {
   readonly xuid: string;
@@ -37,6 +40,37 @@ const DEMO_IDENTITY: PreviewIdentity = {
   userId: null,
 };
 
+async function resolvePreviewIdentity(
+  request: Request,
+  authService: AuthService,
+  logService: LogService,
+): Promise<{ identity: PreviewIdentity; clearCookie: boolean }> {
+  const session = await authService.validateSession(request);
+  if (session == null) {
+    return { identity: DEMO_IDENTITY, clearCookie: false };
+  }
+
+  if (session.isExpired) {
+    try {
+      const refreshed = await authService.refreshSession(session);
+      if (refreshed == null) {
+        return { identity: DEMO_IDENTITY, clearCookie: true };
+      }
+    } catch (error) {
+      logService.warn(error, new Map([["context", "Overlay preview: refreshSession failed"]]));
+      return { identity: DEMO_IDENTITY, clearCookie: true };
+    }
+  }
+
+  if (session.xboxXuid == null || session.xboxGamertag == null) {
+    return { identity: DEMO_IDENTITY, clearCookie: false };
+  }
+  return {
+    identity: { xuid: session.xboxXuid, gamertag: session.xboxGamertag, userId: session.userId },
+    clearCookie: false,
+  };
+}
+
 export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   // Deliberately session-optional and takes no gamertag: callers only ever get their own data or
   // the shared demo identity, so this cannot be used to read another user's history.
@@ -51,13 +85,7 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
       }
       const { mode } = parsedQuery.data;
 
-      const session = await authService.validateSession(request);
-      const sessionXuid = session?.isExpired === false ? session.xboxXuid : undefined;
-      const sessionGamertag = session?.isExpired === false ? session.xboxGamertag : undefined;
-      const identity: PreviewIdentity =
-        session != null && sessionXuid != null && sessionGamertag != null
-          ? { xuid: sessionXuid, gamertag: sessionGamertag, userId: session.userId }
-          : DEMO_IDENTITY;
+      const { identity, clearCookie } = await resolvePreviewIdentity(request, authService, logService);
 
       let streamerSettings: StreamerViewSettings | undefined;
       if (identity.userId != null) {
@@ -67,7 +95,10 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
       const configuredSlots = streamerSettings?.visibleSections?.statsHighlightSlots?.filter(
         isIndividualStatsHighlightOption,
       );
-      const statsHighlightSlots: readonly IndividualStatsHighlightOption[] = configuredSlots ?? DEFAULT_SLOTS;
+      const statsHighlightSlots: readonly IndividualStatsHighlightOption[] = (configuredSlots ?? DEFAULT_SLOTS).slice(
+        0,
+        INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
+      );
 
       const view = await buildOverlayPreviewView({
         haloService,
@@ -79,7 +110,14 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
         ...(streamerSettings !== undefined ? { streamerSettings } : {}),
       });
 
-      return overlayPreviewContract.toResponse({ view, mode, isExample: identity.userId === null }, { noStore: true });
+      const response = overlayPreviewContract.toResponse(
+        { view, mode, isExample: identity.userId === null },
+        { noStore: true },
+      );
+      if (clearCookie) {
+        authService.clearSessionCookie(response);
+      }
+      return response;
     } catch (error) {
       logService.error(error, new Map([["context", "Overlay preview error"]]));
       return errorContract.toResponse({ error: "Failed to build overlay preview" }, { status: 500, noStore: true });

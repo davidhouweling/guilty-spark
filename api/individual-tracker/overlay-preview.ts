@@ -20,6 +20,7 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
@@ -138,7 +139,7 @@ function buildSeriesTeams(stats: MatchStats, xuidToGamertag: ReadonlyMap<string,
   const playersByTeam = new Map<number, string[]>();
 
   for (const player of stats.Players) {
-    if (player.PlayerType !== 1) {
+    if (player.PlayerType !== 1 || !player.ParticipationInfo.PresentAtBeginning) {
       continue;
     }
     const playerXuid = getPlayerXuid(player);
@@ -246,7 +247,9 @@ async function resolveHistory(
   mode: OverlayPreviewMode,
 ): Promise<ResolvedPreviewMatch[]> {
   const matchType = mode === "series" ? MatchType.Custom : MatchType.All;
-  const history = await haloService.getPlayerMatches(xuid, matchType, PREVIEW_MATCH_COUNT);
+  const history = (await haloService.getPlayerMatches(xuid, matchType, PREVIEW_MATCH_COUNT)).filter(
+    (match) => getDurationInSeconds(match.MatchInfo.Duration) >= 120,
+  );
   if (history.length === 0) {
     return [];
   }
