@@ -22,6 +22,20 @@ describe("SeriesTeamStatsFormatter", () => {
       expect(result[1]?.teamId).toBe(1);
     });
 
+    it("uses an unknown name when a team player XUID is missing from the map", () => {
+      const match = aFakeMatchStatsWith();
+      const players = new Map([
+        ["2222222222", "Player2"],
+        ["3333333333", "Player3"],
+        ["4444444444", "Player4"],
+      ]);
+
+      const result = presenter.getSeriesData([match], players);
+
+      const team = result.find((item) => item.teamId === 0);
+      expect(team?.players.find((player) => player.name === "*Unknown*")).toBeDefined();
+    });
+
     it("aggregates team stats across multiple matches", () => {
       const match1 = aFakeMatchStatsWith({
         Teams: [

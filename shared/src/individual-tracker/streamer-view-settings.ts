@@ -251,6 +251,28 @@ export type StreamerViewObserverColorOverride = z.infer<typeof streamerViewObser
 export type StreamerViewObserverColorOverrides = z.infer<typeof streamerViewObserverColorOverridesSchema>;
 export type StreamerViewFontSizes = z.infer<typeof streamerViewFontSizesSchema>;
 
+export interface StreamerViewTeamColorIds {
+  readonly teamColorId: string | undefined;
+  readonly enemyColorId: string | undefined;
+}
+
+/** Resolves which configured colour pair applies, based on the streamer's selected view mode. */
+export function getStreamerViewTeamColorIds(settings: StreamerViewSettings | undefined): StreamerViewTeamColorIds {
+  const styleFlags = settings?.styleFlags;
+
+  if (styleFlags?.colorMode === "observer") {
+    return {
+      teamColorId: styleFlags.observerTeamColor,
+      enemyColorId: styleFlags.observerEnemyColor,
+    };
+  }
+
+  return {
+    teamColorId: styleFlags?.playerTeamColor ?? styleFlags?.teamColor,
+    enemyColorId: styleFlags?.playerEnemyColor ?? styleFlags?.enemyColor,
+  };
+}
+
 export function parseStreamerViewSettings(row: {
   StyleFlagsJson: string;
   VisibleSectionsJson: string;
