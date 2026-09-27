@@ -1,5 +1,5 @@
 import { compareAsc, compareDesc, isValid, max, parseISO } from "date-fns";
-import { MatchType, RequestError } from "halo-infinite-api";
+import { MatchType } from "halo-infinite-api";
 import type { MatchStats, PlayerMatchHistory } from "halo-infinite-api";
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type {
@@ -20,7 +20,8 @@ import {
 } from "@guilty-spark/shared/halo/match-enrichment";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
+import { isHaloAuthError } from "@guilty-spark/shared/halo/auth-errors";
+import { getDurationInSeconds, MINIMUM_COMPLETE_MATCH_DURATION_SECONDS } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
@@ -67,14 +68,6 @@ function parsePreviewTime(value: string): Date {
   return date;
 }
 
-function isPreviewAuthError(error: unknown): boolean {
-  if (error instanceof RequestError) {
-    return error.response.status === 401;
-  }
-  const message = error instanceof Error ? error.message : String(error);
-  return /\b401\b|unauthorized|expired|spartan token/i.test(message);
-}
-
 async function resolvePlaylistName(
   haloService: HaloService,
   logService: LogService,
@@ -87,7 +80,7 @@ async function resolvePlaylistName(
     const name = await haloService.getPlaylistName(playlist.AssetId, playlist.VersionId);
     return name === "" ? null : name;
   } catch (error) {
-    if (isPreviewAuthError(error)) {
+    if (isHaloAuthError(error)) {
       throw error;
     }
     logService.warn(error, new Map([["context", "Overlay preview: getPlaylistName failed"]]));
@@ -104,7 +97,7 @@ async function resolveMapBackgroundUrl(
   try {
     return (await haloService.getMapThumbnailUrl(assetId, versionId)) ?? "data:,";
   } catch (error) {
-    if (isPreviewAuthError(error)) {
+    if (isHaloAuthError(error)) {
       throw error;
     }
     logService.warn(error, new Map([["context", "Overlay preview: getMapThumbnailUrl failed"]]));
@@ -265,7 +258,7 @@ async function resolveHistory(
 ): Promise<ResolvedPreviewMatch[]> {
   const matchType = mode === "series" ? MatchType.Custom : MatchType.All;
   const history = (await haloService.getPlayerMatches(xuid, matchType, PREVIEW_MATCH_COUNT)).filter(
-    (match) => getDurationInSeconds(match.MatchInfo.Duration) >= 120,
+    (match) => getDurationInSeconds(match.MatchInfo.Duration) >= MINIMUM_COMPLETE_MATCH_DURATION_SECONDS,
   );
   if (history.length === 0) {
     return [];
@@ -277,7 +270,7 @@ async function resolveHistory(
       try {
         stats = (await haloService.getMatchDetails([match.MatchId])).find((detail) => detail.MatchId === match.MatchId);
       } catch (error) {
-        if (isPreviewAuthError(error)) {
+        if (isHaloAuthError(error)) {
           throw error;
         }
         logService.warn(

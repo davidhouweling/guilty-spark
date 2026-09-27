@@ -1,7 +1,6 @@
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
+import { MINIMUM_COMPLETE_MATCH_DURATION_SECONDS } from "@guilty-spark/shared/halo/duration";
 import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
-
-const MINIMUM_COMPLETE_GAME_DURATION_SECONDS = 2 * 60;
 
 function getMatchDurationSeconds(entry: TrackerMatchHistoryEntry): number | undefined {
   const startRaw = entry.startTimeIso ?? entry.startTime;
@@ -19,5 +18,5 @@ export function shouldHideShortDurationMatch(entry: TrackerMatchHistoryEntry): b
   if (duration === undefined) {
     return false;
   }
-  return duration < MINIMUM_COMPLETE_GAME_DURATION_SECONDS;
+  return duration < MINIMUM_COMPLETE_MATCH_DURATION_SECONDS;
 }
