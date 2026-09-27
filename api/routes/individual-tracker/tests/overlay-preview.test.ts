@@ -55,6 +55,8 @@ function withSession(installServicesFn: typeof installFakeServicesWith): typeof 
     vi.spyOn(services.authService, "validateSession").mockResolvedValue(
       aFakeAuthSessionWith({ userId: "user-123", xboxXuid: TRACKED_XUID, xboxGamertag: "ChiefSpartan" }),
     );
+    vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(services.haloInfiniteClient);
+    vi.spyOn(services.haloService, "withUserClient").mockReturnValue(services.haloService);
     return services;
   };
 }
@@ -97,10 +99,49 @@ describe("/api/individual-tracker/overlay-preview", () => {
     expect(body.view.gamertag).toBe("ChiefSpartan");
   });
 
+  it("uses the owner's Halo client for authenticated preview history", async () => {
+    const stats = [aCustomMatch("owner-match", "2026-09-01T10:00:00.000Z")];
+    const ownerService = withHistory(stats)({ env }).haloService;
+    let ownerLookup:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["userTokenProvider"]["getClientForUser"]> | undefined;
+    let ownerClient:
+      MockInstance<ReturnType<typeof installFakeServicesWith>["haloService"]["withUserClient"]> | undefined;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(installFakeServicesWith)({ env });
+      ownerLookup = vi
+        .spyOn(services.userTokenProvider, "getClientForUser")
+        .mockResolvedValue(services.haloInfiniteClient);
+      ownerClient = vi.spyOn(services.haloService, "withUserClient").mockReturnValue(ownerService);
+      vi.spyOn(services.haloService, "getPlayerMatches").mockRejectedValue(new Error("bot client used"));
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(body.view.matches[0]?.matchId).toBe("owner-match");
+    expect(ownerLookup).toHaveBeenCalledWith("user-123");
+    expect(ownerClient).toHaveBeenCalled();
+  });
+
+  it("does not silently use bot credentials when the owner client is unavailable", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(installFakeServicesWith)({ env });
+      vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(null);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+
+    expect(res.status).toBe(500);
+  });
+
   it("refreshes an expired session before selecting the user's preview and settings", async () => {
     const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
-      const services = withHistory(stats)({ env });
+      const services = withSession(withHistory(stats))({ env });
       vi.spyOn(services.authService, "validateSession").mockResolvedValue(
         aFakeAuthSessionWith({
           userId: "user-123",
@@ -276,6 +317,29 @@ describe("/api/individual-tracker/overlay-preview", () => {
     );
   });
 
+  it("retains separate XUIDs for unresolved series players", async () => {
+    const stats = [
+      aCustomMatch("series-1", "2026-09-01T10:00:00.000Z"),
+      aCustomMatch("series-2", "2026-09-01T10:30:00.000Z"),
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      env,
+    )) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+    const team = Preconditions.checkExists(body.view.series[0]?.teams?.[0], "first team");
+
+    expect(team.players.map((player) => player.gamertag)).toEqual(["*Unknown*", "*Unknown*"]);
+    expect(new Set(team.players.map((player) => player.xboxId)).size).toBe(2);
+  });
+
   it("excludes sub-two-minute games before fetching details and computing highlights", async () => {
     const short = aCustomMatch("short", "2026-09-01T10:00:00.000Z");
     const boundary = aCustomMatch("boundary", "2026-09-01T10:30:00.000Z");
@@ -322,6 +386,37 @@ describe("/api/individual-tracker/overlay-preview", () => {
     expect(res.status).toBe(200);
     expect(body.view.matches[0]?.isMatchmaking).toBe(true);
     expect(body.view.matches[0]?.matchmakingPlaylist).toBeUndefined();
+  });
+
+  it("retains matches when a map thumbnail lookup fails", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getMapThumbnailUrl").mockRejectedValue(new Error("thumbnail unavailable"));
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const body = await overlayPreviewContract.fromResponse(res);
+
+    expect(res.status).toBe(200);
+    expect(body.view.matches[0]?.mapBackgroundUrl).toBe("data:,");
+    expect(body.view.statsHighlights).toBeDefined();
+  });
+
+  it("propagates thumbnail authentication failures", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withHistory(stats)({ env });
+      vi.spyOn(services.haloService, "getMapThumbnailUrl").mockRejectedValue(new Error("Spartan token expired"));
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+
+    expect(res.status).toBe(500);
   });
 
   it("does not swallow playlist authentication failures", async () => {

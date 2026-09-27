@@ -95,6 +95,23 @@ async function resolvePlaylistName(
   }
 }
 
+async function resolveMapBackgroundUrl(
+  haloService: HaloService,
+  logService: LogService,
+  match: PlayerMatchHistory,
+): Promise<string> {
+  const { AssetId: assetId, VersionId: versionId } = match.MatchInfo.MapVariant;
+  try {
+    return (await haloService.getMapThumbnailUrl(assetId, versionId)) ?? "data:,";
+  } catch (error) {
+    if (isPreviewAuthError(error)) {
+      throw error;
+    }
+    logService.warn(error, new Map([["context", "Overlay preview: getMapThumbnailUrl failed"]]));
+    return "data:,";
+  }
+}
+
 async function toPreviewMatch(
   haloService: HaloService,
   logService: LogService,
@@ -104,7 +121,7 @@ async function toPreviewMatch(
 ): Promise<ResolvedPreviewMatch> {
   const [{ gameMap }, mapBackgroundUrl, matchmakingPlaylist] = await Promise.all([
     haloService.getGameTypeAndMapParts(match.MatchInfo),
-    haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
+    resolveMapBackgroundUrl(haloService, logService, match),
     resolvePlaylistName(haloService, logService, match.MatchInfo.Playlist),
   ]);
 
@@ -123,7 +140,7 @@ async function toPreviewMatch(
       mapName: gameMap,
       modeAssetId: match.MatchInfo.UgcGameVariant.AssetId,
       gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      ...(mapBackgroundUrl != null ? { mapBackgroundUrl } : {}),
+      mapBackgroundUrl,
       outcome,
       score: buildMatchScore(stats, STATS_DISPLAY_LOCALE),
       teamCount: stats.Teams.length,
@@ -136,7 +153,7 @@ async function toPreviewMatch(
 }
 
 function buildSeriesTeams(stats: MatchStats, xuidToGamertag: ReadonlyMap<string, string>): TrackerSeriesTeam[] {
-  const playersByTeam = new Map<number, string[]>();
+  const playersByTeam = new Map<number, { gamertag: string; xboxId: string }[]>();
 
   for (const player of stats.Players) {
     if (player.PlayerType !== 1 || !player.ParticipationInfo.PresentAtBeginning) {
@@ -144,20 +161,20 @@ function buildSeriesTeams(stats: MatchStats, xuidToGamertag: ReadonlyMap<string,
     }
     const playerXuid = getPlayerXuid(player);
     const entries = playersByTeam.get(player.LastTeamId) ?? [];
-    entries.push(xuidToGamertag.get(playerXuid) ?? "*Unknown*");
+    entries.push({ gamertag: xuidToGamertag.get(playerXuid) ?? "*Unknown*", xboxId: playerXuid });
     playersByTeam.set(player.LastTeamId, entries);
   }
 
   return [...playersByTeam.entries()]
     .sort(([left], [right]) => left - right)
-    .map(([teamId, gamertags]) => ({
+    .map(([teamId, players]) => ({
       id: teamId,
       name: getTeamName(teamId),
-      players: gamertags.map((gamertag) => ({
+      players: players.map(({ gamertag, xboxId }) => ({
         discordId: null,
         discordName: null,
         gamertag,
-        xboxId: null,
+        xboxId,
       })),
     }));
 }

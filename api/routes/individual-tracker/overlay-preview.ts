@@ -76,7 +76,7 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
   // the shared demo identity, so this cannot be used to read another user's history.
   router.get("/api/individual-tracker/overlay-preview", async (request, env: Env) => {
     const services = installServices({ env });
-    const { authService, haloService, individualTrackerService, logService } = services;
+    const { authService, haloService, individualTrackerService, logService, userTokenProvider } = services;
 
     try {
       const parsedQuery = parseQueryParams(new URL(request.url), overlayPreviewQuerySchema, "Invalid preview mode");
@@ -100,8 +100,17 @@ export const trackerOverlayPreviewRoutesRegisterHandler: RoutesRegisterHandler =
         INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT,
       );
 
+      let previewHaloService = haloService;
+      if (identity.userId != null) {
+        const client = await userTokenProvider.getClientForUser(identity.userId);
+        if (client == null) {
+          throw new Error("No Halo credentials available for tracker owner");
+        }
+        previewHaloService = haloService.withUserClient(client);
+      }
+
       const view = await buildOverlayPreviewView({
-        haloService,
+        haloService: previewHaloService,
         logService,
         xuid: identity.xuid,
         gamertag: identity.gamertag,
