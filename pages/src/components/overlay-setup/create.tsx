@@ -262,6 +262,7 @@ function OverlaySetupPageInternal({
           disabled={isDemo}
           settingsDisabled={settingsLoading}
           loading={snapshot.authState === "loading"}
+          showOpenActions={false}
           onAutoStartChange={(enabled): void => {
             settingsPresenter.setAutoStart(enabled);
           }}

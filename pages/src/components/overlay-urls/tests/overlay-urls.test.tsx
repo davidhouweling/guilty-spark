@@ -106,6 +106,14 @@ describe("OverlayUrlsSection", () => {
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 
+  it("renders only copy actions when open actions are hidden", () => {
+    renderSection(aFakeProps({ showOpenActions: false }));
+
+    expect(screen.getByRole("button", { name: "Copy overlay URL" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy viewer URL" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Open / })).not.toBeInTheDocument();
+  });
+
   it("calls onAutoStartChange when the auto-start toggle is clicked", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn<(enabled: boolean) => void>();

@@ -33,17 +33,6 @@
   margin: 0;
 }
 
-.urlText {
-  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
-  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
-  border-radius: var(--radius-sm);
-  color: var(--halo-white);
-  margin: 0;
-  min-height: 2.5rem;
-  overflow-wrap: anywhere;
-  padding: var(--space-2);
-}
-
 .buttonRow {
   display: flex;
   flex-wrap: wrap;

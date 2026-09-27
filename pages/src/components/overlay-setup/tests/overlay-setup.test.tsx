@@ -108,8 +108,9 @@ describe("OverlaySetupShell", () => {
 
     expect(await screen.findByText("Loading your saved overlay settings…")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /automatically start tracking/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Open overlay" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Open viewer" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Copy overlay URL" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Copy viewer URL" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /^Open / })).not.toBeInTheDocument();
 
     resolveSettings({});
   });
@@ -136,9 +137,8 @@ describe("OverlaySetupShell", () => {
 
     render(<OverlaySetupPage />);
 
-    expect(await screen.findByRole("button", { name: "Open overlay" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Open viewer" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Copy overlay URL" })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Copy overlay URL" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^Open / })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy viewer URL" })).toBeDisabled();
     expect(screen.getByRole("checkbox", { name: /automatically start tracking/i })).toBeDisabled();
     expect(screen.getByText(/\/overlay$/)).toBeInTheDocument();
