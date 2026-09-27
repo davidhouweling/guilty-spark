@@ -67,13 +67,9 @@ function withSession(installServicesFn: typeof installFakeServicesWith): typeof 
 function postPreviewRequest(path: string, previewSettings?: StreamerViewSettings): Request {
   const url = new URL(path, "http://localhost");
   const mode = url.searchParams.get("mode");
-  const slots = url.searchParams.get("statsHighlightSlots");
-  const settings =
-    previewSettings ??
-    (slots == null ? undefined : { visibleSections: { statsHighlightSlots: slots.split(",") } });
   const body = {
     ...(mode != null ? { mode } : {}),
-    ...(settings !== undefined ? { previewSettings: settings } : {}),
+    ...(previewSettings !== undefined ? { previewSettings } : {}),
   };
   return new Request(`${url.origin}${url.pathname}`, {
     method: "POST",
