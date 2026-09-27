@@ -6,6 +6,7 @@ import { aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/
 import { overlayPreviewContract } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeAuthSessionWith, aFakeSessionTokenPayload } from "../../../services/auth/fakes/data";
@@ -63,8 +64,22 @@ function withSession(installServicesFn: typeof installFakeServicesWith): typeof 
   };
 }
 
-function getRequest(path: string): Request {
-  return new Request(`http://localhost${path}`, { method: "GET" });
+function postPreviewRequest(path: string, previewSettings?: StreamerViewSettings): Request {
+  const url = new URL(path, "http://localhost");
+  const mode = url.searchParams.get("mode");
+  const slots = url.searchParams.get("statsHighlightSlots");
+  const settings =
+    previewSettings ??
+    (slots == null ? undefined : { visibleSections: { statsHighlightSlots: slots.split(",") } });
+  const body = {
+    ...(mode != null ? { mode } : {}),
+    ...(settings !== undefined ? { previewSettings: settings } : {}),
+  };
+  return new Request(`${url.origin}${url.pathname}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 describe("/api/individual-tracker/overlay-preview", () => {
@@ -81,7 +96,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(res.status).toBe(200);
@@ -94,7 +109,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withSession(withHistory(stats))({ env }));
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.isExample).toBe(false);
@@ -119,7 +134,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.view.matches[0]?.matchId).toBe("owner-match");
@@ -135,7 +150,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
 
     expect(res.status).toBe(500);
   });
@@ -160,7 +175,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.isExample).toBe(false);
@@ -180,7 +195,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.isExample).toBe(true);
@@ -193,12 +208,42 @@ describe("/api/individual-tracker/overlay-preview", () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => withHistory(stats)({ env }));
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.mode).toBe("matchmaking");
     expect(body.view.hasActiveSeries).toBe(false);
     expect(body.view.statsHighlights).toBeDefined();
+  });
+
+  it("uses preview settings as an ephemeral override over saved user settings", async () => {
+    const stats = [aCustomMatch("match-1", "2026-09-01T10:00:00.000Z")];
+    let updateSettingsCalled = false;
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = withSession(withHistory(stats))({ env });
+      vi.spyOn(services.individualTrackerService, "getSettingsForView").mockResolvedValue({
+        visibleSections: { statsHighlightSlots: ["total-games"] },
+      });
+      vi.spyOn(services.individualTrackerService, "updateSettings").mockImplementation(async () => {
+        updateSettingsCalled = true;
+        return Promise.resolve({});
+      });
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postPreviewRequest("/api/individual-tracker/overlay-preview", {
+        styleFlags: { colorMode: "observer" },
+        visibleSections: { statsHighlightSlots: ["kda"] },
+      }),
+      env,
+    )) as Response;
+    const body = await overlayPreviewContract.fromResponse(response);
+
+    expect(body.view.streamerSettings?.styleFlags?.colorMode).toBe("observer");
+    expect(body.view.statsHighlights?.map((highlight) => highlight.label)).toEqual(["KDA"]);
+    expect(updateSettingsCalled).toBe(false);
   });
 
   it("builds an active series from grouped custom matches in series mode", async () => {
@@ -210,7 +255,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
@@ -238,7 +283,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
@@ -279,7 +324,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
@@ -308,7 +353,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
@@ -332,7 +377,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
@@ -363,7 +408,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(fetchedDetails).toHaveBeenCalledTimes(2);
@@ -393,7 +438,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(res.status).toBe(200);
@@ -418,7 +463,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
 
     expect(res.status).toBe(500);
   });
@@ -434,7 +479,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(res.status).toBe(200);
@@ -451,7 +496,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(res.status).toBe(200);
@@ -468,7 +513,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
 
     expect(res.status).toBe(500);
   });
@@ -495,7 +540,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
 
     expect(res.status).toBe(500);
   });
@@ -519,7 +564,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(rankLookup).toHaveBeenCalledWith([TRACKED_XUID]);
@@ -539,7 +584,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.view.statsHighlights).toEqual([]);
@@ -569,7 +614,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(body.view.statsHighlights).toHaveLength(INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT);
@@ -595,7 +640,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     });
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
-    const res = (await router.fetch(getRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
+    const res = (await router.fetch(postPreviewRequest("/api/individual-tracker/overlay-preview"), env)) as Response;
     const body = await overlayPreviewContract.fromResponse(res);
 
     expect(rankLookup).not.toHaveBeenCalled();
@@ -610,7 +655,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=series"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=series"),
       env,
     )) as Response;
 
@@ -622,7 +667,7 @@ describe("/api/individual-tracker/overlay-preview", () => {
     individualTrackerRoutesRegisterHandler(router, localInstallServices);
 
     const res = (await router.fetch(
-      getRequest("/api/individual-tracker/overlay-preview?mode=nonsense"),
+      postPreviewRequest("/api/individual-tracker/overlay-preview?mode=nonsense"),
       env,
     )) as Response;
 
