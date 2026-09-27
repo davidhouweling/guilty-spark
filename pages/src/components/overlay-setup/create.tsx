@@ -101,12 +101,13 @@ function OverlaySetupPageInternal({
     () => settingsStore.getSnapshot(),
     () => settingsStore.getSnapshot(),
   );
+  const previewStreamerSettings = useMemo(() => snapshotToSettings(settingsSnapshot), [settingsSnapshot]);
   useEffect(() => {
     if (snapshot.authState === "loading") {
       return;
     }
-    previewPresenter.reload(settingsSnapshot.statsHighlightSlots);
-  }, [previewPresenter, snapshot.authState, settingsSnapshot.statsHighlightSlots]);
+    previewPresenter.reload(previewStreamerSettings);
+  }, [previewPresenter, previewStreamerSettings, snapshot.authState]);
 
   const previewSnapshot = useSyncExternalStore(
     (listener) => previewStore.subscribe(listener),
@@ -114,7 +115,6 @@ function OverlaySetupPageInternal({
     () => previewStore.getSnapshot(),
   );
   const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
-  const previewStreamerSettings = useMemo(() => snapshotToSettings(settingsSnapshot), [settingsSnapshot]);
 
   const isDemo = snapshot.authState !== "authenticated";
   const settingsLoading = settingsSnapshot.loadStatus !== "loaded";
@@ -246,7 +246,7 @@ function OverlaySetupPageInternal({
           OverlayPage={OverlayPage}
           ViewerPage={ViewerPage}
           onRetry={(mode): void => {
-            previewPresenter.load(mode === "viewer" ? "matchmaking" : mode, settingsSnapshot.statsHighlightSlots);
+            previewPresenter.load(mode === "viewer" ? "matchmaking" : mode, previewStreamerSettings);
           }}
         />
       }
