@@ -40,22 +40,44 @@
   box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
   overflow: hidden;
   position: relative;
-  transition:
-    box-shadow var(--transition-base) ease,
-    transform var(--transition-base) ease;
 }
 
-.previewFrame:hover,
-.previewFrame:focus-within {
-  box-shadow: 0 24px 80px color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+.zoomLayer {
+  inset: 0;
+  position: absolute;
 }
 
-@media (--tablet-viewport) {
-  .previewFrame:hover,
-  .previewFrame:focus-within {
-    transform: scale(1.018);
-    z-index: 3;
-  }
+/* Pointer-follow zoom pans content under the cursor, so suppress interaction while zoomed. */
+.zoomLayerActive * {
+  pointer-events: none;
+}
+
+.zoomToggle {
+  background: rgb(0 0 0 / 72%);
+  border: 1px solid color-mix(in srgb, var(--halo-cyan) 35%, transparent);
+  border-radius: var(--radius-sm);
+  bottom: var(--space-3);
+  color: var(--halo-cyan);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  left: var(--space-3);
+  letter-spacing: 0.06em;
+  padding: var(--space-1) var(--space-2);
+  position: absolute;
+  text-transform: uppercase;
+  z-index: 4;
+}
+
+.zoomToggle[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--halo-cyan) 22%, rgb(0 0 0 / 72%));
+  border-color: var(--halo-cyan);
+}
+
+.zoomToggle:focus-visible {
+  outline: 2px solid var(--halo-cyan);
+  outline-offset: 2px;
 }
 
 /* A transformed ancestor contains the fixed-position overlay root within the 1080p stage. */

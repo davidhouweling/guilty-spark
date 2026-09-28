@@ -19,8 +19,8 @@ export function usePreviewScale(): PreviewScale {
     }
 
     const updateScale = (): void => {
-      // clientWidth is an untransformed layout measurement; getBoundingClientRect would include the
-      // frame's hover/focus scale transform and permanently inflate the canvas scale.
+      // clientWidth is an untransformed layout measurement; getBoundingClientRect would include any
+      // zoom transform applied inside the frame and permanently inflate the canvas scale.
       const width = element.clientWidth;
       setScale(width > 0 ? width / OVERLAY_DESIGN_WIDTH : 1);
     };

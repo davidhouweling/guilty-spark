@@ -212,4 +212,34 @@ describe("CapabilityPreview", () => {
     });
     expect(getPreview).toHaveBeenLastCalledWith("matchmaking", undefined);
   });
+
+  it("starts with zoom disabled and toggles the zoom layer on demand", async () => {
+    const user = userEvent.setup();
+    const previewService = aFakeOverlayPreviewServiceWith();
+    const pages = createPageComponents();
+
+    renderCapabilityPreview({
+      gamertag: "343GuiltySpark",
+      isAuthenticated: false,
+      previewMode: "player",
+      previewService,
+      pages,
+    });
+
+    const toggle = await screen.findByRole("button", { name: "Zoom off" });
+
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("group", { name: "Preview canvas" })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    const enabledToggle = screen.getByRole("button", { name: "Zoom on" });
+
+    expect(enabledToggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("group", { name: "Preview canvas" })).toBeInTheDocument();
+
+    await user.click(enabledToggle);
+
+    expect(screen.getByRole("button", { name: "Zoom off" })).toHaveAttribute("aria-pressed", "false");
+  });
 });

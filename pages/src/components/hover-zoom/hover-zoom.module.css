@@ -1,7 +1,10 @@
 .hoverZoom {
-  cursor: zoom-in;
   overflow: hidden;
   position: relative;
+}
+
+.hoverZoom[data-zoom-enabled="true"] {
+  cursor: zoom-in;
 }
 
 .content {

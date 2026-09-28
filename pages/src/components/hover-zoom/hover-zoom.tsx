@@ -13,6 +13,7 @@ interface HoverZoomProps {
   readonly ariaLabel: string;
   readonly children: React.ReactNode;
   readonly className?: string | undefined;
+  readonly enabled?: boolean | undefined;
   readonly exitDelayMs?: number | undefined;
   readonly hint?: string | undefined;
   readonly zoomScale?: number | undefined;
@@ -26,6 +27,7 @@ export function HoverZoom({
   ariaLabel,
   children,
   className,
+  enabled = true,
   exitDelayMs = DEFAULT_EXIT_DELAY_MS,
   hint,
   zoomScale = DEFAULT_ZOOM_SCALE,
@@ -107,6 +109,19 @@ export function HoverZoom({
   };
 
   useEffect(() => {
+    if (enabled) {
+      return;
+    }
+
+    if (exitTimeoutRef.current !== undefined) {
+      window.clearTimeout(exitTimeoutRef.current);
+      exitTimeoutRef.current = undefined;
+    }
+
+    setZoomed(false);
+  }, [enabled]);
+
+  useEffect(() => {
     return (): void => {
       if (exitTimeoutRef.current !== undefined) {
         window.clearTimeout(exitTimeoutRef.current);
@@ -119,9 +134,20 @@ export function HoverZoom({
     transformOrigin: `${String(originXPercent)}% ${String(originYPercent)}%`,
   };
 
+  if (!enabled) {
+    return (
+      <div className={classNames(styles.hoverZoom, className)} data-zoom-enabled="false">
+        <div className={styles.content} data-zoomed="false">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={classNames(styles.hoverZoom, className)}
+      data-zoom-enabled="true"
       tabIndex={0}
       // `group` (not `button`) is the intended contract: children may be arbitrary DOM,
       // including interactive controls, which a button subtree would render inaccessible.
