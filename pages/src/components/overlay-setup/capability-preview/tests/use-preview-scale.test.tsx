@@ -41,9 +41,7 @@ afterEach(() => {
 describe("usePreviewScale", () => {
   it("updates the canvas scale on resize, handles zero width, and disconnects", async () => {
     let width = OVERLAY_DESIGN_WIDTH / 2;
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
-      (): DOMRect => new DOMRect(0, 0, width, 540),
-    );
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation((): number => width);
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
 
     const { unmount } = render(<PreviewScaleHarness />);
@@ -72,5 +70,28 @@ describe("usePreviewScale", () => {
 
     unmount();
     expect(observer.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("ignores the frame transform so a focused resize does not inflate the scale", async () => {
+    const layoutWidth = OVERLAY_DESIGN_WIDTH / 2;
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation((): number => layoutWidth);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      (): DOMRect => new DOMRect(0, 0, layoutWidth * 1.018, 540),
+    );
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+
+    render(<PreviewScaleHarness />);
+    const observer = MockResizeObserver.instance;
+    if (observer === undefined) {
+      throw new Error("Expected preview scale ResizeObserver");
+    }
+
+    act(() => {
+      observer.trigger();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("preview")).toHaveStyle({ transform: "scale(0.5)" });
+    });
   });
 });
