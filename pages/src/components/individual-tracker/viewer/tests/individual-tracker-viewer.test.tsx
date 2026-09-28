@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   aFakeTrackerMatchSummaryWith,
@@ -724,6 +724,43 @@ describe("IndividualTrackerViewer", () => {
     );
 
     expect(screen.getByText(/new\)/)).toBeInTheDocument();
+  });
+
+  it("tracks latest position within the configured scroll root", () => {
+    const scrollYDescriptor = Object.getOwnPropertyDescriptor(window, "scrollY");
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true });
+    const scrollRoot = document.createElement("div");
+    const scrollRootRef = { current: scrollRoot };
+    const view = aFakeTrackerViewStateWith();
+
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set()}
+        entryStates={new Map()}
+        canManage
+        refreshPending={false}
+        scrollRootRef={scrollRootRef}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Jump to latest" })).not.toBeInTheDocument();
+
+    scrollRoot.scrollTop = 300;
+    act(() => {
+      scrollRoot.dispatchEvent(new Event("scroll"));
+    });
+    expect(screen.getByRole("button", { name: "Jump to latest" })).toBeInTheDocument();
+
+    if (scrollYDescriptor === undefined) {
+      Reflect.deleteProperty(window, "scrollY");
+    } else {
+      Object.defineProperty(window, "scrollY", scrollYDescriptor);
+    }
   });
 
   it("hides the status/live badges when showStatusBadge is false", () => {

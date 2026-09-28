@@ -59,6 +59,6 @@ describe("LoginStatusSection", () => {
 
     expect(screen.getByText("Connection Failed")).toBeInTheDocument();
     expect(screen.getByText("Failed to load session. Please refresh the page.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry Connection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });
