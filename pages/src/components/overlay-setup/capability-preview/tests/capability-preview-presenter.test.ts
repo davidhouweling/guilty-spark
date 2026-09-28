@@ -299,19 +299,24 @@ describe("CapabilityPreviewPresenter", () => {
         ],
       },
     };
+    const previewRequestSettings: StreamerViewSettings = {
+      visibleSections: {
+        statsHighlightSlots: previewSettings.visibleSections?.statsHighlightSlots,
+      },
+    };
 
     presenter.load("matchmaking", previewSettings);
 
     await vi.waitFor(() => {
       expect(store.getSnapshot().matchmaking.status).toBe("loaded");
     });
-    expect(getPreview).toHaveBeenCalledWith("matchmaking", previewSettings);
+    expect(getPreview).toHaveBeenCalledWith("matchmaking", previewRequestSettings);
     const { matchmaking } = store.getSnapshot();
     expect(matchmaking.status).toBe("loaded");
     if (matchmaking.status !== "loaded") {
       throw new Error("Expected matchmaking preview to load");
     }
-    expect(matchmaking.data.view.streamerSettings).toEqual(previewSettings);
+    expect(matchmaking.data.view.streamerSettings).toEqual(previewRequestSettings);
     expect(matchmaking.data.view.statsHighlights).toEqual([
       { label: "Kills", value: "N/A" },
       { label: "Total Games", value: "13" },
