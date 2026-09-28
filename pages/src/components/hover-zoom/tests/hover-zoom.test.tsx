@@ -102,6 +102,23 @@ describe("HoverZoom", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("does not intercept keyboard activation of interactive descendants", () => {
+    const onInnerClick = vi.fn();
+    const { container } = render(
+      <HoverZoom ariaLabel="Inspect chart">
+        <button type="button" onClick={onInnerClick}>
+          inner action
+        </button>
+      </HoverZoom>,
+    );
+
+    const innerButton = screen.getByRole("button", { name: "inner action" });
+    const enterEvent = fireEvent.keyDown(innerButton, { key: "Enter" });
+
+    expect(enterEvent).toBe(true);
+    expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
+  });
+
   it("supports Enter, Space, and Escape keyboard interactions", () => {
     const { container } = render(
       <HoverZoom ariaLabel="Inspect chart">

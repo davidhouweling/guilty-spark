@@ -7,6 +7,8 @@ const DEFAULT_EXIT_DELAY_MS = 300;
 const ORIGIN_PERCENT_MULTIPLIER = 100;
 const CENTER_ORIGIN_PERCENT = 50;
 
+type HoverZoomContentStyle = React.CSSProperties & Record<"--hover-zoom-scale", string>;
+
 interface HoverZoomProps {
   readonly ariaLabel: string;
   readonly children: React.ReactNode;
@@ -79,6 +81,11 @@ export function HoverZoom({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    // Enter/Space bubble from interactive descendants; preventDefault here would block their activation.
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
     switch (event.key) {
       case "Enter": {
         event.preventDefault();
@@ -109,6 +116,11 @@ export function HoverZoom({
     };
   }, []);
 
+  const contentStyle: HoverZoomContentStyle = {
+    "--hover-zoom-scale": String(zoomScale),
+    transformOrigin: `${String(originXPercent)}% ${String(originYPercent)}%`,
+  };
+
   return (
     <div
       className={classNames(styles.hoverZoom, className)}
@@ -123,16 +135,7 @@ export function HoverZoom({
       onKeyDown={handleKeyDown}
       onMouseMove={trackPointerOrigin}
     >
-      <div
-        className={styles.content}
-        data-zoomed={isZoomed ? "true" : "false"}
-        style={
-          {
-            "--hover-zoom-scale": String(zoomScale),
-            transformOrigin: `${String(originXPercent)}% ${String(originYPercent)}%`,
-          } as React.CSSProperties
-        }
-      >
+      <div className={styles.content} data-zoomed={isZoomed ? "true" : "false"} style={contentStyle}>
         {children}
       </div>
       {hint !== undefined && <span className={styles.hint}>{hint}</span>}
