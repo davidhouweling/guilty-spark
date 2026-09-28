@@ -148,4 +148,39 @@ describe("CapabilityPreview", () => {
     expect(screen.getByText("No completed custom series found for this preview.")).toBeInTheDocument();
     expect(screen.queryByText("Matches Won/Loss")).not.toBeInTheDocument();
   });
+
+  it("uses the shared error state and retries the selected preview mode", async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn<CapabilityPreviewProps["onRetry"]>();
+    const pages = createPageComponents();
+
+    render(
+      <CapabilityPreview
+        gamertag="343GuiltySpark"
+        isAuthenticated
+        previewMode="player"
+        streamerSettings={undefined}
+        matchmaking={{ status: "error", data: null, errorMessage: "Matchmaking unavailable" }}
+        series={{ status: "error", data: null, errorMessage: "Series unavailable" }}
+        OverlayPage={pages.OverlayPage}
+        ViewerPage={pages.ViewerPage}
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Connection Failed" })).toBeInTheDocument();
+    expect(screen.getByText("Matchmaking unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenLastCalledWith("matchmaking");
+
+    await user.click(screen.getByRole("button", { name: "Series overlay" }));
+    expect(screen.getByText("Series unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenLastCalledWith("series");
+
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
+    expect(screen.getByText("Matchmaking unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenLastCalledWith("matchmaking");
+  });
 });

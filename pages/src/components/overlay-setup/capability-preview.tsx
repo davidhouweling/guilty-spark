@@ -3,6 +3,7 @@ import { useState } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../alert/alert";
+import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
 import { TabbedSection } from "../tabbed-section/tabbed-section";
 import type { TabbedSectionTab } from "../tabbed-section/types";
@@ -53,16 +54,7 @@ function OverlayModeContent({
     return <LoadingState text="Loading preview..." />;
   }
   if (state.status === "error") {
-    return (
-      <div className={styles.previewState}>
-        <div>
-          <Alert variant="error">{state.errorMessage}</Alert>
-          <button type="button" onClick={onRetry}>
-            Retry preview
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorState message={state.errorMessage} onRetry={onRetry} />;
   }
 
   const { view } = state.data;
@@ -134,19 +126,12 @@ export function CapabilityPreview({
       }
       if (matchmaking.status === "error") {
         content = (
-          <div className={styles.previewState}>
-            <div>
-              <Alert variant="error">{matchmaking.errorMessage}</Alert>
-              <button
-                type="button"
-                onClick={(): void => {
-                  onRetry("matchmaking");
-                }}
-              >
-                Retry preview
-              </button>
-            </div>
-          </div>
+          <ErrorState
+            message={matchmaking.errorMessage}
+            onRetry={(): void => {
+              onRetry("matchmaking");
+            }}
+          />
         );
         break;
       }
