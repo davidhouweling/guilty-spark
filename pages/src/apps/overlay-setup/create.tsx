@@ -21,6 +21,12 @@ export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement
         : createOverlaySetupPage({
             authService: services.authService,
             settingsService: services.settingsService,
+            haloClient: services.haloClient,
+            overlayPreviewService: services.overlayPreviewService,
+            individualTrackerViewService: services.individualTrackerViewService,
+            seriesMatchesService: services.seriesMatchesService,
+            matchAnalyticsService: services.matchAnalyticsService,
+            medalMetadataResolver: services.medalMetadataResolver,
             apiHost,
           }),
     [services, apiHost],

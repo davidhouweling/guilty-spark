@@ -1,4 +1,4 @@
-.container {
+.pageGrid {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -12,19 +12,39 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
+}
+
+.previewSlot {
+  min-width: 0;
 }
 
 .settingsFieldset {
   border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   margin: 0;
   min-inline-size: 0;
   padding: 0;
 }
 
-.demoLocked {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  opacity: 0.6;
-  pointer-events: none;
+@media (--desktop-viewport) {
+  .pageGrid {
+    align-items: start;
+    display: grid;
+    gap: var(--space-6);
+    grid-template-columns: minmax(18rem, 1fr) minmax(0, 2fr);
+  }
+
+  .previewSlot {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    position: sticky;
+    top: calc(70px + var(--space-6));
+  }
+
+  .step {
+    grid-column: 1;
+  }
 }

@@ -91,6 +91,9 @@ function StreamerSettingsSectionInternal({
         onTickerSettingsChange={(updates): void => {
           presenter.setTickerSettings(updates);
         }}
+        onInSeriesTickerSettingsChange={(updates): void => {
+          presenter.setTickerSettings(updates);
+        }}
         onInSeriesShowSeriesTabChange={(enabled): void => {
           presenter.setInSeriesShowSeriesTab(enabled);
         }}

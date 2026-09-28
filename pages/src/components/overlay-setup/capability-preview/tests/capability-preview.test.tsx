@@ -15,6 +15,9 @@ import type { MatchAnalyticsService } from "../../../../services/stats/match-ana
 import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
 import { createIndividualTrackerOverlayPage } from "../../../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../../../individual-tracker/viewer/create";
+import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
+import { CapabilityPreviewStore } from "../capability-preview-store";
+import type { CapabilityPreviewTab } from "../types";
 import { createCapabilityPreview } from "../create";
 
 vi.mock("../../../icons/team-icon", () => ({
@@ -72,16 +75,26 @@ interface RenderPreviewOptions {
 }
 
 function renderCapabilityPreview(options: RenderPreviewOptions): void {
-  const CapabilityPreview = createCapabilityPreview({
-    ...options.pages,
-    previewService: options.previewService,
-  });
+  const store = new CapabilityPreviewStore();
+  const presenter = new CapabilityPreviewPresenter({ previewService: options.previewService, store });
+  const identityKey = options.isAuthenticated ? `authenticated:${options.gamertag ?? ""}` : "demo";
+  const activateMode = (tab: CapabilityPreviewTab): void => {
+    presenter.load(tab === "viewer" ? "matchmaking" : tab, undefined, identityKey);
+  };
+  const CapabilityPreview = createCapabilityPreview(options.pages);
   render(
     <CapabilityPreview
+      presenter={presenter}
+      identityKey={identityKey}
+      settingsReady
       gamertag={options.gamertag}
       isAuthenticated={options.isAuthenticated}
       previewMode={options.previewMode}
       streamerSettings={undefined}
+      onActivateMode={activateMode}
+      onRetry={(mode): void => {
+        presenter.retry(mode, undefined, identityKey);
+      }}
     />,
   );
 }
@@ -180,7 +193,7 @@ describe("CapabilityPreview", () => {
     expect(screen.getByText("Matchmaking unavailable")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
-      expect(getPreview).toHaveBeenCalledTimes(3);
+      expect(getPreview).toHaveBeenCalledTimes(2);
     });
 
     await user.click(screen.getByRole("button", { name: "Series overlay" }));

@@ -45,7 +45,7 @@
   gap: var(--space-3);
 }
 
-@media (--tablet-viewport) {
+@media (--ultrawide-viewport) {
   .slotGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

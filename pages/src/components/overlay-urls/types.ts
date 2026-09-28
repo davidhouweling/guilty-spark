@@ -9,6 +9,7 @@ export interface OverlayUrlsSectionProps {
   readonly settingsDisabled?: boolean | undefined;
   readonly errorMessage?: string | null | undefined;
   readonly loading?: boolean | undefined;
+  readonly showOpenActions?: boolean | undefined;
   readonly onAutoStartChange: (enabled: boolean) => void;
 }
 

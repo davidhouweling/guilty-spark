@@ -1,29 +1,36 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
-import type { CapabilityPreviewConfig, CapabilityPreviewOptions } from "./types";
-import { CapabilityPreviewPresenter } from "./capability-preview-presenter";
+import type { CapabilityPreviewOptions, CapabilityPreviewPageComponents, CapabilityPreviewTab } from "./types";
+import type { CapabilityPreviewPresenter } from "./capability-preview-presenter";
 import { CapabilityPreview } from "./capability-preview";
-import { CapabilityPreviewStore } from "./capability-preview-store";
 
-export type CapabilityPreviewSectionProps = CapabilityPreviewOptions;
+export interface CapabilityPreviewSectionProps extends CapabilityPreviewOptions {
+  readonly presenter: CapabilityPreviewPresenter;
+  readonly identityKey: string;
+  readonly settingsReady: boolean;
+  readonly onActivateMode: (tab: CapabilityPreviewTab) => void;
+  readonly onRetry: (mode: "matchmaking" | "series") => void;
+}
 
 export function createCapabilityPreview(
-  config: CapabilityPreviewConfig,
-): (props: CapabilityPreviewOptions) => ReactElement {
-  const Component = (props: CapabilityPreviewOptions): ReactElement => {
-    const store = useMemo(() => new CapabilityPreviewStore(), []);
-    const presenter = useMemo(
-      () => new CapabilityPreviewPresenter({ previewService: config.previewService, store }),
-      [config.previewService, store],
-    );
-    useEffect(() => {
-      presenter.reload(props.streamerSettings);
-      return (): void => {
-        presenter.dispose();
-      };
-    }, [presenter, props.streamerSettings]);
-
+  config: CapabilityPreviewPageComponents,
+): (props: Omit<CapabilityPreviewSectionProps, keyof CapabilityPreviewPageComponents>) => ReactElement {
+  const Component = (
+    props: Omit<CapabilityPreviewSectionProps, keyof CapabilityPreviewPageComponents>,
+  ): ReactElement => {
+    const { presenter } = props;
     const snapshot = useSyncExternalStore(presenter.subscribe, presenter.getSnapshot, presenter.getSnapshot);
+    useEffect(() => {
+      if (!props.settingsReady) {
+        return;
+      }
+      presenter.updateSettings(props.streamerSettings, props.identityKey);
+    }, [presenter, props.identityKey, props.settingsReady, props.streamerSettings]);
+    useEffect(() => {
+      if (props.settingsReady) {
+        props.onActivateMode(snapshot.activeTab);
+      }
+    }, [props.onActivateMode, props.settingsReady, snapshot.activeTab]);
     const viewModel = useMemo(
       () =>
         presenter.present(snapshot, {
@@ -40,11 +47,12 @@ export function createCapabilityPreview(
         {...viewModel}
         OverlayPage={config.OverlayPage}
         ViewerPage={config.ViewerPage}
-        onRetry={(mode): void => {
-          presenter.load(mode, props.streamerSettings);
-        }}
+        onRetry={props.onRetry}
         onTabChange={(tab): void => {
           presenter.selectTab(tab);
+          if (props.settingsReady) {
+            props.onActivateMode(tab);
+          }
         }}
       />
     );
