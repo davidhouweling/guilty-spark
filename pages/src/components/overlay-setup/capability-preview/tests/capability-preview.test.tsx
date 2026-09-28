@@ -226,20 +226,39 @@ describe("CapabilityPreview", () => {
       pages,
     });
 
-    const toggle = await screen.findByRole("button", { name: "Zoom off" });
+    const toggle = await screen.findByRole("button", { name: "Zoom preview" });
 
     expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Zoom off");
     expect(screen.queryByRole("group", { name: "Preview canvas" })).not.toBeInTheDocument();
 
     await user.click(toggle);
 
-    const enabledToggle = screen.getByRole("button", { name: "Zoom on" });
-
-    expect(enabledToggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveTextContent("Zoom on");
     expect(screen.getByRole("group", { name: "Preview canvas" })).toBeInTheDocument();
 
-    await user.click(enabledToggle);
+    await user.click(toggle);
 
-    expect(screen.getByRole("button", { name: "Zoom off" })).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Zoom off");
+  });
+
+  it("places the zoom toggle before the preview canvas in DOM order", async () => {
+    const previewService = aFakeOverlayPreviewServiceWith();
+    const pages = createPageComponents();
+
+    renderCapabilityPreview({
+      gamertag: "343GuiltySpark",
+      isAuthenticated: false,
+      previewMode: "player",
+      previewService,
+      pages,
+    });
+
+    const toggle = await screen.findByRole("button", { name: "Zoom preview" });
+    const stage = screen.getByTestId("preview-stage");
+
+    expect(toggle.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0);
   });
 });

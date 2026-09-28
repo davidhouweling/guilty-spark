@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import type { CapabilityPreviewOptions, CapabilityPreviewPageComponents, CapabilityPreviewTab } from "./types";
 import type { CapabilityPreviewPresenter } from "./capability-preview-presenter";
@@ -19,6 +19,7 @@ export function createCapabilityPreview(
     props: Omit<CapabilityPreviewSectionProps, keyof CapabilityPreviewPageComponents>,
   ): ReactElement => {
     const { presenter } = props;
+    const [isZoomEnabled, setZoomEnabled] = useState(false);
     const snapshot = useSyncExternalStore(presenter.subscribe, presenter.getSnapshot, presenter.getSnapshot);
     useEffect(() => {
       if (!props.settingsReady) {
@@ -47,6 +48,7 @@ export function createCapabilityPreview(
         {...viewModel}
         OverlayPage={config.OverlayPage}
         ViewerPage={config.ViewerPage}
+        isZoomEnabled={isZoomEnabled}
         onRetry={props.onRetry}
         onTabChange={(tab): void => {
           presenter.selectTab(tab);
@@ -54,6 +56,7 @@ export function createCapabilityPreview(
             props.onActivateMode(tab);
           }
         }}
+        onZoomEnabledChange={setZoomEnabled}
       />
     );
   };

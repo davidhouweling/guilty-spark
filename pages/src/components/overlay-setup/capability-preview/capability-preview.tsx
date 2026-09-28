@@ -74,11 +74,10 @@ function renderPreviewContent(
 }
 
 export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactElement {
-  const { activeTab, source, onTabChange } = props;
+  const { activeTab, isZoomEnabled, source, onTabChange, onZoomEnabledChange } = props;
   const { containerRef, scale } = usePreviewScale();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [fixedControlsTarget, setFixedControlsTarget] = useState<HTMLDivElement | null>(null);
-  const [isZoomEnabled, setZoomEnabled] = useState(false);
 
   return (
     <section className={styles.previewRegion} aria-label="Capability preview">
@@ -101,6 +100,17 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
         className={styles.previewFrame}
         style={{ "--preview-scale": String(scale) } as CSSProperties}
       >
+        <button
+          type="button"
+          className={styles.zoomToggle}
+          aria-label="Zoom preview"
+          aria-pressed={isZoomEnabled}
+          onClick={(): void => {
+            onZoomEnabledChange(!isZoomEnabled);
+          }}
+        >
+          {isZoomEnabled ? "Zoom on" : "Zoom off"}
+        </button>
         <HoverZoom
           ariaLabel="Preview canvas"
           className={classNames(styles.zoomLayer, isZoomEnabled && styles.zoomLayerActive)}
@@ -111,16 +121,6 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
           </div>
           <div ref={setFixedControlsTarget} className={styles.fixedControls} data-testid="preview-fixed-controls" />
         </HoverZoom>
-        <button
-          type="button"
-          className={styles.zoomToggle}
-          aria-pressed={isZoomEnabled}
-          onClick={(): void => {
-            setZoomEnabled((current) => !current);
-          }}
-        >
-          {isZoomEnabled ? "Zoom on" : "Zoom off"}
-        </button>
       </div>
       <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>
     </section>

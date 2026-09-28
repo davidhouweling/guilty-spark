@@ -42,6 +42,8 @@ export interface CapabilityPreviewPageComponents {
 }
 
 export interface CapabilityPreviewViewProps extends CapabilityPreviewViewModel, CapabilityPreviewPageComponents {
+  readonly isZoomEnabled: boolean;
   readonly onRetry: (mode: "matchmaking" | "series") => void;
   readonly onTabChange: (tab: CapabilityPreviewTab) => void;
+  readonly onZoomEnabledChange: (isZoomEnabled: boolean) => void;
 }

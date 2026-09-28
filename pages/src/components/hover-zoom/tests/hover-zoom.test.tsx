@@ -214,6 +214,43 @@ describe("HoverZoom", () => {
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
   });
 
+  it("cancels a pending delayed exit when disabled mid-flight", () => {
+    vi.useFakeTimers();
+
+    const { container, rerender } = render(
+      <HoverZoom ariaLabel="Inspect chart" exitDelayMs={300}>
+        <p>chart content</p>
+      </HoverZoom>,
+    );
+
+    const region = screen.getByRole("group", { name: "Inspect chart" });
+
+    fireEvent.mouseEnter(region);
+    fireEvent.mouseLeave(region);
+
+    expect(vi.getTimerCount()).toBe(1);
+
+    rerender(
+      <HoverZoom ariaLabel="Inspect chart" exitDelayMs={300} enabled={false}>
+        <p>chart content</p>
+      </HoverZoom>,
+    );
+
+    expect(vi.getTimerCount()).toBe(0);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    rerender(
+      <HoverZoom ariaLabel="Inspect chart" exitDelayMs={300}>
+        <p>chart content</p>
+      </HoverZoom>,
+    );
+
+    expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
+  });
+
   it("delays unzooming when the pointer leaves", () => {
     vi.useFakeTimers();
 
