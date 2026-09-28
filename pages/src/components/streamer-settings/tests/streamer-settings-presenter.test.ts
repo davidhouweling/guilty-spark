@@ -243,6 +243,17 @@ describe("StreamerSettingsPresenter", () => {
 
       expect(store.getSnapshot().defaultColorMode).toBe("player");
     });
+
+    it("resumes local demo settings after effect cleanup", () => {
+      const { store, presenter } = aHarness();
+
+      presenter.dispose();
+      presenter.loadDemoSettings("343GuiltySpark");
+      presenter.setDefaultColorMode("observer");
+
+      expect(store.getSnapshot().defaultColorMode).toBe("observer");
+      expect(store.getSnapshot().loadStatus).toBe("loaded");
+    });
   });
 
   describe("setPlayerColors", () => {

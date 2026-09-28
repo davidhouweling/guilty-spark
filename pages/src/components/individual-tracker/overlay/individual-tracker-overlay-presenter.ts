@@ -494,7 +494,11 @@ export class IndividualTrackerOverlayPresenter {
     const displaySettings = getOverlayDisplaySettings(streamerSettings);
     const fontSizeStyles = getFontSizeStyles(streamerSettings);
     const activeSeries = this.getOverlayActiveSeries(renderModel);
-    const teamColors = this.getTeamColors(renderModel, activeSeries);
+    const teamColors = this.getTeamColors(
+      renderModel,
+      activeSeries,
+      streamerSettings?.styleFlags?.colorMode === "observer",
+    );
     const showTicker = this.getShowTicker(streamerSettings, activeSeries, displaySettings.showTicker);
     const matchmakingSummaryScore = this.getMatchmakingSummaryScore(
       renderModel.statsHighlights,
@@ -642,9 +646,14 @@ export class IndividualTrackerOverlayPresenter {
   private getTeamColors(
     renderModel: IndividualTrackerViewerRenderModel,
     activeSeries: ViewerSeriesTab | null,
+    isObserverColorMode: boolean,
   ): TeamColor[] {
     if (renderModel.teamColors.length < 2) {
       return [...this.defaultTeamColors];
+    }
+
+    if (isObserverColorMode) {
+      return renderModel.teamColors.slice(0, 2);
     }
 
     const [playerTeamColor, enemyTeamColor] = renderModel.teamColors;

@@ -66,7 +66,7 @@ describe("LoginPage", () => {
       expect(screen.getByText("Session unavailable")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: "Retry Connection" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Continue With Microsoft" })).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe("LoginPage", () => {
     });
     expect(getSessionSpy).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Retry Connection" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Continue With Microsoft" })).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("LoginPage", () => {
     });
     expect(getSessionSpy).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Retry Connection" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
 
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Continue With Microsoft" })).toBeInTheDocument();

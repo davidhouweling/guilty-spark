@@ -39,6 +39,7 @@ export interface StreamerSettingsSectionViewProps {
   readonly onObserverColorsChange: (teamColor: string, enemyColor: string) => void;
   readonly onDisplaySettingsChange: (updates: Partial<DisplaySettings>) => void;
   readonly onTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
+  readonly onInSeriesTickerSettingsChange: (updates: Partial<TickerSettings>) => void;
   readonly onInSeriesShowSeriesTabChange: (enabled: boolean) => void;
   readonly onMatchmakingShowSummaryTabChange: (enabled: boolean) => void;
   readonly onInSeriesShowTabsChange: (enabled: boolean) => void;
@@ -78,6 +79,7 @@ export function StreamerSettingsSectionView({
   onObserverColorsChange,
   onDisplaySettingsChange,
   onTickerSettingsChange,
+  onInSeriesTickerSettingsChange,
   onInSeriesShowSeriesTabChange,
   onMatchmakingShowSummaryTabChange,
   onInSeriesShowTabsChange,
@@ -366,9 +368,14 @@ export function StreamerSettingsSectionView({
             <Checkbox
               checked={tickerSettings.showPreSeriesInfo}
               onChange={(checked): void => {
-                onTickerSettingsChange({ showPreSeriesInfo: checked });
+                onInSeriesTickerSettingsChange({ showPreSeriesInfo: checked });
               }}
-              label="Display Pre-Series Player Info"
+              label={
+                <>
+                  <span className={styles.srOnly}>In Series </span>
+                  Display Pre-Series Player Info
+                </>
+              }
               description="Show individual player info before the first match starts"
             />
             <Checkbox

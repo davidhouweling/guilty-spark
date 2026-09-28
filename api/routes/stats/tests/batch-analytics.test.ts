@@ -140,8 +140,8 @@ describe("/api/stats/match-analytics (batch)", () => {
     expect(body).toEqual({ results: { "match-1": analytics } });
   });
 
-  it("returns 400 when more than 30 matchIds are provided", async () => {
-    const matchIds = Array.from({ length: 31 }, (_, i) => `match-${i.toString()}`).join(",");
+  it("returns 400 when more than five matchIds are provided", async () => {
+    const matchIds = Array.from({ length: 6 }, (_, i) => `match-${i.toString()}`).join(",");
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
     statsRoutesRegisterHandler(router, localInstallServices);
 

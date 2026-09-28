@@ -1,6 +1,9 @@
 import { differenceInSeconds } from "date-fns";
 import * as tinyduration from "tinyduration";
 
+/** Matches shorter than this are treated as incomplete (quit/aborted) rather than real games. */
+export const MINIMUM_COMPLETE_MATCH_DURATION_SECONDS = 2 * 60;
+
 export function getDurationInSeconds(duration: string): number {
   const parsedDuration = tinyduration.parse(duration);
   return parseFloat(

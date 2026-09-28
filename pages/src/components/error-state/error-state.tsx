@@ -25,7 +25,7 @@ export function ErrorState({ message, onRetry }: ErrorStateProps): React.ReactEl
         <p className={styles.errorMessage}>{message ?? "Unable to establish connection to the server."}</p>
         {onRetry && (
           <button className={styles.retryButton} onClick={onRetry} type="button">
-            Retry Connection
+            Retry
           </button>
         )}
       </div>

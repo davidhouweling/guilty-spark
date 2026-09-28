@@ -76,6 +76,20 @@ describe("BaseMatchStatsFormatter", () => {
       expect(firstPlayer1.name).toBe("Player3");
     });
 
+    it("falls back to *Unknown* when a player xuid has no resolved gamertag", () => {
+      const match = aFakeMatchStatsWith();
+      const players = new Map([
+        ["1111111111", "Player1"],
+        ["3333333333", "Player3"],
+        ["4444444444", "Player4"],
+      ]);
+
+      const result = presenter.getData(match, players);
+
+      const [team0] = result;
+      expect(team0.players.map((player) => player.name)).toContain("*Unknown*");
+    });
+
     it("includes medals for players", () => {
       const match = aFakeMatchStatsWith();
       const players = new Map([

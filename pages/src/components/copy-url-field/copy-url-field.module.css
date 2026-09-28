@@ -1,0 +1,43 @@
+.field {
+  align-items: stretch;
+  background: color-mix(in srgb, var(--halo-bg) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  display: flex;
+  min-height: 2.5rem;
+}
+
+.url {
+  align-self: center;
+  color: var(--halo-white);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--space-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyButton {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
+  color: var(--halo-teal-primary);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding: 0 var(--space-3);
+}
+
+.copyButton:hover:not(:disabled),
+.copyButton:focus-visible {
+  background: color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+}
+
+.copyButton:disabled {
+  color: var(--halo-gray);
+  cursor: not-allowed;
+  opacity: 0.6;
+}

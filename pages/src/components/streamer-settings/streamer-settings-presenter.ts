@@ -99,7 +99,7 @@ function applyParsedSettingsToStore(
   store.batchUpdate({ gamertag, ...parsed });
 }
 
-function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSettings {
+export function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSettings {
   return {
     styleFlags: {
       colorMode: snapshot.defaultColorMode,
@@ -151,6 +151,7 @@ function snapshotToSettings(snapshot: StreamerSettingsSnapshot): StreamerViewSet
 export class StreamerSettingsPresenter {
   private readonly config: Config;
   private isDisposed = false;
+  private isLocalOnly = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private saveGeneration = 0;
 
@@ -180,17 +181,15 @@ export class StreamerSettingsPresenter {
   }
 
   public loadSettingsFromService(gamertag: string | null): void {
-    if (this.isDisposed) {
-      return;
-    }
+    this.isDisposed = false;
+    this.isLocalOnly = false;
     this.config.store.setLoading();
     void this.loadSettingsFromServiceAsync(gamertag);
   }
 
   public loadDemoSettings(gamertag: string): void {
-    if (this.isDisposed) {
-      return;
-    }
+    this.isDisposed = false;
+    this.isLocalOnly = true;
     this.loadSettings({}, gamertag);
     this.config.store.setLoaded();
   }
@@ -372,6 +371,9 @@ export class StreamerSettingsPresenter {
   }
 
   private scheduleSave(): void {
+    if (this.isLocalOnly) {
+      return;
+    }
     if (this.debounceTimer !== null) {
       clearTimeout(this.debounceTimer);
     }

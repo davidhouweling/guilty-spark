@@ -23,8 +23,7 @@ export const prerender = false;
           start automatically when your overlay URL is loaded in OBS, depending on your saved auto-start setting.
         </p>
       </header>
-
-      <OverlaySetupApp client:only="react" apiHost={API_HOST} />
     </Container>
+    <OverlaySetupApp client:only="react" apiHost={API_HOST} />
   </section>
 </Layout>

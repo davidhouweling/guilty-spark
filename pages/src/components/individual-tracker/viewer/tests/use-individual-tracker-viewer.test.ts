@@ -858,6 +858,41 @@ describe("useIndividualTrackerViewer", () => {
     });
   });
 
+  it("renders observer colours when the streamer selects observer mode", async () => {
+    const view = {
+      ...aFakeTrackerViewStateWith({ trackerId: "tracker-1", status: "active" }),
+      streamerSettings: {
+        styleFlags: {
+          colorMode: "observer",
+          playerTeamColor: "cerulean",
+          playerEnemyColor: "salmon",
+          observerTeamColor: "mint",
+          observerEnemyColor: "lavender",
+        },
+      } satisfies StreamerViewSettings,
+    };
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({ view });
+    const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+
+    const { result } = renderHook(() =>
+      useIndividualTrackerViewer({
+        individualTrackerViewService,
+        matchAnalyticsService,
+        seriesMatchesService,
+        medalMetadataResolver,
+        trackerId: "tracker-1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+
+    const [teamColor, enemyColor] = result.current.model.renderModel?.teamColors ?? [];
+    expect(teamColor.id).toBe("mint");
+    expect(enemyColor.id).toBe("lavender");
+  });
+
   it("loads long series in a single request when a series entry expands", async () => {
     const matchIds = Array.from({ length: 13 }, (_, index) => `m-${(index + 1).toString()}`);
     const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));

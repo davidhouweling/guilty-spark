@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { Alert } from "../alert/alert";
 import { Button } from "../button/button";
 import { Checkbox } from "../checkbox/checkbox";
+import { CopyUrlField } from "../copy-url-field/copy-url-field";
 import { Heading } from "../heading/heading";
 import type { OverlayUrlsSectionProps, OverlayUrlsViewModel } from "./types";
 import styles from "./overlay-urls.module.css";
@@ -18,6 +19,7 @@ export function OverlayUrlsSection({
   settingsDisabled = false,
   errorMessage = null,
   loading = false,
+  showOpenActions = true,
   onAutoStartChange,
   viewUrl,
   overlayUrl,
@@ -45,40 +47,39 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               In your overlay software, such as OBS, add a Browser Source and use the URL below.
             </p>
-            <p className={styles.urlText}>{disabled ? `Example: ${overlayUrl}` : overlayUrl}</p>
-            <div className={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="small"
-                ariaLabel={copyOverlayLabel}
-                disabled={disabled}
-                onClick={(): void => {
-                  onCopy("overlay", overlayUrl);
-                }}
-              >
-                {copyTarget === "overlay" ? "Copied!" : "Copy"}
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                disabled={disabled}
-                onClick={(): void => {
-                  onOpen(overlayUrl);
-                }}
-              >
-                Open overlay
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                disabled={disabled || settingsDisabled}
-                onClick={(): void => {
-                  onOpen(previewOverlayUrl);
-                }}
-              >
-                Open overlay with preview
-              </Button>
-            </div>
+            <CopyUrlField
+              displayText={disabled ? `Example: ${overlayUrl}` : overlayUrl}
+              copyLabel={copyOverlayLabel}
+              copied={copyTarget === "overlay"}
+              disabled={disabled}
+              onCopy={(): void => {
+                onCopy("overlay", overlayUrl);
+              }}
+            />
+            {showOpenActions ? (
+              <div className={styles.buttonRow}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={disabled}
+                  onClick={(): void => {
+                    onOpen(overlayUrl);
+                  }}
+                >
+                  Open overlay
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={disabled || settingsDisabled}
+                  onClick={(): void => {
+                    onOpen(previewOverlayUrl);
+                  }}
+                >
+                  Open overlay with preview
+                </Button>
+              </div>
+            ) : null}
 
             <hr className={styles.sectionDivider} />
 
@@ -86,30 +87,29 @@ export function OverlayUrlsSection({
             <p className={styles.cardDescription}>
               Share this with viewers to follow the active tracker showing stats of games and series you play.
             </p>
-            <p className={styles.urlText}>{disabled ? `Example: ${viewUrl}` : viewUrl}</p>
-            <div className={styles.buttonRow}>
-              <Button
-                variant="secondary"
-                size="small"
-                ariaLabel={copyViewerLabel}
-                disabled={disabled}
-                onClick={(): void => {
-                  onCopy("view", viewUrl);
-                }}
-              >
-                {copyTarget === "view" ? "Copied!" : "Copy"}
-              </Button>
-              <Button
-                variant="secondary"
-                size="small"
-                disabled={disabled}
-                onClick={(): void => {
-                  onOpen(viewUrl);
-                }}
-              >
-                Open viewer
-              </Button>
-            </div>
+            <CopyUrlField
+              displayText={disabled ? `Example: ${viewUrl}` : viewUrl}
+              copyLabel={copyViewerLabel}
+              copied={copyTarget === "view"}
+              disabled={disabled}
+              onCopy={(): void => {
+                onCopy("view", viewUrl);
+              }}
+            />
+            {showOpenActions ? (
+              <div className={styles.buttonRow}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  disabled={disabled}
+                  onClick={(): void => {
+                    onOpen(viewUrl);
+                  }}
+                >
+                  Open viewer
+                </Button>
+              </div>
+            ) : null}
 
             <hr className={styles.sectionDivider} />
 
