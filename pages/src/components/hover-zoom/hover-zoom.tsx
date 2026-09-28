@@ -50,6 +50,16 @@ export function HoverZoom({
     setZoomed(false);
   };
 
+  const handleBlur = (event: React.FocusEvent<HTMLDivElement>): void => {
+    // onBlur bubbles from descendants, so keep the zoom while focus stays inside the wrapper.
+    const nextFocused = event.relatedTarget;
+    if (nextFocused instanceof Node && event.currentTarget.contains(nextFocused)) {
+      return;
+    }
+
+    zoomOutImmediately();
+  };
+
   const zoomOutDeferred = (): void => {
     clearExitTimeout();
 
@@ -108,7 +118,7 @@ export function HoverZoom({
       onMouseEnter={zoomIn}
       onMouseLeave={zoomOutDeferred}
       onFocus={zoomIn}
-      onBlur={zoomOutImmediately}
+      onBlur={handleBlur}
       onClick={zoomIn}
       onKeyDown={handleKeyDown}
       onMouseMove={trackPointerOrigin}

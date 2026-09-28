@@ -61,6 +61,47 @@ describe("HoverZoom", () => {
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
   });
 
+  it("keeps the zoom when focus moves to a descendant", () => {
+    const { container } = render(
+      <HoverZoom ariaLabel="Inspect chart">
+        <button type="button">inner action</button>
+      </HoverZoom>,
+    );
+
+    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const innerButton = screen.getByRole("button", { name: "inner action" });
+
+    fireEvent.focus(region);
+    expect(container.querySelector('[data-zoomed="true"]')).toBeInTheDocument();
+
+    fireEvent.blur(region, { relatedTarget: innerButton });
+
+    expect(container.querySelector('[data-zoomed="true"]')).toBeInTheDocument();
+  });
+
+  it("clears the delayed exit timer when unmounted before it fires", () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+
+    const { unmount } = render(
+      <HoverZoom ariaLabel="Inspect chart" exitDelayMs={300}>
+        <p>chart content</p>
+      </HoverZoom>,
+    );
+
+    const region = screen.getByRole("button", { name: "Inspect chart" });
+
+    fireEvent.mouseEnter(region);
+    fireEvent.mouseLeave(region);
+
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("supports Enter, Space, and Escape keyboard interactions", () => {
     const { container } = render(
       <HoverZoom ariaLabel="Inspect chart">
