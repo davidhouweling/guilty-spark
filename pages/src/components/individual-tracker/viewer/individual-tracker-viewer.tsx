@@ -45,6 +45,7 @@ interface IndividualTrackerViewerProps {
   readonly disableNewEntryTracking?: boolean;
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
+  readonly scrollRootRef?: React.RefObject<HTMLElement | null> | undefined;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
@@ -59,9 +60,9 @@ function entryKey(item: ViewerTimelineItem): string {
   return `series:${item.series.id}`;
 }
 
-function isNearLatest(): boolean {
+function isNearLatest(scrollRoot: HTMLElement | null): boolean {
   const threshold = 200;
-  return window.scrollY <= threshold;
+  return (scrollRoot?.scrollTop ?? window.scrollY) <= threshold;
 }
 
 function statusLabel(status: TrackerStatus): string {
@@ -219,6 +220,7 @@ export function IndividualTrackerViewer({
   disableNewEntryTracking = false,
   hasMore,
   loadingMore,
+  scrollRootRef,
   onToggleEntry,
   onBackToManage,
   onRefresh,
@@ -257,8 +259,10 @@ export function IndividualTrackerViewer({
   }, []);
 
   useEffect(() => {
+    const scrollRoot = scrollRootRef?.current ?? null;
+    const scrollTarget = scrollRoot ?? window;
     function onScrollOrResize(): void {
-      const nearLatest = isNearLatest();
+      const nearLatest = isNearLatest(scrollRoot);
       nearLatestRef.current = nearLatest;
       setIsNearLatestNow(nearLatest);
       if (nearLatest) {
@@ -267,13 +271,13 @@ export function IndividualTrackerViewer({
     }
 
     onScrollOrResize();
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    scrollTarget.addEventListener("scroll", onScrollOrResize, { passive: true });
     window.addEventListener("resize", onScrollOrResize);
     return (): void => {
-      window.removeEventListener("scroll", onScrollOrResize);
+      scrollTarget.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
     };
-  }, []);
+  }, [scrollRootRef]);
 
   useEffect(() => {
     const previousLength = lastTimelineLengthRef.current;

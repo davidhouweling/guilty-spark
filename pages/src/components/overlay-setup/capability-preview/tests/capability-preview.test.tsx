@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
@@ -114,6 +114,13 @@ describe("CapabilityPreview", () => {
     expect(screen.getByText("Recent Series")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Viewer" }));
     expect(screen.getByRole("heading", { name: "Tracked Gameplay" })).toBeInTheDocument();
+    const previewStage = screen.getByLabelText("Capability preview").querySelector("[style*='--preview-scale']");
+    if (!(previewStage instanceof HTMLElement)) {
+      throw new Error("Expected the preview stage to scroll the Viewer");
+    }
+    previewStage.scrollTop = 300;
+    fireEvent.scroll(previewStage);
+    expect(screen.getByRole("button", { name: "Jump to latest" })).toBeInTheDocument();
 
     const matchEntries = await screen.findAllByRole("button", { name: /^Match .+ on / });
     const matchEntry = matchEntries.at(0);

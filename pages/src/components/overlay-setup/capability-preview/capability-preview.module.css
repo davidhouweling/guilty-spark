@@ -60,11 +60,14 @@
 
 /* A transformed ancestor contains the fixed-position overlay root within the 1080p stage. */
 .stage {
+  height: 1080px;
   left: 0;
   overflow: hidden auto;
   position: absolute;
   top: 0;
+  transform: scale(var(--preview-scale, 1));
   transform-origin: top left;
+  width: 1920px;
 }
 
 .previewState {

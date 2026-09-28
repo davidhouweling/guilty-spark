@@ -1,4 +1,5 @@
-import type { ReactElement } from "react";
+import { useRef } from "react";
+import type { CSSProperties, ReactElement, RefObject } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
 import { ErrorState } from "../../error-state/error-state";
@@ -6,7 +7,7 @@ import { LoadingState } from "../../loading-state/loading-state";
 import { TabbedSection } from "../../tabbed-section/tabbed-section";
 import type { TabbedSectionTab } from "../../tabbed-section/types";
 import type { CapabilityPreviewTab, CapabilityPreviewViewProps } from "./types";
-import { OVERLAY_DESIGN_HEIGHT, OVERLAY_DESIGN_WIDTH, usePreviewScale } from "./use-preview-scale";
+import { usePreviewScale } from "./use-preview-scale";
 import styles from "./capability-preview.module.css";
 
 const PREVIEW_TABS: readonly TabbedSectionTab<CapabilityPreviewTab>[] = [
@@ -15,7 +16,10 @@ const PREVIEW_TABS: readonly TabbedSectionTab<CapabilityPreviewTab>[] = [
   { id: "viewer", label: "Viewer", content: null },
 ];
 
-function renderPreviewContent(props: CapabilityPreviewViewProps): ReactElement {
+function renderPreviewContent(
+  props: CapabilityPreviewViewProps,
+  scrollRootRef: RefObject<HTMLDivElement | null>,
+): ReactElement {
   const { content, OverlayPage, ViewerPage, onRetry } = props;
   switch (content.type) {
     case "loading": {
@@ -55,6 +59,7 @@ function renderPreviewContent(props: CapabilityPreviewViewProps): ReactElement {
           externalView={content.view}
           streamerSettings={content.view.streamerSettings}
           connectionStatusOverride="connected"
+          scrollRootRef={scrollRootRef}
         />
       );
     }
@@ -67,6 +72,7 @@ function renderPreviewContent(props: CapabilityPreviewViewProps): ReactElement {
 export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactElement {
   const { activeTab, source, onTabChange } = props;
   const { containerRef, scale } = usePreviewScale();
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <section className={styles.previewRegion} aria-label="Capability preview">
@@ -85,15 +91,8 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
         </span>
       </div>
       <div ref={containerRef} className={styles.previewFrame}>
-        <div
-          className={styles.stage}
-          style={{
-            width: `${String(OVERLAY_DESIGN_WIDTH)}px`,
-            height: `${String(OVERLAY_DESIGN_HEIGHT)}px`,
-            transform: `scale(${String(scale)})`,
-          }}
-        >
-          {renderPreviewContent(props)}
+        <div ref={stageRef} className={styles.stage} style={{ "--preview-scale": String(scale) } as CSSProperties}>
+          {renderPreviewContent(props, stageRef)}
         </div>
       </div>
       <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>

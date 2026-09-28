@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import type { RefObject } from "react";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { ComponentLoader } from "../../component-loader/component-loader";
@@ -28,6 +29,7 @@ export interface IndividualTrackerViewerPageProps {
   readonly streamerSettings?: StreamerViewSettings;
   readonly externalView?: TrackerViewState;
   readonly connectionStatusOverride?: TrackerViewConnectionStatus;
+  readonly scrollRootRef?: RefObject<HTMLElement | null> | undefined;
   readonly pageTitleVariant?: "tracker";
 }
 
@@ -41,6 +43,7 @@ function IndividualTrackerViewerPageInternal({
   streamerSettings,
   externalView,
   connectionStatusOverride,
+  scrollRootRef,
   pageTitleVariant,
 }: IndividualTrackerViewerPageInternalProps): React.ReactElement {
   const {
@@ -90,6 +93,7 @@ function IndividualTrackerViewerPageInternal({
             entryStates={model.entryStates}
             canManage={canManage}
             refreshPending={model.refreshPending}
+            scrollRootRef={scrollRootRef}
             onToggleEntry={onToggleEntry}
             onLoadAnalytics={onLoadAnalytics}
             onBackToManage={
