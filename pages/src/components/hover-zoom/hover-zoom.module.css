@@ -9,12 +9,17 @@
 
 .content {
   height: 100%;
-  transform: scale(1);
-  transition: transform 180ms ease;
   width: 100%;
 }
 
-.content[data-zoomed="true"] {
+/* Only the enabled path transforms: even scale(1) would make this a containing block
+   for fixed-position descendants. */
+.hoverZoom[data-zoom-enabled="true"] .content {
+  transform: scale(1);
+  transition: transform 180ms ease;
+}
+
+.hoverZoom[data-zoom-enabled="true"] .content[data-zoomed="true"] {
   transform: scale(var(--hover-zoom-scale));
 }
 
@@ -37,7 +42,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .content {
+  .hoverZoom[data-zoom-enabled="true"] .content {
     transition: none;
   }
 }

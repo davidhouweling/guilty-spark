@@ -74,7 +74,7 @@ function renderPreviewContent(
 }
 
 export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactElement {
-  const { activeTab, isZoomEnabled, source, onTabChange, onZoomEnabledChange } = props;
+  const { activeTab, source, isZoomEnabled, onTabChange, onZoomEnabledChange } = props;
   const { containerRef, scale } = usePreviewScale();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [fixedControlsTarget, setFixedControlsTarget] = useState<HTMLDivElement | null>(null);
