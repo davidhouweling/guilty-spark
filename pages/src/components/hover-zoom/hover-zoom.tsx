@@ -123,7 +123,7 @@ export function HoverZoom({
     <div
       className={classNames(styles.hoverZoom, className)}
       tabIndex={0}
-      role="button"
+      role="group"
       aria-label={ariaLabel}
       onMouseEnter={zoomIn}
       onMouseLeave={zoomOutDeferred}

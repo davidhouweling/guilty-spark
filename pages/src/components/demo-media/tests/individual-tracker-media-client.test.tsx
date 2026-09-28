@@ -9,10 +9,10 @@ afterEach(() => {
 });
 
 describe("IndividualTrackerMediaClient", () => {
-  it("exposes each preview region as a keyboard-focusable button with an accessible label", () => {
+  it("exposes each preview region as a keyboard-focusable group with an accessible label", () => {
     render(<IndividualTrackerMediaClient />);
 
-    const previewRegion = screen.getByRole("button", {
+    const previewRegion = screen.getByRole("group", {
       name: "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
     });
 
@@ -22,7 +22,7 @@ describe("IndividualTrackerMediaClient", () => {
   it("shows and hides the active preview on focus and blur", () => {
     const { container } = render(<IndividualTrackerMediaClient />);
 
-    const previewRegion = screen.getByRole("button", {
+    const previewRegion = screen.getByRole("group", {
       name: "Inspect screenshot: Individual Tracker streamer settings with viewer and overlay URL controls",
     });
     const activePreview = container.querySelector('[data-zoomed="true"]');

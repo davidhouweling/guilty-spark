@@ -10,14 +10,14 @@ afterEach(() => {
 });
 
 describe("HoverZoom", () => {
-  it("renders children inside a keyboard-focusable region with an accessible label", () => {
+  it("renders children inside a keyboard-focusable group with an accessible label", () => {
     render(
       <HoverZoom ariaLabel="Inspect chart">
         <p>chart content</p>
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     expect(region).toHaveAttribute("tabindex", "0");
     expect(screen.getByText("chart content")).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
 
@@ -68,7 +68,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
     const innerButton = screen.getByRole("button", { name: "inner action" });
 
     fireEvent.focus(region);
@@ -89,7 +89,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     fireEvent.mouseEnter(region);
     fireEvent.mouseLeave(region);
@@ -117,6 +117,8 @@ describe("HoverZoom", () => {
 
     expect(enterEvent).toBe(true);
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
+    expect(innerButton).toBeEnabled();
+    expect(innerButton).toHaveAccessibleName("inner action");
   });
 
   it("exits the zoom on Escape while a descendant has focus", () => {
@@ -126,7 +128,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
     const innerButton = screen.getByRole("button", { name: "inner action" });
 
     fireEvent.focus(region);
@@ -144,7 +146,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     fireEvent.keyDown(region, { key: "Enter" });
     expect(container.querySelector('[data-zoomed="true"]')).toBeInTheDocument();
@@ -165,7 +167,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     fireEvent.mouseEnter(region);
     fireEvent.mouseLeave(region);
@@ -186,7 +188,7 @@ describe("HoverZoom", () => {
       </HoverZoom>,
     );
 
-    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const region = screen.getByRole("group", { name: "Inspect chart" });
 
     vi.spyOn(region, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 200, 100));
 
