@@ -4,6 +4,7 @@ import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import { aFakeOverlayPreviewServiceWith } from "../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
@@ -12,7 +13,6 @@ import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import { createIndividualTrackerOverlayPage } from "../../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../../individual-tracker/viewer/create";
 import { CapabilityPreview } from "../capability-preview";
@@ -33,12 +33,13 @@ function createPageComponents(): Pick<CapabilityPreviewProps, "OverlayPage" | "V
   const baseSeriesMatchesService = aFakeSeriesMatchesServiceWith();
   const getSeriesMatches = vi.spyOn(baseSeriesMatchesService, "getSeriesMatches");
   const seriesMatchesService: SeriesMatchesService = {
-    getSeriesMatches: (matchIds, _trackerId, anchorMatchId) =>
+    getSeriesMatches: async (...[matchIds, , anchorMatchId]: Parameters<SeriesMatchesService["getSeriesMatches"]>) =>
       getSeriesMatches(matchIds, undefined, anchorMatchId),
   };
   const baseMatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const matchAnalyticsService: MatchAnalyticsService = {
-    getBatchMatchAnalytics: (matchIds, _modules, _trackerId) => baseMatchAnalyticsService.getBatchMatchAnalytics(matchIds),
+    getBatchMatchAnalytics: async (...[matchIds]: Parameters<MatchAnalyticsService["getBatchMatchAnalytics"]>) =>
+      baseMatchAnalyticsService.getBatchMatchAnalytics(matchIds),
   };
   const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
 
