@@ -81,18 +81,16 @@ export function HoverZoom({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    // Enter/Space bubble from interactive descendants; preventDefault here would block their activation.
-    if (event.target !== event.currentTarget) {
-      return;
-    }
+    const isWrapperTarget = event.target === event.currentTarget;
 
     switch (event.key) {
-      case "Enter": {
-        event.preventDefault();
-        zoomIn();
-        break;
-      }
+      case "Enter":
       case " ": {
+        // These bubble from interactive descendants; preventDefault would block their activation.
+        if (!isWrapperTarget) {
+          break;
+        }
+
         event.preventDefault();
         zoomIn();
         break;

@@ -119,6 +119,24 @@ describe("HoverZoom", () => {
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
   });
 
+  it("exits the zoom on Escape while a descendant has focus", () => {
+    const { container } = render(
+      <HoverZoom ariaLabel="Inspect chart">
+        <button type="button">inner action</button>
+      </HoverZoom>,
+    );
+
+    const region = screen.getByRole("button", { name: "Inspect chart" });
+    const innerButton = screen.getByRole("button", { name: "inner action" });
+
+    fireEvent.focus(region);
+    expect(container.querySelector('[data-zoomed="true"]')).toBeInTheDocument();
+
+    fireEvent.keyDown(innerButton, { key: "Escape" });
+
+    expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
+  });
+
   it("supports Enter, Space, and Escape keyboard interactions", () => {
     const { container } = render(
       <HoverZoom ariaLabel="Inspect chart">
