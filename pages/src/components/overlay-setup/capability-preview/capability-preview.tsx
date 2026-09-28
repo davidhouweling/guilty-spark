@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, ReactElement, RefObject } from "react";
+import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
 import { ErrorState } from "../../error-state/error-state";
+import { HoverZoom } from "../../hover-zoom/hover-zoom";
 import { LoadingState } from "../../loading-state/loading-state";
 import { TabbedSection } from "../../tabbed-section/tabbed-section";
 import type { TabbedSectionTab } from "../../tabbed-section/types";
@@ -72,7 +74,7 @@ function renderPreviewContent(
 }
 
 export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactElement {
-  const { activeTab, source, onTabChange } = props;
+  const { activeTab, source, isZoomEnabled, onTabChange, onZoomEnabledChange } = props;
   const { containerRef, scale } = usePreviewScale();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [fixedControlsTarget, setFixedControlsTarget] = useState<HTMLDivElement | null>(null);
@@ -98,10 +100,27 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
         className={styles.previewFrame}
         style={{ "--preview-scale": String(scale) } as CSSProperties}
       >
-        <div ref={stageRef} className={styles.stage} data-testid="preview-stage">
-          {renderPreviewContent(props, stageRef, fixedControlsTarget)}
-        </div>
-        <div ref={setFixedControlsTarget} className={styles.fixedControls} data-testid="preview-fixed-controls" />
+        <button
+          type="button"
+          className={styles.zoomToggle}
+          aria-label="Zoom preview"
+          aria-pressed={isZoomEnabled}
+          onClick={(): void => {
+            onZoomEnabledChange(!isZoomEnabled);
+          }}
+        >
+          {isZoomEnabled ? "Zoom on" : "Zoom off"}
+        </button>
+        <HoverZoom
+          ariaLabel="Preview canvas"
+          className={classNames(styles.zoomLayer, isZoomEnabled && styles.zoomLayerActive)}
+          enabled={isZoomEnabled}
+        >
+          <div ref={stageRef} className={styles.stage} data-testid="preview-stage">
+            {renderPreviewContent(props, stageRef, fixedControlsTarget)}
+          </div>
+          <div ref={setFixedControlsTarget} className={styles.fixedControls} data-testid="preview-fixed-controls" />
+        </HoverZoom>
       </div>
       <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>
     </section>

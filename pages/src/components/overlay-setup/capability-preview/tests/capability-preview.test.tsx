@@ -212,4 +212,53 @@ describe("CapabilityPreview", () => {
     });
     expect(getPreview).toHaveBeenLastCalledWith("matchmaking", undefined);
   });
+
+  it("starts with zoom disabled and toggles the zoom layer on demand", async () => {
+    const user = userEvent.setup();
+    const previewService = aFakeOverlayPreviewServiceWith();
+    const pages = createPageComponents();
+
+    renderCapabilityPreview({
+      gamertag: "343GuiltySpark",
+      isAuthenticated: false,
+      previewMode: "player",
+      previewService,
+      pages,
+    });
+
+    const toggle = await screen.findByRole("button", { name: "Zoom preview" });
+
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Zoom off");
+    expect(screen.queryByRole("group", { name: "Preview canvas" })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(toggle).toHaveTextContent("Zoom on");
+    expect(screen.getByRole("group", { name: "Preview canvas" })).toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveTextContent("Zoom off");
+  });
+
+  it("places the zoom toggle before the preview canvas in DOM order", async () => {
+    const previewService = aFakeOverlayPreviewServiceWith();
+    const pages = createPageComponents();
+
+    renderCapabilityPreview({
+      gamertag: "343GuiltySpark",
+      isAuthenticated: false,
+      previewMode: "player",
+      previewService,
+      pages,
+    });
+
+    const toggle = await screen.findByRole("button", { name: "Zoom preview" });
+    const stage = screen.getByTestId("preview-stage");
+
+    expect(toggle.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0);
+  });
 });
