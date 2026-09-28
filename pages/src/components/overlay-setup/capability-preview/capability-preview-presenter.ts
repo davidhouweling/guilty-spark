@@ -1,6 +1,7 @@
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { OverlayPreviewService } from "../../../services/individual-tracker/overlay-preview-types";
+import { OVERLAY_SETUP_DEMO_GAMERTAG } from "../overlay-setup-presenter";
 import type { CapabilityPreviewSnapshot, CapabilityPreviewStore } from "./capability-preview-store";
 import type { CapabilityPreviewOptions, CapabilityPreviewViewModel } from "./types";
 
@@ -33,7 +34,11 @@ export class CapabilityPreviewPresenter {
     const sourceState = activeTab === "series" ? series : matchmaking;
     const isExample = sourceState.status === "loaded" ? sourceState.data.isExample : !options.isAuthenticated;
     const gamertag =
-      sourceState.status === "loaded" ? sourceState.data.view.gamertag : (options.gamertag ?? "soundmanD");
+      sourceState.status === "loaded"
+        ? sourceState.data.view.gamertag
+        : options.isAuthenticated
+          ? (options.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG)
+          : OVERLAY_SETUP_DEMO_GAMERTAG;
 
     return {
       activeTab,

@@ -90,10 +90,6 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
           tabsClassName={styles.previewTabs}
           onTabChange={onTabChange}
         />
-        <span className={styles.sourceLabel}>
-          {source.isExample ? <span className={styles.exampleMark}>Example:</span> : null}
-          {source.gamertag}
-        </span>
       </div>
       <div
         ref={containerRef}
@@ -122,7 +118,13 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
           <div ref={setFixedControlsTarget} className={styles.fixedControls} data-testid="preview-fixed-controls" />
         </HoverZoom>
       </div>
-      <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>
+      <div className={styles.previewFooter}>
+        <span className={styles.sourceLabel}>
+          {source.isExample ? <span className={styles.exampleMark}>Example:</span> : null}
+          {source.gamertag}
+        </span>
+        <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>
+      </div>
     </section>
   );
 }

@@ -2,7 +2,7 @@ import type { AuthService } from "../../services/auth/types";
 import type { OverlaySetupSnapshot, OverlaySetupStore } from "./overlay-setup-store";
 
 // Shown to logged-out visitors so Steps 2 & 3 render with realistic sample data.
-export const OVERLAY_SETUP_DEMO_GAMERTAG = "343GuiltySpark";
+export const OVERLAY_SETUP_DEMO_GAMERTAG = "soundmanD";
 
 interface Config {
   readonly authService: AuthService;

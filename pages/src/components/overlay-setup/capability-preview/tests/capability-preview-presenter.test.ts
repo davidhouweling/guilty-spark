@@ -113,6 +113,18 @@ describe("CapabilityPreviewPresenter", () => {
     expect(viewModel.content.mode).toBe("series");
   });
 
+  it("shows the demo identity before the preview response loads", () => {
+    const { presenter, store } = createHarness();
+    const viewModel = presenter.present(store.getSnapshot(), {
+      gamertag: "343GuiltySpark",
+      isAuthenticated: false,
+      previewMode: "player",
+      streamerSettings: undefined,
+    });
+
+    expect(viewModel.source).toEqual({ isExample: true, gamertag: "soundmanD" });
+  });
+
   it("ignores a stale request after effect cleanup and restart", async () => {
     const { presenter, store, previewService } = createHarness();
     const firstResponse = await previewService.getPreview("matchmaking");
