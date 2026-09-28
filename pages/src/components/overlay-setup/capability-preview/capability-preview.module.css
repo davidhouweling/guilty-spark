@@ -70,6 +70,17 @@
   width: 1920px;
 }
 
+.fixedControls {
+  height: 1080px;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform: scale(var(--preview-scale, 1));
+  transform-origin: top left;
+  width: 1920px;
+}
+
 .previewState {
   align-items: center;
   background: var(--halo-bg);

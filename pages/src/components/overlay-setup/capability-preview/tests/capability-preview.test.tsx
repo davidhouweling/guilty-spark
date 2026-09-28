@@ -114,13 +114,13 @@ describe("CapabilityPreview", () => {
     expect(screen.getByText("Recent Series")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Viewer" }));
     expect(screen.getByRole("heading", { name: "Tracked Gameplay" })).toBeInTheDocument();
-    const previewStage = screen.getByLabelText("Capability preview").querySelector("[style*='--preview-scale']");
-    if (!(previewStage instanceof HTMLElement)) {
-      throw new Error("Expected the preview stage to scroll the Viewer");
-    }
+    const previewStage = screen.getByTestId("preview-stage");
     previewStage.scrollTop = 300;
     fireEvent.scroll(previewStage);
-    expect(screen.getByRole("button", { name: "Jump to latest" })).toBeInTheDocument();
+    const jumpToLatestButton = screen.getByRole("button", { name: "Jump to latest" });
+    expect(jumpToLatestButton).toBeInTheDocument();
+    expect(screen.getByTestId("preview-fixed-controls")).toContainElement(jumpToLatestButton);
+    expect(previewStage).not.toContainElement(jumpToLatestButton);
 
     const matchEntries = await screen.findAllByRole("button", { name: /^Match .+ on / });
     const matchEntry = matchEntries.at(0);

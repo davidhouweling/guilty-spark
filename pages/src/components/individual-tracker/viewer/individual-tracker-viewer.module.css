@@ -264,6 +264,7 @@
   left: 50%;
   letter-spacing: 0.04em;
   padding: var(--space-2) var(--space-3);
+  pointer-events: auto;
   position: fixed;
   transform: translateX(-50%);
   z-index: 20;

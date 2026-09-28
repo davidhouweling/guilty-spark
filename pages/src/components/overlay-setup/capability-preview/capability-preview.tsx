@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { CSSProperties, ReactElement, RefObject } from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";
@@ -19,6 +19,7 @@ const PREVIEW_TABS: readonly TabbedSectionTab<CapabilityPreviewTab>[] = [
 function renderPreviewContent(
   props: CapabilityPreviewViewProps,
   scrollRootRef: RefObject<HTMLDivElement | null>,
+  fixedControlsTarget: HTMLElement | null,
 ): ReactElement {
   const { content, OverlayPage, ViewerPage, onRetry } = props;
   switch (content.type) {
@@ -60,6 +61,7 @@ function renderPreviewContent(
           streamerSettings={content.view.streamerSettings}
           connectionStatusOverride="connected"
           scrollRootRef={scrollRootRef}
+          jumpToLatestPortalTarget={fixedControlsTarget}
         />
       );
     }
@@ -73,6 +75,7 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
   const { activeTab, source, onTabChange } = props;
   const { containerRef, scale } = usePreviewScale();
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const [fixedControlsTarget, setFixedControlsTarget] = useState<HTMLDivElement | null>(null);
 
   return (
     <section className={styles.previewRegion} aria-label="Capability preview">
@@ -90,10 +93,15 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
           {source.gamertag}
         </span>
       </div>
-      <div ref={containerRef} className={styles.previewFrame}>
-        <div ref={stageRef} className={styles.stage} style={{ "--preview-scale": String(scale) } as CSSProperties}>
-          {renderPreviewContent(props, stageRef)}
+      <div
+        ref={containerRef}
+        className={styles.previewFrame}
+        style={{ "--preview-scale": String(scale) } as CSSProperties}
+      >
+        <div ref={stageRef} className={styles.stage} data-testid="preview-stage">
+          {renderPreviewContent(props, stageRef, fixedControlsTarget)}
         </div>
+        <div ref={setFixedControlsTarget} className={styles.fixedControls} data-testid="preview-fixed-controls" />
       </div>
       <p className={styles.previewHint}>Shown to scale from a 1920 × 1080 canvas</p>
     </section>

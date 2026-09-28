@@ -30,6 +30,7 @@ export interface IndividualTrackerViewerPageProps {
   readonly externalView?: TrackerViewState;
   readonly connectionStatusOverride?: TrackerViewConnectionStatus;
   readonly scrollRootRef?: RefObject<HTMLElement | null> | undefined;
+  readonly jumpToLatestPortalTarget?: HTMLElement | null | undefined;
   readonly pageTitleVariant?: "tracker";
 }
 
@@ -44,6 +45,7 @@ function IndividualTrackerViewerPageInternal({
   externalView,
   connectionStatusOverride,
   scrollRootRef,
+  jumpToLatestPortalTarget,
   pageTitleVariant,
 }: IndividualTrackerViewerPageInternalProps): React.ReactElement {
   const {
@@ -94,6 +96,7 @@ function IndividualTrackerViewerPageInternal({
             canManage={canManage}
             refreshPending={model.refreshPending}
             scrollRootRef={scrollRootRef}
+            jumpToLatestPortalTarget={jumpToLatestPortalTarget}
             onToggleEntry={onToggleEntry}
             onLoadAnalytics={onLoadAnalytics}
             onBackToManage={

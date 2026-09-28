@@ -1,5 +1,6 @@
 import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import classNames from "classnames";
 import { CSSTransition } from "react-transition-group";
 import ReactTimeAgo from "react-time-ago";
@@ -46,6 +47,7 @@ interface IndividualTrackerViewerProps {
   readonly hasMore?: boolean;
   readonly loadingMore?: boolean;
   readonly scrollRootRef?: React.RefObject<HTMLElement | null> | undefined;
+  readonly jumpToLatestPortalTarget?: HTMLElement | null | undefined;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
@@ -221,6 +223,7 @@ export function IndividualTrackerViewer({
   hasMore,
   loadingMore,
   scrollRootRef,
+  jumpToLatestPortalTarget,
   onToggleEntry,
   onBackToManage,
   onRefresh,
@@ -314,6 +317,19 @@ export function IndividualTrackerViewer({
       Last update: {lastUpdateContent(renderModel)} | Next update: {connectionAwareNextUpdate(renderModel, statusBadge)}
     </>
   );
+  const jumpToLatestButton =
+    !isNearLatestNow || unseenEntries > 0 ? (
+      <button
+        type="button"
+        className={styles.jumpToLatestButton}
+        onClick={(): void => {
+          scrollToLatest();
+          setUnseenEntries(0);
+        }}
+      >
+        {unseenEntries > 0 ? `Jump to latest (${unseenEntries.toString()} new)` : "Jump to latest"}
+      </button>
+    ) : null;
 
   return (
     <>
@@ -653,18 +669,9 @@ export function IndividualTrackerViewer({
         )}
       </section>
 
-      {(!isNearLatestNow || unseenEntries > 0) && (
-        <button
-          type="button"
-          className={styles.jumpToLatestButton}
-          onClick={(): void => {
-            scrollToLatest();
-            setUnseenEntries(0);
-          }}
-        >
-          {unseenEntries > 0 ? `Jump to latest (${unseenEntries.toString()} new)` : "Jump to latest"}
-        </button>
-      )}
+      {jumpToLatestPortalTarget == null || jumpToLatestButton == null
+        ? jumpToLatestButton
+        : createPortal(jumpToLatestButton, jumpToLatestPortalTarget)}
     </>
   );
 }
