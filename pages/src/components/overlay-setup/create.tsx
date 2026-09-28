@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { Alert } from "../alert/alert";
@@ -16,10 +16,10 @@ import { StreamerSettingsSectionView } from "../streamer-settings/streamer-setti
 import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-store";
 import { createIndividualTrackerOverlayPage } from "../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
-import { CapabilityPreview } from "./capability-preview";
-import type { CapabilityPreviewTab } from "./capability-preview";
-import { CapabilityPreviewPresenter } from "./capability-preview-presenter";
-import { CapabilityPreviewStore } from "./capability-preview-store";
+import { createCapabilityPreview } from "./capability-preview/create";
+import type { CapabilityPreviewTab } from "./capability-preview/types";
+import { CapabilityPreviewPresenter } from "./capability-preview/capability-preview-presenter";
+import { CapabilityPreviewStore } from "./capability-preview/capability-preview-store";
 import { OVERLAY_SETUP_DEMO_GAMERTAG, OverlaySetupPresenter } from "./overlay-setup-presenter";
 import { OverlaySetupStore } from "./overlay-setup-store";
 import { OverlaySetupShell } from "./overlay-setup";
@@ -46,7 +46,6 @@ function buildSignInHref(apiHost: string): string {
 interface OverlaySetupPageInternalProps {
   readonly presenter: OverlaySetupPresenter;
   readonly previewPresenter: CapabilityPreviewPresenter;
-  readonly previewStore: CapabilityPreviewStore;
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly OverlayPage: ReturnType<typeof createIndividualTrackerOverlayPage>;
@@ -58,7 +57,6 @@ interface OverlaySetupPageInternalProps {
 function OverlaySetupPageInternal({
   presenter,
   previewPresenter,
-  previewStore,
   settingsPresenter,
   settingsStore,
   OverlayPage,
@@ -66,8 +64,6 @@ function OverlaySetupPageInternal({
   apiHost,
   StatsHighlightsSection,
 }: OverlaySetupPageInternalProps): ReactElement {
-  const [activePreviewTab, setActivePreviewTab] = useState<CapabilityPreviewTab>("series");
-
   useEffect(() => {
     presenter.start();
     return (): void => {
@@ -118,17 +114,9 @@ function OverlaySetupPageInternal({
       },
     [previewIdentityKey, previewPresenter, previewSettingsReady, previewStreamerSettings],
   );
-  useEffect(() => {
-    if (snapshot.authState === "loading" || !previewSettingsReady) {
-      return;
-    }
-    previewPresenter.updateSettings(previewStreamerSettings, previewIdentityKey);
-  }, [previewIdentityKey, previewPresenter, previewSettingsReady, previewStreamerSettings, snapshot.authState]);
-
-  const previewSnapshot = useSyncExternalStore(
-    (listener) => previewStore.subscribe(listener),
-    () => previewStore.getSnapshot(),
-    () => previewStore.getSnapshot(),
+  const CapabilityPreviewSection = useMemo(
+    () => createCapabilityPreview({ OverlayPage, ViewerPage }),
+    [OverlayPage, ViewerPage],
   );
   const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
@@ -152,7 +140,7 @@ function OverlaySetupPageInternal({
           saveStatus="idle"
           saveErrorMessage={null}
           onStatsHighlightSlotsChange={(slots): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setStatsHighlightSlots(slots);
           }}
         />
@@ -187,54 +175,54 @@ function OverlaySetupPageInternal({
             settingsPresenter.setObserverColors(teamColor, enemyColor);
           }}
           onDisplaySettingsChange={(updates): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setDisplaySettings(updates);
           }}
           onTickerSettingsChange={(updates): void => {
             settingsPresenter.setTickerSettings(updates);
           }}
           onInSeriesTickerSettingsChange={(updates): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setTickerSettings(updates);
           }}
           onInSeriesShowSeriesTabChange={(enabled): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setInSeriesShowSeriesTab(enabled);
           }}
           onMatchmakingShowSummaryTabChange={(enabled): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setMatchmakingShowSummaryTab(enabled);
           }}
           onInSeriesShowTabsChange={(enabled): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setInSeriesShowTabs(enabled);
           }}
           onMatchmakingShowTabsChange={(enabled): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setMatchmakingShowTabs(enabled);
           }}
           onDisableTeamPlayerNamesChange={(enabled): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setDisableTeamPlayerNames(enabled);
           }}
           onInSeriesShowTickerChange={(enabled): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setInSeriesShowTicker(enabled);
           }}
           onMatchmakingShowTickerChange={(enabled): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setMatchmakingShowTicker(enabled);
           }}
           onMatchmakingShowStatsHighlightsChange={(enabled): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setMatchmakingShowStatsHighlights(enabled);
           }}
           onInSeriesMyStatsOnlyChange={(enabled): void => {
-            setActivePreviewTab("series");
+            previewPresenter.selectTab("series");
             settingsPresenter.setInSeriesMyStatsOnly(enabled);
           }}
           onMatchmakingMyStatsOnlyChange={(enabled): void => {
-            setActivePreviewTab("matchmaking");
+            previewPresenter.selectTab("matchmaking");
             settingsPresenter.setMatchmakingMyStatsOnly(enabled);
           }}
           onFontSizesChange={(updates): void => {
@@ -269,25 +257,17 @@ function OverlaySetupPageInternal({
         />
       }
       previewContent={
-        <CapabilityPreview
-          activeTab={activePreviewTab}
+        <CapabilityPreviewSection
+          presenter={previewPresenter}
+          identityKey={previewIdentityKey}
+          settingsReady={previewSettingsReady}
           gamertag={snapshot.gamertag}
           isAuthenticated={snapshot.authState === "authenticated"}
-          settingsReady={previewSettingsReady}
           previewMode={settingsSnapshot.defaultColorMode}
           streamerSettings={previewStreamerSettings}
-          matchmaking={previewSnapshot.matchmaking}
-          series={previewSnapshot.series}
-          OverlayPage={OverlayPage}
-          ViewerPage={ViewerPage}
           onActivateMode={onPreviewModeSelected}
-          onTabChange={setActivePreviewTab}
           onRetry={(mode): void => {
-            previewPresenter.retry(
-              mode === "viewer" ? "matchmaking" : mode,
-              previewStreamerSettings,
-              previewIdentityKey,
-            );
+            previewPresenter.retry(mode, previewStreamerSettings, previewIdentityKey);
           }}
         />
       }
@@ -303,7 +283,7 @@ function OverlaySetupPageInternal({
 export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): () => ReactElement {
   const Component = (): ReactElement => {
     const store = useMemo(() => new OverlaySetupStore(), []);
-    const previewStore = useMemo(() => new CapabilityPreviewStore(), []);
+    const previewStore = useMemo(() => new CapabilityPreviewStore("series"), []);
     const settingsStore = useMemo(() => new StreamerSettingsStore(), []);
     const StatsHighlightsSection = useMemo(() => createStatsHighlightsSection(), []);
     const presenter = useMemo(() => new OverlaySetupPresenter({ authService: config.authService, store }), [store]);
@@ -377,7 +357,6 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
       <OverlaySetupPageInternal
         presenter={presenter}
         previewPresenter={previewPresenter}
-        previewStore={previewStore}
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}
         OverlayPage={OverlayPage}

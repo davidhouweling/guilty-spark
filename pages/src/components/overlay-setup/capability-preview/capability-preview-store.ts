@@ -19,12 +19,16 @@ export interface CapabilityPreviewSnapshot {
 const IDLE_MODE: CapabilityPreviewModeSnapshot = { status: "idle", data: null, errorMessage: null };
 
 export class CapabilityPreviewStore {
-  private snapshot: CapabilityPreviewSnapshot = {
-    activeTab: "matchmaking",
-    matchmaking: IDLE_MODE,
-    series: IDLE_MODE,
-  };
+  private snapshot: CapabilityPreviewSnapshot;
   private readonly subscribers = new Set<() => void>();
+
+  public constructor(activeTab: CapabilityPreviewTab = "matchmaking") {
+    this.snapshot = {
+      activeTab,
+      matchmaking: IDLE_MODE,
+      series: IDLE_MODE,
+    };
+  }
 
   public getSnapshot = (): CapabilityPreviewSnapshot => this.snapshot;
 

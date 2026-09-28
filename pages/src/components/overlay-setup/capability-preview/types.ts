@@ -3,7 +3,6 @@ import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/indi
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { IndividualTrackerOverlayPageProps } from "../../individual-tracker/overlay/create";
 import type { IndividualTrackerViewerPageProps } from "../../individual-tracker/viewer/create";
-import type { OverlayPreviewService } from "../../../services/individual-tracker/overlay-preview-types";
 
 export type CapabilityPreviewTab = "matchmaking" | "series" | "viewer";
 
@@ -40,10 +39,6 @@ export interface CapabilityPreviewViewModel {
 export interface CapabilityPreviewPageComponents {
   readonly OverlayPage: (props: IndividualTrackerOverlayPageProps) => ReactElement;
   readonly ViewerPage: (props: IndividualTrackerViewerPageProps) => ReactElement;
-}
-
-export interface CapabilityPreviewConfig extends CapabilityPreviewPageComponents {
-  readonly previewService: OverlayPreviewService;
 }
 
 export interface CapabilityPreviewViewProps extends CapabilityPreviewViewModel, CapabilityPreviewPageComponents {
