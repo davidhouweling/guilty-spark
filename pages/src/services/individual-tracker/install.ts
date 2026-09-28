@@ -6,6 +6,8 @@ import { RealIndividualTrackerSettingsService } from "./settings";
 import type { IndividualTrackerSettingsService } from "./settings-types";
 import { RealIndividualTrackerViewService } from "./view";
 import type { IndividualTrackerViewService } from "./view-types";
+import { RealOverlayPreviewService } from "./overlay-preview";
+import type { OverlayPreviewService } from "./overlay-preview-types";
 
 export async function installIndividualTrackerService(
   apiHost: string,
@@ -38,4 +40,13 @@ export async function installIndividualTrackerViewService(apiHost: string): Prom
   }
 
   return new RealIndividualTrackerViewService({ apiHost });
+}
+
+export async function installOverlayPreviewService(apiHost: string): Promise<OverlayPreviewService> {
+  if (getMode() === "FAKE") {
+    const { aFakeOverlayPreviewServiceWith } = await import("./fakes/overlay-preview.fake");
+    return aFakeOverlayPreviewServiceWith();
+  }
+
+  return new RealOverlayPreviewService({ apiHost });
 }
