@@ -33,13 +33,15 @@ function createPageComponents(): Pick<CapabilityPreviewProps, "OverlayPage" | "V
   const baseSeriesMatchesService = aFakeSeriesMatchesServiceWith();
   const getSeriesMatches = vi.spyOn(baseSeriesMatchesService, "getSeriesMatches");
   const seriesMatchesService: SeriesMatchesService = {
-    getSeriesMatches: async (...[matchIds, , anchorMatchId]: Parameters<SeriesMatchesService["getSeriesMatches"]>) =>
-      getSeriesMatches(matchIds, undefined, anchorMatchId),
+    getSeriesMatches: async (...[matchIds, , anchorMatchId]: Parameters<SeriesMatchesService["getSeriesMatches"]>) => {
+      return getSeriesMatches(matchIds, undefined, anchorMatchId);
+    },
   };
   const baseMatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const matchAnalyticsService: MatchAnalyticsService = {
-    getBatchMatchAnalytics: async (...[matchIds]: Parameters<MatchAnalyticsService["getBatchMatchAnalytics"]>) =>
-      baseMatchAnalyticsService.getBatchMatchAnalytics(matchIds),
+    getBatchMatchAnalytics: async (...[matchIds]: Parameters<MatchAnalyticsService["getBatchMatchAnalytics"]>) => {
+      return baseMatchAnalyticsService.getBatchMatchAnalytics(matchIds);
+    },
   };
   const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
 
@@ -111,11 +113,7 @@ describe("CapabilityPreview", () => {
     }
     await user.click(matchEntry);
     await waitFor(() => {
-      expect(pages.getSeriesMatches).toHaveBeenCalledWith(
-        expect.any(Array),
-        undefined,
-        undefined,
-      );
+      expect(pages.getSeriesMatches).toHaveBeenCalledWith(expect.any(Array), undefined, undefined);
     });
   });
 

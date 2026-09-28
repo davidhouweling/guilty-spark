@@ -93,8 +93,7 @@ export function CapabilityPreview({
   const { containerRef, scale } = usePreviewScale();
   const sourceState = activeTab === "series" ? series : matchmaking;
   const isExample = sourceState.status === "loaded" ? sourceState.data.isExample : !isAuthenticated;
-  const previewGamertag =
-    sourceState.status === "loaded" ? sourceState.data.view.gamertag : (gamertag ?? "soundmanD");
+  const previewGamertag = sourceState.status === "loaded" ? sourceState.data.view.gamertag : (gamertag ?? "soundmanD");
 
   let content: ReactElement;
   switch (activeTab) {
@@ -106,7 +105,9 @@ export function CapabilityPreview({
           previewMode={previewMode}
           streamerSettings={streamerSettings}
           OverlayPage={OverlayPage}
-          onRetry={(): void => { onRetry("matchmaking"); }}
+          onRetry={(): void => {
+            onRetry("matchmaking");
+          }}
         />
       );
       break;
@@ -119,7 +120,9 @@ export function CapabilityPreview({
           previewMode={previewMode}
           streamerSettings={streamerSettings}
           OverlayPage={OverlayPage}
-          onRetry={(): void => { onRetry("series"); }}
+          onRetry={(): void => {
+            onRetry("series");
+          }}
         />
       );
       break;
@@ -134,7 +137,12 @@ export function CapabilityPreview({
           <div className={styles.previewState}>
             <div>
               <Alert variant="error">{matchmaking.errorMessage}</Alert>
-              <button type="button" onClick={(): void => { onRetry("matchmaking"); }}>
+              <button
+                type="button"
+                onClick={(): void => {
+                  onRetry("matchmaking");
+                }}
+              >
                 Retry preview
               </button>
             </div>
