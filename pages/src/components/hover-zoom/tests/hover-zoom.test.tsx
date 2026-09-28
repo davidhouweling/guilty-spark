@@ -61,6 +61,22 @@ describe("HoverZoom", () => {
     expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
   });
 
+  it("zooms when the region is clicked", () => {
+    const { container } = render(
+      <HoverZoom ariaLabel="Inspect chart">
+        <p>chart content</p>
+      </HoverZoom>,
+    );
+
+    const region = screen.getByRole("group", { name: "Inspect chart" });
+
+    expect(container.querySelector('[data-zoomed="true"]')).not.toBeInTheDocument();
+
+    fireEvent.click(region);
+
+    expect(container.querySelector('[data-zoomed="true"]')).toBeInTheDocument();
+  });
+
   it("keeps the zoom when focus moves to a descendant", () => {
     const { container } = render(
       <HoverZoom ariaLabel="Inspect chart">

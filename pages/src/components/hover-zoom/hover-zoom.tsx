@@ -123,6 +123,8 @@ export function HoverZoom({
     <div
       className={classNames(styles.hoverZoom, className)}
       tabIndex={0}
+      // `group` (not `button`) is the intended contract: children may be arbitrary DOM,
+      // including interactive controls, which a button subtree would render inaccessible.
       role="group"
       aria-label={ariaLabel}
       onMouseEnter={zoomIn}
