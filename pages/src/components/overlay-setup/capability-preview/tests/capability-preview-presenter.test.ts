@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { aFakeOverlayPreviewServiceWith } from "../../../services/individual-tracker/fakes/overlay-preview.fake";
+import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
 import { CapabilityPreviewStore } from "../capability-preview-store";
 
@@ -63,6 +63,54 @@ describe("CapabilityPreviewPresenter", () => {
     expect(series.data.view.hasActiveSeries).toBe(true);
     expect(matchmaking.data.mode).toBe("matchmaking");
     expect(series.data.mode).toBe("series");
+  });
+
+  it("preserves server settings when presenting without a local override", async () => {
+    const { presenter, store } = createHarness();
+    const serverSettings: StreamerViewSettings = {
+      styleFlags: { colorMode: "observer", matchmakingShowTicker: false },
+    };
+    const response = await aFakeOverlayPreviewServiceWith().getPreview("matchmaking");
+    store.setLoaded("matchmaking", {
+      ...response,
+      view: { ...response.view, streamerSettings: serverSettings },
+    });
+
+    const viewModel = presenter.present(store.getSnapshot(), {
+      gamertag: null,
+      isAuthenticated: true,
+      previewMode: "player",
+      streamerSettings: undefined,
+    });
+
+    expect(viewModel.content.type).toBe("overlay");
+    if (viewModel.content.type !== "overlay") {
+      throw new Error("Expected a matchmaking overlay preview");
+    }
+    expect(viewModel.content.view.streamerSettings).toEqual(serverSettings);
+  });
+
+  it("stores the selected tab and presents its matching preview state", async () => {
+    const { presenter, store, previewService } = createHarness();
+    const seriesResponse = await previewService.getPreview("series");
+    store.setLoaded("series", seriesResponse);
+    presenter.selectTab("series");
+
+    const viewModel = presenter.present(store.getSnapshot(), {
+      gamertag: null,
+      isAuthenticated: false,
+      previewMode: "observer",
+      streamerSettings: undefined,
+    });
+
+    expect(store.getSnapshot().activeTab).toBe("series");
+    expect(viewModel.activeTab).toBe("series");
+    expect(viewModel.source).toEqual({ isExample: true, gamertag: "soundmanD" });
+    expect(viewModel.content.type).toBe("overlay");
+    if (viewModel.content.type !== "overlay") {
+      throw new Error("Expected a series overlay preview");
+    }
+    expect(viewModel.content.mode).toBe("series");
   });
 
   it("ignores a stale request after effect cleanup and restart", async () => {

@@ -2,6 +2,7 @@ import type {
   OverlayPreviewMode,
   OverlayPreviewResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { CapabilityPreviewTab } from "./types";
 
 export type CapabilityPreviewModeSnapshot =
   | { readonly status: "idle"; readonly data: null; readonly errorMessage: null }
@@ -10,6 +11,7 @@ export type CapabilityPreviewModeSnapshot =
   | { readonly status: "error"; readonly data: null; readonly errorMessage: string };
 
 export interface CapabilityPreviewSnapshot {
+  readonly activeTab: CapabilityPreviewTab;
   readonly matchmaking: CapabilityPreviewModeSnapshot;
   readonly series: CapabilityPreviewModeSnapshot;
 }
@@ -18,6 +20,7 @@ const IDLE_MODE: CapabilityPreviewModeSnapshot = { status: "idle", data: null, e
 
 export class CapabilityPreviewStore {
   private snapshot: CapabilityPreviewSnapshot = {
+    activeTab: "matchmaking",
     matchmaking: IDLE_MODE,
     series: IDLE_MODE,
   };
@@ -34,6 +37,13 @@ export class CapabilityPreviewStore {
 
   public setLoading(mode: OverlayPreviewMode): void {
     this.update({ [mode]: { status: "loading", data: null, errorMessage: null } });
+  }
+
+  public setActiveTab(activeTab: CapabilityPreviewTab): void {
+    if (this.snapshot.activeTab === activeTab) {
+      return;
+    }
+    this.update({ activeTab });
   }
 
   public setLoaded(mode: OverlayPreviewMode, response: OverlayPreviewResponse): void {

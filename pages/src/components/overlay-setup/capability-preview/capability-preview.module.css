@@ -61,6 +61,7 @@
 /* A transformed ancestor contains the fixed-position overlay root within the 1080p stage. */
 .stage {
   left: 0;
+  overflow: hidden auto;
   position: absolute;
   top: 0;
   transform-origin: top left;
