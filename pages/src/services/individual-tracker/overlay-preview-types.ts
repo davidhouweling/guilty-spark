@@ -5,8 +5,5 @@ import type {
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 
 export interface OverlayPreviewService {
-  getPreview(
-    mode: OverlayPreviewMode,
-    previewSettings?: StreamerViewSettings  ,
-  ): Promise<OverlayPreviewResponse>;
+  getPreview(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings): Promise<OverlayPreviewResponse>;
 }

@@ -3,7 +3,10 @@ import {
   overlayPreviewContract,
   overlayPreviewRequestSchema,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
-import type { OverlayPreviewMode, OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type {
+  OverlayPreviewMode,
+  OverlayPreviewResponse,
+} from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { OverlayPreviewService } from "./overlay-preview-types";
 
@@ -20,7 +23,7 @@ export class RealOverlayPreviewService implements OverlayPreviewService {
 
   public async getPreview(
     mode: OverlayPreviewMode,
-    previewSettings?: StreamerViewSettings  ,
+    previewSettings?: StreamerViewSettings,
   ): Promise<OverlayPreviewResponse> {
     const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
     const body = overlayPreviewRequestSchema.parse({

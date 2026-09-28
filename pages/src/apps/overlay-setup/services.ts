@@ -1,6 +1,9 @@
 import { installAuthService } from "../../services/auth/install";
 import type { AuthService } from "../../services/auth/types";
-import { installIndividualTrackerSettingsService, installOverlayPreviewService  } from "../../services/individual-tracker/install";
+import {
+  installIndividualTrackerSettingsService,
+  installOverlayPreviewService,
+} from "../../services/individual-tracker/install";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import { getMode } from "../../services/mode";

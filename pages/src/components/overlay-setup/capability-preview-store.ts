@@ -1,4 +1,7 @@
-import type { OverlayPreviewMode, OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type {
+  OverlayPreviewMode,
+  OverlayPreviewResponse,
+} from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 
 export type CapabilityPreviewModeSnapshot =
   | { readonly status: "idle"; readonly data: null; readonly errorMessage: null }

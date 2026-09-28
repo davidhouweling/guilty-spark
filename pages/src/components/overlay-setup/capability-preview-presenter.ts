@@ -17,7 +17,7 @@ export class CapabilityPreviewPresenter {
     this.config = config;
   }
 
-  public load(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings  ): void {
+  public load(mode: OverlayPreviewMode, previewSettings?: StreamerViewSettings): void {
     this.isDisposed = false;
     const requestId = (this.requestIds.get(mode) ?? 0) + 1;
     this.requestIds.set(mode, requestId);
@@ -25,7 +25,7 @@ export class CapabilityPreviewPresenter {
     void this.loadAsync(mode, requestId, previewSettings);
   }
 
-  public reload(previewSettings?: StreamerViewSettings  ): void {
+  public reload(previewSettings?: StreamerViewSettings): void {
     this.load("matchmaking", previewSettings);
     this.load("series", previewSettings);
   }

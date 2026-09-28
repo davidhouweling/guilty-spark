@@ -18,8 +18,11 @@ const DEMO_HIGHLIGHTS = [
 function getDemoHighlights(
   statsHighlightSlots: readonly string[] | undefined,
 ): { readonly label: string; readonly value: string }[] {
-  return DEMO_HIGHLIGHTS.filter((highlight) => statsHighlightSlots === undefined || statsHighlightSlots.includes(highlight.slot))
-    .map(({ label, value }) => ({ label, value }));
+  const slots = statsHighlightSlots ?? DEMO_HIGHLIGHTS.map(({ slot }) => slot);
+  return slots.flatMap((slot) => {
+    const highlight = DEMO_HIGHLIGHTS.find((candidate) => candidate.slot === slot);
+    return highlight === undefined ? [] : [{ label: highlight.label, value: highlight.value }];
+  });
 }
 
 function createResponse(
@@ -40,6 +43,7 @@ function createResponse(
         hasActiveSeries: false,
         series: [],
         statsHighlights: getDemoHighlights(statsHighlightSlots),
+        streamerSettings: previewSettings,
       },
     };
   }
@@ -64,6 +68,7 @@ function createResponse(
       matches: seriesMatches,
       series: [{ ...series, teams }],
       hasActiveSeries: true,
+      streamerSettings: previewSettings,
       activeSeriesContext: {
         title: SERIES_TITLE,
         subtitle: SERIES_SUBTITLE,
