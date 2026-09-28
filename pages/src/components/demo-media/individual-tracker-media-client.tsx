@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { ImageMetadata } from "astro";
+import { HoverZoom } from "../hover-zoom/hover-zoom";
 import TrackerManageScreenshot from "../../assets/screenshot20260719-individual-tracker-manage.png";
 import TrackerUserViewerScreenshot from "../../assets/screenshot20260719-individual-tracker-user-viewer.png";
 import TrackerViewerScreenshot from "../../assets/screenshot20260719-individual-tracker-viewer.png";
@@ -42,12 +43,6 @@ const slides: readonly Slide[] = [
 ];
 
 const ROTATION_INTERVAL_MS = 4500;
-const PREVIEW_POSITION_MULTIPLIER = 100;
-const HOVER_EXIT_DELAY_MS = 300;
-
-function clampToPercentage(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
 
 export function IndividualTrackerMediaClient(): React.ReactElement {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -55,38 +50,6 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
   const [isFocusedWithin, setFocusedWithin] = useState(false);
   const [isDocumentVisible, setDocumentVisible] = useState(true);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [previewXPercent, setPreviewXPercent] = useState(50);
-  const [previewYPercent, setPreviewYPercent] = useState(50);
-  const hoverExitTimeoutRef = useRef<number | undefined>(undefined);
-
-  const showHoverPreview = (): void => {
-    if (hoverExitTimeoutRef.current !== undefined) {
-      window.clearTimeout(hoverExitTimeoutRef.current);
-      hoverExitTimeoutRef.current = undefined;
-    }
-
-    setHovered(true);
-  };
-
-  const hideHoverPreviewImmediately = (): void => {
-    if (hoverExitTimeoutRef.current !== undefined) {
-      window.clearTimeout(hoverExitTimeoutRef.current);
-      hoverExitTimeoutRef.current = undefined;
-    }
-
-    setHovered(false);
-  };
-
-  const hideHoverPreview = (): void => {
-    if (hoverExitTimeoutRef.current !== undefined) {
-      window.clearTimeout(hoverExitTimeoutRef.current);
-    }
-
-    hoverExitTimeoutRef.current = window.setTimeout(() => {
-      setHovered(false);
-      hoverExitTimeoutRef.current = undefined;
-    }, HOVER_EXIT_DELAY_MS);
-  };
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -139,18 +102,16 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
     };
   }, [shouldRotate]);
 
-  useEffect(() => {
-    return (): void => {
-      if (hoverExitTimeoutRef.current !== undefined) {
-        window.clearTimeout(hoverExitTimeoutRef.current);
-      }
-    };
-  }, []);
-
   return (
     <div className={styles.grid}>
       <div
         className={styles.individualCarousel}
+        onMouseEnter={(): void => {
+          setHovered(true);
+        }}
+        onMouseLeave={(): void => {
+          setHovered(false);
+        }}
         onFocusCapture={(): void => {
           setFocusedWithin(true);
         }}
@@ -162,7 +123,6 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
       >
         {slides.map((slide, index) => {
           const isActive = index === activeIndex;
-          const previewPosition = `${String(previewXPercent)}% ${String(previewYPercent)}%`;
 
           return (
             <figure
@@ -171,69 +131,22 @@ export function IndividualTrackerMediaClient(): React.ReactElement {
               data-active={isActive ? "true" : "false"}
               aria-hidden={isActive ? "false" : "true"}
             >
-              <div
-                className={styles.individualViewerButton}
-                tabIndex={0}
-                role="button"
-                aria-label={`Inspect screenshot: ${slide.alt}`}
-                onMouseEnter={showHoverPreview}
-                onMouseLeave={hideHoverPreview}
-                onFocus={showHoverPreview}
-                onBlur={hideHoverPreviewImmediately}
-                onClick={showHoverPreview}
-                onKeyDown={(event): void => {
-                  switch (event.key) {
-                    case "Enter": {
-                      event.preventDefault();
-                      showHoverPreview();
-                      break;
-                    }
-                    case " ": {
-                      event.preventDefault();
-                      showHoverPreview();
-                      break;
-                    }
-                    case "Escape": {
-                      event.preventDefault();
-                      hideHoverPreviewImmediately();
-                      break;
-                    }
-                    default: {
-                      break;
-                    }
-                  }
-                }}
-                onMouseMove={(event): void => {
-                  const bounds = event.currentTarget.getBoundingClientRect();
-                  const xRatio = clampToPercentage((event.clientX - bounds.left) / bounds.width);
-                  const yRatio = clampToPercentage((event.clientY - bounds.top) / bounds.height);
-
-                  setPreviewXPercent(xRatio * PREVIEW_POSITION_MULTIPLIER);
-                  setPreviewYPercent(yRatio * PREVIEW_POSITION_MULTIPLIER);
-                }}
+              <HoverZoom
+                ariaLabel={`Inspect screenshot: ${slide.alt}`}
+                className={styles.individualViewerFrame}
+                hint="Hover or focus to inspect"
               >
-                <span className={styles.individualViewerFrame}>
-                  <img
-                    src={slide.image.src}
-                    width={slide.image.width}
-                    height={slide.image.height}
-                    alt={slide.alt}
-                    loading={index === 0 ? "eager" : "lazy"}
-                    decoding="async"
-                    fetchPriority={index === 0 ? "high" : "low"}
-                  />
-                </span>
-                <span className={styles.expandHint}>Hover or focus to inspect</span>
-                <div
-                  className={styles.hoverPreview}
-                  data-visible={isActive && isHovered ? "true" : "false"}
-                  style={{
-                    backgroundImage: `url(${slide.image.src})`,
-                    backgroundPosition: previewPosition,
-                  }}
-                  aria-hidden="true"
+                <img
+                  className={styles.individualViewerImage}
+                  src={slide.image.src}
+                  width={slide.image.width}
+                  height={slide.image.height}
+                  alt={slide.alt}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={index === 0 ? "high" : "low"}
                 />
-              </div>
+              </HoverZoom>
               <figcaption className={styles.gridCaption}>{slide.caption}</figcaption>
             </figure>
           );
