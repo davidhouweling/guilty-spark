@@ -102,7 +102,19 @@ describe("CapabilityPreviewPresenter", () => {
     const getPreview = vi.spyOn(previewService, "getPreview");
     const previewSettings: StreamerViewSettings = {
       styleFlags: { colorMode: "observer" },
-      visibleSections: { statsHighlightSlots: ["total-games", "kda"] },
+      visibleSections: {
+        statsHighlightSlots: [
+          "kills",
+          "total-games",
+          "kda",
+          "deaths",
+          "assists",
+          "accuracy",
+          "damage-dealt",
+          "damage-taken",
+          "avg-life-time",
+        ],
+      },
     };
 
     presenter.load("matchmaking", previewSettings);
@@ -118,8 +130,14 @@ describe("CapabilityPreviewPresenter", () => {
     }
     expect(matchmaking.data.view.streamerSettings).toEqual(previewSettings);
     expect(matchmaking.data.view.statsHighlights).toEqual([
+      { label: "Kills", value: "N/A" },
       { label: "Total Games", value: "13" },
       { label: "KDA", value: "1.72" },
+      { label: "Deaths", value: "N/A" },
+      { label: "Assists", value: "N/A" },
+      { label: "Accuracy", value: "N/A" },
+      { label: "Damage Dealt", value: "N/A" },
+      { label: "Damage Taken", value: "N/A" },
     ]);
   });
 
