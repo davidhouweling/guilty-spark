@@ -140,13 +140,21 @@ describe("CapabilityPreviewPresenter", () => {
     }
 
     firstConnection.emitStatus("error");
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(1_999);
+
+    expect(connectDirectory).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(connectDirectory).toHaveBeenCalledTimes(2);
+    expect(connectDirectory).toHaveBeenNthCalledWith(2, "Spartan One");
     const reconnectedConnection = followLiveService.lastConnection;
     if (reconnectedConnection === null || reconnectedConnection === firstConnection) {
       throw new Error("Expected a replacement directory connection");
     }
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(connectDirectory).toHaveBeenCalledTimes(2);
+
     const updatedDirectory = aDirectoryWith({
       trackers: [],
       liveTrackerId: null,
