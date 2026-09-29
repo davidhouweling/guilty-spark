@@ -6,6 +6,7 @@ import type { PlayerMatchHistory, MatchStats, PlaylistCsrContainer } from "halo-
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerViewMessageContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import {
+  INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS,
   editSeriesContract,
   editSeriesRequestSchema,
   endSeriesContract,
@@ -555,13 +556,13 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           ["lastActivity", lastActivity.toISOString()],
         ]),
       );
-      if (differenceInHours(new Date(), lastActivity) >= trackerState.idleTimeoutHours) {
+      if (differenceInHours(new Date(), lastActivity) >= INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS) {
         this.logService.info(
           "IndividualTracker: idle timeout reached, stopping tracker",
           new Map<string, JsonAny>([
             ["trackerId", trackerState.trackerId],
             ["gamertag", trackerState.gamertag],
-            ["idleTimeoutHours", trackerState.idleTimeoutHours],
+            ["idleTimeoutHours", INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS],
           ]),
         );
         trackerState.status = "stopped";
@@ -1214,7 +1215,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchIds: [],
       discoveredMatches: {},
       selectedMatchIds: [],
-      idleTimeoutHours: body.idleTimeoutHours,
+      idleTimeoutHours: INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS,
       errorState: {
         consecutiveErrors: 0,
         backoffMinutes: NORMAL_INTERVAL_MINUTES,
@@ -2634,7 +2635,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       startTime: state.startTime,
       lastUpdateTime: state.lastUpdateTime,
       searchStartTime: state.searchStartTime,
-      idleTimeoutHours: state.idleTimeoutHours,
+      idleTimeoutHours: INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS,
       hasActiveSeries: state.activeSeries != null,
     };
   }

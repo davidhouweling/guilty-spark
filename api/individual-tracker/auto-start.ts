@@ -6,7 +6,7 @@ import type { LiveTrackerService } from "../services/live-tracker/live-tracker";
 import type { LogService } from "../services/log/types";
 import type { NeatQueueService } from "../services/neatqueue/neatqueue";
 import { resolveSeriesSeed } from "./series-seed";
-import { DEFAULT_IDLE_TIMEOUT_HOURS, startTrackerDo } from "./start-tracker-do";
+import { startTrackerDo } from "./start-tracker-do";
 
 export interface AutoStartTrackerDeps {
   readonly databaseService: DatabaseService;
@@ -87,7 +87,6 @@ export async function autoStartTrackerIfNeeded(
       xuid: tracker.Xuid,
       gamertag: tracker.Gamertag,
       searchStartTime: new Date().toISOString(),
-      idleTimeoutHours: DEFAULT_IDLE_TIMEOUT_HOURS,
       ...(seriesSeed != null ? { seriesSeed } : {}),
     });
   } catch (error) {

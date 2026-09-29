@@ -26,7 +26,7 @@ function aFakeTrackerState(opts: {
     isPaused: opts.status === "paused",
     startTime: "2026-01-01T00:00:00.000Z",
     lastUpdateTime: "2026-01-01T00:00:00.000Z",
-    idleTimeoutHours: 6,
+    idleTimeoutHours: 1,
     hasActiveSeries: opts.hasActiveSeries ?? false,
   };
 }

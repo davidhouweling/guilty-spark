@@ -572,7 +572,7 @@ export class LiveTrackersPresenter {
   private async startTracker(gamertag: string, xuid: string): Promise<void> {
     this.updateSnapshot((s) => ({ ...s, busy: true, errorMessage: null }));
     try {
-      await this.config.individualTrackerService.startTracker({ idleTimeoutHours: 1, gamertag, xuid });
+      await this.config.individualTrackerService.startTracker({ gamertag, xuid });
       await this.refresh();
       const afterRefresh = this.getSnapshot();
       if (afterRefresh.runningTrackers.length === 1 && afterRefresh.activeTracker == null) {

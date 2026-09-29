@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { defineContract } from "../base";
 
+export const INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS = 1;
+
 export const trackerStatusSchema = z.enum(["active", "paused", "stopped"]);
 export type TrackerStatus = z.infer<typeof trackerStatusSchema>;
 
@@ -33,7 +35,6 @@ export const startTrackerRequestSchema = z.object({
   gamertag: z.string().min(1),
   xuid: z.string().min(1),
   searchStartTime: z.iso.datetime().optional(),
-  idleTimeoutHours: z.number().positive().optional(),
 });
 export type StartTrackerRequest = z.infer<typeof startTrackerRequestSchema>;
 

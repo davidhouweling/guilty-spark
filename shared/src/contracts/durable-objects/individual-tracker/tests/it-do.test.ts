@@ -24,7 +24,7 @@ const validState = {
   isPaused: false,
   startTime: "2024-11-26T11:00:00.000Z",
   lastUpdateTime: "2024-11-26T12:00:00.000Z",
-  idleTimeoutHours: 2,
+  idleTimeoutHours: 1,
 };
 
 describe("individualTrackerStateSchema", () => {
@@ -50,7 +50,6 @@ describe("individualTrackerStartRequestSchema", () => {
     xuid: "x1",
     gamertag: "MyTag",
     searchStartTime: "2024-11-26T11:00:00.000Z",
-    idleTimeoutHours: 2,
   };
 
   it("parses a valid start request", () => {
@@ -64,7 +63,6 @@ describe("individualTrackerStartRequestSchema", () => {
         trackerId: "t1",
         gamertag: "MyTag",
         searchStartTime: "2024-11-26T11:00:00.000Z",
-        idleTimeoutHours: 2,
       }).success,
     ).toBe(false);
   });
