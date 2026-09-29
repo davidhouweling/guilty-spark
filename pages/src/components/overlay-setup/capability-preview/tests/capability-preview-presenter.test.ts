@@ -4,6 +4,7 @@ import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual
 import { aDirectoryWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
+import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
 import { CapabilityPreviewStore } from "../capability-preview-store";
@@ -32,16 +33,19 @@ function createHarness(): {
   readonly store: CapabilityPreviewStore;
   readonly previewService: ReturnType<typeof aFakeOverlayPreviewServiceWith>;
   readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
+  readonly individualTrackerService: ReturnType<typeof aFakeIndividualTrackerServiceWith>;
 } {
   const store = new CapabilityPreviewStore();
   const previewService = aFakeOverlayPreviewServiceWith();
   const followLiveService = aFakeFollowLiveServiceWith();
+  const individualTrackerService = aFakeIndividualTrackerServiceWith();
   const presenter = new CapabilityPreviewPresenter({
     previewService,
     followLiveService,
+    individualTrackerService,
     store,
   });
-  return { presenter, store, previewService, followLiveService };
+  return { presenter, store, previewService, followLiveService, individualTrackerService };
 }
 
 describe("CapabilityPreviewPresenter", () => {
@@ -178,6 +182,48 @@ describe("CapabilityPreviewPresenter", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(connectDirectory).toHaveBeenCalledOnce();
+  });
+
+  it("starts only the supplied signed-in identity after an explicit action", async () => {
+    const { presenter, store, individualTrackerService } = createHarness();
+    const startTracker = vi.spyOn(individualTrackerService, "startTracker");
+    presenter.loadDirectory("Spartan One");
+    await vi.waitFor(() => { expect(store.getSnapshot().live.status).toBe("loaded"); });
+    expect(startTracker).not.toHaveBeenCalled();
+
+    presenter.startOwnTracker(null, null);
+    expect(startTracker).not.toHaveBeenCalled();
+    presenter.startOwnTracker("Spartan One", "my-xuid");
+    await vi.waitFor(() => { expect(startTracker).toHaveBeenCalledWith({ gamertag: "Spartan One", xuid: "my-xuid" }); });
+    await vi.waitFor(() => { expect(store.getSnapshot().live.isStarting).toBe(false); });
+  });
+
+  it("reports a failed explicit tracker start", async () => {
+    const { presenter, store, individualTrackerService } = createHarness();
+    vi.spyOn(individualTrackerService, "startTracker").mockRejectedValue(new Error("Start failed"));
+
+    presenter.startOwnTracker("Spartan One", "my-xuid");
+
+    await vi.waitFor(() => { expect(store.getSnapshot().live.startError).toBe("Start failed"); });
+    expect(store.getSnapshot().live.isStarting).toBe(false);
+  });
+
+  it("ignores a start completion after the authenticated directory is cleared", async () => {
+    const { presenter, store, individualTrackerService, followLiveService } = createHarness();
+    const response = await individualTrackerService.startTracker({ gamertag: "Spartan One", xuid: "my-xuid" });
+    const request = createDeferred<typeof response>();
+    vi.spyOn(individualTrackerService, "startTracker").mockReturnValueOnce(request.promise);
+    const getDirectory = vi.spyOn(followLiveService, "getDirectory");
+    presenter.loadDirectory("Spartan One");
+    await vi.waitFor(() => { expect(store.getSnapshot().live.status).toBe("loaded"); });
+
+    presenter.startOwnTracker("Spartan One", "my-xuid");
+    presenter.clearDirectory();
+    request.resolve(response);
+    await Promise.resolve();
+
+    expect(getDirectory).toHaveBeenCalledOnce();
+    expect(store.getSnapshot().live.status).toBe("idle");
   });
 
   it("loads matchmaking and series endpoint views independently", async () => {

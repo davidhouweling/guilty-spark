@@ -37,6 +37,17 @@ function renderPreviewContent(
         <div className={styles.previewState}>
           <div className={styles.liveEmpty}>
             <p>{content.isPaused ? "Your tracker is paused." : "No live tracker is running."}</p>
+            {content.startError != null ? <Alert variant="error">{content.startError}</Alert> : null}
+            {!content.isPaused ? (
+              <Button
+                onClick={props.onStartTracker}
+                disabled={!props.canStartTracker || content.isStarting}
+                loading={content.isStarting}
+              >
+                Start tracker
+              </Button>
+            ) : null}
+            {!content.isPaused && !props.canStartTracker ? <p>Connect your Xbox identity to start tracking.</p> : null}
             <Button href="/individual-tracker" variant="secondary" size="small">
               Manage trackers
             </Button>

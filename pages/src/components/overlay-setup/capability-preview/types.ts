@@ -21,6 +21,8 @@ export type CapabilityPreviewContent =
   | {
       readonly type: "live-empty";
       readonly isPaused: boolean;
+      readonly isStarting: boolean;
+      readonly startError: string | null;
     }
   | {
       readonly type: "live-overlay";
@@ -60,6 +62,8 @@ export interface CapabilityPreviewPageComponents {
 export interface CapabilityPreviewViewProps extends CapabilityPreviewViewModel, CapabilityPreviewPageComponents {
   readonly isZoomEnabled: boolean;
   readonly onLiveDirectoryChange: (directory: TrackerDirectory) => void;
+  readonly canStartTracker: boolean;
+  readonly onStartTracker: () => void;
   readonly onRetryDirectory: () => void;
   readonly onRetry: (mode: "matchmaking" | "series") => void;
   readonly onTabChange: (tab: CapabilityPreviewTab) => void;

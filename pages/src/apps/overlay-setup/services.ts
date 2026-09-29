@@ -5,12 +5,14 @@ import type { AuthService } from "../../services/auth/types";
 import { installFollowLiveService } from "../../services/follow/install";
 import type { FollowLiveService } from "../../services/follow/follow-types";
 import {
+  installIndividualTrackerService,
   installIndividualTrackerSettingsService,
   installIndividualTrackerViewService,
   installOverlayPreviewService,
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
+import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../services/individual-tracker/fakes/settings.fake";
 import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
@@ -22,6 +24,7 @@ import { getMode } from "../../services/mode";
 export interface Services {
   readonly authService: AuthService;
   readonly followLiveService: FollowLiveService;
+  readonly individualTrackerService: IndividualTrackerService;
   readonly haloClient: HaloInfiniteClient;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly overlayPreviewService: OverlayPreviewService;
@@ -50,6 +53,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     return {
       authService: new FakeAuthService(),
       followLiveService: await installFollowLiveService(apiHost),
+      individualTrackerService: await installIndividualTrackerService(apiHost, haloClient),
       haloClient,
       settingsService: aFakeIndividualTrackerSettingsServiceWith(),
       overlayPreviewService: await installOverlayPreviewService(apiHost),
@@ -76,11 +80,15 @@ export async function installServices(apiHost: string): Promise<Services> {
     installSeriesMatchesService(apiHost),
   ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
-  const followLiveService = await installFollowLiveService(apiHost);
+  const [followLiveService, individualTrackerService] = await Promise.all([
+    installFollowLiveService(apiHost),
+    installIndividualTrackerService(apiHost, haloClient),
+  ]);
 
   return {
     authService,
     followLiveService,
+    individualTrackerService,
     haloClient,
     settingsService,
     overlayPreviewService,

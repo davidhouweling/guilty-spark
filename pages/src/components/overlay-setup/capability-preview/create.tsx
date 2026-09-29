@@ -5,6 +5,7 @@ import type { CapabilityPreviewPresenter } from "./capability-preview-presenter"
 import { CapabilityPreview } from "./capability-preview";
 
 export interface CapabilityPreviewSectionProps extends CapabilityPreviewOptions {
+  readonly xboxXuid: string | null;
   readonly presenter: CapabilityPreviewPresenter;
   readonly identityKey: string;
   readonly settingsReady: boolean;
@@ -54,6 +55,10 @@ export function createCapabilityPreview(
         onLiveDirectoryChange={presenter.onFollowDirectoryChange}
         ViewerPage={config.ViewerPage}
         isZoomEnabled={isZoomEnabled}
+        canStartTracker={props.isAuthenticated && props.gamertag != null && props.xboxXuid != null}
+        onStartTracker={(): void => {
+          presenter.startOwnTracker(props.gamertag, props.xboxXuid);
+        }}
         onRetryDirectory={(): void => {
           presenter.retryDirectory();
         }}

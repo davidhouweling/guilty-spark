@@ -7,8 +7,10 @@ import userEvent from "@testing-library/user-event";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
+import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
+import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
@@ -91,6 +93,8 @@ interface RenderPreviewOptions {
   readonly previewMode: "player" | "observer";
   readonly previewService: OverlayPreviewService;
   readonly directory?: TrackerDirectory | undefined;
+  readonly individualTrackerService?: IndividualTrackerService | undefined;
+  readonly xboxXuid?: string | null | undefined;
   readonly pages: ReturnType<typeof createPageComponents>;
 }
 
@@ -99,6 +103,7 @@ function renderCapabilityPreview(options: RenderPreviewOptions): void {
   const presenter = new CapabilityPreviewPresenter({
     previewService: options.previewService,
     followLiveService: options.pages.followLiveService,
+    individualTrackerService: options.individualTrackerService ?? aFakeIndividualTrackerServiceWith(),
     store,
   });
   if (options.directory !== undefined && options.isAuthenticated && options.gamertag != null) {
@@ -118,6 +123,7 @@ function renderCapabilityPreview(options: RenderPreviewOptions): void {
       identityKey={identityKey}
       settingsReady
       gamertag={options.gamertag}
+      xboxXuid={options.xboxXuid ?? null}
       isAuthenticated={options.isAuthenticated}
       previewMode={options.previewMode}
       streamerSettings={undefined}
@@ -220,17 +226,22 @@ describe("CapabilityPreview", () => {
     const user = userEvent.setup();
     const directory = aDirectoryWith({ trackers: [], liveTrackerId: null });
     const pages = createPageComponents(directory);
+    const individualTrackerService = aFakeIndividualTrackerServiceWith();
+    const startTracker = vi.spyOn(individualTrackerService, "startTracker");
     renderCapabilityPreview({
       gamertag: "Spartan One",
+      xboxXuid: "my-xuid",
       isAuthenticated: true,
       previewMode: "player",
       directory,
+      individualTrackerService,
       previewService: aFakeOverlayPreviewServiceWith(),
       pages,
     });
     const liveTab = screen.getByRole("button", { name: "Live overlay, offline" });
     await user.click(liveTab);
     expect(await screen.findByText("No live tracker is running.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start tracker" })).toBeEnabled();
     expect(liveTab.querySelector('[class*="liveDotActive"]')).toBeNull();
     expect(screen.queryByRole("button", { name: "Zoom preview" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("preview-stage")).not.toBeInTheDocument();
@@ -239,6 +250,10 @@ describe("CapabilityPreview", () => {
     expect(manageLink).toHaveAttribute("href", "/individual-tracker");
     expect(manageLink.className).toContain("btnSecondary");
     expect(manageLink.closest('[class*="previewFrame"]')).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Start tracker" }));
+    await waitFor(() => {
+      expect(startTracker).toHaveBeenCalledWith({ gamertag: "Spartan One", xuid: "my-xuid" });
+    });
 
     expect(screen.queryByText("No active tracker — waiting for a live game")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Series overlay" }));

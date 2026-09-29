@@ -2,10 +2,11 @@ import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individu
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type {
-  FollowLiveService,
   DirectoryConnection,
   DirectorySubscription,
+  FollowLiveService,
 } from "../../../services/follow/follow-types";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { OverlayPreviewService } from "../../../services/individual-tracker/overlay-preview-types";
 import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { OVERLAY_SETUP_DEMO_GAMERTAG } from "../overlay-setup-presenter";
@@ -15,6 +16,7 @@ import type { CapabilityPreviewOptions, CapabilityPreviewViewModel } from "./typ
 interface Config {
   readonly previewService: OverlayPreviewService;
   readonly followLiveService: FollowLiveService;
+  readonly individualTrackerService: IndividualTrackerService;
   readonly store: CapabilityPreviewStore;
 }
 
@@ -31,6 +33,7 @@ export class CapabilityPreviewPresenter {
   private directoryStatusSubscription: DirectorySubscription | null = null;
   private directoryReconnectAttempt = 0;
   private directoryReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private startRequestId = 0;
   private isDisposed = false;
 
   public constructor(config: Config) {
@@ -79,6 +82,7 @@ export class CapabilityPreviewPresenter {
 
   public clearDirectory(): void {
     this.directoryRequestId++;
+    this.startRequestId++;
     this.directoryGamertag = null;
     this.disconnectDirectoryObserver();
     this.config.store.clearDirectory();
@@ -88,6 +92,13 @@ export class CapabilityPreviewPresenter {
     if (this.directoryGamertag != null) {
       void this.loadDirectoryAsync(this.directoryGamertag);
     }
+  }
+
+  public startOwnTracker(gamertag: string | null, xuid: string | null): void {
+    if (gamertag == null || xuid == null || this.config.store.getSnapshot().live.isStarting) {
+      return;
+    }
+    void this.startOwnTrackerAsync(gamertag, xuid);
   }
 
   public present(snapshot: CapabilityPreviewSnapshot, options: CapabilityPreviewOptions): CapabilityPreviewViewModel {
@@ -140,6 +151,8 @@ export class CapabilityPreviewPresenter {
       return {
         type: "live-empty",
         isPaused: live.directory?.trackers.some((entry) => entry.status === "paused") ?? false,
+        isStarting: live.isStarting,
+        startError: live.startError,
       };
     }
     return {
@@ -205,12 +218,32 @@ export class CapabilityPreviewPresenter {
   public dispose(): void {
     this.isDisposed = true;
     this.directoryRequestId++;
+    this.startRequestId++;
     this.directoryGamertag = null;
     this.disconnectDirectoryObserver();
     this.identityKey = undefined;
     this.settingsKeys.clear();
     for (const mode of ["matchmaking", "series"] as const) {
       this.requestIds.set(mode, (this.requestIds.get(mode) ?? 0) + 1);
+    }
+  }
+
+  private async startOwnTrackerAsync(gamertag: string, xuid: string): Promise<void> {
+    const requestId = ++this.startRequestId;
+    this.config.store.setStarting(true);
+    try {
+      await this.config.individualTrackerService.startTracker({ gamertag, xuid });
+      if (!this.isDisposed && requestId === this.startRequestId && gamertag === this.directoryGamertag) {
+        await this.loadDirectoryAsync(gamertag);
+      }
+    } catch (error) {
+      if (!this.isDisposed && requestId === this.startRequestId) {
+        this.config.store.setStarting(false, error instanceof Error ? error.message : "Failed to start tracker");
+      }
+      return;
+    }
+    if (!this.isDisposed && requestId === this.startRequestId) {
+      this.config.store.setStarting(false);
     }
   }
 
