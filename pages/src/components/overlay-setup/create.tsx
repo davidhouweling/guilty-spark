@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
+import type { FollowLiveService } from "../../services/follow/follow-types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
@@ -27,6 +28,7 @@ import styles from "./overlay-setup.module.css";
 
 export interface CreateOverlaySetupPageConfig {
   readonly authService: AuthService;
+  readonly followLiveService: FollowLiveService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly haloClient: HaloInfiniteClient;
   readonly overlayPreviewService: OverlayPreviewService;
@@ -87,6 +89,14 @@ function OverlaySetupPageInternal({
     }
     settingsPresenter.loadDemoSettings(snapshot.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG);
   }, [settingsPresenter, snapshot.authState, snapshot.gamertag]);
+
+  useEffect(() => {
+    if (snapshot.authState === "authenticated" && snapshot.gamertag != null) {
+      previewPresenter.loadLiveDirectory(snapshot.gamertag);
+    } else {
+      previewPresenter.clearLiveDirectory();
+    }
+  }, [previewPresenter, snapshot.authState, snapshot.gamertag]);
 
   useEffect(() => {
     return (): void => {
@@ -344,9 +354,10 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
       () =>
         new CapabilityPreviewPresenter({
           previewService: config.overlayPreviewService,
+          followLiveService: config.followLiveService,
           store: previewStore,
         }),
-      [config.overlayPreviewService, previewStore],
+      [config.followLiveService, config.overlayPreviewService, previewStore],
     );
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),

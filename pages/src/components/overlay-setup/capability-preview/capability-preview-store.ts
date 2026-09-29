@@ -2,6 +2,7 @@ import type {
   OverlayPreviewMode,
   OverlayPreviewResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { CapabilityPreviewTab } from "./types";
 
 export type CapabilityPreviewModeSnapshot =
@@ -12,6 +13,11 @@ export type CapabilityPreviewModeSnapshot =
 
 export interface CapabilityPreviewSnapshot {
   readonly activeTab: CapabilityPreviewTab;
+  readonly liveDirectory: {
+    readonly status: "idle" | "loading" | "loaded" | "error";
+    readonly data: TrackerDirectory | null;
+    readonly errorMessage: string | null;
+  };
   readonly matchmaking: CapabilityPreviewModeSnapshot;
   readonly series: CapabilityPreviewModeSnapshot;
 }
@@ -25,6 +31,7 @@ export class CapabilityPreviewStore {
   public constructor(activeTab: CapabilityPreviewTab = "matchmaking") {
     this.snapshot = {
       activeTab,
+      liveDirectory: { status: "idle", data: null, errorMessage: null },
       matchmaking: IDLE_MODE,
       series: IDLE_MODE,
     };
@@ -48,6 +55,22 @@ export class CapabilityPreviewStore {
       return;
     }
     this.update({ activeTab });
+  }
+
+  public setLiveDirectoryLoading(): void {
+    this.update({ liveDirectory: { ...this.snapshot.liveDirectory, status: "loading", errorMessage: null } });
+  }
+
+  public setLiveDirectory(data: TrackerDirectory): void {
+    this.update({ liveDirectory: { status: "loaded", data, errorMessage: null } });
+  }
+
+  public setLiveDirectoryError(errorMessage: string): void {
+    this.update({ liveDirectory: { ...this.snapshot.liveDirectory, status: "error", errorMessage } });
+  }
+
+  public clearLiveDirectory(): void {
+    this.update({ liveDirectory: { status: "idle", data: null, errorMessage: null } });
   }
 
   public setLoaded(mode: OverlayPreviewMode, response: OverlayPreviewResponse): void {

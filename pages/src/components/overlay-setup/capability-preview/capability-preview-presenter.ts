@@ -1,5 +1,7 @@
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { OverlayPreviewService } from "../../../services/individual-tracker/overlay-preview-types";
 import { OVERLAY_SETUP_DEMO_GAMERTAG } from "../overlay-setup-presenter";
 import type { CapabilityPreviewSnapshot, CapabilityPreviewStore } from "./capability-preview-store";
@@ -7,6 +9,7 @@ import type { CapabilityPreviewOptions, CapabilityPreviewViewModel } from "./typ
 
 interface Config {
   readonly previewService: OverlayPreviewService;
+  readonly followLiveService: FollowLiveService;
   readonly store: CapabilityPreviewStore;
 }
 
@@ -15,6 +18,8 @@ export class CapabilityPreviewPresenter {
   private readonly requestIds = new Map<OverlayPreviewMode, number>();
   private readonly settingsKeys = new Map<OverlayPreviewMode, string>();
   private identityKey: string | undefined;
+  private directoryRequestId = 0;
+  private directoryGamertag: string | null = null;
   private isDisposed = false;
 
   public constructor(config: Config) {
@@ -24,6 +29,35 @@ export class CapabilityPreviewPresenter {
   public subscribe = (listener: () => void): (() => void) => this.config.store.subscribe(listener);
 
   public getSnapshot = (): CapabilityPreviewSnapshot => this.config.store.getSnapshot();
+
+  public loadLiveDirectory(gamertag: string): void {
+    if (!this.isDisposed && this.directoryGamertag === gamertag) {
+      return;
+    }
+    this.isDisposed = false;
+    this.directoryGamertag = gamertag;
+    void this.loadLiveDirectoryAsync(gamertag);
+  }
+
+  public onFollowDirectoryChange(directory: TrackerDirectory): void {
+    if (this.isDisposed) {
+      return;
+    }
+    this.directoryRequestId++;
+    this.config.store.setLiveDirectory(directory);
+  }
+
+  public clearLiveDirectory(): void {
+    this.directoryRequestId++;
+    this.directoryGamertag = null;
+    this.config.store.clearLiveDirectory();
+  }
+
+  public retryLiveDirectory(): void {
+    if (this.directoryGamertag != null) {
+      void this.loadLiveDirectoryAsync(this.directoryGamertag);
+    }
+  }
 
   public selectTab(tab: CapabilityPreviewSnapshot["activeTab"]): void {
     this.config.store.setActiveTab(tab);
@@ -102,10 +136,28 @@ export class CapabilityPreviewPresenter {
 
   public dispose(): void {
     this.isDisposed = true;
+    this.directoryRequestId++;
+    this.directoryGamertag = null;
     this.identityKey = undefined;
     this.settingsKeys.clear();
     for (const mode of ["matchmaking", "series"] as const) {
       this.requestIds.set(mode, (this.requestIds.get(mode) ?? 0) + 1);
+    }
+  }
+
+  private async loadLiveDirectoryAsync(gamertag: string): Promise<void> {
+    const requestId = ++this.directoryRequestId;
+    this.config.store.setLiveDirectoryLoading();
+    try {
+      const directory = await this.config.followLiveService.getDirectory(gamertag);
+      if (this.isDisposed || requestId !== this.directoryRequestId) {
+        return;
+      }
+      this.config.store.setLiveDirectory(directory);
+    } catch (error) {
+      if (!this.isDisposed && requestId === this.directoryRequestId) {
+        this.config.store.setLiveDirectoryError(error instanceof Error ? error.message : "Failed to load live tracker");
+      }
     }
   }
 
