@@ -5,6 +5,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
+import { aFakeFollowLiveServiceWith } from "../../../services/follow/fakes/follow.fake";
 import type { IndividualTrackerSettingsService } from "../../../services/individual-tracker/settings-types";
 import { aFakeOverlayPreviewServiceWith } from "../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
@@ -24,6 +25,7 @@ vi.mock("../../icons/team-icon", () => ({
 
 function previewDependencies(): Pick<
   CreateOverlaySetupPageConfig,
+  | "followLiveService"
   | "haloClient"
   | "overlayPreviewService"
   | "individualTrackerViewService"
@@ -33,6 +35,7 @@ function previewDependencies(): Pick<
 > {
   const haloClient = aFakeHaloClientWith();
   return {
+    followLiveService: aFakeFollowLiveServiceWith(),
     haloClient,
     overlayPreviewService: aFakeOverlayPreviewServiceWith(),
     individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OverlayPreviewResponse } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import { aDirectoryWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
 import { CapabilityPreviewStore } from "../capability-preview-store";
@@ -28,19 +31,61 @@ function createHarness(): {
   readonly presenter: CapabilityPreviewPresenter;
   readonly store: CapabilityPreviewStore;
   readonly previewService: ReturnType<typeof aFakeOverlayPreviewServiceWith>;
+  readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
 } {
   const store = new CapabilityPreviewStore();
   const previewService = aFakeOverlayPreviewServiceWith();
+  const followLiveService = aFakeFollowLiveServiceWith();
   const presenter = new CapabilityPreviewPresenter({
     previewService,
+    followLiveService,
     store,
   });
-  return { presenter, store, previewService };
+  return { presenter, store, previewService, followLiveService };
 }
 
 describe("CapabilityPreviewPresenter", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("loads the authenticated directory without issuing preview requests", async () => {
+    const { presenter, store, previewService, followLiveService } = createHarness();
+    const getDirectory = vi.spyOn(followLiveService, "getDirectory");
+    const getPreview = vi.spyOn(previewService, "getPreview");
+
+    presenter.loadLiveDirectory("Spartan One");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().liveDirectory.status).toBe("loaded");
+    });
+
+    expect(getDirectory).toHaveBeenCalledWith("Spartan One");
+    expect(getPreview).not.toHaveBeenCalled();
+  });
+
+  it("applies newer follow-directory updates and clears them on sign-out", () => {
+    const { presenter, store } = createHarness();
+    const directory = aDirectoryWith();
+
+    presenter.onFollowDirectoryChange(directory);
+    expect(store.getSnapshot().liveDirectory.data?.liveTrackerId).toBe("tracker-1");
+
+    presenter.clearLiveDirectory();
+    expect(store.getSnapshot().liveDirectory).toEqual({ status: "idle", data: null, errorMessage: null });
+  });
+
+  it("ignores a stale directory response after clearing the identity", async () => {
+    const { presenter, store, followLiveService } = createHarness();
+    const request = createDeferred<TrackerDirectory>();
+    vi.spyOn(followLiveService, "getDirectory").mockReturnValueOnce(request.promise);
+
+    presenter.loadLiveDirectory("Spartan One");
+    presenter.clearLiveDirectory();
+    request.resolve(aDirectoryWith());
+    await Promise.resolve();
+
+    expect(store.getSnapshot().liveDirectory.status).toBe("idle");
+    expect(store.getSnapshot().liveDirectory.data).toBeNull();
   });
 
   it("loads matchmaking and series endpoint views independently", async () => {

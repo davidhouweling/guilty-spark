@@ -4,6 +4,7 @@ import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
@@ -76,7 +77,11 @@ interface RenderPreviewOptions {
 
 function renderCapabilityPreview(options: RenderPreviewOptions): void {
   const store = new CapabilityPreviewStore();
-  const presenter = new CapabilityPreviewPresenter({ previewService: options.previewService, store });
+  const presenter = new CapabilityPreviewPresenter({
+    previewService: options.previewService,
+    followLiveService: aFakeFollowLiveServiceWith(),
+    store,
+  });
   const identityKey = options.isAuthenticated ? `authenticated:${options.gamertag ?? ""}` : "demo";
   const activateMode = (tab: CapabilityPreviewTab): void => {
     presenter.load(tab === "viewer" ? "matchmaking" : tab, undefined, identityKey);

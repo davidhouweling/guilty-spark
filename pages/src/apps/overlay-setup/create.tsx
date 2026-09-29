@@ -20,6 +20,7 @@ export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement
         ? null
         : createOverlaySetupPage({
             authService: services.authService,
+            followLiveService: services.followLiveService,
             settingsService: services.settingsService,
             haloClient: services.haloClient,
             overlayPreviewService: services.overlayPreviewService,

@@ -2,6 +2,8 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
 import { installAuthService } from "../../services/auth/install";
 import type { AuthService } from "../../services/auth/types";
+import { installFollowLiveService } from "../../services/follow/install";
+import type { FollowLiveService } from "../../services/follow/follow-types";
 import {
   installIndividualTrackerSettingsService,
   installIndividualTrackerViewService,
@@ -19,6 +21,7 @@ import { getMode } from "../../services/mode";
 
 export interface Services {
   readonly authService: AuthService;
+  readonly followLiveService: FollowLiveService;
   readonly haloClient: HaloInfiniteClient;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly overlayPreviewService: OverlayPreviewService;
@@ -46,6 +49,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     const haloClient = aFakeHaloClientWith();
     return {
       authService: new FakeAuthService(),
+      followLiveService: await installFollowLiveService(apiHost),
       haloClient,
       settingsService: aFakeIndividualTrackerSettingsServiceWith(),
       overlayPreviewService: await installOverlayPreviewService(apiHost),
@@ -72,9 +76,11 @@ export async function installServices(apiHost: string): Promise<Services> {
     installSeriesMatchesService(apiHost),
   ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
+  const followLiveService = await installFollowLiveService(apiHost);
 
   return {
     authService,
+    followLiveService,
     haloClient,
     settingsService,
     overlayPreviewService,
