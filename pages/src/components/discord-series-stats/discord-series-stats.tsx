@@ -25,14 +25,18 @@ export function DiscordSeriesStatsView({ title, subtitle, ...stats }: DiscordSer
   return (
     <>
       <title>{documentTitle}</title>
-      <Container className={styles.pageHeader}>
-        <Heading tagName="h1" styleAs="h3">
-          {title}
-        </Heading>
-        <p className={styles.subtitle}>{subtitle}</p>
+      <Container wide className={styles.pageHeader}>
+        <div className={styles.headerBar}>
+          <div className={styles.headerLeft}>
+            <Heading tagName="h1" styleAs="h3">
+              {title}
+            </Heading>
+            <div className={styles.headerSubtitle}>{subtitle}</div>
+          </div>
+        </div>
       </Container>
       <div className={styles.content}>
-        <SharedSeriesStatsView title={title} subtitle={subtitle} showSeriesTitle={true} {...stats} />
+        <SharedSeriesStatsView title={title} subtitle={subtitle} showSeriesTitle={true} wide={true} {...stats} />
       </div>
     </>
   );
