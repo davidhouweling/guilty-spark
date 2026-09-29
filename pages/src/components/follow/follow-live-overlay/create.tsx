@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
@@ -22,6 +23,7 @@ export interface FollowLiveOverlayProps {
   readonly gamertag: string;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
+  readonly onDirectoryChange?: ((directory: TrackerDirectory) => void) | undefined;
 }
 
 export function createFollowLiveOverlay({
@@ -36,6 +38,7 @@ export function createFollowLiveOverlay({
     gamertag,
     showPreview = false,
     previewMode = "observer",
+    onDirectoryChange,
   }: FollowLiveOverlayProps): React.ReactElement {
     const presenter = useMemo(() => new FollowLiveOverlayPresenter(), []);
     const { directory, directoryStatus } = useFollowLiveDirectory({
@@ -48,8 +51,16 @@ export function createFollowLiveOverlay({
     );
 
     useEffect(() => {
-      document.title = model.title;
-    }, [model.title]);
+      if (!showPreview) {
+        document.title = model.title;
+      }
+    }, [model.title, showPreview]);
+
+    useEffect(() => {
+      if (directory != null) {
+        onDirectoryChange?.(directory);
+      }
+    }, [directory, onDirectoryChange]);
 
     return (
       <FollowLiveOverlay

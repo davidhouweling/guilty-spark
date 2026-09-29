@@ -46,7 +46,11 @@ vi.mock("../../../individual-tracker/overlay/create", () => ({
 
 function createFollowLiveOverlayWith(
   directory: TrackerDirectory,
-  options: { readonly showPreview?: boolean; readonly previewMode?: "player" | "observer" } = {},
+  options: {
+    readonly showPreview?: boolean | undefined;
+    readonly previewMode?: "player" | "observer" | undefined;
+    readonly onDirectoryChange?: ((directory: TrackerDirectory) => void) | undefined;
+  } = {},
   followLiveService = aFakeFollowLiveServiceWith({ directory }),
   individualTrackerViewService = aFakeIndividualTrackerViewServiceWith(),
 ): {
@@ -70,6 +74,7 @@ function createFollowLiveOverlayWith(
         gamertag="Spartan One"
         showPreview={options.showPreview ?? false}
         previewMode={options.previewMode ?? "observer"}
+        onDirectoryChange={options.onDirectoryChange}
       />
     ),
     followLiveService,
@@ -103,6 +108,58 @@ describe("FollowLiveOverlayCreate", () => {
     expect(screen.getByAltText("Connection healthy")).toBeInTheDocument();
   });
 
+  it("switches the rendered overlay when the user directory selects another live tracker", async () => {
+    const initialDirectory = aDirectoryWith();
+    const { element, followLiveService } = createFollowLiveOverlayWith(initialDirectory);
+    render(element);
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-1:false:observer");
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitDirectory(
+        aDirectoryWith({
+          trackers: [
+            aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+            aTrackerWith({ trackerId: "tracker-2", isLive: true }),
+          ],
+          liveTrackerId: "tracker-2",
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
+    });
+  });
+
+  it("calls onDirectoryChange with the initial and updated user directories", async () => {
+    const initialDirectory = aDirectoryWith();
+    const onDirectoryChange = vi.fn<(directory: TrackerDirectory) => void>();
+    const { element, followLiveService } = createFollowLiveOverlayWith(initialDirectory, { onDirectoryChange });
+
+    render(element);
+
+    await waitFor(() => {
+      expect(onDirectoryChange).toHaveBeenNthCalledWith(1, initialDirectory);
+    });
+
+    const updatedDirectory = aDirectoryWith({
+      trackers: [
+        aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+        aTrackerWith({ trackerId: "tracker-2", isLive: true }),
+      ],
+      liveTrackerId: "tracker-2",
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitDirectory(updatedDirectory);
+    });
+
+    await waitFor(() => {
+      expect(onDirectoryChange).toHaveBeenNthCalledWith(2, updatedDirectory);
+    });
+  });
+
   it("forwards preview flags to the overlay page", async () => {
     const directory = aDirectoryWith({
       trackers: [aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" })],
@@ -114,6 +171,7 @@ describe("FollowLiveOverlayCreate", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-3:true:player");
     });
+    expect(document.title).toBe("");
   });
 
   it("shows waiting state when no active tracker is available", async () => {
