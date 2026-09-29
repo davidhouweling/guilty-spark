@@ -4,6 +4,7 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { Alert } from "../alert/alert";
 import type { AuthService } from "../../services/auth/types";
 import type { FollowLiveService } from "../../services/follow/follow-types";
+import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
@@ -30,6 +31,7 @@ import styles from "./overlay-setup.module.css";
 export interface CreateOverlaySetupPageConfig {
   readonly authService: AuthService;
   readonly followLiveService: FollowLiveService;
+  readonly individualTrackerService: IndividualTrackerService;
   readonly settingsService: IndividualTrackerSettingsService;
   readonly haloClient: HaloInfiniteClient;
   readonly overlayPreviewService: OverlayPreviewService;
@@ -275,6 +277,7 @@ function OverlaySetupPageInternal({
           identityKey={previewIdentityKey}
           settingsReady={previewSettingsReady}
           gamertag={snapshot.gamertag}
+          xboxXuid={snapshot.xboxXuid}
           isAuthenticated={snapshot.authState === "authenticated"}
           previewMode={settingsSnapshot.defaultColorMode}
           streamerSettings={previewStreamerSettings}
@@ -377,9 +380,10 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
         new CapabilityPreviewPresenter({
           previewService: config.overlayPreviewService,
           followLiveService: config.followLiveService,
+          individualTrackerService: config.individualTrackerService,
           store: previewStore,
         }),
-      [config.followLiveService, config.overlayPreviewService, previewStore],
+      [config.followLiveService, config.individualTrackerService, config.overlayPreviewService, previewStore],
     );
     const settingsPresenter = useMemo(
       () => new StreamerSettingsPresenter({ settingsService: config.settingsService, store: settingsStore }),

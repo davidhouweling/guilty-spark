@@ -18,6 +18,8 @@ export interface CapabilityPreviewSnapshot {
     readonly status: "idle" | "loading" | "loaded" | "error";
     readonly directory: TrackerDirectory | null;
     readonly errorMessage: string | null;
+    readonly isStarting: boolean;
+    readonly startError: string | null;
   };
   readonly matchmaking: CapabilityPreviewModeSnapshot;
   readonly series: CapabilityPreviewModeSnapshot;
@@ -34,7 +36,7 @@ export class CapabilityPreviewStore {
     this.snapshot = {
       activeTab,
       hasSelectedTab: false,
-      live: { status: "idle", directory: null, errorMessage: null },
+      live: { status: "idle", directory: null, errorMessage: null, isStarting: false, startError: null },
       matchmaking: IDLE_MODE,
       series: IDLE_MODE,
     };
@@ -78,7 +80,7 @@ export class CapabilityPreviewStore {
     this.initialDirectoryResolved = false;
     this.update({
       activeTab: this.snapshot.activeTab === "live" ? "series" : this.snapshot.activeTab,
-      live: { status: "idle", directory: null, errorMessage: null },
+      live: { status: "idle", directory: null, errorMessage: null, isStarting: false, startError: null },
     });
   }
 
@@ -88,6 +90,10 @@ export class CapabilityPreviewStore {
 
   public setDirectoryError(message: string): void {
     this.update({ live: { ...this.snapshot.live, status: "error", errorMessage: message } });
+  }
+
+  public setStarting(isStarting: boolean, startError: string | null = null): void {
+    this.update({ live: { ...this.snapshot.live, isStarting, startError } });
   }
 
   public setLoaded(mode: OverlayPreviewMode, response: OverlayPreviewResponse): void {
