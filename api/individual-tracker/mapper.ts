@@ -1,4 +1,5 @@
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
+import { INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { Tracker, TrackerState } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
   TrackerActiveSeriesContext,
@@ -74,7 +75,7 @@ function toTrackerState(state: IndividualTrackerDoState): TrackerState {
     startTime: state.startTime,
     lastUpdateTime: state.lastUpdateTime,
     searchStartTime: state.searchStartTime,
-    idleTimeoutHours: state.idleTimeoutHours,
+    idleTimeoutHours: INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS,
     hasActiveSeries: state.hasActiveSeries ?? false,
   };
 }

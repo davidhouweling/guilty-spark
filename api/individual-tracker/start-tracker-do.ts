@@ -4,8 +4,6 @@ import type {
   IndividualTrackerStartRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/lifecycle";
 
-export const DEFAULT_IDLE_TIMEOUT_HOURS = 6;
-
 export function trackerDoStub(env: Env, userId: string, trackerId: string): DurableObjectStub {
   const doId = env.INDIVIDUAL_TRACKER_DO.idFromName(`${userId}:${trackerId}`);
   return env.INDIVIDUAL_TRACKER_DO.get(doId);

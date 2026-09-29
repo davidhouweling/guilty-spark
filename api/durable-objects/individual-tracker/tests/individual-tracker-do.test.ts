@@ -75,7 +75,6 @@ const createMockStartRequest = (
   xuid: "test-xuid",
   gamertag: "TestGamertag",
   searchStartTime: new Date().toISOString(),
-  idleTimeoutHours: 6,
   ...overrides,
 });
 
@@ -198,7 +197,7 @@ describe("IndividualTrackerDO", () => {
       expect(body.state.status).toBe("active");
       expect(body.state.isPaused).toBe(false);
       expect(body.state.gamertag).toBe("TestGamertag");
-      expect(body.state.idleTimeoutHours).toBe(6);
+      expect(body.state.idleTimeoutHours).toBe(1);
     });
 
     it("persists initial state with active status and zero check count", async () => {
@@ -3057,12 +3056,13 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.lastMatchDiscoveredAt).toBeUndefined();
     });
 
-    it("auto-stops, deletes the alarm, and flushes state when idle beyond idleTimeoutHours", async () => {
+    it("auto-stops after one hour even when persisted state has a longer legacy timeout", async () => {
+      const lastActivity = new Date(Date.now() - 61 * 60 * 1000).toISOString();
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           idleTimeoutHours: 6,
-          startTime: "2024-11-26T05:00:00.000Z",
-          lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+          startTime: lastActivity,
+          lastMatchDiscoveredAt: lastActivity,
         }),
       );
 
@@ -3073,6 +3073,22 @@ describe("IndividualTrackerDO", () => {
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
+    });
+
+    it("does not auto-stop before one hour of inactivity", async () => {
+      const lastActivity = new Date(Date.now() - 59 * 60 * 1000).toISOString();
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          idleTimeoutHours: 6,
+          startTime: lastActivity,
+          lastMatchDiscoveredAt: lastActivity,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      expect(storageDeleteSpy).not.toHaveBeenCalledWith("individualTrackerState");
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
     });
 
     it("marks the registry row stopped when it auto-stops on idle timeout", async () => {

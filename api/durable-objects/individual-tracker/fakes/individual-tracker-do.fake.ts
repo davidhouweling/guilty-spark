@@ -82,7 +82,7 @@ export function aFakeIndividualTrackerInternalStateWith(
     matchIds: [],
     discoveredMatches: {},
     selectedMatchIds: [],
-    idleTimeoutHours: 6,
+    idleTimeoutHours: 1,
     errorState: {
       consecutiveErrors: 0,
       backoffMinutes: 0.5,
@@ -102,7 +102,7 @@ export function aFakeIndividualTrackerStateWith(opts: Partial<IndividualTrackerS
     isPaused: false,
     startTime: new Date().toISOString(),
     lastUpdateTime: new Date().toISOString(),
-    idleTimeoutHours: 6,
+    idleTimeoutHours: 1,
     hasActiveSeries: false,
     ...opts,
   };

@@ -49,12 +49,7 @@ import type { LogService } from "../../services/log/types";
 import type { CreateTrackerOptions } from "../../services/individual-tracker/types";
 import { toTracker } from "../../individual-tracker/mapper";
 import { resolveSeriesSeed } from "../../individual-tracker/series-seed";
-import {
-  assertDoOk,
-  DEFAULT_IDLE_TIMEOUT_HOURS,
-  startTrackerDo,
-  trackerDoStub,
-} from "../../individual-tracker/start-tracker-do";
+import { assertDoOk, startTrackerDo, trackerDoStub } from "../../individual-tracker/start-tracker-do";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
 
@@ -294,7 +289,6 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         xuid: tracker.Xuid,
         gamertag: tracker.Gamertag,
         searchStartTime: parsed.data.searchStartTime ?? new Date().toISOString(),
-        idleTimeoutHours: parsed.data.idleTimeoutHours ?? DEFAULT_IDLE_TIMEOUT_HOURS,
         ...(seriesSeed != null ? { seriesSeed } : {}),
       };
 

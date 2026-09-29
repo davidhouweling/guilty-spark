@@ -27,7 +27,6 @@ export const individualTrackerStartRequestSchema = z.object({
   xuid: z.string(),
   gamertag: z.string(),
   searchStartTime: z.string(),
-  idleTimeoutHours: z.number(),
   seriesSeed: individualTrackerSeriesSeedSchema.optional(),
 });
 export type IndividualTrackerStartRequest = z.infer<typeof individualTrackerStartRequestSchema>;

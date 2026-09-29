@@ -12,7 +12,6 @@ function aStartRequest(overrides: Partial<IndividualTrackerStartRequest> = {}): 
     xuid: "xuid-1",
     gamertag: "Chief",
     searchStartTime: "2026-08-01T00:00:00.000Z",
-    idleTimeoutHours: 6,
     ...overrides,
   };
 }
