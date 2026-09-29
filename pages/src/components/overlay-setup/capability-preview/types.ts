@@ -61,8 +61,8 @@ export interface CapabilityPreviewPageComponents {
 
 export interface CapabilityPreviewViewProps extends CapabilityPreviewViewModel, CapabilityPreviewPageComponents {
   readonly isZoomEnabled: boolean;
-  readonly onLiveDirectoryChange: (directory: TrackerDirectory) => void;
   readonly canStartTracker: boolean;
+  readonly onLiveDirectoryChange: (directory: TrackerDirectory) => void;
   readonly onStartTracker: () => void;
   readonly onRetryDirectory: () => void;
   readonly onRetry: (mode: "matchmaking" | "series") => void;

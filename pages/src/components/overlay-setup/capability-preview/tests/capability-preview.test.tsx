@@ -268,6 +268,27 @@ describe("CapabilityPreview", () => {
     expect(screen.queryByText("No live tracker is running.")).not.toBeInTheDocument();
   });
 
+  it("does not treat another gamertag's paused tracker as the signed-in user's tracker", async () => {
+    const directory = aDirectoryWith({
+      trackers: [aTrackerWith({ trackerId: "other-tracker", gamertag: "Other Spartan", status: "paused" })],
+      liveTrackerId: null,
+    });
+    renderCapabilityPreview({
+      gamertag: "Spartan One",
+      xboxXuid: "my-xuid",
+      isAuthenticated: true,
+      previewMode: "player",
+      directory,
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages: createPageComponents(directory),
+    });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Live overlay, offline" }));
+
+    expect(await screen.findByText("No live tracker is running.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start tracker" })).toBeEnabled();
+  });
+
   it("switches real endpoint views and labels the demo identity", async () => {
     const user = userEvent.setup();
     const previewService = aFakeOverlayPreviewServiceWith();

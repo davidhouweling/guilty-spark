@@ -150,7 +150,10 @@ export class CapabilityPreviewPresenter {
     if (tracker == null) {
       return {
         type: "live-empty",
-        isPaused: live.directory?.trackers.some((entry) => entry.status === "paused") ?? false,
+        isPaused:
+          live.directory?.trackers.some(
+            (entry) => entry.status === "paused" && entry.gamertag.toLowerCase() === options.gamertag?.toLowerCase(),
+          ) ?? false,
         isStarting: live.isStarting,
         startError: live.startError,
       };

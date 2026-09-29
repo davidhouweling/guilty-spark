@@ -68,6 +68,20 @@ describe("CapabilityPreviewPresenter", () => {
     expect(getPreview).not.toHaveBeenCalled();
   });
 
+  it("pauses directory observation while the live overlay owns its connection", () => {
+    const { presenter, followLiveService } = createHarness();
+    const connectDirectory = vi.spyOn(followLiveService, "connectDirectory");
+
+    presenter.loadDirectory("Spartan One");
+    presenter.setDirectoryObserverEnabled(false);
+    presenter.setDirectoryObserverEnabled(true);
+
+    expect(connectDirectory).toHaveBeenCalledTimes(2);
+    expect(connectDirectory).toHaveBeenNthCalledWith(1, "Spartan One");
+    expect(connectDirectory).toHaveBeenNthCalledWith(2, "Spartan One");
+    presenter.dispose();
+  });
+
   it("applies newer follow-directory updates and clears them on sign-out", () => {
     const { presenter, store } = createHarness();
     const directory = aDirectoryWith();
@@ -188,14 +202,20 @@ describe("CapabilityPreviewPresenter", () => {
     const { presenter, store, individualTrackerService } = createHarness();
     const startTracker = vi.spyOn(individualTrackerService, "startTracker");
     presenter.loadDirectory("Spartan One");
-    await vi.waitFor(() => { expect(store.getSnapshot().live.status).toBe("loaded"); });
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
     expect(startTracker).not.toHaveBeenCalled();
 
     presenter.startOwnTracker(null, null);
     expect(startTracker).not.toHaveBeenCalled();
     presenter.startOwnTracker("Spartan One", "my-xuid");
-    await vi.waitFor(() => { expect(startTracker).toHaveBeenCalledWith({ gamertag: "Spartan One", xuid: "my-xuid" }); });
-    await vi.waitFor(() => { expect(store.getSnapshot().live.isStarting).toBe(false); });
+    await vi.waitFor(() => {
+      expect(startTracker).toHaveBeenCalledWith({ gamertag: "Spartan One", xuid: "my-xuid" });
+    });
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.isStarting).toBe(false);
+    });
   });
 
   it("reports a failed explicit tracker start", async () => {
@@ -204,7 +224,9 @@ describe("CapabilityPreviewPresenter", () => {
 
     presenter.startOwnTracker("Spartan One", "my-xuid");
 
-    await vi.waitFor(() => { expect(store.getSnapshot().live.startError).toBe("Start failed"); });
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.startError).toBe("Start failed");
+    });
     expect(store.getSnapshot().live.isStarting).toBe(false);
   });
 
@@ -215,7 +237,9 @@ describe("CapabilityPreviewPresenter", () => {
     vi.spyOn(individualTrackerService, "startTracker").mockReturnValueOnce(request.promise);
     const getDirectory = vi.spyOn(followLiveService, "getDirectory");
     presenter.loadDirectory("Spartan One");
-    await vi.waitFor(() => { expect(store.getSnapshot().live.status).toBe("loaded"); });
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
 
     presenter.startOwnTracker("Spartan One", "my-xuid");
     presenter.clearDirectory();
