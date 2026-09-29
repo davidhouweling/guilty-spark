@@ -35,6 +35,7 @@ function createPageComponents(directory = aDirectoryWith()): {
   readonly LiveOverlayPage: ReturnType<typeof createFollowLiveOverlay>;
   readonly ViewerPage: ReturnType<typeof createIndividualTrackerViewerPage>;
   readonly getSeriesMatches: MockInstance<SeriesMatchesService["getSeriesMatches"]>;
+  readonly getDirectory: MockInstance<ReturnType<typeof aFakeFollowLiveServiceWith>["getDirectory"]>;
   readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
 } {
   const haloClient = aFakeHaloClientWith();
@@ -54,6 +55,7 @@ function createPageComponents(directory = aDirectoryWith()): {
   };
   const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
   const followLiveService = aFakeFollowLiveServiceWith({ directory });
+  const getDirectory = vi.spyOn(followLiveService, "getDirectory");
 
   return {
     OverlayPage: createIndividualTrackerOverlayPage({
@@ -78,6 +80,7 @@ function createPageComponents(directory = aDirectoryWith()): {
       medalMetadataResolver,
     }),
     getSeriesMatches,
+    getDirectory,
     followLiveService,
   };
 }
@@ -87,7 +90,7 @@ interface RenderPreviewOptions {
   readonly isAuthenticated: boolean;
   readonly previewMode: "player" | "observer";
   readonly previewService: OverlayPreviewService;
-  readonly directory?: TrackerDirectory;
+  readonly directory?: TrackerDirectory | undefined;
   readonly pages: ReturnType<typeof createPageComponents>;
 }
 
@@ -161,11 +164,11 @@ describe("CapabilityPreview", () => {
       pages,
     });
     expect(await screen.findByText(/Live shows your current tracking session/)).toBeInTheDocument();
-    const liveTab = screen.getByRole("button", { name: "Live overlay" });
+    const liveTab = screen.getByRole("button", { name: "Live overlay, live" });
     expect(liveTab.querySelector('[class*="liveDotActive"]')).not.toBeNull();
     expect(
       Array.from(screen.getByLabelText("Preview capability").querySelectorAll("button"), (tab) => tab.textContent),
-    ).toEqual(["Series overlay", "Matchmaking overlay", "Viewer", "Live overlay"]);
+    ).toEqual(["Series overlay", "Matchmaking overlay", "Viewer", "Live overlay, live"]);
     expect(await screen.findByAltText("Connection healthy")).toBeInTheDocument();
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Series overlay" }));
@@ -188,6 +191,29 @@ describe("CapabilityPreview", () => {
     await waitFor(() => {
       expect(liveDot?.className).not.toContain("liveDotActive");
     });
+    expect(liveTab).toHaveAccessibleName("Live overlay, offline");
+  });
+
+  it("does not mount the Live overlay while another preview tab is selected", async () => {
+    const user = userEvent.setup();
+    const directory = aDirectoryWith({ trackers: [], liveTrackerId: null });
+    const pages = createPageComponents(directory);
+    const { getDirectory } = pages;
+
+    renderCapabilityPreview({
+      gamertag: "Spartan One",
+      isAuthenticated: true,
+      previewMode: "player",
+      directory,
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Series overlay" }));
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
+    await screen.findByRole("heading", { name: "Tracked Gameplay" });
+
+    expect(getDirectory).toHaveBeenCalledOnce();
   });
 
   it("shows the signed-in user's live tracker and leaves start explicit when no tracker exists", async () => {
@@ -202,7 +228,7 @@ describe("CapabilityPreview", () => {
       previewService: aFakeOverlayPreviewServiceWith(),
       pages,
     });
-    const liveTab = screen.getByRole("button", { name: "Live overlay" });
+    const liveTab = screen.getByRole("button", { name: "Live overlay, offline" });
     await user.click(liveTab);
     expect(await screen.findByText("No live tracker is running.")).toBeInTheDocument();
     expect(liveTab.querySelector('[class*="liveDotActive"]')).toBeNull();
@@ -214,7 +240,7 @@ describe("CapabilityPreview", () => {
     expect(manageLink.className).toContain("btnSecondary");
     expect(manageLink.closest('[class*="previewFrame"]')).not.toBeNull();
 
-    await screen.findByText("No active tracker — waiting for a live game");
+    expect(screen.queryByText("No active tracker — waiting for a live game")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Series overlay" }));
     act(() => {
       pages.followLiveService.lastConnection?.emitDirectory(aDirectoryWith());

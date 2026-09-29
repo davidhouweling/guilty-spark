@@ -1,8 +1,13 @@
 import type { OverlayPreviewMode } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { FollowLiveService } from "../../../services/follow/follow-types";
+import type {
+  FollowLiveService,
+  DirectoryConnection,
+  DirectorySubscription,
+} from "../../../services/follow/follow-types";
 import type { OverlayPreviewService } from "../../../services/individual-tracker/overlay-preview-types";
+import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { OVERLAY_SETUP_DEMO_GAMERTAG } from "../overlay-setup-presenter";
 import type { CapabilityPreviewSnapshot, CapabilityPreviewStore } from "./capability-preview-store";
 import type { CapabilityPreviewOptions, CapabilityPreviewViewModel } from "./types";
@@ -20,6 +25,12 @@ export class CapabilityPreviewPresenter {
   private identityKey: string | undefined;
   private directoryRequestId = 0;
   private directoryGamertag: string | null = null;
+  private directoryObserverEnabled = true;
+  private directoryConnection: DirectoryConnection | null = null;
+  private directorySubscription: DirectorySubscription | null = null;
+  private directoryStatusSubscription: DirectorySubscription | null = null;
+  private directoryReconnectAttempt = 0;
+  private directoryReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isDisposed = false;
 
   public constructor(config: Config) {
@@ -50,12 +61,26 @@ export class CapabilityPreviewPresenter {
     }
     this.isDisposed = false;
     this.directoryGamertag = gamertag;
+    this.connectDirectoryObserver();
     void this.loadDirectoryAsync(gamertag);
+  }
+
+  public setDirectoryObserverEnabled(enabled: boolean): void {
+    if (this.directoryObserverEnabled === enabled) {
+      return;
+    }
+    this.directoryObserverEnabled = enabled;
+    if (enabled) {
+      this.connectDirectoryObserver();
+    } else {
+      this.disconnectDirectoryObserver();
+    }
   }
 
   public clearDirectory(): void {
     this.directoryRequestId++;
     this.directoryGamertag = null;
+    this.disconnectDirectoryObserver();
     this.config.store.clearDirectory();
   }
 
@@ -181,6 +206,7 @@ export class CapabilityPreviewPresenter {
     this.isDisposed = true;
     this.directoryRequestId++;
     this.directoryGamertag = null;
+    this.disconnectDirectoryObserver();
     this.identityKey = undefined;
     this.settingsKeys.clear();
     for (const mode of ["matchmaking", "series"] as const) {
@@ -201,6 +227,69 @@ export class CapabilityPreviewPresenter {
       if (!this.isDisposed && requestId === this.directoryRequestId) {
         this.config.store.setDirectoryError(error instanceof Error ? error.message : "Failed to load live tracker");
       }
+    }
+  }
+
+  private connectDirectoryObserver(): void {
+    if (
+      this.isDisposed ||
+      !this.directoryObserverEnabled ||
+      this.directoryGamertag == null ||
+      this.directoryConnection != null
+    ) {
+      return;
+    }
+
+    const connection = this.config.followLiveService.connectDirectory(this.directoryGamertag);
+    this.directoryConnection = connection;
+    this.directorySubscription = connection.subscribe((directory) => {
+      if (this.directoryConnection === connection) {
+        this.onFollowDirectoryChange(directory);
+      }
+    });
+    this.directoryStatusSubscription = connection.subscribeStatus((status) => {
+      if (this.directoryConnection !== connection) {
+        return;
+      }
+      if (status === "connected") {
+        this.directoryReconnectAttempt = 0;
+        this.clearDirectoryReconnectTimer();
+      } else if (status === "error" || status === "disconnected") {
+        this.scheduleDirectoryReconnect();
+      }
+    });
+  }
+
+  private disconnectDirectoryObserver(resetReconnectAttempt = true): void {
+    this.clearDirectoryReconnectTimer();
+    this.directorySubscription?.unsubscribe();
+    this.directoryStatusSubscription?.unsubscribe();
+    this.directoryConnection?.disconnect();
+    this.directorySubscription = null;
+    this.directoryStatusSubscription = null;
+    this.directoryConnection = null;
+    if (resetReconnectAttempt) {
+      this.directoryReconnectAttempt = 0;
+    }
+  }
+
+  private scheduleDirectoryReconnect(): void {
+    if (this.directoryReconnectTimer != null || this.directoryGamertag == null) {
+      return;
+    }
+    const delay = getReconnectDelayMs(this.directoryReconnectAttempt);
+    this.directoryReconnectAttempt++;
+    this.directoryReconnectTimer = setTimeout(() => {
+      this.directoryReconnectTimer = null;
+      this.disconnectDirectoryObserver(false);
+      this.connectDirectoryObserver();
+    }, delay);
+  }
+
+  private clearDirectoryReconnectTimer(): void {
+    if (this.directoryReconnectTimer != null) {
+      clearTimeout(this.directoryReconnectTimer);
+      this.directoryReconnectTimer = null;
     }
   }
 

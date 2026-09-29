@@ -104,17 +104,19 @@ function renderPreviewContent(
 }
 
 export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactElement {
-  const { activeTab, source, showLiveTab, isZoomEnabled, onTabChange, onZoomEnabledChange, LiveOverlayPage } = props;
+  const { activeTab, showLiveTab, isTrackerLive, source, content, isZoomEnabled, onTabChange, onZoomEnabledChange } =
+    props;
   const { containerRef, scale } = usePreviewScale();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [fixedControlsTarget, setFixedControlsTarget] = useState<HTMLDivElement | null>(null);
-  const showCanvas = activeTab !== "live" || props.content.type === "live-overlay";
+  const showCanvas = activeTab !== "live" || content.type === "live-overlay";
   const liveTab: TabbedSectionTab<CapabilityPreviewTab> = {
     id: "live",
     label: (
       <span>
-        <span className={classNames(styles.liveDot, props.isTrackerLive && styles.liveDotActive)} aria-hidden="true" />
+        <span className={classNames(styles.liveDot, isTrackerLive && styles.liveDotActive)} aria-hidden="true" />
         Live overlay
+        <span className={styles.srOnly}>{isTrackerLive ? ", live" : ", offline"}</span>
       </span>
     ),
     content: null,
@@ -137,11 +139,6 @@ export function CapabilityPreview(props: CapabilityPreviewViewProps): ReactEleme
         className={styles.previewFrame}
         style={{ "--preview-scale": String(scale) } as CSSProperties}
       >
-        {showLiveTab && !(activeTab === "live" && props.content.type === "live-overlay") ? (
-          <div className={styles.liveObserver} aria-hidden="true">
-            <LiveOverlayPage gamertag={source.gamertag} onDirectoryChange={props.onLiveDirectoryChange} showPreview />
-          </div>
-        ) : null}
         {showCanvas ? (
           <button
             type="button"
