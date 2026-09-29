@@ -13,9 +13,10 @@ export type CapabilityPreviewModeSnapshot =
 
 export interface CapabilityPreviewSnapshot {
   readonly activeTab: CapabilityPreviewTab;
-  readonly liveDirectory: {
+  readonly hasSelectedTab: boolean;
+  readonly live: {
     readonly status: "idle" | "loading" | "loaded" | "error";
-    readonly data: TrackerDirectory | null;
+    readonly directory: TrackerDirectory | null;
     readonly errorMessage: string | null;
   };
   readonly matchmaking: CapabilityPreviewModeSnapshot;
@@ -26,12 +27,14 @@ const IDLE_MODE: CapabilityPreviewModeSnapshot = { status: "idle", data: null, e
 
 export class CapabilityPreviewStore {
   private snapshot: CapabilityPreviewSnapshot;
+  private initialDirectoryResolved = false;
   private readonly subscribers = new Set<() => void>();
 
   public constructor(activeTab: CapabilityPreviewTab = "matchmaking") {
     this.snapshot = {
       activeTab,
-      liveDirectory: { status: "idle", data: null, errorMessage: null },
+      hasSelectedTab: false,
+      live: { status: "idle", directory: null, errorMessage: null },
       matchmaking: IDLE_MODE,
       series: IDLE_MODE,
     };
@@ -51,26 +54,40 @@ export class CapabilityPreviewStore {
   }
 
   public setActiveTab(activeTab: CapabilityPreviewTab): void {
-    if (this.snapshot.activeTab === activeTab) {
+    if (this.snapshot.activeTab === activeTab && this.snapshot.hasSelectedTab) {
       return;
     }
-    this.update({ activeTab });
+    this.update({ activeTab, hasSelectedTab: true });
   }
 
-  public setLiveDirectoryLoading(): void {
-    this.update({ liveDirectory: { ...this.snapshot.liveDirectory, status: "loading", errorMessage: null } });
+  public selectLiveOnInitialLoad(isLive: boolean): void {
+    if (this.initialDirectoryResolved) {
+      return;
+    }
+    this.initialDirectoryResolved = true;
+    if (isLive && !this.snapshot.hasSelectedTab) {
+      this.update({ activeTab: "live" });
+    }
   }
 
-  public setLiveDirectory(data: TrackerDirectory): void {
-    this.update({ liveDirectory: { status: "loaded", data, errorMessage: null } });
+  public setDirectoryLoading(): void {
+    this.update({ live: { ...this.snapshot.live, status: "loading", errorMessage: null } });
   }
 
-  public setLiveDirectoryError(errorMessage: string): void {
-    this.update({ liveDirectory: { ...this.snapshot.liveDirectory, status: "error", errorMessage } });
+  public clearDirectory(): void {
+    this.initialDirectoryResolved = false;
+    this.update({
+      activeTab: this.snapshot.activeTab === "live" ? "series" : this.snapshot.activeTab,
+      live: { status: "idle", directory: null, errorMessage: null },
+    });
   }
 
-  public clearLiveDirectory(): void {
-    this.update({ liveDirectory: { status: "idle", data: null, errorMessage: null } });
+  public setDirectory(directory: TrackerDirectory): void {
+    this.update({ live: { ...this.snapshot.live, status: "loaded", directory, errorMessage: null } });
+  }
+
+  public setDirectoryError(message: string): void {
+    this.update({ live: { ...this.snapshot.live, status: "error", errorMessage: message } });
   }
 
   public setLoaded(mode: OverlayPreviewMode, response: OverlayPreviewResponse): void {

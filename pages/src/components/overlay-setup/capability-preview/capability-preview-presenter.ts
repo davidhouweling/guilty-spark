@@ -30,54 +30,97 @@ export class CapabilityPreviewPresenter {
 
   public getSnapshot = (): CapabilityPreviewSnapshot => this.config.store.getSnapshot();
 
-  public loadLiveDirectory(gamertag: string): void {
-    if (!this.isDisposed && this.directoryGamertag === gamertag) {
-      return;
+  public onFollowDirectoryChange = (directory: TrackerDirectory): void => {
+    if (!this.isDisposed) {
+      this.directoryRequestId++;
+      this.applyDirectory(directory);
     }
-    this.isDisposed = false;
-    this.directoryGamertag = gamertag;
-    void this.loadLiveDirectoryAsync(gamertag);
-  }
-
-  public onFollowDirectoryChange(directory: TrackerDirectory): void {
-    if (this.isDisposed) {
-      return;
-    }
-    this.directoryRequestId++;
-    this.config.store.setLiveDirectory(directory);
-  }
-
-  public clearLiveDirectory(): void {
-    this.directoryRequestId++;
-    this.directoryGamertag = null;
-    this.config.store.clearLiveDirectory();
-  }
-
-  public retryLiveDirectory(): void {
-    if (this.directoryGamertag != null) {
-      void this.loadLiveDirectoryAsync(this.directoryGamertag);
-    }
-  }
+  };
 
   public selectTab(tab: CapabilityPreviewSnapshot["activeTab"]): void {
     this.config.store.setActiveTab(tab);
   }
 
+  public loadDirectory(gamertag: string): void {
+    if (!this.isDisposed && this.directoryGamertag === gamertag) {
+      return;
+    }
+    if (this.directoryGamertag != null && this.directoryGamertag !== gamertag) {
+      this.clearDirectory();
+    }
+    this.isDisposed = false;
+    this.directoryGamertag = gamertag;
+    void this.loadDirectoryAsync(gamertag);
+  }
+
+  public clearDirectory(): void {
+    this.directoryRequestId++;
+    this.directoryGamertag = null;
+    this.config.store.clearDirectory();
+  }
+
+  public retryDirectory(): void {
+    if (this.directoryGamertag != null) {
+      void this.loadDirectoryAsync(this.directoryGamertag);
+    }
+  }
+
   public present(snapshot: CapabilityPreviewSnapshot, options: CapabilityPreviewOptions): CapabilityPreviewViewModel {
     const { activeTab, matchmaking, series } = snapshot;
     const sourceState = activeTab === "series" ? series : matchmaking;
-    const isExample = sourceState.status === "loaded" ? sourceState.data.isExample : !options.isAuthenticated;
+    const liveTracker = snapshot.live.directory?.trackers.find(
+      (entry) => entry.trackerId === snapshot.live.directory?.liveTrackerId,
+    );
+    const isExample =
+      activeTab === "live"
+        ? false
+        : sourceState.status === "loaded"
+          ? sourceState.data.isExample
+          : !options.isAuthenticated;
     const gamertag =
-      sourceState.status === "loaded"
-        ? sourceState.data.view.gamertag
-        : options.isAuthenticated
-          ? (options.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG)
-          : OVERLAY_SETUP_DEMO_GAMERTAG;
-
+      activeTab === "live"
+        ? (liveTracker?.gamertag ?? options.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG)
+        : sourceState.status === "loaded"
+          ? sourceState.data.view.gamertag
+          : options.isAuthenticated
+            ? (options.gamertag ?? OVERLAY_SETUP_DEMO_GAMERTAG)
+            : OVERLAY_SETUP_DEMO_GAMERTAG;
     return {
       activeTab,
+      showLiveTab: options.isAuthenticated,
+      isTrackerLive: snapshot.live.directory?.trackers.some((entry) => entry.isLive) ?? false,
       source: { isExample, gamertag },
-      content: this.getContent(activeTab, matchmaking, series, options),
+      content:
+        activeTab === "live"
+          ? this.getLiveContent(snapshot, options)
+          : this.getContent(activeTab, matchmaking, series, options),
+    };
+  }
+
+  private getLiveContent(
+    snapshot: CapabilityPreviewSnapshot,
+    options: CapabilityPreviewOptions,
+  ): CapabilityPreviewViewModel["content"] {
+    const { live } = snapshot;
+    if (live.status === "idle" || live.status === "loading") {
+      return { type: "live-loading" };
+    }
+    if (live.status === "error") {
+      return { type: "live-error", message: live.errorMessage ?? "Failed to load live tracker" };
+    }
+    const tracker =
+      live.directory?.trackers.find((entry) => entry.trackerId === live.directory?.liveTrackerId) ??
+      live.directory?.trackers.find((entry) => entry.isLive);
+    if (tracker == null) {
+      return {
+        type: "live-empty",
+        isPaused: live.directory?.trackers.some((entry) => entry.status === "paused") ?? false,
+      };
+    }
+    return {
+      type: "live-overlay",
+      gamertag: options.gamertag ?? tracker.gamertag,
+      previewMode: live.directory?.streamerSettings.styleFlags?.colorMode ?? options.previewMode,
     };
   }
 
@@ -145,20 +188,25 @@ export class CapabilityPreviewPresenter {
     }
   }
 
-  private async loadLiveDirectoryAsync(gamertag: string): Promise<void> {
+  private async loadDirectoryAsync(gamertag: string): Promise<void> {
     const requestId = ++this.directoryRequestId;
-    this.config.store.setLiveDirectoryLoading();
+    this.config.store.setDirectoryLoading();
     try {
       const directory = await this.config.followLiveService.getDirectory(gamertag);
       if (this.isDisposed || requestId !== this.directoryRequestId) {
         return;
       }
-      this.config.store.setLiveDirectory(directory);
+      this.applyDirectory(directory);
     } catch (error) {
       if (!this.isDisposed && requestId === this.directoryRequestId) {
-        this.config.store.setLiveDirectoryError(error instanceof Error ? error.message : "Failed to load live tracker");
+        this.config.store.setDirectoryError(error instanceof Error ? error.message : "Failed to load live tracker");
       }
     }
+  }
+
+  private applyDirectory(directory: TrackerDirectory): void {
+    this.config.store.selectLiveOnInitialLoad(directory.trackers.some((tracker) => tracker.isLive));
+    this.config.store.setDirectory(directory);
   }
 
   private getContent(

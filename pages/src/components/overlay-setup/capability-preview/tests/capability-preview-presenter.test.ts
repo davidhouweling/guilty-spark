@@ -54,9 +54,9 @@ describe("CapabilityPreviewPresenter", () => {
     const getDirectory = vi.spyOn(followLiveService, "getDirectory");
     const getPreview = vi.spyOn(previewService, "getPreview");
 
-    presenter.loadLiveDirectory("Spartan One");
+    presenter.loadDirectory("Spartan One");
     await vi.waitFor(() => {
-      expect(store.getSnapshot().liveDirectory.status).toBe("loaded");
+      expect(store.getSnapshot().live.status).toBe("loaded");
     });
 
     expect(getDirectory).toHaveBeenCalledWith("Spartan One");
@@ -68,10 +68,11 @@ describe("CapabilityPreviewPresenter", () => {
     const directory = aDirectoryWith();
 
     presenter.onFollowDirectoryChange(directory);
-    expect(store.getSnapshot().liveDirectory.data?.liveTrackerId).toBe("tracker-1");
+    expect(store.getSnapshot().live.directory?.liveTrackerId).toBe("tracker-1");
 
-    presenter.clearLiveDirectory();
-    expect(store.getSnapshot().liveDirectory).toEqual({ status: "idle", data: null, errorMessage: null });
+    presenter.clearDirectory();
+    expect(store.getSnapshot().live.status).toBe("idle");
+    expect(store.getSnapshot().live.directory).toBeNull();
   });
 
   it("ignores a stale directory response after clearing the identity", async () => {
@@ -79,13 +80,13 @@ describe("CapabilityPreviewPresenter", () => {
     const request = createDeferred<TrackerDirectory>();
     vi.spyOn(followLiveService, "getDirectory").mockReturnValueOnce(request.promise);
 
-    presenter.loadLiveDirectory("Spartan One");
-    presenter.clearLiveDirectory();
+    presenter.loadDirectory("Spartan One");
+    presenter.clearDirectory();
     request.resolve(aDirectoryWith());
     await Promise.resolve();
 
-    expect(store.getSnapshot().liveDirectory.status).toBe("idle");
-    expect(store.getSnapshot().liveDirectory.data).toBeNull();
+    expect(store.getSnapshot().live.status).toBe("idle");
+    expect(store.getSnapshot().live.directory).toBeNull();
   });
 
   it("loads matchmaking and series endpoint views independently", async () => {

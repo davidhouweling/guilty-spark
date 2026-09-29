@@ -47,8 +47,13 @@ export function createCapabilityPreview(
       <CapabilityPreview
         {...viewModel}
         OverlayPage={config.OverlayPage}
+        LiveOverlayPage={config.LiveOverlayPage}
+        onLiveDirectoryChange={presenter.onFollowDirectoryChange}
         ViewerPage={config.ViewerPage}
         isZoomEnabled={isZoomEnabled}
+        onRetryDirectory={(): void => {
+          presenter.retryDirectory();
+        }}
         onRetry={props.onRetry}
         onTabChange={(tab): void => {
           presenter.selectTab(tab);
