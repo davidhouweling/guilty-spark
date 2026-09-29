@@ -5,6 +5,7 @@ import {
   userTrackerStatusContract,
   userTrackerViewStateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/management";
+import { individualTrackerViewStateContract } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/management";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { withStreamerViewSettingsDefaults } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { UserTrackerDO } from "../user-tracker-do";
@@ -289,6 +290,39 @@ describe("UserTrackerDO", () => {
     expect(parsed.state?.directory.liveTrackerId).toBe("t-active");
   });
 
+  it("filters a stopped DO tracker even when its registry row still says active", async () => {
+    const trackerDo = aFakeIndividualTrackerDOWith({
+      viewStateResponse: {
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "stopped-in-do",
+          status: "stopped",
+          matches: [],
+        }),
+      },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
+    const services = installFakeServicesWith({ env: localEnv });
+    vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
+      aFakeIndividualTrackersRow({
+        TrackerId: "stopped-in-do",
+        UserId: "user-1",
+        Gamertag: "KnownTag",
+        Status: "active",
+        IsLive: 1,
+      }),
+    ]);
+    const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
+
+    const response = await localUserTrackerDO.fetch(
+      new Request("http://do/view-state?userId=user-1", { method: "GET" }),
+    );
+
+    expect(response.status).toBe(200);
+    const parsed = await userTrackerViewStateContract.fromResponse(response);
+    expect(parsed.state?.directory.trackers).toEqual([]);
+    expect(parsed.state?.directory.liveTrackerId).toBeNull();
+  });
+
   it("refreshes only dirty tracker entries after nudge when a cached directory exists", async () => {
     const persistedStorage = new Map<string, unknown>();
     const sharedStorage = aFakeDurableObjectStorageWith({
@@ -363,8 +397,30 @@ describe("UserTrackerDO", () => {
     );
     expect(nudgeResponse.status).toBe(200);
 
+    trackerDoFetchSpy.mockResolvedValueOnce(
+      individualTrackerViewStateContract.toResponse({
+        state: aFakeIndividualTrackerViewStateWith({
+          trackerId: "t1",
+          gamertag: "KnownTag",
+          status: "stopped",
+          matches: [],
+          lastUpdateTime: "2026-07-05T00:01:00.000Z",
+        }),
+      }),
+    );
+
     await vi.waitFor(() => {
       expect(trackerDoFetchSpy).toHaveBeenCalledTimes(3);
+    });
+    await vi.waitFor(() => {
+      expect(persistedStorage.get(USER_TRACKER_STATE_KEY)).toMatchObject({
+        viewState: {
+          directory: {
+            trackers: [{ trackerId: "t2" }],
+            liveTrackerId: "t2",
+          },
+        },
+      });
     });
   });
 

@@ -594,6 +594,36 @@ describe("/api/individual-tracker manage routes", () => {
     expect(body.trackers[0]?.state).not.toBeNull();
   });
 
+  it("reports a stopped DO state when the registry row still says active", async () => {
+    const doStub = aFakeIndividualTrackerDOWith({
+      statusResponse: { state: aFakeIndividualTrackerStateWith({ trackerId: "t1", status: "stopped" }) },
+    });
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+    const row = aFakeIndividualTrackersRow({
+      TrackerId: "t1",
+      UserId: "user-123",
+      Status: "active",
+      IsLive: 1,
+    });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "listTrackers").mockResolvedValue([row]);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const req = new Request("http://localhost/api/individual-tracker/manage/trackers", {
+      method: "GET",
+      headers: { Origin: localEnv.PAGES_URL },
+    });
+    const res = (await router.fetch(req, localEnv)) as Response;
+
+    expect(res.status).toBe(200);
+    const body = await res.json<TrackersResponse>();
+    expect(body.trackers).toMatchObject([{ trackerId: "t1", status: "stopped", isLive: false }]);
+  });
+
   it("returns 404 on status when the tracker is not owned", async () => {
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
       const services = installFakeServicesWith({ env });

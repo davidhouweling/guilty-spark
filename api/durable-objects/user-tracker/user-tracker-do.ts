@@ -500,12 +500,14 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       streamerSettings.visibleSections?.statsHighlightSlots ??
       DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
 
-    const entries = await Promise.all(
-      nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
-        const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
-        return toTrackerView(row, doState);
-      }),
-    );
+    const entries = (
+      await Promise.all(
+        nonStopped.map(async (row): Promise<TrackerDirectoryEntry> => {
+          const doState = await fetchTrackerDoViewState(this.env, row.UserId, row.TrackerId, statsHighlightSlots);
+          return toTrackerView(row, doState);
+        }),
+      )
+    ).filter((entry) => entry.status !== "stopped");
 
     const liveTracker = entries.find((entry) => entry.isLive);
     const firstActiveTracker = entries.find((entry) => entry.status === "active");
@@ -905,7 +907,7 @@ export class UserTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
 
     for (const update of dirtyTrackerUpdates) {
-      if (update.tracker == null) {
+      if (update.tracker == null || update.tracker.status === "stopped") {
         nextTrackersById.delete(update.trackerId);
         continue;
       }

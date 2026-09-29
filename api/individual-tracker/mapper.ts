@@ -131,12 +131,13 @@ function toTrackerActiveSeriesContext(context: TrackerActiveSeriesContext): Trac
 }
 
 export function toTracker(row: IndividualTrackersRow, state: IndividualTrackerDoState | null): Tracker {
+  const status = state?.status ?? row.Status;
   return {
     trackerId: row.TrackerId,
     gamertag: row.Gamertag,
     xuid: row.Xuid,
-    status: row.Status,
-    isLive: row.IsLive === 1,
+    status,
+    isLive: row.IsLive === 1 && status !== "stopped",
     state: state == null ? null : toTrackerState(state),
   };
 }
@@ -146,11 +147,12 @@ export function toTrackerView(
   doState: IndividualTrackerViewState | null,
   streamerSettings?: StreamerViewSettings,
 ): TrackerViewState {
+  const status = doState?.status ?? row.Status;
   return {
     trackerId: row.TrackerId,
     gamertag: row.Gamertag,
-    status: row.Status,
-    isLive: row.IsLive === 1,
+    status,
+    isLive: row.IsLive === 1 && status !== "stopped",
     ...(streamerSettings !== undefined ? { streamerSettings } : {}),
     matches:
       doState == null
