@@ -23,7 +23,7 @@ export interface FollowLiveOverlayProps {
   readonly gamertag: string;
   readonly showPreview?: boolean;
   readonly previewMode?: "player" | "observer";
-  readonly onDirectoryChange?: (directory: TrackerDirectory) => void;
+  readonly onDirectoryChange?: ((directory: TrackerDirectory) => void) | undefined;
 }
 
 export function createFollowLiveOverlay({
