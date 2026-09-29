@@ -103,6 +103,30 @@ describe("FollowLiveOverlayCreate", () => {
     expect(screen.getByAltText("Connection healthy")).toBeInTheDocument();
   });
 
+  it("switches the rendered overlay when the user directory selects another live tracker", async () => {
+    const initialDirectory = aDirectoryWith();
+    const { element, followLiveService } = createFollowLiveOverlayWith(initialDirectory);
+    render(element);
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-1:false:observer");
+    });
+
+    act(() => {
+      followLiveService.lastConnection?.emitDirectory(
+        aDirectoryWith({
+          trackers: [
+            aTrackerWith({ trackerId: "tracker-1", isLive: false }),
+            aTrackerWith({ trackerId: "tracker-2", isLive: true }),
+          ],
+          liveTrackerId: "tracker-2",
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-2:false:observer");
+    });
+  });
+
   it("forwards preview flags to the overlay page", async () => {
     const directory = aDirectoryWith({
       trackers: [aTrackerWith({ trackerId: "tracker-3", gamertag: "Spartan Three", isLive: true, status: "active" })],
@@ -114,6 +138,7 @@ describe("FollowLiveOverlayCreate", () => {
     await waitFor(() => {
       expect(screen.getByTestId("mock-overlay-page")).toHaveTextContent("tracker-3:true:player");
     });
+    expect(document.title).toBe("");
   });
 
   it("shows waiting state when no active tracker is available", async () => {
