@@ -47,6 +47,7 @@ function createHarness(): {
 describe("CapabilityPreviewPresenter", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("loads the authenticated directory without issuing preview requests", async () => {
@@ -87,6 +88,96 @@ describe("CapabilityPreviewPresenter", () => {
 
     expect(store.getSnapshot().live.status).toBe("idle");
     expect(store.getSnapshot().live.directory).toBeNull();
+  });
+
+  it("preserves a tab selected while the initial directory response is pending", async () => {
+    const { presenter, store, followLiveService } = createHarness();
+    const request = createDeferred<TrackerDirectory>();
+    vi.spyOn(followLiveService, "getDirectory").mockReturnValueOnce(request.promise);
+
+    presenter.loadDirectory("Spartan One");
+    presenter.selectTab("series");
+    request.resolve(aDirectoryWith());
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
+
+    expect(store.getSnapshot().activeTab).toBe("series");
+  });
+
+  it("reconnects the directory observer and applies updates from the new connection", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const { presenter, store, followLiveService } = createHarness();
+    const connectDirectory = vi.spyOn(followLiveService, "connectDirectory");
+
+    presenter.loadDirectory("Spartan One");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
+    const firstConnection = followLiveService.lastConnection;
+    if (firstConnection === null) {
+      throw new Error("Expected initial directory connection");
+    }
+
+    firstConnection.emitStatus("error");
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(connectDirectory).toHaveBeenCalledTimes(2);
+    const reconnectedConnection = followLiveService.lastConnection;
+    if (reconnectedConnection === null || reconnectedConnection === firstConnection) {
+      throw new Error("Expected a replacement directory connection");
+    }
+    const updatedDirectory = aDirectoryWith({
+      trackers: [],
+      liveTrackerId: null,
+    });
+    reconnectedConnection.emitDirectory(updatedDirectory);
+
+    expect(store.getSnapshot().live.directory).toEqual(updatedDirectory);
+  });
+
+  it("cancels a pending directory reconnect when observation is disabled", async () => {
+    vi.useFakeTimers();
+    const { presenter, store, followLiveService } = createHarness();
+    const connectDirectory = vi.spyOn(followLiveService, "connectDirectory");
+
+    presenter.loadDirectory("Spartan One");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
+    const connection = followLiveService.lastConnection;
+    if (connection === null) {
+      throw new Error("Expected initial directory connection");
+    }
+
+    connection.emitStatus("disconnected");
+    presenter.setDirectoryObserverEnabled(false);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(connectDirectory).toHaveBeenCalledOnce();
+  });
+
+  it("cancels a pending directory reconnect when disposed", async () => {
+    vi.useFakeTimers();
+    const { presenter, store, followLiveService } = createHarness();
+    const connectDirectory = vi.spyOn(followLiveService, "connectDirectory");
+
+    presenter.loadDirectory("Spartan One");
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().live.status).toBe("loaded");
+    });
+    const connection = followLiveService.lastConnection;
+    if (connection === null) {
+      throw new Error("Expected initial directory connection");
+    }
+
+    connection.emitStatus("error");
+    presenter.dispose();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(connectDirectory).toHaveBeenCalledOnce();
   });
 
   it("loads matchmaking and series endpoint views independently", async () => {
