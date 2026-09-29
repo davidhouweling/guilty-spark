@@ -47,8 +47,8 @@ vi.mock("../../../individual-tracker/overlay/create", () => ({
 function createFollowLiveOverlayWith(
   directory: TrackerDirectory,
   options: {
-    readonly showPreview?: boolean;
-    readonly previewMode?: "player" | "observer";
+    readonly showPreview?: boolean | undefined;
+    readonly previewMode?: "player" | "observer" | undefined;
     readonly onDirectoryChange?: ((directory: TrackerDirectory) => void) | undefined;
   } = {},
   followLiveService = aFakeFollowLiveServiceWith({ directory }),
