@@ -14,6 +14,50 @@
 
 .previewTabs {
   margin-bottom: 0;
+  max-width: 100%;
+  overflow: auto hidden;
+  padding-bottom: 2px;
+  white-space: nowrap;
+}
+
+.liveDot {
+  background: transparent;
+  border: 1px solid var(--color-error);
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+  width: 7px;
+}
+
+.liveDotActive {
+  animation: livePulse 1.8s ease-in-out infinite;
+  background: var(--color-error);
+}
+
+.srOnly {
+  border: 0;
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@keyframes livePulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liveDotActive {
+    animation: none;
+  }
 }
 
 .sourceLabel {
@@ -39,6 +83,21 @@
   box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
   overflow: hidden;
   position: relative;
+}
+
+.liveContent {
+  display: grid;
+  inset: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  place-items: center;
+  position: absolute;
+}
+
+.liveContent > * {
+  background: transparent;
+  min-height: 0;
+  width: 100%;
 }
 
 .zoomLayer {
@@ -111,6 +170,24 @@
   justify-content: center;
   padding: var(--space-4);
   text-align: center;
+}
+
+.liveEmpty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  gap: var(--space-2);
+}
+
+.liveEmpty p {
+  margin: 0;
+}
+
+.previewDescription {
+  color: var(--halo-gray);
+  font-size: var(--text-sm);
+  margin: 0;
 }
 
 .previewHint {

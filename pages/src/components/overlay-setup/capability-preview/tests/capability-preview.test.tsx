@@ -2,8 +2,10 @@ import "@testing-library/jest-dom/vitest";
 
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import { aDirectoryWith, aTrackerWith } from "@guilty-spark/shared/contracts/individual-tracker/fakes/follow.fake";
 import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/follow.fake";
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
@@ -14,6 +16,7 @@ import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metad
 import type { OverlayPreviewService } from "../../../../services/individual-tracker/overlay-preview-types";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
+import { createFollowLiveOverlay } from "../../../follow/follow-live-overlay/create";
 import { createIndividualTrackerOverlayPage } from "../../../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../../../individual-tracker/viewer/create";
 import { CapabilityPreviewPresenter } from "../capability-preview-presenter";
@@ -27,10 +30,13 @@ vi.mock("../../../icons/team-icon", () => ({
   ),
 }));
 
-function createPageComponents(): {
+function createPageComponents(directory = aDirectoryWith()): {
   readonly OverlayPage: ReturnType<typeof createIndividualTrackerOverlayPage>;
+  readonly LiveOverlayPage: ReturnType<typeof createFollowLiveOverlay>;
   readonly ViewerPage: ReturnType<typeof createIndividualTrackerViewerPage>;
   readonly getSeriesMatches: MockInstance<SeriesMatchesService["getSeriesMatches"]>;
+  readonly getDirectory: MockInstance<ReturnType<typeof aFakeFollowLiveServiceWith>["getDirectory"]>;
+  readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
 } {
   const haloClient = aFakeHaloClientWith();
   const medalMetadataResolver = new HaloMedalMetadataResolver(haloClient);
@@ -48,9 +54,19 @@ function createPageComponents(): {
     },
   };
   const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith();
+  const followLiveService = aFakeFollowLiveServiceWith({ directory });
+  const getDirectory = vi.spyOn(followLiveService, "getDirectory");
 
   return {
     OverlayPage: createIndividualTrackerOverlayPage({
+      individualTrackerViewService,
+      matchAnalyticsService,
+      seriesMatchesService,
+      haloClient,
+      medalMetadataResolver,
+    }),
+    LiveOverlayPage: createFollowLiveOverlay({
+      followLiveService,
       individualTrackerViewService,
       matchAnalyticsService,
       seriesMatchesService,
@@ -64,6 +80,8 @@ function createPageComponents(): {
       medalMetadataResolver,
     }),
     getSeriesMatches,
+    getDirectory,
+    followLiveService,
   };
 }
 
@@ -72,6 +90,7 @@ interface RenderPreviewOptions {
   readonly isAuthenticated: boolean;
   readonly previewMode: "player" | "observer";
   readonly previewService: OverlayPreviewService;
+  readonly directory?: TrackerDirectory | undefined;
   readonly pages: ReturnType<typeof createPageComponents>;
 }
 
@@ -79,11 +98,17 @@ function renderCapabilityPreview(options: RenderPreviewOptions): void {
   const store = new CapabilityPreviewStore();
   const presenter = new CapabilityPreviewPresenter({
     previewService: options.previewService,
-    followLiveService: aFakeFollowLiveServiceWith(),
+    followLiveService: options.pages.followLiveService,
     store,
   });
+  if (options.directory !== undefined && options.isAuthenticated && options.gamertag != null) {
+    presenter.loadDirectory(options.gamertag);
+  }
   const identityKey = options.isAuthenticated ? `authenticated:${options.gamertag ?? ""}` : "demo";
   const activateMode = (tab: CapabilityPreviewTab): void => {
+    if (tab === "live") {
+      return;
+    }
     presenter.load(tab === "viewer" ? "matchmaking" : tab, undefined, identityKey);
   };
   const CapabilityPreview = createCapabilityPreview(options.pages);
@@ -113,6 +138,121 @@ beforeEach(() => {
 });
 
 describe("CapabilityPreview", () => {
+  it("hides Live from signed-out visitors", () => {
+    renderCapabilityPreview({
+      gamertag: "soundmanD",
+      isAuthenticated: false,
+      previewMode: "player",
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages: createPageComponents(),
+    });
+    expect(screen.queryByRole("button", { name: "Live overlay" })).not.toBeInTheDocument();
+    expect(
+      Array.from(screen.getByLabelText("Preview capability").querySelectorAll("button"), (tab) => tab.textContent),
+    ).toEqual(["Series overlay", "Matchmaking overlay", "Viewer"]);
+    expect(screen.getByText(/previews are indicative/i)).toBeInTheDocument();
+  });
+
+  it("selects the actual live overlay when the directory reports a live tracker", async () => {
+    const pages = createPageComponents();
+    renderCapabilityPreview({
+      gamertag: "Spartan One",
+      isAuthenticated: true,
+      previewMode: "player",
+      directory: aDirectoryWith(),
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages,
+    });
+    expect(await screen.findByText(/Live shows your current tracking session/)).toBeInTheDocument();
+    const liveTab = screen.getByRole("button", { name: "Live overlay, live" });
+    expect(liveTab.querySelector('[class*="liveDotActive"]')).not.toBeNull();
+    expect(
+      Array.from(screen.getByLabelText("Preview capability").querySelectorAll("button"), (tab) => tab.textContent),
+    ).toEqual(["Series overlay", "Matchmaking overlay", "Viewer", "Live overlay, live"]);
+    expect(await screen.findByAltText("Connection healthy")).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Series overlay" }));
+    const liveDot = liveTab.querySelector('[class*="liveDot"]');
+    expect(liveDot?.className).toContain("liveDotActive");
+    await waitFor(() => {
+      expect(pages.followLiveService.lastConnection).not.toBeNull();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      pages.followLiveService.lastConnection?.emitDirectory(
+        aDirectoryWith({
+          trackers: [aTrackerWith({ trackerId: "tracker-1", isLive: false, status: "active" })],
+          liveTrackerId: "tracker-1",
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(liveDot?.className).not.toContain("liveDotActive");
+    });
+    expect(liveTab).toHaveAccessibleName("Live overlay, offline");
+  });
+
+  it("does not mount the Live overlay while another preview tab is selected", async () => {
+    const user = userEvent.setup();
+    const directory = aDirectoryWith({ trackers: [], liveTrackerId: null });
+    const pages = createPageComponents(directory);
+    const { getDirectory } = pages;
+
+    renderCapabilityPreview({
+      gamertag: "Spartan One",
+      isAuthenticated: true,
+      previewMode: "player",
+      directory,
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages,
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Series overlay" }));
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
+    await screen.findByRole("heading", { name: "Tracked Gameplay" });
+
+    expect(getDirectory).toHaveBeenCalledOnce();
+  });
+
+  it("shows the signed-in user's live tracker and leaves start explicit when no tracker exists", async () => {
+    const user = userEvent.setup();
+    const directory = aDirectoryWith({ trackers: [], liveTrackerId: null });
+    const pages = createPageComponents(directory);
+    renderCapabilityPreview({
+      gamertag: "Spartan One",
+      isAuthenticated: true,
+      previewMode: "player",
+      directory,
+      previewService: aFakeOverlayPreviewServiceWith(),
+      pages,
+    });
+    const liveTab = screen.getByRole("button", { name: "Live overlay, offline" });
+    await user.click(liveTab);
+    expect(await screen.findByText("No live tracker is running.")).toBeInTheDocument();
+    expect(liveTab.querySelector('[class*="liveDotActive"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: "Zoom preview" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("preview-stage")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Shown to scale/)).not.toBeInTheDocument();
+    const manageLink = screen.getByRole("link", { name: "Manage trackers" });
+    expect(manageLink).toHaveAttribute("href", "/individual-tracker");
+    expect(manageLink.className).toContain("btnSecondary");
+    expect(manageLink.closest('[class*="previewFrame"]')).not.toBeNull();
+
+    expect(screen.queryByText("No active tracker — waiting for a live game")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Series overlay" }));
+    act(() => {
+      pages.followLiveService.lastConnection?.emitDirectory(aDirectoryWith());
+    });
+    await waitFor(() => {
+      expect(liveTab.querySelector('[class*="liveDotActive"]')).not.toBeNull();
+    });
+    expect(screen.getByRole("button", { name: "Series overlay" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("preview-stage")).toBeInTheDocument();
+    expect(screen.queryByText("No live tracker is running.")).not.toBeInTheDocument();
+  });
+
   it("switches real endpoint views and labels the demo identity", async () => {
     const user = userEvent.setup();
     const previewService = aFakeOverlayPreviewServiceWith();
@@ -178,19 +318,21 @@ describe("CapabilityPreview", () => {
 
   it("uses the shared error state and retries the selected preview mode", async () => {
     const user = userEvent.setup();
+    const directory = aDirectoryWith({ trackers: [], liveTrackerId: null });
     const previewService = aFakeOverlayPreviewServiceWith();
     const getPreview = vi
       .spyOn(previewService, "getPreview")
       .mockImplementation(async (mode) =>
         Promise.reject(new Error(mode === "series" ? "Series unavailable" : "Matchmaking unavailable")),
       );
-    const pages = createPageComponents();
+    const pages = createPageComponents(directory);
 
     renderCapabilityPreview({
       gamertag: "343GuiltySpark",
       isAuthenticated: true,
       previewMode: "player",
       previewService,
+      directory,
       pages,
     });
 

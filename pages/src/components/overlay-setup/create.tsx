@@ -16,6 +16,7 @@ import { snapshotToSettings, StreamerSettingsPresenter } from "../streamer-setti
 import { StreamerSettingsSectionView } from "../streamer-settings/streamer-settings";
 import { StreamerSettingsStore } from "../streamer-settings/streamer-settings-store";
 import { createIndividualTrackerOverlayPage } from "../individual-tracker/overlay/create";
+import { createFollowLiveOverlay } from "../follow/follow-live-overlay/create";
 import { createIndividualTrackerViewerPage } from "../individual-tracker/viewer/create";
 import { createCapabilityPreview } from "./capability-preview/create";
 import type { CapabilityPreviewTab } from "./capability-preview/types";
@@ -51,6 +52,7 @@ interface OverlaySetupPageInternalProps {
   readonly settingsPresenter: StreamerSettingsPresenter;
   readonly settingsStore: StreamerSettingsStore;
   readonly OverlayPage: ReturnType<typeof createIndividualTrackerOverlayPage>;
+  readonly LiveOverlayPage: ReturnType<typeof createFollowLiveOverlay>;
   readonly ViewerPage: ReturnType<typeof createIndividualTrackerViewerPage>;
   readonly apiHost: string;
   readonly StatsHighlightsSection: ReturnType<typeof createStatsHighlightsSection>;
@@ -62,6 +64,7 @@ function OverlaySetupPageInternal({
   settingsPresenter,
   settingsStore,
   OverlayPage,
+  LiveOverlayPage,
   ViewerPage,
   apiHost,
   StatsHighlightsSection,
@@ -92,9 +95,9 @@ function OverlaySetupPageInternal({
 
   useEffect(() => {
     if (snapshot.authState === "authenticated" && snapshot.gamertag != null) {
-      previewPresenter.loadLiveDirectory(snapshot.gamertag);
+      previewPresenter.loadDirectory(snapshot.gamertag);
     } else {
-      previewPresenter.clearLiveDirectory();
+      previewPresenter.clearDirectory();
     }
   }, [previewPresenter, snapshot.authState, snapshot.gamertag]);
 
@@ -117,7 +120,7 @@ function OverlaySetupPageInternal({
   const onPreviewModeSelected = useMemo(
     () =>
       (tab: CapabilityPreviewTab): void => {
-        if (!previewSettingsReady) {
+        if (!previewSettingsReady || tab === "live") {
           return;
         }
         previewPresenter.load(tab === "viewer" ? "matchmaking" : tab, previewStreamerSettings, previewIdentityKey);
@@ -125,8 +128,8 @@ function OverlaySetupPageInternal({
     [previewIdentityKey, previewPresenter, previewSettingsReady, previewStreamerSettings],
   );
   const CapabilityPreviewSection = useMemo(
-    () => createCapabilityPreview({ OverlayPage, ViewerPage }),
-    [OverlayPage, ViewerPage],
+    () => createCapabilityPreview({ OverlayPage, LiveOverlayPage, ViewerPage }),
+    [OverlayPage, LiveOverlayPage, ViewerPage],
   );
   const OverlayUrlsSection = useMemo(() => createOverlayUrlsSection(), []);
 
@@ -350,6 +353,25 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
         config.medalMetadataResolver,
       ],
     );
+    const LiveOverlayPage = useMemo(
+      () =>
+        createFollowLiveOverlay({
+          followLiveService: config.followLiveService,
+          individualTrackerViewService: config.individualTrackerViewService,
+          matchAnalyticsService: config.matchAnalyticsService,
+          seriesMatchesService: config.seriesMatchesService,
+          haloClient: config.haloClient,
+          medalMetadataResolver: config.medalMetadataResolver,
+        }),
+      [
+        config.followLiveService,
+        config.haloClient,
+        config.individualTrackerViewService,
+        config.matchAnalyticsService,
+        config.medalMetadataResolver,
+        config.seriesMatchesService,
+      ],
+    );
     const previewPresenter = useMemo(
       () =>
         new CapabilityPreviewPresenter({
@@ -371,6 +393,7 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
         settingsPresenter={settingsPresenter}
         settingsStore={settingsStore}
         OverlayPage={OverlayPage}
+        LiveOverlayPage={LiveOverlayPage}
         ViewerPage={ViewerPage}
         apiHost={config.apiHost}
         StatsHighlightsSection={StatsHighlightsSection}

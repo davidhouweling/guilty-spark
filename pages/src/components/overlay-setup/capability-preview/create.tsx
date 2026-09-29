@@ -42,13 +42,21 @@ export function createCapabilityPreview(
         }),
       [props.gamertag, props.isAuthenticated, presenter, props.previewMode, props.streamerSettings, snapshot],
     );
+    useEffect(() => {
+      presenter.setDirectoryObserverEnabled(viewModel.content.type !== "live-overlay");
+    }, [presenter, viewModel.content.type]);
 
     return (
       <CapabilityPreview
         {...viewModel}
         OverlayPage={config.OverlayPage}
+        LiveOverlayPage={config.LiveOverlayPage}
+        onLiveDirectoryChange={presenter.onFollowDirectoryChange}
         ViewerPage={config.ViewerPage}
         isZoomEnabled={isZoomEnabled}
+        onRetryDirectory={(): void => {
+          presenter.retryDirectory();
+        }}
         onRetry={props.onRetry}
         onTabChange={(tab): void => {
           presenter.selectTab(tab);
