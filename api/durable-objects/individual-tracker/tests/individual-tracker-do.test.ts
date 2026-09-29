@@ -3069,7 +3069,7 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       expect(storageDeleteSpy).toHaveBeenCalledWith("individualTrackerState");
-      expect(storagePutSpy).not.toHaveBeenCalledWith("individualTrackerState", expect.anything());
+      expect(lastPersistedState(storagePutSpy).status).toBe("stopped");
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
       expect(storageSetAlarmSpy).not.toHaveBeenCalled();
       expect(ownerClient.getPlayerMatches).not.toHaveBeenCalled();
@@ -3136,6 +3136,32 @@ describe("IndividualTrackerDO", () => {
       const markStatusCallOrder = Preconditions.checkExists(markSpy.mock.invocationCallOrder[0]);
       const userTrackerNudgeCallOrder = Preconditions.checkExists(userTrackerFetchSpy.mock.invocationCallOrder[0]);
       expect(markStatusCallOrder).toBeLessThan(userTrackerNudgeCallOrder);
+    });
+
+    it("retains stopped state and retries registry persistence after a database failure", async () => {
+      const row = aFakeIndividualTrackersRow({ TrackerId: "idle-tracker", Status: "active" });
+      vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(row);
+      const markSpy = vi
+        .spyOn(services.individualTrackerService, "markTrackerStatus")
+        .mockRejectedValueOnce(new Error("database unavailable"));
+      const activeState = aFakeIndividualTrackerInternalStateWith({
+        trackerId: "idle-tracker",
+        idleTimeoutHours: 6,
+        startTime: "2024-11-26T05:00:00.000Z",
+        lastMatchDiscoveredAt: "2024-11-26T05:00:00.000Z",
+      });
+      storageGetSpy.mockResolvedValueOnce(activeState).mockResolvedValueOnce({ ...activeState, status: "stopped" });
+
+      await individualTrackerDO.alarm();
+
+      expect(lastPersistedState(storagePutSpy).status).toBe("stopped");
+      expect(storageDeleteSpy).not.toHaveBeenCalledWith("individualTrackerState");
+      expect(storageSetAlarmSpy).toHaveBeenCalled();
+
+      await individualTrackerDO.alarm();
+
+      expect(markSpy).toHaveBeenCalledTimes(2);
+      expect(storageDeleteSpy).toHaveBeenCalledWith("individualTrackerState");
     });
 
     it("does not notify UserTrackerDO on steady-state polls without new matches", async () => {

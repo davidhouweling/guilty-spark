@@ -98,6 +98,7 @@ const ALARM_INTERVAL_MS = DISPLAY_INTERVAL_MS - EXECUTION_BUFFER_MS;
 const NORMAL_INTERVAL_MINUTES = 0.5;
 const CONSECUTIVE_ERROR_INTERVAL_MINUTES = 0.5;
 const MAX_BACKOFF_INTERVAL_MINUTES = 3;
+const REGISTRY_STOP_RETRY_INTERVAL_MS = 60_000;
 
 const STALE_EMPTY_SERIES_MINUTES = 15;
 
@@ -525,7 +526,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       Sentry.setTag("method", "alarm");
 
       const trackerState = await this.getState();
-      if (trackerState == null || trackerState.isPaused || trackerState.status !== "active") {
+      if (trackerState == null || trackerState.isPaused) {
         return;
       }
 
@@ -536,6 +537,14 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         checkCount: trackerState.checkCount,
         errorCount: trackerState.errorState.consecutiveErrors,
       });
+
+      if (trackerState.status === "stopped") {
+        await this.retryRegistryStop(trackerState);
+        return;
+      }
+      if (trackerState.status !== "active") {
+        return;
+      }
 
       const lastActivity = new Date(
         Math.max(
@@ -568,11 +577,10 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         trackerState.status = "stopped";
         trackerState.lastUpdateTime = new Date().toISOString();
         await this.state.storage.deleteAlarm();
-        await this.state.storage.delete(STATE_STORAGE_KEY);
+        await this.setState(trackerState);
         await this.broadcastViewState(trackerState);
         this.closeWebSockets("Tracker idle timeout");
-        await this.markRegistryStopped(trackerState);
-        this.notifyUserTracker(trackerState);
+        await this.retryRegistryStop(trackerState);
         return;
       }
 
@@ -1089,12 +1097,23 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
   }
 
-  private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<void> {
+  private async retryRegistryStop(trackerState: IndividualTrackerInternalState): Promise<void> {
+    if (await this.markRegistryStopped(trackerState)) {
+      await this.state.storage.deleteAlarm();
+      await this.state.storage.delete(STATE_STORAGE_KEY);
+    } else {
+      await this.state.storage.setAlarm(Date.now() + REGISTRY_STOP_RETRY_INTERVAL_MS);
+    }
+    this.notifyUserTracker(trackerState);
+  }
+
+  private async markRegistryStopped(trackerState: IndividualTrackerInternalState): Promise<boolean> {
     try {
       const row = await this.services.databaseService.getIndividualTracker(trackerState.trackerId);
       if (row != null) {
         await this.services.individualTrackerService.markTrackerStatus(row, "stopped");
       }
+      return true;
     } catch (error) {
       this.logService.warn(
         error,
@@ -1104,6 +1123,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           ["gamertag", trackerState.gamertag],
         ]),
       );
+      return false;
     }
   }
 
