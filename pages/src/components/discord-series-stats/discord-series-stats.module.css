@@ -2,10 +2,21 @@
   padding-top: var(--space-6);
 }
 
-.subtitle {
+.headerBar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-8);
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+}
+
+.headerSubtitle {
   color: var(--halo-gray);
   font-family: var(--font-body);
-  margin-top: 0;
 }
 
 .content {
