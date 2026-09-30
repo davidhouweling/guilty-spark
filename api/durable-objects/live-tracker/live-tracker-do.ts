@@ -53,6 +53,7 @@ import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { applyRosterSubstitution } from "../../base/roster-substitution";
 import { DiscordError } from "../../services/discord/discord-error";
+import { MapsPostType } from "../../services/database/types/guild_config";
 import type { SeriesData } from "../../services/halo/types";
 import type { LiveTrackerState } from "./types";
 
@@ -698,6 +699,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       await this.state.storage.put("plannedMaps", parsed.data);
+      await this.state.storage.delete("mapsCleared");
       return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
     }
 
@@ -713,12 +715,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const cleared = await this.state.storage.transaction(async (txn) => {
         const saved = await txn.get<{ maps: LiveTrackerMap[]; token: string }>("plannedMaps");
         if (saved == null) {
+          await txn.put("mapsCleared", true);
           return true;
         }
         if (saved.token !== parsed.data.token) {
           return false;
         }
         await txn.delete("plannedMaps");
+        await txn.put("mapsCleared", true);
         return true;
       });
       return liveTrackerMapsClearContract.toResponse({ success: true, cleared }, { noStore: true });
@@ -875,6 +879,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const currentTime = new Date();
     const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
     const { seriesScore } = await this.computeAndUpdateSeriesScore(trackerState);
+    const plannedMaps = await this.state.storage.get<LiveTrackerMap[] | { maps: LiveTrackerMap[] }>("plannedMaps");
+    const mapsCleared = (await this.state.storage.get<boolean>("mapsCleared")) === true;
+    const guildConfig = await this.databaseService.getGuildConfig(trackerState.guildId);
+    const showGenerateMapsButton =
+      plannedMaps == null &&
+      (guildConfig.NeatQueueInformerMapsPost === MapsPostType.BUTTON ||
+        (guildConfig.NeatQueueInformerMapsPost === MapsPostType.AUTO && mapsCleared));
 
     return {
       userId: trackerState.userId,
@@ -887,6 +898,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       nextCheck: options.nextCheck,
       enrichedMatches,
       seriesScore,
+      showGenerateMapsButton,
       substitutions: trackerState.substitutions,
       errorState: trackerState.errorState,
     };

@@ -20,6 +20,8 @@ export enum InteractionComponent {
   Repost = "btn_track_repost",
 }
 
+const GENERATE_MAPS_BUTTON_CUSTOM_ID = "btn_maps_initiate";
+
 interface LiveTrackerEmbedServices {
   discordService: DiscordService;
   pagesUrl: string;
@@ -284,6 +286,16 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
 
     if (status === "paused" || isPaused) {
       components.push(this.createButton(InteractionComponent.Resume, "Resume", ButtonStyle.Primary, "▶️"));
+    }
+
+    if (this.data.showGenerateMapsButton === true) {
+      components.push({
+        type: ComponentType.Button,
+        custom_id: GENERATE_MAPS_BUTTON_CUSTOM_ID,
+        label: "Generate maps",
+        style: ButtonStyle.Secondary,
+        emoji: { name: "🗺️" },
+      });
     }
 
     const actions: APIMessageTopLevelComponent[] =
