@@ -327,7 +327,7 @@ export class MapsCommand extends BaseCommand {
         const context = await this.getActiveQueueContext(interaction);
         if (context != null) {
           const token = crypto.randomUUID();
-          await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
+          const wasClearedByUser = await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
           draft.plan = { queueNumber: context.queueNumber, token };
           try {
             await this.services.discordService.updateDeferredReply(
@@ -336,7 +336,7 @@ export class MapsCommand extends BaseCommand {
             );
           } catch (error) {
             try {
-              await this.services.liveTrackerService.clearPlannedMaps(context, token);
+              await this.services.liveTrackerService.clearPlannedMaps(context, token, wasClearedByUser);
             } catch (rollbackError) {
               this.services.logService.error(rollbackError);
             }

@@ -27,6 +27,7 @@ export const liveTrackerMapsClearContract = defineContract(
 export const liveTrackerMapsUpdateContract = defineContract(
   z.object({
     success: z.literal(true),
+    wasClearedByUser: z.boolean(),
   }),
 );
 export type LiveTrackerMapsUpdateResponse = z.infer<typeof liveTrackerMapsUpdateContract.schema>;

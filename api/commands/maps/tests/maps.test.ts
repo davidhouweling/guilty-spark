@@ -538,7 +538,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
         const { jobToComplete } = command.execute(interaction);
 
@@ -583,7 +583,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(true);
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
         const error = new Error("Discord update failed");
         updateDeferredReplySpy.mockRejectedValueOnce(error);
@@ -595,6 +595,7 @@ describe("MapsCommand", () => {
         expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ queueNumber: 42, channelId: interaction.channel.id }),
           setPlannedMapsSpy.mock.calls[0]?.[2],
+          true,
         );
         expect(updateDeferredReplySpy).toHaveBeenCalledTimes(2);
         const [, response] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
@@ -606,7 +607,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(false);
         updateDeferredReplySpy.mockRejectedValueOnce(new Error("Discord update failed"));
 
@@ -621,7 +622,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const rollbackError = new Error("Rollback failed");
         vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockRejectedValue(rollbackError);
         const publishError = new Error("Discord update failed");

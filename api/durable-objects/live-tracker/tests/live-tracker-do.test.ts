@@ -505,7 +505,32 @@ describe("LiveTrackerDO", () => {
       });
       expect(storagePutSpy).toHaveBeenCalledWith("trackerState", expect.any(Object));
       expect(storageDeleteAllSpy).not.toHaveBeenCalled();
-      await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({ success: true });
+      await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({
+        success: true,
+        wasClearedByUser: false,
+      });
+    });
+
+    it("reports and clears the prior explicit-clear marker when storing maps", async () => {
+      storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "mapsCleared" ? true : null));
+      const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            maps: [{ mode: "Slayer", map: "Live Fire" }],
+            token: "00000000-0000-4000-8000-000000000001",
+          }),
+        }),
+      );
+
+      await expect(liveTrackerMapsUpdateContract.fromResponse(response)).resolves.toEqual({
+        success: true,
+        wasClearedByUser: true,
+      });
+      expect(storageDeleteSpy).toHaveBeenCalledWith("mapsCleared");
     });
 
     it("returns an empty planned maps list when none is stored", async () => {

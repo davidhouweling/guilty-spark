@@ -709,8 +709,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
 
       await this.state.storage.put("plannedMaps", parsed.data);
+      const wasClearedByUser = (await this.state.storage.get<boolean>("mapsCleared")) === true;
       await this.state.storage.delete("mapsCleared");
-      return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
+      return liveTrackerMapsUpdateContract.toResponse({ success: true, wasClearedByUser }, { noStore: true });
     }
 
     if (request.method === "DELETE") {

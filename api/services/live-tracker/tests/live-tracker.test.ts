@@ -556,10 +556,12 @@ describe("LiveTrackerService", () => {
     });
 
     it("sets planned maps successfully", async () => {
-      const response: LiveTrackerMapsUpdateResponse = { success: true };
+      const response: LiveTrackerMapsUpdateResponse = { success: true, wasClearedByUser: true };
       fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
 
-      await service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001");
+      await expect(
+        service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001"),
+      ).resolves.toBe(true);
 
       expect(fetch).toHaveBeenCalledWith("http://do/maps", {
         method: "POST",
