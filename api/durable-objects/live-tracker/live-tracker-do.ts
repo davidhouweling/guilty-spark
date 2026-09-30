@@ -710,11 +710,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       if (!parsed.success) {
         return parsed.response;
       }
-      const saved = await this.state.storage.get<{ maps: LiveTrackerMap[]; token: string }>("plannedMaps");
-      const cleared = saved?.token === parsed.data.token;
-      if (cleared) {
-        await this.state.storage.delete("plannedMaps");
-      }
+      const cleared = await this.state.storage.transaction(async (txn) => {
+        const saved = await txn.get<{ maps: LiveTrackerMap[]; token: string }>("plannedMaps");
+        if (saved?.token !== parsed.data.token) {
+          return false;
+        }
+        await txn.delete("plannedMaps");
+        return true;
+      });
       return liveTrackerMapsClearContract.toResponse({ success: true, cleared }, { noStore: true });
     }
 

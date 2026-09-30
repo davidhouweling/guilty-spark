@@ -54,7 +54,9 @@ const createMockDurableObjectState = (): {
     onNextSessionRestoreBookmark: vi.fn(),
     sql: createMockSqlStorage(),
     sync: vi.fn(),
-    transaction: vi.fn(),
+    transaction: async <T>(callback: (txn: DurableObjectTransaction) => Promise<T>): Promise<T> => {
+      return await callback({ ...mockStorage, rollback: vi.fn() });
+    },
     transactionSync: vi.fn(),
     kv: {} as unknown as DurableObjectStorage["kv"],
   };
@@ -563,6 +565,69 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({ success: true, cleared: true });
       expect(storageDeleteSpy).toHaveBeenCalledWith("plannedMaps");
+    });
+
+    it("preserves a replacement plan queued while a matching clear is in progress", async () => {
+      const originalToken = "00000000-0000-4000-8000-000000000001";
+      const replacementToken = "00000000-0000-4000-8000-000000000002";
+      const maps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      let saved: { maps: LiveTrackerMap[]; token: string } | null = { maps, token: originalToken };
+      let releaseRead: (() => void) | undefined;
+      const readIsBlocked = new Promise<void>((resolve) => {
+        releaseRead = resolve;
+      });
+      let notifyRead: (() => void) | undefined;
+      const readStarted = new Promise<void>((resolve) => {
+        notifyRead = resolve;
+      });
+      let notifyWrite: (() => void) | undefined;
+      const writeStarted = new Promise<void>((resolve) => {
+        notifyWrite = resolve;
+      });
+      let releaseTransaction: (() => void) | undefined;
+      const transactionFinished = new Promise<void>((resolve) => {
+        releaseTransaction = resolve;
+      });
+      storageGetSpy.mockImplementation(async () => {
+        notifyRead?.();
+        await readIsBlocked;
+        return saved;
+      });
+      vi.spyOn(mockStorage, "delete").mockImplementation(async () => {
+        saved = null;
+        return Promise.resolve(1);
+      });
+      vi.spyOn(mockStorage, "transaction").mockImplementation(async (callback) => {
+        try {
+          return await callback({ ...mockStorage, rollback: vi.fn() });
+        } finally {
+          releaseTransaction?.();
+        }
+      });
+      storagePutSpy.mockImplementation(async () => {
+        notifyWrite?.();
+        await transactionFinished;
+        saved = { maps, token: replacementToken };
+      });
+
+      const clearPromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", { method: "DELETE", body: JSON.stringify({ token: originalToken }) }),
+      );
+      await readStarted;
+      const replacementPromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          body: JSON.stringify({ maps, token: replacementToken }),
+        }),
+      );
+      await writeStarted;
+      releaseRead?.();
+      const [clearResponse, replacementResponse] = await Promise.all([clearPromise, replacementPromise]);
+
+      expect(clearResponse.status).toBe(200);
+      await expect(clearResponse.json()).resolves.toEqual({ success: true, cleared: true });
+      expect(replacementResponse.status).toBe(200);
+      expect(saved).toEqual({ maps, token: replacementToken });
     });
 
     it("rejects a plan clear without a matching token request", async () => {
