@@ -148,6 +148,29 @@ describe("MapsEmbed", () => {
     expect(getEmojiFromNameSpy).toHaveBeenCalledWith("GameCoachGG");
   });
 
+  it("splits 13-map lists so every embed field stays within Discord's limit", () => {
+    getEmojiFromNameSpy.mockReturnValue("<:GameCoachGG:1410461403663568926>");
+    const maps = Array.from({ length: 13 }, () => ({ mode: "Slayer" as const, map: "Live Fire" }));
+    const mapsEmbed = new MapsEmbed(
+      { discordService },
+      {
+        userId: testUserId,
+        count: 13,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        maps,
+        availableModes: mockAvailableModes,
+      },
+    );
+
+    const fields = mapsEmbed.embed.fields ?? [];
+    const mapFields = fields.filter((field) => field.name === "Map");
+
+    expect(fields.every((field) => field.value.length <= 1024)).toBe(true);
+    expect(mapFields.flatMap((field) => field.value.split("\n"))).toHaveLength(13);
+    expect(mapFields).toHaveLength(2);
+  });
+
   it("shows only slayer format option when playlist has no objective modes", () => {
     const slayerOnlyMaps = [{ mode: "Slayer" as const, map: "Aquarius" }];
 
