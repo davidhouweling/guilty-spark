@@ -565,6 +565,76 @@ describe("MapsCommand", () => {
         expect(JSON.stringify(data.components)).not.toContain(InteractionComponent.Regenerate);
       });
 
+      it("attributes confirmation to the user who clicks Confirm", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        if (interaction.member != null) {
+          interaction.member.user.id = "confirming-user";
+        }
+
+        await command.execute(interaction).jobToComplete?.();
+
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(data.embeds?.[0]?.fields?.at(-1)?.value).toBe("-# Confirmed by <@confirming-user> | Format: HCS");
+      });
+
+      it("rolls back its queue plan when publishing the confirmation fails", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
+        const error = new Error("Discord update failed");
+        updateDeferredReplySpy.mockRejectedValueOnce(error);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
+
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).toHaveBeenCalledOnce();
+        expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ queueNumber: 42, channelId: interaction.channel.id }),
+          setPlannedMapsSpy.mock.calls[0]?.[2],
+        );
+        expect(updateDeferredReplySpy).toHaveBeenCalledTimes(2);
+        const [, response] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
+        expect(response.embeds?.[0]?.description).toContain("An unexpected error has occurred");
+      });
+
+      it("does not roll back another plan when publishing confirmation fails", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(false);
+        updateDeferredReplySpy.mockRejectedValueOnce(new Error("Discord update failed"));
+
+        await command.execute(aFakeButtonInteraction(InteractionComponent.Confirm)).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).toHaveBeenCalledOnce();
+        expect(updateDeferredReplySpy).toHaveBeenCalledTimes(2);
+      });
+
+      it("logs rollback failures when publishing confirmation fails", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const rollbackError = new Error("Rollback failed");
+        vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockRejectedValue(rollbackError);
+        const publishError = new Error("Discord update failed");
+        updateDeferredReplySpy.mockRejectedValueOnce(publishError);
+        const logErrorSpy = vi.spyOn(services.logService, "error");
+
+        await command.execute(aFakeButtonInteraction(InteractionComponent.Confirm)).jobToComplete?.();
+
+        expect(logErrorSpy).toHaveBeenCalledWith(rollbackError);
+        expect(logErrorSpy).toHaveBeenCalledWith(publishError);
+        expect(updateDeferredReplySpy).toHaveBeenCalledTimes(2);
+      });
+
       it("confirms an ad-hoc maps message without writing to a tracker", async () => {
         vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(99);
         vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);

@@ -323,11 +323,26 @@ export class MapsCommand extends BaseCommand {
       }
       const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       if (!draft.locked) {
+        draft.userId = this.getInteractionUserId(interaction);
         const context = await this.getActiveQueueContext(interaction);
         if (context != null) {
           const token = crypto.randomUUID();
           await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
           draft.plan = { queueNumber: context.queueNumber, token };
+          try {
+            await this.services.discordService.updateDeferredReply(
+              interaction.token,
+              this.createMapsResponse({ ...draft, locked: true }, availableModes),
+            );
+          } catch (error) {
+            try {
+              await this.services.liveTrackerService.clearPlannedMaps(context, token);
+            } catch (rollbackError) {
+              this.services.logService.error(rollbackError);
+            }
+            throw error;
+          }
+          return;
         }
       }
 
