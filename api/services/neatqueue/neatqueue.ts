@@ -642,7 +642,7 @@ export class NeatQueueService {
 
   private async getAutoQueueNumberForMaps(guildId: string, channelId: string): Promise<number | undefined> {
     try {
-      return (await this.discordService.getActiveQueueNumber(guildId, channelId)) ?? undefined;
+      return (await this.discordService.getTeamsFromQueueChannel(guildId, channelId))?.queue;
     } catch (error) {
       this.logService.warn(
         error,

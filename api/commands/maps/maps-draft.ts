@@ -143,6 +143,9 @@ function readPlanFromEmbed(message: APIMessage): MapsDraft["plan"] {
   if (footer == null) {
     return undefined;
   }
+  if (/^AUTO Queue: [1-9]\d*$/.test(footer)) {
+    return undefined;
+  }
   const match = /^Queue: ([1-9]\d*) \| Plan: ([\da-f-]+)(?: \| AUTO Queue: [1-9]\d*)?$/.exec(footer);
   if (match == null) {
     throw new Error("Invalid map plan metadata");

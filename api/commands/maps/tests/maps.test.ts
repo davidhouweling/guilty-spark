@@ -649,6 +649,38 @@ describe("MapsCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
       });
 
+      it("keeps an AUTO-only locked draft usable after its queue disappears", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
+        const generatedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "neatqueue-bot",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            autoQueueNumber: 42,
+          },
+        ).toMessageData();
+        const confirmInteraction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        confirmInteraction.message.embeds = generatedMessage.embeds ?? [];
+        confirmInteraction.message.components = generatedMessage.components ?? [];
+        await command.execute(confirmInteraction).jobToComplete?.();
+
+        const [, confirmedData] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(confirmedData.embeds?.[0]?.footer?.text).toBe("AUTO Queue: 42");
+
+        const repostInteraction = aFakeButtonInteraction(InteractionComponent.Repost);
+        repostInteraction.message.embeds = confirmedData.embeds ?? [];
+        repostInteraction.message.components = confirmedData.components ?? [];
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+
+        await command.execute(repostInteraction).jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalledOnce();
+      });
+
       it("does not persist a plan when resolving playlist modes fails on confirmation", async () => {
         vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
           ...discordNeatQueueData,

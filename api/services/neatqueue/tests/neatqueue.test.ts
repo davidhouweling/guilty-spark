@@ -539,7 +539,10 @@ describe("NeatQueueService", () => {
           NeatQueueInformerMapsCount: 3,
         });
         getGuildConfigSpy.mockReset().mockResolvedValue(guildConfig);
-        vi.spyOn(discordService, "getActiveQueueNumber").mockResolvedValue(1);
+        vi.spyOn(discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 1,
+        });
         vi.spyOn(haloService, "getMapModesForPlaylist").mockResolvedValue(["Slayer"]);
         const maps = [
           { map: "Map 1", mode: "Slayer" },
