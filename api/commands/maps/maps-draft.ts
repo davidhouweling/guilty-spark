@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { MapMode } from "../../services/halo/hcs";
 import { ALL_MODES, MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
-import { InteractionComponent } from "../../embeds/maps-embed";
+import { InteractionComponent, mapFormatLabels, mapPlaylistLabels } from "../../embeds/maps-embed";
 import { GAMECOACH_GG_URLS } from "./gamecoachgg";
 
 export interface MapsDraft {
@@ -21,7 +21,7 @@ export function normalizeMapsFormat(format: MapsFormatType, availableModes: MapM
   return availableModes.length > 1 ? format : MapsFormatType.SLAYER;
 }
 
-function readSelectedValue(message: APIMessage, customId: string): string {
+function findSelectedValue(message: APIMessage, customId: string): string | undefined {
   for (const row of message.components ?? []) {
     if (row.type !== ComponentType.ActionRow) {
       continue;
@@ -32,35 +32,19 @@ function readSelectedValue(message: APIMessage, customId: string): string {
         continue;
       }
 
-      return Preconditions.checkExists(
-        component.options.find((option) => option.default === true)?.value,
-        `No selected value for ${customId}`,
-      );
+      return component.options.find((option) => option.default === true)?.value;
     }
   }
 
-  throw new Error(`No select menu found for ${customId}`);
+  return undefined;
+}
+
+function readSelectedValue(message: APIMessage, customId: string): string {
+  return Preconditions.checkExists(findSelectedValue(message, customId), `No selected value for ${customId}`);
 }
 
 function isMapsMessageLocked(message: APIMessage): boolean {
-  const confirmCustomId: string = InteractionComponent.Confirm;
-  for (const row of message.components ?? []) {
-    if (row.type !== ComponentType.ActionRow) {
-      continue;
-    }
-
-    for (const component of row.components) {
-      if (
-        component.type === ComponentType.Button &&
-        "custom_id" in component &&
-        component.custom_id === confirmCustomId
-      ) {
-        return component.disabled === true;
-      }
-    }
-  }
-
-  return false;
+  return findSelectedValue(message, InteractionComponent.CountSelect) == null;
 }
 
 function readMapName(value: string): string {
@@ -116,18 +100,50 @@ function readMapsFromEmbeds(message: APIMessage): { mode: MapMode; map: string }
   return maps;
 }
 
+function readPlaylistFromEmbed(message: APIMessage): MapsPlaylistType {
+  const title = Preconditions.checkExists(message.embeds.find((embed) => embed.title != null)?.title);
+  const label = title.replace(/^Maps: /, "");
+  return z
+    .enum(MapsPlaylistType)
+    .parse(Preconditions.checkExists(Object.entries(mapPlaylistLabels).find(([, value]) => value === label)?.[0]));
+}
+
+function readFormatFromEmbed(message: APIMessage): MapsFormatType {
+  const fieldValue = Preconditions.checkExists(
+    message.embeds.flatMap((embed) => embed.fields ?? []).find((field) => field.name === "")?.value,
+  );
+  const match = /\| Format: (.+)$/.exec(fieldValue);
+  const label = Preconditions.checkExists(match?.[1], "Map format metadata is missing");
+  return z
+    .enum(MapsFormatType)
+    .parse(Preconditions.checkExists(Object.entries(mapFormatLabels).find(([, value]) => value === label)?.[0]));
+}
+
+function readConfirmerFromEmbed(message: APIMessage): string {
+  const fieldValue = Preconditions.checkExists(
+    message.embeds.flatMap((embed) => embed.fields ?? []).find((field) => field.name === "")?.value,
+  );
+  const match = /^-# Confirmed by <@([^>]+)> \| Format: .+$/.exec(fieldValue);
+  return Preconditions.checkExists(match?.[1], "Map confirmer metadata is missing");
+}
+
 export function readMapsDraftFromMessage(message: APIMessage, userId: string): MapsDraft {
-  const count = Number(readSelectedValue(message, InteractionComponent.CountSelect));
+  const locked = isMapsMessageLocked(message);
+  const maps = readMapsFromEmbeds(message);
+  const count = locked ? maps.length : Number(readSelectedValue(message, InteractionComponent.CountSelect));
   if (!MAP_COUNTS.includes(count)) {
     throw new Error("Map count was not selected");
   }
 
-  const playlist = z.enum(MapsPlaylistType).parse(readSelectedValue(message, InteractionComponent.PlaylistSelect));
-  const format = z.enum(MapsFormatType).parse(readSelectedValue(message, InteractionComponent.FormatSelect));
-  const maps = readMapsFromEmbeds(message);
+  const playlist = locked
+    ? readPlaylistFromEmbed(message)
+    : z.enum(MapsPlaylistType).parse(readSelectedValue(message, InteractionComponent.PlaylistSelect));
+  const format = locked
+    ? readFormatFromEmbed(message)
+    : z.enum(MapsFormatType).parse(readSelectedValue(message, InteractionComponent.FormatSelect));
   if (maps.length !== 0 && maps.length !== count) {
     throw new Error("Map list does not match the selected count");
   }
 
-  return { userId, locked: isMapsMessageLocked(message), count, playlist, format, maps };
+  return { userId: locked ? readConfirmerFromEmbed(message) : userId, locked, count, playlist, format, maps };
 }

@@ -102,6 +102,14 @@ export class MapsCommand extends BaseCommand {
       this.deferUpdate(async () => this.handleClear(interaction)),
     ),
 
+    [InteractionComponent.ConfirmClear]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleConfirmClear(interaction)),
+    ),
+
+    [InteractionComponent.CancelClear]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleCancelClear(interaction)),
+    ),
+
     [InteractionComponent.CountSelect]: this.stringSelectHandler((interaction) =>
       this.deferUpdate(async () => this.handleCountSelect(interaction)),
     ),
@@ -334,6 +342,23 @@ export class MapsCommand extends BaseCommand {
   private async handleClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
       const draft = this.getDraft(interaction);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
+      await this.services.discordService.updateDeferredReply(
+        interaction.token,
+        this.createMapsResponse(draft, availableModes, {
+          clearConfirmation: true,
+          clearConfirmationUserId: this.getInteractionUserId(interaction),
+        }),
+      );
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleConfirmClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const draft = this.getDraft(interaction);
       const context = await this.getActiveQueueContext(interaction);
       if (context != null) {
         await this.services.liveTrackerService.clearPlannedMaps(context);
@@ -342,7 +367,24 @@ export class MapsCommand extends BaseCommand {
       const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       await this.services.discordService.updateDeferredReply(
         interaction.token,
-        this.createMapsResponse({ ...draft, locked: false, maps: [] }, availableModes),
+        this.createMapsResponse(
+          { ...draft, userId: this.getInteractionUserId(interaction), locked: false, maps: [] },
+          availableModes,
+        ),
+      );
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleCancelClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const draft = this.getDraft(interaction);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
+      await this.services.discordService.updateDeferredReply(
+        interaction.token,
+        this.createMapsResponse(draft, availableModes),
       );
     } catch (error) {
       this.services.logService.error(error);
@@ -436,8 +478,15 @@ export class MapsCommand extends BaseCommand {
     );
   }
 
-  private createMapsResponse(draft: MapsDraft, availableModes: MapMode[]): APIInteractionResponseCallbackData {
-    const mapsEmbed = new MapsEmbed({ discordService: this.services.discordService }, { ...draft, availableModes });
+  private createMapsResponse(
+    draft: MapsDraft,
+    availableModes: MapMode[],
+    options: { clearConfirmation?: boolean | undefined; clearConfirmationUserId?: string | undefined } = {},
+  ): APIInteractionResponseCallbackData {
+    const mapsEmbed = new MapsEmbed(
+      { discordService: this.services.discordService },
+      { ...draft, ...options, availableModes },
+    );
 
     return mapsEmbed.toMessageData();
   }
