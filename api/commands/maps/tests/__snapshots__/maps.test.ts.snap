@@ -166,7 +166,6 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
           },
           {
             "custom_id": "btn_maps_confirm",
-            "disabled": false,
             "emoji": {
               "name": "✅",
             },

@@ -193,6 +193,29 @@ describe("MapsEmbed", () => {
     }
   });
 
+  it("shows only Regenerate and Repost actions when no maps are selected", () => {
+    const mapsEmbed = new MapsEmbed(
+      { discordService },
+      {
+        userId: testUserId,
+        count: 5,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        maps: [],
+        availableModes: mockAvailableModes,
+      },
+    );
+
+    const [actionRow] = mapsEmbed.actions.slice(-1);
+    expect(actionRow?.type).toBe(ComponentType.ActionRow);
+    if (actionRow?.type === ComponentType.ActionRow) {
+      expect(actionRow.components.map((component) => ("custom_id" in component ? component.custom_id : ""))).toEqual([
+        InteractionComponent.Regenerate,
+        InteractionComponent.Repost,
+      ]);
+    }
+  });
+
   it("handles maps with GameCoach.gg URLs", () => {
     const mapsWithUrl = [
       { mode: "Slayer" as const, map: "Aquarius" }, // Has GameCoach.gg URL

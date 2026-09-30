@@ -1,5 +1,7 @@
 import type {
   APIEmbed,
+  APIActionRowComponent,
+  APIButtonComponentWithCustomId,
   APIInteractionResponseCallbackData,
   APIMessageTopLevelComponent,
   APISelectMenuOption,
@@ -229,45 +231,44 @@ export class MapsEmbed extends BaseTableEmbed {
       ];
     }
 
-    return [
-      ...selectionRows,
-      {
-        type: ComponentType.ActionRow,
-        components: [
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Regenerate,
-            label: "Regenerate",
-            style: ButtonStyle.Primary,
-            emoji: { name: "🔄" },
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Confirm,
-            label: "Confirm maps",
-            style: ButtonStyle.Success,
-            disabled: this.data.maps.length === 0,
-            emoji: { name: "✅" },
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Clear,
-            label: "Clear maps",
-            style: ButtonStyle.Danger,
-            emoji: { name: "🗑️" },
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Repost,
-            label: "Move to bottom of chat",
-            style: ButtonStyle.Secondary,
-            emoji: {
-              name: "⏬",
-            },
-          },
-        ],
+    const regenerateButton: APIButtonComponentWithCustomId = {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.Regenerate,
+      label: "Regenerate",
+      style: ButtonStyle.Primary,
+      emoji: { name: "🔄" },
+    };
+    const confirmButton: APIButtonComponentWithCustomId = {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.Confirm,
+      label: "Confirm maps",
+      style: ButtonStyle.Success,
+      ...(this.data.maps.length === 0 ? { disabled: true } : {}),
+      emoji: { name: "✅" },
+    };
+    const clearButton: APIButtonComponentWithCustomId = {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.Clear,
+      label: "Clear maps",
+      style: ButtonStyle.Danger,
+      emoji: { name: "🗑️" },
+    };
+    const repostButton: APIButtonComponentWithCustomId = {
+      type: ComponentType.Button,
+      custom_id: InteractionComponent.Repost,
+      label: "Move to bottom of chat",
+      style: ButtonStyle.Secondary,
+      emoji: {
+        name: "⏬",
       },
-    ];
+    };
+
+    const actionComponents: APIActionRowComponent<APIButtonComponentWithCustomId> = {
+      type: ComponentType.ActionRow,
+      components: [regenerateButton, ...(this.data.maps.length > 0 ? [confirmButton, clearButton] : []), repostButton],
+    };
+
+    return [...selectionRows, actionComponents];
   }
 
   toMessageData(): APIInteractionResponseCallbackData {
