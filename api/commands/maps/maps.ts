@@ -455,9 +455,18 @@ export class MapsCommand extends BaseCommand {
       return null;
     }
 
-    const queueNumber = await this.services.discordService.getActiveQueueNumber(guildId, interaction.channel.id);
-    if (queueNumber == null) {
-      return null;
+    let queueNumber: number;
+    try {
+      const queueData = await this.services.discordService.getTeamsFromQueueChannel(guildId, interaction.channel.id);
+      if (queueData == null) {
+        return null;
+      }
+      queueNumber = queueData.queue;
+    } catch (error) {
+      if (error instanceof EndUserError && error.errorType === EndUserErrorType.WARNING) {
+        return null;
+      }
+      throw error;
     }
 
     return {

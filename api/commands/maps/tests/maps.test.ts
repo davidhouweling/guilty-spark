@@ -30,7 +30,11 @@ import { MAP_COUNTS } from "../../../services/halo/hcs";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { Services } from "../../../services/install";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data";
+import {
+  apiMessage,
+  discordNeatQueueData,
+  fakeBaseAPIApplicationCommandInteraction,
+} from "../../../services/discord/fakes/data";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
 
 function aFakeMapsInteractionWith(
@@ -529,7 +533,11 @@ describe("MapsCommand", () => {
       });
 
       it("confirms the maps in the active queue tracker", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        const getCachedQueue = vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(99);
+        const getTeams = vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
         const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
         const { jobToComplete } = command.execute(interaction);
@@ -541,6 +549,8 @@ describe("MapsCommand", () => {
           Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
           expect.any(String),
         );
+        expect(getTeams).toHaveBeenCalledWith("fake-guild-id", interaction.channel.id);
+        expect(getCachedQueue).not.toHaveBeenCalled();
         const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.footer?.text).toMatch(/^Queue: 42 \| Plan: [\da-f-]+$/);
         const confirmCustomId: string = InteractionComponent.Confirm;
@@ -556,7 +566,8 @@ describe("MapsCommand", () => {
       });
 
       it("confirms an ad-hoc maps message without writing to a tracker", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(null);
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(99);
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
         const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps");
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
         const { jobToComplete } = command.execute(interaction);
@@ -568,7 +579,10 @@ describe("MapsCommand", () => {
       });
 
       it("requires a second confirmation before clearing the active queue plan", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
         const logErrorSpy = vi.spyOn(services.logService, "error");
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
         const clearInteraction = aFakeButtonInteraction(InteractionComponent.Clear);
@@ -639,7 +653,10 @@ describe("MapsCommand", () => {
       });
 
       it("clears an ad-hoc confirmed message locally even when a queue is now active", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
         const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
         const lockedMessage = new MapsEmbed(
@@ -663,7 +680,10 @@ describe("MapsCommand", () => {
       });
 
       it("does not clear a newer plan through an older confirmed message", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
         vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(false);
         const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
         const lockedMessage = new MapsEmbed(
@@ -689,7 +709,10 @@ describe("MapsCommand", () => {
       });
 
       it("does not clear a plan when the active queue differs from the message's queue", async () => {
-        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(43);
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 43,
+        });
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
         const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
         const lockedMessage = new MapsEmbed(
