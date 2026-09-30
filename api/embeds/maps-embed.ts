@@ -5,7 +5,7 @@ import type {
   APISelectMenuOption,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { HCS_LAST_UPDATED } from "../services/halo/hcs";
+import { HCS_LAST_UPDATED, MAP_COUNTS } from "../services/halo/hcs";
 import type { MapMode } from "../services/halo/hcs";
 import type { DiscordService } from "../services/discord/discord";
 import { GAMECOACH_GG_URLS } from "../commands/maps/gamecoachgg";
@@ -15,10 +15,8 @@ import { EmbedColors } from "./colors";
 
 export enum InteractionComponent {
   Initiate = "btn_maps_initiate",
-  Roll1 = "btn_maps_roll_1",
-  Roll3 = "btn_maps_roll_3",
-  Roll5 = "btn_maps_roll_5",
-  Roll7 = "btn_maps_roll_7",
+  CountSelect = "select_maps_count",
+  Regenerate = "btn_maps_regenerate",
   PlaylistSelect = "select_maps_playlist",
   FormatSelect = "select_maps_format",
   Repost = "btn_maps_repost",
@@ -132,28 +130,10 @@ export class MapsEmbed extends BaseTableEmbed {
         type: ComponentType.ActionRow,
         components: [
           {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll1,
-            label: "Regen maps (count: 1)",
-            style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll3,
-            label: "Regen maps (count: 3)",
-            style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll5,
-            label: "Regen maps (count: 5)",
-            style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll7,
-            label: "Regen maps (count: 7)",
-            style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            type: ComponentType.StringSelect,
+            custom_id: InteractionComponent.CountSelect,
+            options: this.getCountOptions(count),
+            placeholder: "Select number of maps",
           },
         ],
       },
@@ -183,6 +163,12 @@ export class MapsEmbed extends BaseTableEmbed {
         components: [
           {
             type: ComponentType.Button,
+            custom_id: InteractionComponent.Regenerate,
+            label: "Regenerate",
+            style: ButtonStyle.Primary,
+          },
+          {
+            type: ComponentType.Button,
             custom_id: InteractionComponent.Repost,
             label: "Move to bottom of chat",
             style: ButtonStyle.Secondary,
@@ -208,6 +194,14 @@ export class MapsEmbed extends BaseTableEmbed {
       value,
       description: mapPlaylistDescriptions[value as MapsPlaylistType],
       default: (value as MapsPlaylistType) === playlist,
+    }));
+  }
+
+  private getCountOptions(count: number): APISelectMenuOption[] {
+    return MAP_COUNTS.map((value) => ({
+      label: value.toString(),
+      value: value.toString(),
+      default: value === count,
     }));
   }
 

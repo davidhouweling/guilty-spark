@@ -41,7 +41,7 @@ import {
   MapsPlaylistType,
   MapsFormatType,
 } from "../../services/database/types/guild_config";
-import { HCS_LAST_UPDATED } from "../../services/halo/hcs";
+import { HCS_LAST_UPDATED, MAP_COUNTS } from "../../services/halo/hcs";
 import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed";
 import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed";
 import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed";
@@ -1966,13 +1966,10 @@ export class SetupCommand extends BaseCommand {
               {
                 type: ComponentType.StringSelect,
                 custom_id: InteractionComponent.NeatQueueInformerMapsCount,
-                options: [
-                  { label: "5", value: "5" },
-                  { label: "7", value: "7" },
-                  { label: "9", value: "9" },
-                  { label: "11", value: "11" },
-                  { label: "13", value: "13" },
-                ],
+                options: MAP_COUNTS.filter((count) => count >= 5).map((count) => ({
+                  label: count.toString(),
+                  value: count.toString(),
+                })),
                 placeholder: "Configure count",
               },
             ],

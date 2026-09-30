@@ -1,4 +1,4 @@
-import type { MockInstance } from "vitest";
+import type { Mock, MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import type {
   APIInteractionResponse,
@@ -20,18 +20,27 @@ import {
   Locale,
   ComponentType,
   MessageFlags,
-  ButtonStyle,
   InteractionResponseType,
 } from "discord-api-types/v10";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MapMode } from "../../../services/halo/hcs";
 import { MapsCommand } from "../maps";
 import { InteractionComponent } from "../../../embeds/maps-embed";
+import { MAP_COUNTS } from "../../../services/halo/hcs";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { Services } from "../../../services/install";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
+
+interface FakeMapsDraft {
+  userId: string;
+  count: number;
+  playlist: MapsPlaylistType;
+  format: MapsFormatType;
+  maps: { mode: MapMode; map: string }[];
+}
+
+const fakeMapsDrafts = new Map<string, FakeMapsDraft>();
 
 function aFakeMapsInteractionWith(
   options: { name: string; value: unknown; type: number }[] = [],
@@ -66,18 +75,14 @@ function getButtonRow(
   ) as APIActionRowComponent<APIButtonComponentWithCustomId>;
 }
 
-function getButtonById(
-  row: APIActionRowComponent<APIButtonComponentWithCustomId> | undefined,
-  custom_id: string,
-): APIButtonComponentWithCustomId {
-  return Preconditions.checkExists(row?.components.find((b) => b.custom_id === custom_id));
-}
-
-function getSelectMenu(components: APIMessageTopLevelComponent[] | undefined): APIStringSelectComponent {
+function getSelectMenu(
+  components: APIMessageTopLevelComponent[] | undefined,
+  customId?: string,
+): APIStringSelectComponent {
   for (const row of components ?? []) {
     if (row.type === ComponentType.ActionRow && "components" in row && Array.isArray(row.components)) {
       for (const c of row.components) {
-        if (c.type === ComponentType.StringSelect) {
+        if (c.type === ComponentType.StringSelect && (customId === undefined || c.custom_id === customId)) {
           return c;
         }
       }
@@ -96,7 +101,7 @@ function aFakeMapsMessage({
 }: {
   playlist?: MapsPlaylistType;
   format?: MapsFormatType;
-  count?: 1 | 3 | 5 | 7;
+  count?: number;
   selectedPlaylist?: MapsPlaylistType | undefined;
   selectedFormat?: MapsFormatType | undefined;
 }): {
@@ -122,24 +127,13 @@ function aFakeMapsMessage({
         type: ComponentType.ActionRow,
         components: [
           {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll1,
-            style: count === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll3,
-            style: count === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll5,
-            style: count === 5 ? ButtonStyle.Primary : ButtonStyle.Secondary,
-          },
-          {
-            type: ComponentType.Button,
-            custom_id: InteractionComponent.Roll7,
-            style: count === 7 ? ButtonStyle.Primary : ButtonStyle.Secondary,
+            type: ComponentType.StringSelect,
+            custom_id: InteractionComponent.CountSelect,
+            options: MAP_COUNTS.map((value) => ({
+              label: value.toString(),
+              value: value.toString(),
+              default: value === count,
+            })),
           },
         ],
       },
@@ -196,6 +190,21 @@ function aFakeMapsMessage({
           },
         ],
       },
+      {
+        type: ComponentType.ActionRow,
+        components: [
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Regenerate,
+            style: 1,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Repost,
+            style: 2,
+          },
+        ],
+      },
     ],
   };
 }
@@ -209,26 +218,35 @@ function aFakeApiMessage({
 }: {
   playlist?: MapsPlaylistType;
   format?: MapsFormatType | undefined;
-  count?: 1 | 3 | 5 | 7;
+  count?: number;
   selectedPlaylist?: MapsPlaylistType | undefined;
   selectedFormat?: MapsFormatType | undefined;
 }): APIMessage {
-  return {
+  const message = {
     ...apiMessage,
     embeds: aFakeMapsMessage({ playlist, format, count, selectedPlaylist, selectedFormat }).embeds,
     components: aFakeMapsMessage({ playlist, format, count, selectedPlaylist, selectedFormat }).components,
   };
+  fakeMapsDrafts.set(`maps:draft:${message.id}`, {
+    userId: "user123",
+    count,
+    playlist,
+    format,
+    maps: [],
+  });
+  return message;
 }
 
 function aFakeButtonInteraction(
   customId: string,
   playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
   format: MapsFormatType = MapsFormatType.HCS,
-  count: 1 | 3 | 5 | 7 = 5,
+  count = 5,
 ): APIMessageComponentButtonInteraction {
   return {
     ...fakeBaseAPIApplicationCommandInteraction,
     id: "fake-interaction-id",
+    guild_id: "fake-guild-id",
     type: InteractionType.MessageComponent,
     data: {
       component_type: ComponentType.Button,
@@ -240,7 +258,7 @@ function aFakeButtonInteraction(
 
 function aFakePlaylistSelectInteraction(
   selectedPlaylist: MapsPlaylistType,
-  count: 1 | 3 | 5 | 7 = 5,
+  count = 5,
   playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
   format: MapsFormatType = MapsFormatType.HCS,
 ): APIMessageComponentSelectMenuInteraction {
@@ -257,9 +275,23 @@ function aFakePlaylistSelectInteraction(
   };
 }
 
+function aFakeCountSelectInteraction(selectedCount: number): APIMessageComponentSelectMenuInteraction {
+  return {
+    ...fakeBaseAPIApplicationCommandInteraction,
+    id: "fake-interaction-id",
+    type: InteractionType.MessageComponent,
+    data: {
+      component_type: ComponentType.StringSelect,
+      custom_id: InteractionComponent.CountSelect,
+      values: [selectedCount.toString()],
+    },
+    message: aFakeApiMessage({}),
+  };
+}
+
 function aFakeFormatSelectInteraction(
   selectedFormat: MapsFormatType,
-  count: 1 | 3 | 5 | 7 = 5,
+  count = 5,
   playlist: MapsPlaylistType = MapsPlaylistType.HCS_CURRENT,
   format: MapsFormatType = MapsFormatType.HCS,
 ): APIMessageComponentSelectMenuInteraction {
@@ -281,6 +313,7 @@ describe("MapsCommand", () => {
   let services: Services;
   let env: Env;
   let updateDeferredReplySpy: MockInstance;
+  let appDataPutSpy: Mock<(key: string, value: string, options: { expirationTtl?: number }) => Promise<void>>;
   const mockMaps = [
     { mode: "Slayer" as MapMode, map: "Live Fire" },
     { mode: "Oddball" as MapMode, map: "Streets" },
@@ -291,7 +324,17 @@ describe("MapsCommand", () => {
 
   beforeEach(() => {
     services = installFakeServicesWith();
-    env = aFakeEnvWith();
+    fakeMapsDrafts.clear();
+    const appDataGetSpy = vi.fn<(key: string) => Promise<FakeMapsDraft | null>>();
+    appDataGetSpy.mockImplementation(async (key) => Promise.resolve(fakeMapsDrafts.get(key) ?? null));
+    appDataPutSpy = vi.fn<(key: string, value: string, options: { expirationTtl?: number }) => Promise<void>>();
+    appDataPutSpy.mockImplementation(async (key, value) => {
+      fakeMapsDrafts.set(key, JSON.parse(value) as FakeMapsDraft);
+      return Promise.resolve();
+    });
+    env = aFakeEnvWith({
+      APP_DATA: { get: appDataGetSpy, put: appDataPutSpy } as unknown as KVNamespace,
+    });
     command = new MapsCommand(services, env);
 
     updateDeferredReplySpy = vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
@@ -333,6 +376,9 @@ describe("MapsCommand", () => {
 
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
         expect(updateDeferredReplySpy.mock.lastCall).toMatchSnapshot();
+        expect(appDataPutSpy).toHaveBeenCalledWith(`maps:draft:${apiMessage.id}`, expect.any(String), {
+          expirationTtl: 60 * 60 * 6,
+        });
       });
 
       it("renders the mock maps in the embed", async () => {
@@ -407,9 +453,26 @@ describe("MapsCommand", () => {
   });
 
   describe("execute(): message component interactions", () => {
+    describe("count select", () => {
+      it("regenerates and saves a 13-map draft", async () => {
+        const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+        const interaction = aFakeCountSelectInteraction(13);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(generateMapsSpy).toHaveBeenCalledWith({
+          count: 13,
+          playlist: MapsPlaylistType.HCS_CURRENT,
+          format: MapsFormatType.HCS,
+        });
+        expect(fakeMapsDrafts.get(`maps:draft:${interaction.message.id}`)?.count).toBe(13);
+      });
+    });
+
     describe("button interactions", () => {
       it("returns deferred response and jobToComplete for roll button", () => {
-        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, MapsPlaylistType.HCS_HISTORICAL);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate, MapsPlaylistType.HCS_HISTORICAL);
 
         const { response, jobToComplete } = command.execute(interaction);
 
@@ -420,7 +483,7 @@ describe("MapsCommand", () => {
       });
 
       it("calls updateDeferredReply with regenerated maps", async () => {
-        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3, MapsPlaylistType.HCS_HISTORICAL);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate, MapsPlaylistType.HCS_HISTORICAL);
         const { jobToComplete } = command.execute(interaction);
 
         await jobToComplete?.();
@@ -433,12 +496,15 @@ describe("MapsCommand", () => {
         expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
         expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
 
-        const buttonRowHist = getButtonRow(data.components);
-        expect(getButtonById(buttonRowHist, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("5");
       });
 
       it("calls updateDeferredReply for non-initiate roll buttons", async () => {
-        const interaction = aFakeButtonInteraction(InteractionComponent.Roll1);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate);
         const { jobToComplete } = command.execute(interaction);
 
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
@@ -454,8 +520,11 @@ describe("MapsCommand", () => {
         expect(embed).toBeDefined();
         expect(embed?.title).toBeDefined();
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll1).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("5");
       });
 
       it("throws for unknown button id", () => {
@@ -470,17 +539,16 @@ describe("MapsCommand", () => {
         }
       });
 
-      it("throws for unknown playlist in embed", () => {
-        const interaction = aFakeButtonInteraction(InteractionComponent.Roll1, "NotAPlaylist" as MapsPlaylistType);
+      it("reports an expired KV draft", async () => {
+        const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate);
+        fakeMapsDrafts.delete(`maps:draft:${interaction.message.id}`);
 
-        const { response } = command.execute(interaction);
+        const { response, jobToComplete } = command.execute(interaction);
 
-        expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
-        if (response.type === InteractionResponseType.ChannelMessageWithSource) {
-          expect(typeof response.data.content).toBe("string");
-          expect(response.data.content).toMatch(/Playlist not found/i);
-          expect(response.data.flags).toBe(MessageFlags.Ephemeral);
-        }
+        expect(response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
+        const updateErrorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError");
+        await jobToComplete?.();
+        expect(updateErrorSpy).toHaveBeenCalledWith(interaction.token, expect.any(Error));
       });
 
       describe("initiate button", () => {
@@ -511,7 +579,7 @@ describe("MapsCommand", () => {
           expect(data.embeds?.[0]?.title).toContain("Maps: LVT Pro League - Current");
 
           const actionRow = getButtonRow(data.components);
-          expect(actionRow.components).toHaveLength(4);
+          expect(actionRow.components).toHaveLength(2);
         });
       });
     });
@@ -584,10 +652,13 @@ describe("MapsCommand", () => {
         expect(typeof embed?.title).toBe("string");
         expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_HISTORICAL);
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("3");
 
-        const select = getSelectMenu(data.components);
+        const select = getSelectMenu(data.components, InteractionComponent.PlaylistSelect);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL.toString())?.default).toBe(true);
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT.toString())?.default).toBe(false);
@@ -610,10 +681,13 @@ describe("MapsCommand", () => {
         expect(embed?.title).toBeDefined();
         expect(embed?.title).toContain(MapsPlaylistType.HCS_CURRENT);
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("7");
 
-        const select = getSelectMenu(data.components);
+        const select = getSelectMenu(data.components, InteractionComponent.PlaylistSelect);
         expect(select.custom_id).toBe(InteractionComponent.PlaylistSelect);
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_CURRENT.toString())?.default).toBe(true);
         expect(select.options.find((o) => o.value === MapsPlaylistType.HCS_HISTORICAL.toString())?.default).toBe(false);
@@ -650,8 +724,11 @@ describe("MapsCommand", () => {
         expect(typeof embed?.title).toBe("string");
         expect(embed?.title ?? "").toContain(MapsPlaylistType.HCS_CURRENT);
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll5).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("5");
 
         // Verify format select has RANDOM selected
         const formatSelect = data.components?.find(
@@ -684,8 +761,11 @@ describe("MapsCommand", () => {
         expect(embed?.title).toBeDefined();
         expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll3).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("3");
       });
 
       it("calls updateDeferredReply when format is switched to SLAYER", async () => {
@@ -705,8 +785,11 @@ describe("MapsCommand", () => {
         expect(embed).toBeDefined();
         expect(embed?.title).toBeDefined();
 
-        const buttonRow = getButtonRow(data.components);
-        expect(getButtonById(buttonRow, InteractionComponent.Roll7).style).toBe(ButtonStyle.Primary);
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          )?.value,
+        ).toBe("7");
       });
     });
   });
@@ -800,7 +883,7 @@ describe("MapsCommand", () => {
         const testError = new Error("Failed to regenerate maps");
         vi.spyOn(services.haloService, "generateMaps").mockRejectedValue(testError);
 
-        const interaction = aFakeButtonInteraction(InteractionComponent.Roll3);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate);
         const { jobToComplete } = command.execute(interaction);
 
         await jobToComplete?.();
