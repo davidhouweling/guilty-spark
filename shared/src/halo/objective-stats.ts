@@ -22,9 +22,13 @@ export function getCtfObjectiveStats(
         display: getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier, locale),
       },
     ],
+    ["Steals", { value: stats.CaptureTheFlagStats.FlagSteals, sortBy: StatsValueSortBy.DESC }],
     ["Grabs", { value: stats.CaptureTheFlagStats.FlagGrabs, sortBy: StatsValueSortBy.DESC }],
+    ["Secures", { value: stats.CaptureTheFlagStats.FlagSecures, sortBy: StatsValueSortBy.DESC }],
     ["Returns", { value: stats.CaptureTheFlagStats.FlagReturns, sortBy: StatsValueSortBy.DESC }],
     ["Carriers killed", { value: stats.CaptureTheFlagStats.FlagCarriersKilled, sortBy: StatsValueSortBy.DESC }],
+    ["Returners killed", { value: stats.CaptureTheFlagStats.KillsAsFlagReturner, sortBy: StatsValueSortBy.DESC }],
+    ["Kills as returner", { value: stats.CaptureTheFlagStats.KillsAsFlagReturner, sortBy: StatsValueSortBy.DESC }],
   ]);
 }
 
