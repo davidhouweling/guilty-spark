@@ -15,6 +15,8 @@ import type {
   LiveTrackerSubstitutionResponse,
   LiveTrackerStatusResponse,
   LiveTrackerRepostResponse,
+  LiveTrackerMap,
+  LiveTrackerMapsUpdateResponse,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { LiveTrackerService } from "../live-tracker";
 import type { LiveTrackerContext } from "../live-tracker";
@@ -533,6 +535,52 @@ describe("LiveTrackerService", () => {
       const result = await service.getTrackerStatus(liveTrackerContext);
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("planned maps", () => {
+    const plannedMaps: LiveTrackerMap[] = [
+      { mode: "Strongholds", map: "Recharge" },
+      { mode: "Slayer", map: "Live Fire" },
+    ];
+
+    it("gets planned maps successfully", async () => {
+      fetch.mockResolvedValue(
+        aFakeResponseWith({
+          json: vi.fn().mockResolvedValue({ maps: plannedMaps }),
+        }),
+      );
+
+      await expect(service.getPlannedMaps(liveTrackerContext)).resolves.toEqual(plannedMaps);
+      expect(fetch).toHaveBeenCalledWith("http://do/maps", { method: "GET" });
+    });
+
+    it("sets planned maps successfully", async () => {
+      const response: LiveTrackerMapsUpdateResponse = { success: true };
+      fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
+
+      await service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001");
+
+      expect(fetch).toHaveBeenCalledWith("http://do/maps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maps: plannedMaps, token: "00000000-0000-4000-8000-000000000001" }),
+      });
+    });
+
+    it("clears planned maps", async () => {
+      const response = { success: true, cleared: true };
+      fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
+
+      await expect(service.clearPlannedMaps(liveTrackerContext, "00000000-0000-4000-8000-000000000001")).resolves.toBe(
+        true,
+      );
+
+      expect(fetch).toHaveBeenCalledWith("http://do/maps", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+      });
     });
   });
 

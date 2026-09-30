@@ -22,12 +22,19 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
+  LiveTrackerMap,
+  LiveTrackerMapsRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import {
   liveTrackerRefreshContract,
   liveTrackerSubstitutionContract,
   liveTrackerStatusContract,
   liveTrackerRepostContract,
+  liveTrackerMapsContract,
+  liveTrackerMapsRequestSchema,
+  liveTrackerMapsUpdateContract,
+  liveTrackerMapsClearContract,
+  liveTrackerMapsClearRequestSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import type { LiveTrackerSeriesDataResponse } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
@@ -347,6 +354,44 @@ export class LiveTrackerService {
     }
 
     return liveTrackerStatusContract.fromResponse(response);
+  }
+
+  async getPlannedMaps(context: LiveTrackerContext): Promise<LiveTrackerMap[]> {
+    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", { method: "GET" });
+    if (!response.ok) {
+      throw new Error(`Failed to get planned maps: ${response.status.toString()}`);
+    }
+
+    const result = await liveTrackerMapsContract.fromResponse(response);
+    return result.maps;
+  }
+
+  async setPlannedMaps(context: LiveTrackerContext, maps: LiveTrackerMap[], token: string): Promise<void> {
+    const request: LiveTrackerMapsRequest = liveTrackerMapsRequestSchema.parse({ maps, token });
+    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to set planned maps: ${response.status.toString()}`);
+    }
+
+    await liveTrackerMapsUpdateContract.fromResponse(response);
+  }
+
+  async clearPlannedMaps(context: LiveTrackerContext, token: string): Promise<boolean> {
+    const request = liveTrackerMapsClearRequestSchema.parse({ token });
+    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to clear planned maps: ${response.status.toString()}`);
+    }
+
+    return (await liveTrackerMapsClearContract.fromResponse(response)).cleared;
   }
 
   /**
