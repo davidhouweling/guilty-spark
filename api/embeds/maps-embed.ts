@@ -285,7 +285,7 @@ export class MapsEmbed extends BaseTableEmbed {
   get clearConfirmationEmbed(): APIEmbed {
     return {
       title: "Clear planned maps?",
-      description: "Confirm that the planned maps should be removed from this queue.",
+      description: "Confirm that the displayed maps should be cleared.",
       color: EmbedColors.NEUTRAL,
       fields: [
         {

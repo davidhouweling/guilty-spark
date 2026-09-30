@@ -578,6 +578,22 @@ describe("MapsCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
       });
 
+      it("does not persist a plan when resolving playlist modes fails on confirmation", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
+        vi.spyOn(services.haloService, "getMapModesForPlaylist").mockRejectedValue(new Error("Modes unavailable"));
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps");
+
+        await command.execute(aFakeButtonInteraction(InteractionComponent.Confirm)).jobToComplete?.();
+
+        expect(setPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const [, response] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(response.embeds?.[0]?.description).toContain("An unexpected error has occurred");
+      });
+
       it("requires a second confirmation before clearing the active queue plan", async () => {
         vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
           ...discordNeatQueueData,
@@ -677,6 +693,34 @@ describe("MapsCommand", () => {
 
         expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+      });
+
+      it("keeps the stored plan when resolving playlist modes fails before clearing", async () => {
+        vi.spyOn(services.haloService, "getMapModesForPlaylist").mockRejectedValue(new Error("Modes unavailable"));
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
+        const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
+        const lockedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "user123",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            locked: true,
+            plan: { queueNumber: 42, token: "00000000-0000-4000-8000-000000000001" },
+          },
+        ).toMessageData();
+        interaction.message.embeds = lockedMessage.embeds ?? [];
+        interaction.message.components = lockedMessage.components ?? [];
+
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const [, response] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(response.embeds?.[0]?.description).toContain("An unexpected error has occurred");
       });
 
       it("does not clear a newer plan through an older confirmed message", async () => {

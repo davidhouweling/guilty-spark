@@ -321,6 +321,7 @@ export class MapsCommand extends BaseCommand {
           handled: true,
         });
       }
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       if (!draft.locked) {
         const context = await this.getActiveQueueContext(interaction);
         if (context != null) {
@@ -330,7 +331,6 @@ export class MapsCommand extends BaseCommand {
         }
       }
 
-      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       await this.services.discordService.updateDeferredReply(
         interaction.token,
         this.createMapsResponse({ ...draft, locked: true }, availableModes),
@@ -361,6 +361,7 @@ export class MapsCommand extends BaseCommand {
   private async handleConfirmClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
       const draft = this.getDraft(interaction);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       if (draft.plan != null) {
         const context: LiveTrackerContext = {
           userId: this.getInteractionUserId(interaction),
@@ -377,7 +378,6 @@ export class MapsCommand extends BaseCommand {
         }
       }
 
-      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       await this.services.discordService.updateDeferredReply(
         interaction.token,
         this.createMapsResponse(
