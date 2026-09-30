@@ -68,6 +68,23 @@ describe("MapsEmbed", () => {
     });
   });
 
+  it("includes AUTO queue metadata for queue-generated maps", () => {
+    const mapsEmbed = new MapsEmbed(
+      { discordService },
+      {
+        userId: testUserId,
+        count: 3,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        maps: mockMaps,
+        availableModes: mockAvailableModes,
+        autoQueueNumber: 42,
+      },
+    );
+
+    expect(mapsEmbed.embed.footer?.text).toBe("AUTO Queue: 42");
+  });
+
   it("creates action components", () => {
     const mapsEmbed = new MapsEmbed(
       { discordService },

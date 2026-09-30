@@ -514,6 +514,7 @@ describe("LiveTrackerDO", () => {
     it("reports and clears the prior explicit-clear marker when storing maps", async () => {
       storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "mapsCleared" ? true : null));
       const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+      const transactionSpy = vi.spyOn(mockStorage, "transaction");
 
       const response = await liveTrackerDO.fetch(
         new Request("http://do/maps", {
@@ -530,7 +531,73 @@ describe("LiveTrackerDO", () => {
         success: true,
         wasClearedByUser: true,
       });
+      expect(transactionSpy).toHaveBeenCalledOnce();
+      expect(storageGetSpy).toHaveBeenCalledWith("mapsCleared");
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", expect.any(Object));
       expect(storageDeleteSpy).toHaveBeenCalledWith("mapsCleared");
+    });
+
+    it("keeps either the saved plan or clear marker when a map save races an explicit clear", async () => {
+      const token = "00000000-0000-4000-8000-000000000001";
+      const maps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      let storageState: "empty" | "planned" | "cleared" = "empty";
+      let transactionQueue = Promise.resolve();
+      storageGetSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          return Promise.resolve(storageState === "planned" ? { maps, token } : null);
+        }
+        if (typeof key === "string" && key === "mapsCleared") {
+          return Promise.resolve(storageState === "cleared" ? true : null);
+        }
+        return Promise.resolve(null);
+      });
+      storagePutSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          storageState = "planned";
+        } else if (typeof key === "string" && key === "mapsCleared") {
+          storageState = "cleared";
+        }
+        return Promise.resolve();
+      });
+      vi.spyOn(mockStorage, "delete").mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          storageState = "empty";
+        } else if (typeof key === "string" && key === "mapsCleared") {
+          if (storageState === "cleared") {
+            storageState = "empty";
+          }
+        }
+        return Promise.resolve(1);
+      });
+      vi.spyOn(mockStorage, "transaction").mockImplementation(async (callback) => {
+        const previousTransaction = transactionQueue;
+        let releaseTransaction: (() => void) | undefined;
+        transactionQueue = new Promise<void>((resolve) => {
+          releaseTransaction = resolve;
+        });
+        await previousTransaction;
+        try {
+          return await callback({ ...mockStorage, rollback: vi.fn() });
+        } finally {
+          releaseTransaction?.();
+        }
+      });
+
+      const savePromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          body: JSON.stringify({ maps, token }),
+        }),
+      );
+      const clearPromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token, markClearedByUser: true }),
+        }),
+      );
+      await Promise.all([savePromise, clearPromise]);
+
+      expect(storageState).not.toBe("empty");
     });
 
     it("returns an empty planned maps list when none is stored", async () => {
@@ -660,10 +727,13 @@ describe("LiveTrackerDO", () => {
       const transactionFinished = new Promise<void>((resolve) => {
         releaseTransaction = resolve;
       });
-      storageGetSpy.mockImplementation(async () => {
-        notifyRead?.();
-        await readIsBlocked;
-        return saved;
+      storageGetSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          notifyRead?.();
+          await readIsBlocked;
+          return saved;
+        }
+        return null;
       });
       vi.spyOn(mockStorage, "delete").mockImplementation(async (key) => {
         if (typeof key === "string" && key === "plannedMaps") {
@@ -675,19 +745,17 @@ describe("LiveTrackerDO", () => {
         try {
           return await callback({
             ...mockStorage,
-            delete: vi.fn(),
-            put: vi.fn(),
+            put: async (key) => {
+              if (typeof key === "string" && key === "plannedMaps") {
+                notifyWrite?.();
+                await transactionFinished;
+                saved = { maps, token: replacementToken };
+              }
+            },
             rollback: vi.fn(),
           });
         } finally {
           releaseTransaction?.();
-        }
-      });
-      storagePutSpy.mockImplementation(async (key) => {
-        if (typeof key === "string" && key === "plannedMaps") {
-          notifyWrite?.();
-          await transactionFinished;
-          saved = { maps, token: replacementToken };
         }
       });
 
