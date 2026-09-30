@@ -543,6 +543,7 @@ describe("NeatQueueService", () => {
           NeatQueueInformerMapsCount: 3,
         });
         getGuildConfigSpy.mockReset().mockResolvedValue(guildConfig);
+        vi.spyOn(haloService, "getMapModesForPlaylist").mockResolvedValue(["Slayer"]);
         const maps = [
           { map: "Map 1", mode: "Slayer" },
           { map: "Map 2", mode: "Capture the Flag" },
@@ -553,9 +554,9 @@ describe("NeatQueueService", () => {
         await jobToComplete();
 
         expect(generateMapsSpy).toHaveBeenCalledWith({
-          playlist: expect.any(String) as string,
-          format: expect.any(String) as string,
-          count: expect.any(Number) as number,
+          playlist: guildConfig.NeatQueueInformerMapsPlaylist,
+          format: MapsFormatType.SLAYER,
+          count: guildConfig.NeatQueueInformerMapsCount,
         });
         expect(createMessageSpy).toHaveBeenCalledTimes(1);
         const [, messageData] = createMessageSpy.mock.calls[0] as [
@@ -570,7 +571,7 @@ describe("NeatQueueService", () => {
             userId: NEAT_QUEUE_BOT_USER_ID,
             maps,
             playlist: guildConfig.NeatQueueInformerMapsPlaylist,
-            format: guildConfig.NeatQueueInformerMapsFormat,
+            format: MapsFormatType.SLAYER,
             count: guildConfig.NeatQueueInformerMapsCount,
           }),
           { expirationTtl: MAP_DRAFT_TTL_SECONDS },

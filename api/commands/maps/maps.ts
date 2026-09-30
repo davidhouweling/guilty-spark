@@ -25,7 +25,7 @@ import type { MapMode } from "../../services/halo/hcs";
 import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
-import { MAP_DRAFT_TTL_SECONDS } from "./maps-draft";
+import { MAP_DRAFT_TTL_SECONDS, normalizeMapsFormat } from "./maps-draft";
 import type { MapsDraft } from "./maps-draft";
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
 const mapsFormatSchema = z.enum(MapsFormatType);
@@ -149,7 +149,11 @@ export class MapsCommand extends BaseCommand {
         try {
           const maps = await mapsPromise;
           const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
-          const draft = this.createDraft(interaction, state, maps);
+          const draft = this.createDraft(
+            interaction,
+            { ...state, format: normalizeMapsFormat(state.format, availableModes) },
+            maps,
+          );
           const message = await discordService.updateDeferredReply(
             interaction.token,
             this.createMapsResponse(draft, availableModes),
@@ -202,7 +206,11 @@ export class MapsCommand extends BaseCommand {
       };
       const maps = await this.services.haloService.generateMaps(state);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(state.playlist);
-      const draft = this.createDraft(interaction, state, maps);
+      const draft = this.createDraft(
+        interaction,
+        { ...state, format: normalizeMapsFormat(state.format, availableModes) },
+        maps,
+      );
       const message = await this.services.discordService.createMessage(
         interaction.channel.id,
         this.createMapsResponse(draft, availableModes),
@@ -247,7 +255,7 @@ export class MapsCommand extends BaseCommand {
       const selectedPlaylist = Preconditions.checkExists(interaction.data.values[0], "expected map playlist");
       const playlist = mapsPlaylistSchema.parse(selectedPlaylist);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(playlist);
-      const format = availableModes.length > 1 ? previousDraft.format : MapsFormatType.SLAYER;
+      const format = normalizeMapsFormat(previousDraft.format, availableModes);
       const state = { ...previousDraft, playlist, format };
       const draft = { ...state, ...(await this.generateMapValues(state)) };
       await this.updateDraftMessage(interaction, draft, availableModes);

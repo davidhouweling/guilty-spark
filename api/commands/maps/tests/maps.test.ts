@@ -403,6 +403,16 @@ describe("MapsCommand", () => {
         ]);
       });
     });
+
+    it("saves Slayer as the format for an initial Slayer-only draft", async () => {
+      vi.spyOn(services.haloService, "getMapModesForPlaylist").mockResolvedValue(["Slayer"]);
+      const interaction = aFakeMapsInteractionWith();
+      const { jobToComplete } = command.execute(interaction);
+
+      await jobToComplete?.();
+
+      expect(fakeMapsDrafts.get(`maps:draft:${apiMessage.id}`)?.format).toBe(MapsFormatType.SLAYER);
+    });
   });
 
   describe("execute(): application command with options", () => {
@@ -580,6 +590,21 @@ describe("MapsCommand", () => {
 
           const actionRow = getButtonRow(data.components);
           expect(actionRow.components).toHaveLength(2);
+        });
+
+        it("saves Slayer as the format for an initiated Slayer-only draft", async () => {
+          const getMapModesSpy = vi
+            .spyOn(services.haloService, "getMapModesForPlaylist")
+            .mockReset()
+            .mockResolvedValue(["Slayer"]);
+          vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+          const interaction = aFakeButtonInteraction(InteractionComponent.Initiate);
+          const { jobToComplete } = command.execute(interaction);
+
+          await jobToComplete?.();
+
+          expect(getMapModesSpy).toHaveBeenCalledWith(MapsPlaylistType.HCS_CURRENT);
+          expect(fakeMapsDrafts.get(`maps:draft:${apiMessage.id}`)?.format).toBe(MapsFormatType.SLAYER);
         });
       });
     });
