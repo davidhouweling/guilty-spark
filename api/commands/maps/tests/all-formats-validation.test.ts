@@ -8,6 +8,16 @@ describe("All Format Types - Distribution Analysis", () => {
   const iterations = 100; // Run each format 100 times
   const testCounts = [3, 5, 7]; // Test different game counts
 
+  it.each([9, 11, 13])("generates an HCS set with %i maps", async (count) => {
+    const maps = await services.haloService.generateMaps({
+      count,
+      playlist: MapsPlaylistType.HCS_CURRENT,
+      format: MapsFormatType.HCS,
+    });
+
+    expect(maps).toHaveLength(count);
+  });
+
   // Helper to analyze results
   const analyzeResults = (
     results: { mode: MapMode; map: string }[][],

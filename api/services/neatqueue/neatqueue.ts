@@ -47,6 +47,7 @@ import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
+import { normalizeMapsFormat } from "../../commands/maps/maps-draft";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
 import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-series-stats";
@@ -581,15 +582,17 @@ export class NeatQueueService {
       }
 
       if (guildConfig.NeatQueueInformerMapsPost === MapsPostType.AUTO) {
-        const mapOpts = {
+        const configuredMapOpts = {
           playlist: guildConfig.NeatQueueInformerMapsPlaylist,
           format: guildConfig.NeatQueueInformerMapsFormat,
           count: guildConfig.NeatQueueInformerMapsCount,
         };
-        const [maps, availableModes] = await Promise.all([
-          this.haloService.generateMaps(mapOpts),
-          this.haloService.getMapModesForPlaylist(mapOpts.playlist),
-        ]);
+        const availableModes = await this.haloService.getMapModesForPlaylist(configuredMapOpts.playlist);
+        const mapOpts = {
+          ...configuredMapOpts,
+          format: normalizeMapsFormat(configuredMapOpts.format, availableModes),
+        };
+        const maps = await this.haloService.generateMaps(mapOpts);
         const embed = new MapsEmbed(
           { discordService },
           {

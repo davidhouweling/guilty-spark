@@ -1,9 +1,12 @@
 import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MapsEmbed } from "../maps-embed";
+import { ComponentType } from "discord-api-types/v10";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { MapsEmbed, InteractionComponent } from "../maps-embed";
 import type { DiscordService } from "../../services/discord/discord";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake";
 import { MapsPlaylistType, MapsFormatType } from "../../services/database/types/guild_config";
+import { MAP_COUNTS } from "../../services/halo/hcs";
 
 describe("MapsEmbed", () => {
   let discordService: DiscordService;
@@ -81,6 +84,22 @@ describe("MapsEmbed", () => {
     const { actions } = mapsEmbed;
 
     expect(actions).toHaveLength(4); // 4 action rows
+    expect(actions[0]?.type).toBe(ComponentType.ActionRow);
+    if (actions[0]?.type === ComponentType.ActionRow) {
+      const countSelect = Preconditions.checkExists(actions[0].components[0]);
+      if (countSelect.type === ComponentType.StringSelect) {
+        expect(countSelect.custom_id).toBe(InteractionComponent.CountSelect);
+        expect(countSelect.options.map((option) => Number(option.value))).toEqual(MAP_COUNTS);
+        expect(countSelect.options.find((option) => option.default === true)?.value).toBe("5");
+      }
+    }
+    const [, , , finalActionRow] = actions;
+    expect(finalActionRow?.type).toBe(ComponentType.ActionRow);
+    if (finalActionRow?.type === ComponentType.ActionRow) {
+      expect(
+        finalActionRow.components.map((component) => ("custom_id" in component ? component.custom_id : "")),
+      ).toEqual([InteractionComponent.Regenerate, InteractionComponent.Repost]);
+    }
   });
 
   it("returns complete message data", () => {
@@ -127,6 +146,29 @@ describe("MapsEmbed", () => {
     // Should include the GameCoach.gg link
     expect(mapField?.value).toContain("[Aquarius 🎮]");
     expect(getEmojiFromNameSpy).toHaveBeenCalledWith("GameCoachGG");
+  });
+
+  it("splits 13-map lists so every embed field stays within Discord's limit", () => {
+    getEmojiFromNameSpy.mockReturnValue("<:GameCoachGG:1410461403663568926>");
+    const maps = Array.from({ length: 13 }, () => ({ mode: "Slayer" as const, map: "Live Fire" }));
+    const mapsEmbed = new MapsEmbed(
+      { discordService },
+      {
+        userId: testUserId,
+        count: 13,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        maps,
+        availableModes: mockAvailableModes,
+      },
+    );
+
+    const fields = mapsEmbed.embed.fields ?? [];
+    const mapFields = fields.filter((field) => field.name === "Map");
+
+    expect(fields.every((field) => field.value.length <= 1024)).toBe(true);
+    expect(mapFields.flatMap((field) => field.value.split("\n"))).toHaveLength(13);
+    expect(mapFields).toHaveLength(2);
   });
 
   it("shows only slayer format option when playlist has no objective modes", () => {

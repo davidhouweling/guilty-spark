@@ -4,6 +4,7 @@ export const HCS_LAST_UPDATED = "18 August 2026";
 
 export type MapMode = "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type Format = "random" | "objective" | "slayer";
+export const MAP_COUNTS: readonly number[] = [1, 3, 5, 7, 9, 11, 13];
 
 export const CURRENT_HCS_MAPS: Record<MapMode, string[]> = {
   Slayer: ["Solitude", "Live Fire", "Recharge", "Streets", "Origin"],
@@ -27,6 +28,35 @@ export const HCS_SET_FORMAT: Record<number, Format[]> = {
   3: ["objective", "slayer", "objective"],
   5: ["objective", "slayer", "objective", "objective", "slayer"],
   7: ["objective", "slayer", "objective", "objective", "slayer", "objective", "slayer"],
+  9: ["objective", "slayer", "objective", "objective", "slayer", "objective", "slayer", "objective", "slayer"],
+  11: [
+    "objective",
+    "slayer",
+    "objective",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+  ],
+  13: [
+    "objective",
+    "slayer",
+    "objective",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+    "objective",
+    "slayer",
+  ],
 };
 
 export const HISTORICAL_HCS_MAPS: Record<MapMode, string[]> = {

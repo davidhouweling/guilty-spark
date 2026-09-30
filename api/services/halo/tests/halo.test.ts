@@ -3403,6 +3403,53 @@ describe("Halo service", () => {
       }
     });
 
+    it.each([
+      [9, ["objective", "slayer", "objective", "objective", "slayer", "objective", "slayer", "objective", "slayer"]],
+      [
+        11,
+        [
+          "objective",
+          "slayer",
+          "objective",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+        ],
+      ],
+      [
+        13,
+        [
+          "objective",
+          "slayer",
+          "objective",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+          "objective",
+          "slayer",
+        ],
+      ],
+    ])("supports HCS format for %i maps", async (count, expectedSequence) => {
+      await serviceWithMockRoundRobin.generateMaps({
+        count,
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+      });
+
+      const [actualArgs] = Preconditions.checkExists(mockRoundRobinFn.mock.calls[0]);
+      expect(actualArgs.formatSequence).toEqual(expectedSequence);
+    });
+
     it("generates maps using Random format", async () => {
       const result = await serviceWithMockRoundRobin.generateMaps({
         count: 5,

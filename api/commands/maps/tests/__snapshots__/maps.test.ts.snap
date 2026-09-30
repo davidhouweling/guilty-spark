@@ -8,28 +8,46 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
       {
         "components": [
           {
-            "custom_id": "btn_maps_roll_1",
-            "label": "Regen maps (count: 1)",
-            "style": 2,
-            "type": 2,
-          },
-          {
-            "custom_id": "btn_maps_roll_3",
-            "label": "Regen maps (count: 3)",
-            "style": 2,
-            "type": 2,
-          },
-          {
-            "custom_id": "btn_maps_roll_5",
-            "label": "Regen maps (count: 5)",
-            "style": 1,
-            "type": 2,
-          },
-          {
-            "custom_id": "btn_maps_roll_7",
-            "label": "Regen maps (count: 7)",
-            "style": 2,
-            "type": 2,
+            "custom_id": "select_maps_count",
+            "options": [
+              {
+                "default": false,
+                "label": "1",
+                "value": "1",
+              },
+              {
+                "default": false,
+                "label": "3",
+                "value": "3",
+              },
+              {
+                "default": true,
+                "label": "5",
+                "value": "5",
+              },
+              {
+                "default": false,
+                "label": "7",
+                "value": "7",
+              },
+              {
+                "default": false,
+                "label": "9",
+                "value": "9",
+              },
+              {
+                "default": false,
+                "label": "11",
+                "value": "11",
+              },
+              {
+                "default": false,
+                "label": "13",
+                "value": "13",
+              },
+            ],
+            "placeholder": "Select number of maps",
+            "type": 3,
           },
         ],
         "type": 1,
@@ -137,6 +155,12 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
       },
       {
         "components": [
+          {
+            "custom_id": "btn_maps_regenerate",
+            "label": "Regenerate",
+            "style": 1,
+            "type": 2,
+          },
           {
             "custom_id": "btn_maps_repost",
             "emoji": {

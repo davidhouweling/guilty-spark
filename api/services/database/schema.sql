@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS GuildConfig (
     NeatQueueInformerLiveTracking CHAR(1) CHECK(NeatQueueInformerLiveTracking IN ('Y', 'N')) NOT NULL DEFAULT 'N',
     NeatQueueInformerLiveTrackingChannelName CHAR(1) CHECK(NeatQueueInformerLiveTrackingChannelName IN ('Y', 'N')) NOT NULL DEFAULT 'N',
     NeatQueueInformerMapsPost CHAR(1) CHECK(NeatQueueInformerMapsPost IN ('A', 'B', 'O')) NOT NULL DEFAULT 'B',
-    NeatQueueInformerMapsPlaylist CHAR(1) CHECK(NeatQueueInformerMapsPlaylist IN ('C', 'H')) NOT NULL DEFAULT 'C',
+    NeatQueueInformerMapsPlaylist CHAR(1) CHECK(NeatQueueInformerMapsPlaylist IN ('C', 'H', 'R', 'S', 'N', 'T', 'D', 'F', 'Q')) NOT NULL DEFAULT 'C',
     NeatQueueInformerMapsFormat CHAR(1) CHECK(NeatQueueInformerMapsFormat IN ('H', 'R', 'O', 'S')) NOT NULL DEFAULT 'H',
     NeatQueueInformerMapsCount INTEGER NOT NULL DEFAULT 5
 );
