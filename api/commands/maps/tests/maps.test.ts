@@ -528,6 +528,54 @@ describe("MapsCommand", () => {
         ).toBe("5");
       });
 
+      it("confirms the maps in the active queue tracker", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(setPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ guildId: "fake-guild-id", channelId: interaction.channel.id, queueNumber: 42 }),
+          Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+        );
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const confirmCustomId: string = InteractionComponent.Confirm;
+        const confirmButton = getButtonRow(data.components).components.find(
+          (component) => "custom_id" in component && component.custom_id === confirmCustomId,
+        );
+        expect(confirmButton?.disabled).toBe(true);
+      });
+
+      it("confirms an ad-hoc maps message without writing to a tracker", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(null);
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps");
+        const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(setPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+      });
+
+      it("clears the active queue plan and empties the maps message", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue();
+        const interaction = aFakeButtonInteraction(InteractionComponent.Clear);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ guildId: "fake-guild-id", channelId: interaction.channel.id, queueNumber: 42 }),
+        );
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(data.embeds?.[0]?.description).toBe("No maps selected");
+        expect(data.components).toHaveLength(4);
+      });
+
       it("throws for unknown button id", () => {
         const interaction = aFakeButtonInteraction("btn_maps_roll_unknown");
 
@@ -543,6 +591,7 @@ describe("MapsCommand", () => {
       it("reports invalid map state in the message", async () => {
         const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate);
         interaction.message.embeds = [];
+        interaction.message.components = [];
 
         const { response, jobToComplete } = command.execute(interaction);
 
@@ -580,7 +629,7 @@ describe("MapsCommand", () => {
           expect(data.embeds?.[0]?.title).toContain("Maps: LVT Pro League - Current");
 
           const actionRow = getButtonRow(data.components);
-          expect(actionRow.components).toHaveLength(2);
+          expect(actionRow.components).toHaveLength(4);
         });
 
         it("renders Slayer as the format for an initiated Slayer-only message", async () => {

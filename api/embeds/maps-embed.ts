@@ -17,6 +17,8 @@ export enum InteractionComponent {
   Initiate = "btn_maps_initiate",
   CountSelect = "select_maps_count",
   Regenerate = "btn_maps_regenerate",
+  Confirm = "btn_maps_confirm",
+  Clear = "btn_maps_clear",
   PlaylistSelect = "select_maps_playlist",
   FormatSelect = "select_maps_format",
   Repost = "btn_maps_repost",
@@ -74,6 +76,7 @@ export const mapFormatDescriptions: Record<MapsFormatType, string> = {
 
 interface MapsEmbedData {
   userId: string;
+  locked?: boolean | undefined;
   playlist: MapsPlaylistType;
   format: MapsFormatType;
   count: number;
@@ -107,6 +110,7 @@ export class MapsEmbed extends BaseTableEmbed {
     const embed: APIEmbed = {
       title: `Maps: ${mapPlaylistLabels[playlist]}`,
       color: EmbedColors.NEUTRAL,
+      ...(maps.length === 0 ? { description: "No maps selected" } : {}),
     };
 
     const titles = ["#", "Mode", "Map"];
@@ -130,7 +134,7 @@ export class MapsEmbed extends BaseTableEmbed {
   }
 
   get actions(): APIMessageTopLevelComponent[] {
-    const { count, playlist, format } = this.data;
+    const { count, playlist, format, locked = false } = this.data;
 
     return [
       {
@@ -141,6 +145,7 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.CountSelect,
             options: this.getCountOptions(count),
             placeholder: "Select number of maps",
+            disabled: locked,
           },
         ],
       },
@@ -152,6 +157,7 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.PlaylistSelect,
             options: this.getPlaylistOptions(playlist),
             placeholder: "Select a playlist",
+            disabled: locked,
           },
         ],
       },
@@ -162,6 +168,7 @@ export class MapsEmbed extends BaseTableEmbed {
             type: ComponentType.StringSelect,
             custom_id: InteractionComponent.FormatSelect,
             options: this.getFormats(format),
+            disabled: locked,
           },
         ],
       },
@@ -173,6 +180,20 @@ export class MapsEmbed extends BaseTableEmbed {
             custom_id: InteractionComponent.Regenerate,
             label: "Regenerate",
             style: ButtonStyle.Primary,
+            disabled: locked,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Confirm,
+            label: locked ? "Confirmed" : "Confirm maps",
+            style: ButtonStyle.Success,
+            disabled: locked || this.data.maps.length === 0,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionComponent.Clear,
+            label: "Clear maps",
+            style: ButtonStyle.Danger,
           },
           {
             type: ComponentType.Button,
@@ -182,6 +203,7 @@ export class MapsEmbed extends BaseTableEmbed {
             emoji: {
               name: "⏬",
             },
+            disabled: locked,
           },
         ],
       },

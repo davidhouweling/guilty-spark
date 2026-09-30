@@ -7,6 +7,10 @@ import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import type { LiveTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import {
+  liveTrackerMapsContract,
+  liveTrackerMapsUpdateContract,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { LiveTrackerDO } from "../live-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -461,6 +465,69 @@ describe("LiveTrackerDO", () => {
       const response = await liveTrackerDO.fetch(new Request("http://do/status", { method: "GET" }));
 
       expect(response.status).toBe(200);
+    });
+
+    it("stores confirmed maps independently and keeps them across tracker start", async () => {
+      const plannedMaps = [
+        { mode: "Strongholds", map: "Recharge" },
+        { mode: "Slayer", map: "Live Fire" },
+      ];
+      storageGetSpy.mockResolvedValue(null);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+      const saveResponse = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maps: plannedMaps }),
+        }),
+      );
+      await liveTrackerDO.fetch(
+        new Request("http://do/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(createMockStartData()),
+        }),
+      );
+
+      expect(saveResponse.status).toBe(200);
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", plannedMaps);
+      expect(storagePutSpy).toHaveBeenCalledWith("trackerState", expect.any(Object));
+      expect(storageDeleteAllSpy).not.toHaveBeenCalled();
+      await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({ success: true });
+    });
+
+    it("returns an empty planned maps list when none is stored", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/maps", { method: "GET" }));
+
+      expect(response.status).toBe(200);
+      await expect(liveTrackerMapsContract.fromResponse(response)).resolves.toEqual({ maps: [] });
+    });
+
+    it("rejects invalid planned maps without writing storage", async () => {
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maps: [{ mode: "Not a mode", map: "Recharge" }] }),
+        }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("clears confirmed maps", async () => {
+      const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/maps", { method: "DELETE" }));
+
+      expect(response.status).toBe(200);
+      expect(storageDeleteSpy).toHaveBeenCalledWith("plannedMaps");
     });
 
     it("routes to handleRepost for /repost endpoint", async () => {

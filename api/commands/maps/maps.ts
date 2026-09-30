@@ -13,6 +13,7 @@ import {
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { BaseCommand } from "../base/base-command";
 import type {
   ExecuteResponse,
@@ -24,6 +25,7 @@ import type { MapMode } from "../../services/halo/hcs";
 import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
+import type { LiveTrackerContext } from "../../services/live-tracker/live-tracker";
 import { normalizeMapsFormat, readMapsDraftFromMessage } from "./maps-draft";
 import type { MapsDraft } from "./maps-draft";
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
@@ -90,6 +92,14 @@ export class MapsCommand extends BaseCommand {
 
     [InteractionComponent.Regenerate]: this.buttonHandler((interaction) =>
       this.deferUpdate(async () => this.handleRegenerate(interaction)),
+    ),
+
+    [InteractionComponent.Confirm]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleConfirm(interaction)),
+    ),
+
+    [InteractionComponent.Clear]: this.buttonHandler((interaction) =>
+      this.deferUpdate(async () => this.handleClear(interaction)),
     ),
 
     [InteractionComponent.CountSelect]: this.stringSelectHandler((interaction) =>
@@ -218,7 +228,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleRegenerate(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
-      const previousDraft = this.getDraft(interaction);
+      const previousDraft = this.getEditableDraft(interaction);
       const draft = { ...previousDraft, ...(await this.generateMapValues(previousDraft)) };
       await this.updateDraftMessage(interaction, draft);
     } catch (error) {
@@ -229,7 +239,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleCountSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = this.getDraft(interaction);
+      const previousDraft = this.getEditableDraft(interaction);
       const selectedCount = Number(Preconditions.checkExists(interaction.data.values[0], "expected map count"));
       if (!MAP_COUNTS.includes(selectedCount)) {
         throw new Error("Unknown map count");
@@ -245,7 +255,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handlePlaylistSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = this.getDraft(interaction);
+      const previousDraft = this.getEditableDraft(interaction);
       const selectedPlaylist = Preconditions.checkExists(interaction.data.values[0], "expected map playlist");
       const playlist = mapsPlaylistSchema.parse(selectedPlaylist);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(playlist);
@@ -261,7 +271,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleFormatSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = this.getDraft(interaction);
+      const previousDraft = this.getEditableDraft(interaction);
       const selectedFormat = Preconditions.checkExists(interaction.data.values[0], "expected map format");
       const format = mapsFormatSchema.parse(selectedFormat);
       const state = { ...previousDraft, format };
@@ -294,6 +304,52 @@ export class MapsCommand extends BaseCommand {
     }
   }
 
+  private async handleConfirm(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const draft = this.getDraft(interaction);
+      if (draft.maps.length === 0) {
+        throw new EndUserError("Select or generate maps before confirming them.", {
+          errorType: EndUserErrorType.WARNING,
+          handled: true,
+        });
+      }
+      if (!draft.locked) {
+        const context = await this.getActiveQueueContext(interaction);
+        if (context != null) {
+          await this.services.liveTrackerService.setPlannedMaps(context, draft.maps);
+        }
+      }
+
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
+      await this.services.discordService.updateDeferredReply(
+        interaction.token,
+        this.createMapsResponse({ ...draft, locked: true }, availableModes),
+      );
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    try {
+      const draft = this.getDraft(interaction);
+      const context = await this.getActiveQueueContext(interaction);
+      if (context != null) {
+        await this.services.liveTrackerService.clearPlannedMaps(context);
+      }
+
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
+      await this.services.discordService.updateDeferredReply(
+        interaction.token,
+        this.createMapsResponse({ ...draft, locked: false, maps: [] }, availableModes),
+      );
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
   private createDraft(
     interaction: APIApplicationCommandInteraction | APIMessageComponentButtonInteraction,
     state: { count: number; playlist: MapsPlaylistType; format: MapsFormatType },
@@ -301,6 +357,7 @@ export class MapsCommand extends BaseCommand {
   ): MapsDraft {
     return {
       userId: this.getInteractionUserId(interaction),
+      locked: false,
       ...state,
       maps,
     };
@@ -322,6 +379,40 @@ export class MapsCommand extends BaseCommand {
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): MapsDraft {
     return readMapsDraftFromMessage(interaction.message, this.getInteractionUserId(interaction));
+  }
+
+  private getEditableDraft(
+    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+  ): MapsDraft {
+    const draft = this.getDraft(interaction);
+    if (draft.locked) {
+      throw new EndUserError("These maps are confirmed. Run `/maps` to create a new set.", {
+        errorType: EndUserErrorType.WARNING,
+        handled: true,
+      });
+    }
+    return draft;
+  }
+
+  private async getActiveQueueContext(
+    interaction: APIMessageComponentButtonInteraction,
+  ): Promise<LiveTrackerContext | null> {
+    const guildId = interaction.guild_id;
+    if (guildId == null) {
+      return null;
+    }
+
+    const queueNumber = await this.services.discordService.getActiveQueueNumber(guildId, interaction.channel.id);
+    if (queueNumber == null) {
+      return null;
+    }
+
+    return {
+      userId: this.getInteractionUserId(interaction),
+      guildId,
+      channelId: interaction.channel.id,
+      queueNumber,
+    };
   }
 
   private async updateDraftMessage(

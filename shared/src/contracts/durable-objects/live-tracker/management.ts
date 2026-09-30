@@ -2,6 +2,31 @@ import { z } from "zod";
 import { defineContract } from "../../base";
 import { liveTrackerStateSchema } from "./lifecycle";
 
+export const liveTrackerMapSchema = z.object({
+  mode: z.enum(["Slayer", "Capture the Flag", "Strongholds", "Oddball", "King of the Hill", "Neutral Bomb"]),
+  map: z.string().min(1),
+});
+export type LiveTrackerMap = z.infer<typeof liveTrackerMapSchema>;
+
+export const liveTrackerMapsRequestSchema = z.object({
+  maps: z.array(liveTrackerMapSchema).min(1).max(13),
+});
+export type LiveTrackerMapsRequest = z.infer<typeof liveTrackerMapsRequestSchema>;
+
+export const liveTrackerMapsUpdateContract = defineContract(
+  z.object({
+    success: z.literal(true),
+  }),
+);
+export type LiveTrackerMapsUpdateResponse = z.infer<typeof liveTrackerMapsUpdateContract.schema>;
+
+export const liveTrackerMapsContract = defineContract(
+  z.object({
+    maps: z.array(liveTrackerMapSchema),
+  }),
+);
+export type LiveTrackerMapsResponse = z.infer<typeof liveTrackerMapsContract.schema>;
+
 export const liveTrackerRefreshRequestSchema = z.object({
   matchCompleted: z.boolean().optional(),
 });

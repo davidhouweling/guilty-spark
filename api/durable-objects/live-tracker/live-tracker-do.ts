@@ -29,8 +29,14 @@ import {
   liveTrackerStatusContract,
   liveTrackerRepostContract,
   liveTrackerRepostRequestSchema,
+  liveTrackerMapsContract,
+  liveTrackerMapsRequestSchema,
+  liveTrackerMapsUpdateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
-import type { LiveTrackerRefreshRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type {
+  LiveTrackerRefreshRequest,
+  LiveTrackerMap,
+} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";
@@ -138,6 +144,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           }
           case "series-data": {
             return await this.handleGetSeriesData();
+          }
+          case "maps": {
+            return await this.handleMaps(request);
           }
           case undefined: {
             return new Response("Bad Request", { status: 400 });
@@ -669,6 +678,30 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     return this.createStatusResponse(trackerState);
+  }
+
+  private async handleMaps(request: Request): Promise<Response> {
+    if (request.method === "GET") {
+      const maps = (await this.state.storage.get<LiveTrackerMap[]>("plannedMaps")) ?? [];
+      return liveTrackerMapsContract.toResponse({ maps }, { noStore: true });
+    }
+
+    if (request.method === "POST") {
+      const parsed = await parseJsonBody(request, liveTrackerMapsRequestSchema, "Invalid planned maps request");
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      await this.state.storage.put("plannedMaps", parsed.data.maps);
+      return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
+    }
+
+    if (request.method === "DELETE") {
+      await this.state.storage.delete("plannedMaps");
+      return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
+    }
+
+    return new Response("Method Not Allowed", { status: 405 });
   }
 
   private async handleRepost(request: Request): Promise<Response> {

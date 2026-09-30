@@ -9,6 +9,7 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
         "components": [
           {
             "custom_id": "select_maps_count",
+            "disabled": false,
             "options": [
               {
                 "default": false,
@@ -56,6 +57,7 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
         "components": [
           {
             "custom_id": "select_maps_playlist",
+            "disabled": false,
             "options": [
               {
                 "default": true,
@@ -122,6 +124,7 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
         "components": [
           {
             "custom_id": "select_maps_format",
+            "disabled": false,
             "options": [
               {
                 "default": true,
@@ -157,12 +160,27 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
         "components": [
           {
             "custom_id": "btn_maps_regenerate",
+            "disabled": false,
             "label": "Regenerate",
             "style": 1,
             "type": 2,
           },
           {
+            "custom_id": "btn_maps_confirm",
+            "disabled": false,
+            "label": "Confirm maps",
+            "style": 3,
+            "type": 2,
+          },
+          {
+            "custom_id": "btn_maps_clear",
+            "label": "Clear maps",
+            "style": 4,
+            "type": 2,
+          },
+          {
             "custom_id": "btn_maps_repost",
+            "disabled": false,
             "emoji": {
               "name": "⏬",
             },

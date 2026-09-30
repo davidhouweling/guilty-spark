@@ -10,6 +10,7 @@ import { GAMECOACH_GG_URLS } from "./gamecoachgg";
 
 export interface MapsDraft {
   userId: string;
+  locked: boolean;
   count: number;
   playlist: MapsPlaylistType;
   format: MapsFormatType;
@@ -41,6 +42,27 @@ function readSelectedValue(message: APIMessage, customId: string): string {
   throw new Error(`No select menu found for ${customId}`);
 }
 
+function isMapsMessageLocked(message: APIMessage): boolean {
+  const confirmCustomId: string = InteractionComponent.Confirm;
+  for (const row of message.components ?? []) {
+    if (row.type !== ComponentType.ActionRow) {
+      continue;
+    }
+
+    for (const component of row.components) {
+      if (
+        component.type === ComponentType.Button &&
+        "custom_id" in component &&
+        component.custom_id === confirmCustomId
+      ) {
+        return component.disabled === true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function readMapName(value: string): string {
   const link = /^\[[^\]]+\]\(([^)]+)\)$/.exec(value);
   if (link == null) {
@@ -59,6 +81,10 @@ function readMapsFromEmbeds(message: APIMessage): { mode: MapMode; map: string }
   const numberFields = fields.filter((field) => field.name === "#");
   const modeFields = fields.filter((field) => field.name === "Mode");
   const mapFields = fields.filter((field) => field.name === "Map");
+
+  if (numberFields.length === 0 && modeFields.length === 0 && mapFields.length === 0) {
+    return [];
+  }
 
   if (
     numberFields.length === 0 ||
@@ -99,9 +125,9 @@ export function readMapsDraftFromMessage(message: APIMessage, userId: string): M
   const playlist = z.enum(MapsPlaylistType).parse(readSelectedValue(message, InteractionComponent.PlaylistSelect));
   const format = z.enum(MapsFormatType).parse(readSelectedValue(message, InteractionComponent.FormatSelect));
   const maps = readMapsFromEmbeds(message);
-  if (maps.length !== count) {
+  if (maps.length !== 0 && maps.length !== count) {
     throw new Error("Map list does not match the selected count");
   }
 
-  return { userId, count, playlist, format, maps };
+  return { userId, locked: isMapsMessageLocked(message), count, playlist, format, maps };
 }
