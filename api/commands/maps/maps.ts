@@ -13,6 +13,7 @@ import {
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
+import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { BaseCommand } from "../base/base-command";
 import type {
   ExecuteResponse,
@@ -25,7 +26,7 @@ import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
 
-interface MapsDraft {
+export interface MapsDraft {
   userId: string;
   count: number;
   playlist: MapsPlaylistType;
@@ -33,7 +34,7 @@ interface MapsDraft {
   maps: { mode: MapMode; map: string }[];
 }
 
-const MAP_DRAFT_TTL_SECONDS = 60 * 60 * 6;
+export const MAP_DRAFT_TTL_SECONDS = 60 * 60 * 6;
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
 const mapsFormatSchema = z.enum(MapsFormatType);
 
@@ -253,9 +254,11 @@ export class MapsCommand extends BaseCommand {
       const previousDraft = await this.getDraft(interaction);
       const selectedPlaylist = Preconditions.checkExists(interaction.data.values[0], "expected map playlist");
       const playlist = mapsPlaylistSchema.parse(selectedPlaylist);
-      const state = { ...previousDraft, playlist };
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(playlist);
+      const format = availableModes.length > 1 ? previousDraft.format : MapsFormatType.SLAYER;
+      const state = { ...previousDraft, playlist, format };
       const draft = { ...state, ...(await this.generateMapValues(state)) };
-      await this.updateDraftMessage(interaction, draft);
+      await this.updateDraftMessage(interaction, draft, availableModes);
     } catch (error) {
       this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
@@ -277,15 +280,24 @@ export class MapsCommand extends BaseCommand {
   }
 
   private async handleRepost(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const draft = await this.getDraft(interaction);
-    const message = await this.services.discordService.createMessage(interaction.channel.id, {
-      embeds: interaction.message.embeds,
-      components: interaction.message.components,
-      content: interaction.message.content,
-    });
-    await this.saveDraft(message.id, draft);
+    try {
+      const draft = await this.getDraft(interaction);
+      const message = await this.services.discordService.createMessage(interaction.channel.id, {
+        embeds: interaction.message.embeds,
+        components: interaction.message.components,
+        content: interaction.message.content,
+      });
+      await this.saveDraft(message.id, draft);
 
-    await this.services.discordService.deleteMessage(interaction.channel.id, interaction.message.id, "Reposting maps");
+      await this.services.discordService.deleteMessage(
+        interaction.channel.id,
+        interaction.message.id,
+        "Reposting maps",
+      );
+    } catch (error) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
   private createDraft(
@@ -294,10 +306,7 @@ export class MapsCommand extends BaseCommand {
     maps: { mode: MapMode; map: string }[],
   ): MapsDraft {
     return {
-      userId: Preconditions.checkExists(
-        interaction.member?.user.id ?? interaction.user?.id,
-        "expected either an interaction member id or user id but none found",
-      ),
+      userId: this.getInteractionUserId(interaction),
       ...state,
       maps,
     };
@@ -323,7 +332,13 @@ export class MapsCommand extends BaseCommand {
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
   ): Promise<MapsDraft> {
     const draft = await this.env.APP_DATA.get<MapsDraft>(this.getDraftKey(interaction.message.id), { type: "json" });
-    return Preconditions.checkExists(draft, "Map draft expired; run /maps to generate a new one");
+    if (draft == null) {
+      throw new EndUserError("Map draft expired; run `/maps` to generate a new one.", {
+        errorType: EndUserErrorType.WARNING,
+        handled: true,
+      });
+    }
+    return { ...draft, userId: this.getInteractionUserId(interaction) };
   }
 
   private async saveDraft(messageId: string, draft: MapsDraft): Promise<void> {
@@ -335,13 +350,23 @@ export class MapsCommand extends BaseCommand {
   private async updateDraftMessage(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
     draft: MapsDraft,
+    availableModes?: MapMode[]  ,
   ): Promise<void> {
-    const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
-    await this.services.discordService.updateDeferredReply(
-      interaction.token,
-      this.createMapsResponse(draft, availableModes),
-    );
+    const modes = availableModes ?? (await this.services.haloService.getMapModesForPlaylist(draft.playlist));
+    await this.services.discordService.updateDeferredReply(interaction.token, this.createMapsResponse(draft, modes));
     await this.saveDraft(interaction.message.id, draft);
+  }
+
+  private getInteractionUserId(
+    interaction:
+      | APIApplicationCommandInteraction
+      | APIMessageComponentButtonInteraction
+      | APIMessageComponentSelectMenuInteraction,
+  ): string {
+    return Preconditions.checkExists(
+      interaction.member?.user.id ?? interaction.user?.id,
+      "expected either an interaction member id or user id but none found",
+    );
   }
 
   private createMapsResponse(draft: MapsDraft, availableModes: MapMode[]): APIInteractionResponseCallbackData {

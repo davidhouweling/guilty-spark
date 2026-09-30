@@ -47,6 +47,8 @@ import { create } from "../../embeds/stats/create";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
+import { MAP_DRAFT_TTL_SECONDS } from "../../commands/maps/maps";
+import type { MapsDraft } from "../../commands/maps/maps";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
 import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-series-stats";
@@ -599,7 +601,15 @@ export class NeatQueueService {
             ...mapOpts,
           },
         );
-        await discordService.createMessage(request.channel, embed.toMessageData());
+        const message = await discordService.createMessage(request.channel, embed.toMessageData());
+        const draft: MapsDraft = {
+          userId: NEAT_QUEUE_BOT_USER_ID,
+          maps,
+          ...mapOpts,
+        };
+        await this.env.APP_DATA.put(`maps:draft:${message.id}`, JSON.stringify(draft), {
+          expirationTtl: MAP_DRAFT_TTL_SECONDS,
+        });
       } else if (
         guildConfig.NeatQueueInformerMapsPost === MapsPostType.BUTTON &&
         guildConfig.NeatQueueInformerPlayerConnections !== "Y"
