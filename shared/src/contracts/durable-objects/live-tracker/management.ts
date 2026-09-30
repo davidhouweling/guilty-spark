@@ -10,8 +10,16 @@ export type LiveTrackerMap = z.infer<typeof liveTrackerMapSchema>;
 
 export const liveTrackerMapsRequestSchema = z.object({
   maps: z.array(liveTrackerMapSchema).min(1).max(13),
+  token: z.uuid(),
 });
 export type LiveTrackerMapsRequest = z.infer<typeof liveTrackerMapsRequestSchema>;
+
+export const liveTrackerMapsClearRequestSchema = z.object({ token: z.uuid() });
+export type LiveTrackerMapsClearRequest = z.infer<typeof liveTrackerMapsClearRequestSchema>;
+
+export const liveTrackerMapsClearContract = defineContract(
+  z.object({ success: z.literal(true), cleared: z.boolean() }),
+);
 
 export const liveTrackerMapsUpdateContract = defineContract(
   z.object({

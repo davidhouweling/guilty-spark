@@ -324,7 +324,9 @@ export class MapsCommand extends BaseCommand {
       if (!draft.locked) {
         const context = await this.getActiveQueueContext(interaction);
         if (context != null) {
-          await this.services.liveTrackerService.setPlannedMaps(context, draft.maps);
+          const token = crypto.randomUUID();
+          await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
+          draft.plan = { queueNumber: context.queueNumber, token };
         }
       }
 
@@ -359,16 +361,24 @@ export class MapsCommand extends BaseCommand {
   private async handleConfirmClear(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
       const draft = this.getDraft(interaction);
-      const context = await this.getActiveQueueContext(interaction);
-      if (context != null) {
-        await this.services.liveTrackerService.clearPlannedMaps(context);
+      if (draft.plan != null) {
+        const context = await this.getActiveQueueContext(interaction);
+        if (context?.queueNumber === draft.plan.queueNumber) {
+          const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token);
+          if (!cleared) {
+            throw new EndUserError("These maps are no longer the queue's current plan.", {
+              errorType: EndUserErrorType.WARNING,
+              handled: true,
+            });
+          }
+        }
       }
 
       const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       await this.services.discordService.updateDeferredReply(
         interaction.token,
         this.createMapsResponse(
-          { ...draft, userId: this.getInteractionUserId(interaction), locked: false, maps: [] },
+          { ...draft, userId: this.getInteractionUserId(interaction), locked: false, maps: [], plan: undefined },
           availableModes,
           { attributionLabel: "Cleared by" },
         ),

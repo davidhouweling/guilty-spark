@@ -559,22 +559,28 @@ describe("LiveTrackerService", () => {
       const response: LiveTrackerMapsUpdateResponse = { success: true };
       fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
 
-      await service.setPlannedMaps(liveTrackerContext, plannedMaps);
+      await service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001");
 
       expect(fetch).toHaveBeenCalledWith("http://do/maps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maps: plannedMaps }),
+        body: JSON.stringify({ maps: plannedMaps, token: "00000000-0000-4000-8000-000000000001" }),
       });
     });
 
     it("clears planned maps", async () => {
-      const response: LiveTrackerMapsUpdateResponse = { success: true };
+      const response = { success: true, cleared: true };
       fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
 
-      await service.clearPlannedMaps(liveTrackerContext);
+      await expect(service.clearPlannedMaps(liveTrackerContext, "00000000-0000-4000-8000-000000000001")).resolves.toBe(
+        true,
+      );
 
-      expect(fetch).toHaveBeenCalledWith("http://do/maps", { method: "DELETE" });
+      expect(fetch).toHaveBeenCalledWith("http://do/maps", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+      });
     });
   });
 

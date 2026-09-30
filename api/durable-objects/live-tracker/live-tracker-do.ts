@@ -32,6 +32,8 @@ import {
   liveTrackerMapsContract,
   liveTrackerMapsRequestSchema,
   liveTrackerMapsUpdateContract,
+  liveTrackerMapsClearContract,
+  liveTrackerMapsClearRequestSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import type {
   LiveTrackerRefreshRequest,
@@ -682,7 +684,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private async handleMaps(request: Request): Promise<Response> {
     if (request.method === "GET") {
-      const maps = (await this.state.storage.get<LiveTrackerMap[]>("plannedMaps")) ?? [];
+      const saved = await this.state.storage.get<LiveTrackerMap[] | { maps: LiveTrackerMap[]; token: string }>(
+        "plannedMaps",
+      );
+      const maps = saved == null ? [] : Array.isArray(saved) ? saved : saved.maps;
       return liveTrackerMapsContract.toResponse({ maps }, { noStore: true });
     }
 
@@ -692,13 +697,25 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return parsed.response;
       }
 
-      await this.state.storage.put("plannedMaps", parsed.data.maps);
+      await this.state.storage.put("plannedMaps", parsed.data);
       return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
     }
 
     if (request.method === "DELETE") {
-      await this.state.storage.delete("plannedMaps");
-      return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
+      const parsed = await parseJsonBody(
+        request,
+        liveTrackerMapsClearRequestSchema,
+        "Invalid planned maps clear request",
+      );
+      if (!parsed.success) {
+        return parsed.response;
+      }
+      const saved = await this.state.storage.get<{ maps: LiveTrackerMap[]; token: string }>("plannedMaps");
+      const cleared = saved?.token === parsed.data.token;
+      if (cleared) {
+        await this.state.storage.delete("plannedMaps");
+      }
+      return liveTrackerMapsClearContract.toResponse({ success: true, cleared }, { noStore: true });
     }
 
     return new Response("Method Not Allowed", { status: 405 });

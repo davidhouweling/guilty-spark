@@ -33,6 +33,8 @@ import {
   liveTrackerMapsContract,
   liveTrackerMapsRequestSchema,
   liveTrackerMapsUpdateContract,
+  liveTrackerMapsClearContract,
+  liveTrackerMapsClearRequestSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import type { LiveTrackerSeriesDataResponse } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
@@ -364,8 +366,8 @@ export class LiveTrackerService {
     return result.maps;
   }
 
-  async setPlannedMaps(context: LiveTrackerContext, maps: LiveTrackerMap[]): Promise<void> {
-    const request: LiveTrackerMapsRequest = liveTrackerMapsRequestSchema.parse({ maps });
+  async setPlannedMaps(context: LiveTrackerContext, maps: LiveTrackerMap[], token: string): Promise<void> {
+    const request: LiveTrackerMapsRequest = liveTrackerMapsRequestSchema.parse({ maps, token });
     const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -378,13 +380,18 @@ export class LiveTrackerService {
     await liveTrackerMapsUpdateContract.fromResponse(response);
   }
 
-  async clearPlannedMaps(context: LiveTrackerContext): Promise<void> {
-    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", { method: "DELETE" });
+  async clearPlannedMaps(context: LiveTrackerContext, token: string): Promise<boolean> {
+    const request = liveTrackerMapsClearRequestSchema.parse({ token });
+    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
     if (!response.ok) {
       throw new Error(`Failed to clear planned maps: ${response.status.toString()}`);
     }
 
-    await liveTrackerMapsUpdateContract.fromResponse(response);
+    return (await liveTrackerMapsClearContract.fromResponse(response)).cleared;
   }
 
   /**

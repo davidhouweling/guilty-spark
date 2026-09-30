@@ -539,8 +539,10 @@ describe("MapsCommand", () => {
         expect(setPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ guildId: "fake-guild-id", channelId: interaction.channel.id, queueNumber: 42 }),
           Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+          expect.any(String),
         );
         const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(data.embeds?.[0]?.footer?.text).toMatch(/^Queue: 42 \| Plan: [\da-f-]+$/);
         const confirmCustomId: string = InteractionComponent.Confirm;
         const confirmButton = getButtonRow(data.components).components.find(
           (component) => "custom_id" in component && component.custom_id === confirmCustomId,
@@ -568,7 +570,7 @@ describe("MapsCommand", () => {
       it("requires a second confirmation before clearing the active queue plan", async () => {
         vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
         const logErrorSpy = vi.spyOn(services.logService, "error");
-        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue();
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
         const clearInteraction = aFakeButtonInteraction(InteractionComponent.Clear);
         if (clearInteraction.member != null) {
           clearInteraction.member.user.id = "clear-initiator";
@@ -583,6 +585,7 @@ describe("MapsCommand", () => {
             maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
             availableModes: ["Slayer", "Capture the Flag"],
             locked: true,
+            plan: { queueNumber: 42, token: "00000000-0000-4000-8000-000000000001" },
           },
         ).toMessageData();
         clearInteraction.message.embeds = lockedMessage.embeds ?? [];
@@ -601,6 +604,9 @@ describe("MapsCommand", () => {
         expect(confirmationData.embeds).toHaveLength(2);
         expect(confirmationData.embeds?.[1]?.title).toBe("Clear planned maps?");
         expect(confirmationData.embeds?.[0]?.fields?.at(-1)?.value).toBe("-# Confirmed by <@user123> | Format: HCS");
+        expect(confirmationData.embeds?.[0]?.footer?.text).toBe(
+          "Queue: 42 | Plan: 00000000-0000-4000-8000-000000000001",
+        );
         expect(confirmationData.embeds?.[1]?.fields?.[0]?.value).toBe("-# Clear initiated by <@clear-initiator>");
         expect(getButtonRow(confirmationData.components).components.map((button) => button.custom_id)).toEqual([
           InteractionComponent.ConfirmClear,
@@ -623,11 +629,88 @@ describe("MapsCommand", () => {
             channelId: confirmInteraction.channel.id,
             queueNumber: 42,
           }),
+          "00000000-0000-4000-8000-000000000001",
         );
         const [, data] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.description).toBe("No maps selected");
+        expect(data.embeds?.[0]?.footer).toBeUndefined();
         expect(data.embeds?.[0]?.fields?.at(-1)?.value).toBe("-# Cleared by <@clear-confirmer> | Format: HCS");
         expect(data.components).toHaveLength(4);
+      });
+
+      it("clears an ad-hoc confirmed message locally even when a queue is now active", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
+        const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
+        const lockedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "user123",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            locked: true,
+          },
+        ).toMessageData();
+        interaction.message.embeds = lockedMessage.embeds ?? [];
+        interaction.message.components = lockedMessage.components ?? [];
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+      });
+
+      it("does not clear a newer plan through an older confirmed message", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(42);
+        vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(false);
+        const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
+        const lockedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "user123",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            locked: true,
+            plan: { queueNumber: 42, token: "00000000-0000-4000-8000-000000000001" },
+          },
+        ).toMessageData();
+        interaction.message.embeds = lockedMessage.embeds ?? [];
+        interaction.message.components = lockedMessage.components ?? [];
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const [, response] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(response.embeds?.[0]?.description).toBe("These maps are no longer the queue's current plan.");
+      });
+
+      it("does not clear a plan when the active queue differs from the message's queue", async () => {
+        vi.spyOn(services.discordService, "getActiveQueueNumber").mockResolvedValue(43);
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
+        const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
+        const lockedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "user123",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            locked: true,
+            plan: { queueNumber: 42, token: "00000000-0000-4000-8000-000000000001" },
+          },
+        ).toMessageData();
+        interaction.message.embeds = lockedMessage.embeds ?? [];
+        interaction.message.components = lockedMessage.components ?? [];
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
       });
 
       it("cancels clear confirmation without changing the locked map list", async () => {

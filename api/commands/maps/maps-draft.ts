@@ -11,6 +11,7 @@ import { GAMECOACH_GG_URLS } from "./gamecoachgg";
 export interface MapsDraft {
   userId: string;
   locked: boolean;
+  plan?: { queueNumber: number; token: string } | undefined;
   count: number;
   playlist: MapsPlaylistType;
   format: MapsFormatType;
@@ -127,6 +128,21 @@ function readConfirmerFromEmbed(message: APIMessage): string {
   return Preconditions.checkExists(match?.[1], "Map confirmer metadata is missing");
 }
 
+function readPlanFromEmbed(message: APIMessage): MapsDraft["plan"] {
+  const footer = message.embeds[0]?.footer?.text;
+  if (footer == null) {
+    return undefined;
+  }
+  const match = /^Queue: ([1-9]\d*) \| Plan: ([\da-f-]+)$/.exec(footer);
+  if (match == null) {
+    throw new Error("Invalid map plan metadata");
+  }
+  return {
+    queueNumber: z.number().int().positive().parse(Number(match[1])),
+    token: z.uuid().parse(match[2]),
+  };
+}
+
 export function readMapsDraftFromMessage(message: APIMessage, userId: string): MapsDraft {
   const locked = isMapsMessageLocked(message);
   const maps = readMapsFromEmbeds(message);
@@ -145,5 +161,13 @@ export function readMapsDraftFromMessage(message: APIMessage, userId: string): M
     throw new Error("Map list does not match the selected count");
   }
 
-  return { userId: locked ? readConfirmerFromEmbed(message) : userId, locked, count, playlist, format, maps };
+  return {
+    userId: locked ? readConfirmerFromEmbed(message) : userId,
+    locked,
+    plan: locked ? readPlanFromEmbed(message) : undefined,
+    count,
+    playlist,
+    format,
+    maps,
+  };
 }

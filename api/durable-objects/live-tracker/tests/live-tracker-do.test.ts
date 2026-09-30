@@ -11,6 +11,7 @@ import {
   liveTrackerMapsContract,
   liveTrackerMapsUpdateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { LiveTrackerDO } from "../live-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
@@ -322,7 +323,9 @@ describe("LiveTrackerDO", () => {
   let services: Services;
   let env: Env;
   let fakeWebSocketAdapter: FakeWebSocketHibernationAdapter;
-  let storageGetSpy: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
+  let storageGetSpy: MockInstance<
+    (key: string) => Promise<LiveTrackerState | { maps: LiveTrackerMap[]; token: string } | null>
+  >;
   let storagePutSpy: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
   let storageDeleteAllSpy: MockInstance<typeof mockStorage.deleteAll>;
@@ -481,7 +484,7 @@ describe("LiveTrackerDO", () => {
         new Request("http://do/maps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ maps: plannedMaps }),
+          body: JSON.stringify({ maps: plannedMaps, token: "00000000-0000-4000-8000-000000000001" }),
         }),
       );
       await liveTrackerDO.fetch(
@@ -493,7 +496,10 @@ describe("LiveTrackerDO", () => {
       );
 
       expect(saveResponse.status).toBe(200);
-      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", plannedMaps);
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", {
+        maps: plannedMaps,
+        token: "00000000-0000-4000-8000-000000000001",
+      });
       expect(storagePutSpy).toHaveBeenCalledWith("trackerState", expect.any(Object));
       expect(storageDeleteAllSpy).not.toHaveBeenCalled();
       await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({ success: true });
@@ -506,6 +512,15 @@ describe("LiveTrackerDO", () => {
 
       expect(response.status).toBe(200);
       await expect(liveTrackerMapsContract.fromResponse(response)).resolves.toEqual({ maps: [] });
+    });
+
+    it("returns the maps without exposing the stored plan token", async () => {
+      const maps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      storageGetSpy.mockResolvedValue({ maps, token: "00000000-0000-4000-8000-000000000001" });
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/maps", { method: "GET" }));
+
+      await expect(response.json()).resolves.toEqual({ maps });
     });
 
     it("rejects invalid planned maps without writing storage", async () => {
@@ -521,13 +536,44 @@ describe("LiveTrackerDO", () => {
       expect(storagePutSpy).not.toHaveBeenCalled();
     });
 
-    it("clears confirmed maps", async () => {
+    it("clears only the plan matching its confirmation token", async () => {
       const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+      storageGetSpy.mockResolvedValue({
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+        token: "00000000-0000-4000-8000-000000000002",
+      });
 
-      const response = await liveTrackerDO.fetch(new Request("http://do/maps", { method: "DELETE" }));
+      const staleResponse = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+        }),
+      );
+      expect(staleResponse.status).toBe(200);
+      await expect(staleResponse.json()).resolves.toEqual({ success: true, cleared: false });
+      expect(storageDeleteSpy).not.toHaveBeenCalled();
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000002" }),
+        }),
+      );
 
       expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ success: true, cleared: true });
       expect(storageDeleteSpy).toHaveBeenCalledWith("plannedMaps");
+    });
+
+    it("rejects a plan clear without a matching token request", async () => {
+      const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", { method: "DELETE", body: JSON.stringify({}) }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(storageDeleteSpy).not.toHaveBeenCalled();
     });
 
     it("routes to handleRepost for /repost endpoint", async () => {
