@@ -31,7 +31,7 @@ import type { Services } from "../../../services/install";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
-import type { EndUserError} from "../../../base/end-user-error";
+import type { EndUserError } from "../../../base/end-user-error";
 import { EndUserErrorType } from "../../../base/end-user-error";
 
 interface FakeMapsDraft {
