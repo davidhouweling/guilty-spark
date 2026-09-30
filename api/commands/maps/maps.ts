@@ -362,15 +362,18 @@ export class MapsCommand extends BaseCommand {
     try {
       const draft = this.getDraft(interaction);
       if (draft.plan != null) {
-        const context = await this.getActiveQueueContext(interaction);
-        if (context?.queueNumber === draft.plan.queueNumber) {
-          const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token);
-          if (!cleared) {
-            throw new EndUserError("These maps are no longer the queue's current plan.", {
-              errorType: EndUserErrorType.WARNING,
-              handled: true,
-            });
-          }
+        const context: LiveTrackerContext = {
+          userId: this.getInteractionUserId(interaction),
+          guildId: Preconditions.checkExists(interaction.guild_id, "expected guild id"),
+          channelId: interaction.channel.id,
+          queueNumber: draft.plan.queueNumber,
+        };
+        const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token);
+        if (!cleared) {
+          throw new EndUserError("These maps are no longer the queue's current plan.", {
+            errorType: EndUserErrorType.WARNING,
+            handled: true,
+          });
         }
       }
 

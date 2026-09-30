@@ -708,12 +708,11 @@ describe("MapsCommand", () => {
         expect(response.embeds?.[0]?.description).toBe("These maps are no longer the queue's current plan.");
       });
 
-      it("does not clear a plan when the active queue differs from the message's queue", async () => {
-        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
-          ...discordNeatQueueData,
-          queue: 43,
-        });
-        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps");
+      it.each([null, 43])("clears the originating queue plan when the active queue is %s", async (activeQueue) => {
+        const getTeams = vi
+          .spyOn(services.discordService, "getTeamsFromQueueChannel")
+          .mockResolvedValue(activeQueue == null ? null : { ...discordNeatQueueData, queue: activeQueue });
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
         const interaction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
         const lockedMessage = new MapsEmbed(
           { discordService: services.discordService },
@@ -732,8 +731,14 @@ describe("MapsCommand", () => {
         interaction.message.components = lockedMessage.components ?? [];
         await command.execute(interaction).jobToComplete?.();
 
-        expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ queueNumber: 42, guildId: "fake-guild-id" }),
+          "00000000-0000-4000-8000-000000000001",
+        );
+        expect(getTeams).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(data.embeds?.[0]?.description).toBe("No maps selected");
       });
 
       it("cancels clear confirmation without changing the locked map list", async () => {
