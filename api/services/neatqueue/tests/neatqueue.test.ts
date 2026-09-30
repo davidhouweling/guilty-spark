@@ -539,6 +539,10 @@ describe("NeatQueueService", () => {
           NeatQueueInformerMapsCount: 3,
         });
         getGuildConfigSpy.mockReset().mockResolvedValue(guildConfig);
+        vi.spyOn(discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 1,
+        });
         vi.spyOn(haloService, "getMapModesForPlaylist").mockResolvedValue(["Slayer"]);
         const maps = [
           { map: "Map 1", mode: "Slayer" },
@@ -561,6 +565,7 @@ describe("NeatQueueService", () => {
         expect(messageData.components).toBeDefined();
         expect(JSON.stringify(messageData)).toContain("select_maps_count");
         expect(JSON.stringify(messageData)).toContain("btn_maps_regenerate");
+        expect(JSON.stringify(messageData)).toContain("AUTO Queue: 1");
       });
 
       it("posts both players message and maps message when both are enabled", async () => {

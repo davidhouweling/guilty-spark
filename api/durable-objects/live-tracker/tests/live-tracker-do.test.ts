@@ -19,6 +19,7 @@ import type { Services } from "../../../services/install";
 import { DiscordError } from "../../../services/discord/discord-error";
 import { aGuildMemberWith, apiMessage, guild } from "../../../services/discord/fakes/data";
 import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.fake";
+import { MapsPostType } from "../../../services/database/types/guild_config";
 import { getMatchStats } from "../../../services/halo/fakes/data";
 import type { LiveTrackerState } from "../types";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -326,7 +327,7 @@ describe("LiveTrackerDO", () => {
   let env: Env;
   let fakeWebSocketAdapter: FakeWebSocketHibernationAdapter;
   let storageGetSpy: MockInstance<
-    (key: string) => Promise<LiveTrackerState | { maps: LiveTrackerMap[]; token: string } | null>
+    (key: string) => Promise<LiveTrackerState | { maps: LiveTrackerMap[]; token: string } | boolean | null>
   >;
   let storagePutSpy: MockInstance<(key: string, value: LiveTrackerState) => Promise<void>>;
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
@@ -504,7 +505,99 @@ describe("LiveTrackerDO", () => {
       });
       expect(storagePutSpy).toHaveBeenCalledWith("trackerState", expect.any(Object));
       expect(storageDeleteAllSpy).not.toHaveBeenCalled();
-      await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({ success: true });
+      await expect(liveTrackerMapsUpdateContract.fromResponse(saveResponse)).resolves.toEqual({
+        success: true,
+        wasClearedByUser: false,
+      });
+    });
+
+    it("reports and clears the prior explicit-clear marker when storing maps", async () => {
+      storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "mapsCleared" ? true : null));
+      const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+      const transactionSpy = vi.spyOn(mockStorage, "transaction");
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            maps: [{ mode: "Slayer", map: "Live Fire" }],
+            token: "00000000-0000-4000-8000-000000000001",
+          }),
+        }),
+      );
+
+      await expect(liveTrackerMapsUpdateContract.fromResponse(response)).resolves.toEqual({
+        success: true,
+        wasClearedByUser: true,
+      });
+      expect(transactionSpy).toHaveBeenCalledOnce();
+      expect(storageGetSpy).toHaveBeenCalledWith("mapsCleared");
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", expect.any(Object));
+      expect(storageDeleteSpy).toHaveBeenCalledWith("mapsCleared");
+    });
+
+    it("keeps either the saved plan or clear marker when a map save races an explicit clear", async () => {
+      const token = "00000000-0000-4000-8000-000000000001";
+      const maps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      let storageState: "empty" | "planned" | "cleared" = "empty";
+      let transactionQueue = Promise.resolve();
+      storageGetSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          return Promise.resolve(storageState === "planned" ? { maps, token } : null);
+        }
+        if (typeof key === "string" && key === "mapsCleared") {
+          return Promise.resolve(storageState === "cleared" ? true : null);
+        }
+        return Promise.resolve(null);
+      });
+      storagePutSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          storageState = "planned";
+        } else if (typeof key === "string" && key === "mapsCleared") {
+          storageState = "cleared";
+        }
+        return Promise.resolve();
+      });
+      vi.spyOn(mockStorage, "delete").mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          storageState = "empty";
+        } else if (typeof key === "string" && key === "mapsCleared") {
+          if (storageState === "cleared") {
+            storageState = "empty";
+          }
+        }
+        return Promise.resolve(1);
+      });
+      vi.spyOn(mockStorage, "transaction").mockImplementation(async (callback) => {
+        const previousTransaction = transactionQueue;
+        let releaseTransaction: (() => void) | undefined;
+        transactionQueue = new Promise<void>((resolve) => {
+          releaseTransaction = resolve;
+        });
+        await previousTransaction;
+        try {
+          return await callback({ ...mockStorage, rollback: vi.fn() });
+        } finally {
+          releaseTransaction?.();
+        }
+      });
+
+      const savePromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          body: JSON.stringify({ maps, token }),
+        }),
+      );
+      const clearPromise = liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token, markClearedByUser: true }),
+        }),
+      );
+      await Promise.all([savePromise, clearPromise]);
+
+      expect(storageState).not.toBe("empty");
     });
 
     it("returns an empty planned maps list when none is stored", async () => {
@@ -582,6 +675,37 @@ describe("LiveTrackerDO", () => {
       expect(storageDeleteSpy).not.toHaveBeenCalled();
     });
 
+    it("does not mark automatic rollback as an explicit clear", async () => {
+      storageGetSpy.mockResolvedValue({
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+        token: "00000000-0000-4000-8000-000000000001",
+      });
+      await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+        }),
+      );
+
+      expect(storagePutSpy).not.toHaveBeenCalledWith("mapsCleared", true);
+    });
+
+    it("marks user-confirmed clears including absent plans", async () => {
+      storageGetSpy.mockResolvedValue(null);
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({
+            token: "00000000-0000-4000-8000-000000000001",
+            markClearedByUser: true,
+          }),
+        }),
+      );
+
+      await expect(response.json()).resolves.toEqual({ success: true, cleared: true });
+      expect(storagePutSpy).toHaveBeenCalledWith("mapsCleared", true);
+    });
+
     it("preserves a replacement plan queued while a matching clear is in progress", async () => {
       const originalToken = "00000000-0000-4000-8000-000000000001";
       const replacementToken = "00000000-0000-4000-8000-000000000002";
@@ -603,26 +727,36 @@ describe("LiveTrackerDO", () => {
       const transactionFinished = new Promise<void>((resolve) => {
         releaseTransaction = resolve;
       });
-      storageGetSpy.mockImplementation(async () => {
-        notifyRead?.();
-        await readIsBlocked;
-        return saved;
+      storageGetSpy.mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          notifyRead?.();
+          await readIsBlocked;
+          return saved;
+        }
+        return null;
       });
-      vi.spyOn(mockStorage, "delete").mockImplementation(async () => {
-        saved = null;
+      vi.spyOn(mockStorage, "delete").mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          saved = null;
+        }
         return Promise.resolve(1);
       });
       vi.spyOn(mockStorage, "transaction").mockImplementation(async (callback) => {
         try {
-          return await callback({ ...mockStorage, rollback: vi.fn() });
+          return await callback({
+            ...mockStorage,
+            put: async (key) => {
+              if (typeof key === "string" && key === "plannedMaps") {
+                notifyWrite?.();
+                await transactionFinished;
+                saved = { maps, token: replacementToken };
+              }
+            },
+            rollback: vi.fn(),
+          });
         } finally {
           releaseTransaction?.();
         }
-      });
-      storagePutSpy.mockImplementation(async () => {
-        notifyWrite?.();
-        await transactionFinished;
-        saved = { maps, token: replacementToken };
       });
 
       const clearPromise = liveTrackerDO.fetch(
@@ -894,10 +1028,70 @@ describe("LiveTrackerDO", () => {
       expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
     });
 
-    it("returns basic state when tracker has no discovered matches", async () => {
+    it("shows Generate maps for BUTTON queues without a saved plan", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "trackerState" ? trackerState : null));
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.BUTTON }),
+      );
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(data.embedData?.["showGenerateMapsButton"]).toBe(true);
+    });
+
+    it("shows Generate maps for AUTO queues after an explicit clear", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      storageGetSpy.mockImplementation(async (key) => {
+        if (key === "trackerState") {
+          return Promise.resolve(trackerState);
+        }
+        return Promise.resolve(key === "mapsCleared" ? true : null);
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.AUTO }),
+      );
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(data.embedData?.["showGenerateMapsButton"]).toBe(true);
+    });
+
+    it("hides Generate maps while a plan is saved", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      storageGetSpy.mockImplementation(async (key) => {
+        if (key === "trackerState") {
+          return Promise.resolve(trackerState);
+        }
+        return Promise.resolve(key === "plannedMaps" ? { maps: [], token: "plan-token" } : null);
+      });
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.BUTTON }),
+      );
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(data.embedData?.["showGenerateMapsButton"]).toBe(false);
+    });
+
+    it("returns basic embed data with Generate Maps state when tracker has no discovered matches", async () => {
       const trackerState = createMockTrackerState();
       trackerState.status = "active";
-      storageGetSpy.mockResolvedValue(trackerState);
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(key === "trackerState" ? trackerState : key === "mapsCleared" ? true : null),
+      );
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.AUTO }),
+      );
 
       const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
 
@@ -905,7 +1099,11 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(data.embedData).toBeUndefined();
+      expect(data.embedData).toMatchObject({
+        status: "paused",
+        isPaused: true,
+        showGenerateMapsButton: true,
+      });
     });
   });
 
@@ -975,6 +1173,27 @@ describe("LiveTrackerDO", () => {
       expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
       expect(embedData["nextCheck"]).toBeDefined();
     });
+
+    it("returns Generate Maps visibility for basic resume embed data", async () => {
+      const trackerState = createMockTrackerState();
+      trackerState.status = "paused";
+      trackerState.isPaused = true;
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(key === "trackerState" ? trackerState : key === "mapsCleared" ? true : null),
+      );
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.AUTO }),
+      );
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/resume", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(data.embedData).toMatchObject({
+        status: "active",
+        isPaused: false,
+        showGenerateMapsButton: true,
+      });
+    });
   });
 
   describe("handleStop()", () => {
@@ -1000,6 +1219,24 @@ describe("LiveTrackerDO", () => {
       expect(response.status).toBe(404);
       const text = await response.text();
       expect(text).toBe("Not Found");
+    });
+
+    it("returns Generate Maps visibility for stopped trackers without discovered matches", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(key === "trackerState" ? trackerState : key === "mapsCleared" ? true : null),
+      );
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.AUTO }),
+      );
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(data.embedData).toMatchObject({
+        status: "stopped",
+        showGenerateMapsButton: true,
+      });
     });
 
     it("returns enriched embed data when tracker has discovered matches", async () => {
@@ -1032,6 +1269,22 @@ describe("LiveTrackerDO", () => {
   });
 
   describe("handleRefresh()", () => {
+    it("keeps Generate Maps on the live embed during refreshes", async () => {
+      const trackerState = createMockTrackerState();
+      storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "trackerState" ? trackerState : null));
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.BUTTON }),
+      );
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+      await liveTrackerDO.fetch(new Request("http://do/refresh", { method: "POST" }));
+
+      const [, , messageData] = editMessageSpy.mock.calls[0] ?? [];
+      expect(JSON.stringify(messageData?.components)).toContain("btn_maps_initiate");
+    });
+
     it("forces immediate update of active tracker", async () => {
       const trackerState = createMockTrackerState();
       storageGetSpy.mockResolvedValue(trackerState);

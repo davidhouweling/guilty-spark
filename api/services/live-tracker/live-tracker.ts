@@ -366,7 +366,7 @@ export class LiveTrackerService {
     return result.maps;
   }
 
-  async setPlannedMaps(context: LiveTrackerContext, maps: LiveTrackerMap[], token: string): Promise<void> {
+  async setPlannedMaps(context: LiveTrackerContext, maps: LiveTrackerMap[], token: string): Promise<boolean> {
     const request: LiveTrackerMapsRequest = liveTrackerMapsRequestSchema.parse({ maps, token });
     const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
       method: "POST",
@@ -377,11 +377,14 @@ export class LiveTrackerService {
       throw new Error(`Failed to set planned maps: ${response.status.toString()}`);
     }
 
-    await liveTrackerMapsUpdateContract.fromResponse(response);
+    return (await liveTrackerMapsUpdateContract.fromResponse(response)).wasClearedByUser;
   }
 
-  async clearPlannedMaps(context: LiveTrackerContext, token: string): Promise<boolean> {
-    const request = liveTrackerMapsClearRequestSchema.parse({ token });
+  async clearPlannedMaps(context: LiveTrackerContext, token: string, markClearedByUser = false): Promise<boolean> {
+    const request = liveTrackerMapsClearRequestSchema.parse({
+      token,
+      ...(markClearedByUser ? { markClearedByUser } : {}),
+    });
     const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

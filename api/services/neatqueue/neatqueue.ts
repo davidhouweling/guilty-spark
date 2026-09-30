@@ -593,6 +593,7 @@ export class NeatQueueService {
           format: normalizeMapsFormat(configuredMapOpts.format, availableModes),
         };
         const maps = await this.haloService.generateMaps(mapOpts);
+        const autoQueueNumber = await this.getAutoQueueNumberForMaps(request.guild, request.channel);
         const embed = new MapsEmbed(
           { discordService },
           {
@@ -600,6 +601,7 @@ export class NeatQueueService {
             maps,
             availableModes,
             ...mapOpts,
+            autoQueueNumber: autoQueueNumber ?? undefined,
           },
         );
         await discordService.createMessage(request.channel, embed.toMessageData());
@@ -635,6 +637,23 @@ export class NeatQueueService {
           NeatQueueInformerMapsPost: MapsPostType.OFF,
         });
       }
+    }
+  }
+
+  private async getAutoQueueNumberForMaps(guildId: string, channelId: string): Promise<number | undefined> {
+    try {
+      const teams = await this.discordService.getTeamsFromQueueChannel(guildId, channelId);
+      return teams?.queue;
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["channelId", channelId],
+          ["reason", "Failed to resolve queue number for AUTO maps message"],
+        ]),
+      );
+      return undefined;
     }
   }
 

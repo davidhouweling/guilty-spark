@@ -538,7 +538,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
         const { jobToComplete } = command.execute(interaction);
 
@@ -583,7 +583,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(true);
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
         const error = new Error("Discord update failed");
         updateDeferredReplySpy.mockRejectedValueOnce(error);
@@ -595,6 +595,7 @@ describe("MapsCommand", () => {
         expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ queueNumber: 42, channelId: interaction.channel.id }),
           setPlannedMapsSpy.mock.calls[0]?.[2],
+          true,
         );
         expect(updateDeferredReplySpy).toHaveBeenCalledTimes(2);
         const [, response] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
@@ -606,7 +607,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(false);
         updateDeferredReplySpy.mockRejectedValueOnce(new Error("Discord update failed"));
 
@@ -621,7 +622,7 @@ describe("MapsCommand", () => {
           ...discordNeatQueueData,
           queue: 42,
         });
-        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue();
+        vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
         const rollbackError = new Error("Rollback failed");
         vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockRejectedValue(rollbackError);
         const publishError = new Error("Discord update failed");
@@ -646,6 +647,38 @@ describe("MapsCommand", () => {
 
         expect(setPlannedMapsSpy).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
+      });
+
+      it("keeps an AUTO-only locked draft usable after its queue disappears", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
+        const generatedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "neatqueue-bot",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            autoQueueNumber: 42,
+          },
+        ).toMessageData();
+        const confirmInteraction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        confirmInteraction.message.embeds = generatedMessage.embeds ?? [];
+        confirmInteraction.message.components = generatedMessage.components ?? [];
+        await command.execute(confirmInteraction).jobToComplete?.();
+
+        const [, confirmedData] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        expect(confirmedData.embeds?.[0]?.footer?.text).toBe("AUTO Queue: 42");
+
+        const repostInteraction = aFakeButtonInteraction(InteractionComponent.Repost);
+        repostInteraction.message.embeds = confirmedData.embeds ?? [];
+        repostInteraction.message.components = confirmedData.components ?? [];
+        const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+
+        await command.execute(repostInteraction).jobToComplete?.();
+
+        expect(createMessageSpy).toHaveBeenCalledOnce();
       });
 
       it("does not persist a plan when resolving playlist modes fails on confirmation", async () => {
@@ -731,12 +764,52 @@ describe("MapsCommand", () => {
             queueNumber: 42,
           }),
           "00000000-0000-4000-8000-000000000001",
+          true,
         );
         const [, data] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.description).toBe("No maps selected");
         expect(data.embeds?.[0]?.footer).toBeUndefined();
         expect(data.embeds?.[0]?.fields?.at(-1)?.value).toBe("-# Cleared by <@clear-confirmer> | Format: HCS");
         expect(data.components).toHaveLength(4);
+      });
+
+      it("marks a planless AUTO-generated map clear for its source queue", async () => {
+        const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
+        const generatedMessage = new MapsEmbed(
+          { discordService: services.discordService },
+          {
+            userId: "neatqueue-bot",
+            count: 5,
+            playlist: MapsPlaylistType.HCS_CURRENT,
+            format: MapsFormatType.HCS,
+            maps: Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+            availableModes: ["Slayer", "Capture the Flag"],
+            autoQueueNumber: 42,
+          },
+        ).toMessageData();
+        const clearInteraction = aFakeButtonInteraction(InteractionComponent.Clear);
+        clearInteraction.message.embeds = generatedMessage.embeds ?? [];
+        clearInteraction.message.components = generatedMessage.components ?? [];
+        await command.execute(clearInteraction).jobToComplete?.();
+
+        const [, confirmationData] = updateDeferredReplySpy.mock.calls[0] as [
+          string,
+          APIInteractionResponseCallbackData,
+        ];
+        const confirmInteraction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
+        confirmInteraction.message.embeds = confirmationData.embeds ?? [];
+        confirmInteraction.message.components = confirmationData.components ?? [];
+        await command.execute(confirmInteraction).jobToComplete?.();
+
+        expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            guildId: "fake-guild-id",
+            channelId: confirmInteraction.channel.id,
+            queueNumber: 42,
+          }),
+          expect.stringMatching(/^[\da-f-]{36}$/),
+          true,
+        );
       });
 
       it("clears an ad-hoc confirmed message locally even when a queue is now active", async () => {
@@ -885,6 +958,7 @@ describe("MapsCommand", () => {
         expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ queueNumber: 42, guildId: "fake-guild-id" }),
           "00000000-0000-4000-8000-000000000001",
+          true,
         );
         expect(getTeams).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();

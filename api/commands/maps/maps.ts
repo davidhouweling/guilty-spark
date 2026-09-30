@@ -327,7 +327,7 @@ export class MapsCommand extends BaseCommand {
         const context = await this.getActiveQueueContext(interaction);
         if (context != null) {
           const token = crypto.randomUUID();
-          await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
+          const wasClearedByUser = await this.services.liveTrackerService.setPlannedMaps(context, draft.maps, token);
           draft.plan = { queueNumber: context.queueNumber, token };
           try {
             await this.services.discordService.updateDeferredReply(
@@ -336,7 +336,7 @@ export class MapsCommand extends BaseCommand {
             );
           } catch (error) {
             try {
-              await this.services.liveTrackerService.clearPlannedMaps(context, token);
+              await this.services.liveTrackerService.clearPlannedMaps(context, token, wasClearedByUser);
             } catch (rollbackError) {
               this.services.logService.error(rollbackError);
             }
@@ -377,14 +377,15 @@ export class MapsCommand extends BaseCommand {
     try {
       const draft = this.getDraft(interaction);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
-      if (draft.plan != null) {
+      if (draft.plan != null || draft.autoQueueNumber != null) {
         const context: LiveTrackerContext = {
           userId: this.getInteractionUserId(interaction),
           guildId: Preconditions.checkExists(interaction.guild_id, "expected guild id"),
           channelId: interaction.channel.id,
-          queueNumber: draft.plan.queueNumber,
+          queueNumber: draft.plan?.queueNumber ?? Preconditions.checkExists(draft.autoQueueNumber),
         };
-        const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token);
+        const token = draft.plan?.token ?? crypto.randomUUID();
+        const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, token, true);
         if (!cleared) {
           throw new EndUserError("These maps are no longer the queue's current plan.", {
             errorType: EndUserErrorType.WARNING,

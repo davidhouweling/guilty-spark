@@ -197,6 +197,27 @@ describe("LiveTrackerEmbed", () => {
       expect(actions.length).toBeGreaterThan(0);
     });
 
+    it("appends Generate maps to the first action row when enabled", () => {
+      const liveTrackerEmbed = createLiveTrackerEmbed({
+        status: "active",
+        isPaused: false,
+        showGenerateMapsButton: true,
+        enrichedMatches: [],
+      });
+
+      const [firstRow] = liveTrackerEmbed.actions;
+      expect(firstRow?.type).toBe(ComponentType.ActionRow);
+      if (firstRow?.type === ComponentType.ActionRow) {
+        expect(firstRow.components.at(-1)).toEqual({
+          type: ComponentType.Button,
+          custom_id: "btn_maps_initiate",
+          label: "Generate maps",
+          style: ButtonStyle.Secondary,
+          emoji: { name: "🗺️" },
+        });
+      }
+    });
+
     it("creates buttons for paused state", () => {
       const liveTrackerEmbed = createLiveTrackerEmbed({
         status: "active",

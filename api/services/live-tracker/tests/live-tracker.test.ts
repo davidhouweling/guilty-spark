@@ -556,10 +556,12 @@ describe("LiveTrackerService", () => {
     });
 
     it("sets planned maps successfully", async () => {
-      const response: LiveTrackerMapsUpdateResponse = { success: true };
+      const response: LiveTrackerMapsUpdateResponse = { success: true, wasClearedByUser: true };
       fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
 
-      await service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001");
+      await expect(
+        service.setPlannedMaps(liveTrackerContext, plannedMaps, "00000000-0000-4000-8000-000000000001"),
+      ).resolves.toBe(true);
 
       expect(fetch).toHaveBeenCalledWith("http://do/maps", {
         method: "POST",
@@ -580,6 +582,24 @@ describe("LiveTrackerService", () => {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+      });
+    });
+
+    it("marks an explicit user clear in the request", async () => {
+      const response = { success: true, cleared: true };
+      fetch.mockResolvedValue(aFakeResponseWith({ json: vi.fn().mockResolvedValue(response) }));
+
+      await expect(
+        service.clearPlannedMaps(liveTrackerContext, "00000000-0000-4000-8000-000000000001", true),
+      ).resolves.toBe(true);
+
+      expect(fetch).toHaveBeenCalledWith("http://do/maps", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: "00000000-0000-4000-8000-000000000001",
+          markClearedByUser: true,
+        }),
       });
     });
   });

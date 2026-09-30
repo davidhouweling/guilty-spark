@@ -53,6 +53,7 @@ import { LiveTrackerLoadingEmbed } from "../../embeds/live-tracker-loading-embed
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { applyRosterSubstitution } from "../../base/roster-substitution";
 import { DiscordError } from "../../services/discord/discord-error";
+import { MapsPostType } from "../../services/database/types/guild_config";
 import type { SeriesData } from "../../services/halo/types";
 import type { LiveTrackerState } from "./types";
 
@@ -425,7 +426,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
-    return this.createPauseResponse(trackerState);
+    const embedData = await this.buildBasicEmbedData(trackerState, { status: "paused", isPaused: true });
+    return this.createPauseResponse(trackerState, embedData);
   }
 
   private async handleResume(): Promise<Response> {
@@ -460,7 +462,14 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       }
     }
 
-    return this.createResumeResponse(trackerState);
+    const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
+    const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
+    const embedData = await this.buildBasicEmbedData(trackerState, {
+      status: "active",
+      isPaused: false,
+      nextCheck: nextCheckTime,
+    });
+    return this.createResumeResponse(trackerState, embedData);
   }
 
   private async handleStop(): Promise<Response> {
@@ -483,6 +492,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         );
       }
     }
+
+    embedData ??= await this.buildBasicEmbedData(trackerState, { status: "stopped", isPaused: false });
 
     trackerState.status = "stopped";
 
@@ -697,8 +708,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         return parsed.response;
       }
 
-      await this.state.storage.put("plannedMaps", parsed.data);
-      return liveTrackerMapsUpdateContract.toResponse({ success: true }, { noStore: true });
+      const wasClearedByUser = await this.state.storage.transaction(async (txn) => {
+        const wasCleared = (await txn.get<boolean>("mapsCleared")) === true;
+        await txn.put("plannedMaps", parsed.data);
+        await txn.delete("mapsCleared");
+        return wasCleared;
+      });
+      return liveTrackerMapsUpdateContract.toResponse({ success: true, wasClearedByUser }, { noStore: true });
     }
 
     if (request.method === "DELETE") {
@@ -713,12 +729,18 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       const cleared = await this.state.storage.transaction(async (txn) => {
         const saved = await txn.get<{ maps: LiveTrackerMap[]; token: string }>("plannedMaps");
         if (saved == null) {
+          if (parsed.data.markClearedByUser === true) {
+            await txn.put("mapsCleared", true);
+          }
           return true;
         }
         if (saved.token !== parsed.data.token) {
           return false;
         }
         await txn.delete("plannedMaps");
+        if (parsed.data.markClearedByUser === true) {
+          await txn.put("mapsCleared", true);
+        }
         return true;
       });
       return liveTrackerMapsClearContract.toResponse({ success: true, cleared }, { noStore: true });
@@ -875,6 +897,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const currentTime = new Date();
     const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
     const { seriesScore } = await this.computeAndUpdateSeriesScore(trackerState);
+    const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
 
     return {
       userId: trackerState.userId,
@@ -887,9 +910,50 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       nextCheck: options.nextCheck,
       enrichedMatches,
       seriesScore,
+      showGenerateMapsButton,
       substitutions: trackerState.substitutions,
       errorState: trackerState.errorState,
     };
+  }
+
+  private async buildBasicEmbedData(
+    trackerState: LiveTrackerState,
+    options: {
+      status: LiveTrackerState["status"];
+      isPaused: boolean;
+      nextCheck?: Date | undefined;
+    },
+  ): Promise<LiveTrackerEmbedData> {
+    return {
+      userId: trackerState.userId,
+      guildId: trackerState.guildId,
+      channelId: trackerState.channelId,
+      queueNumber: trackerState.queueNumber,
+      status: options.status,
+      isPaused: options.isPaused,
+      lastUpdated: new Date(),
+      nextCheck: options.nextCheck,
+      showGenerateMapsButton: await this.shouldShowGenerateMapsButton(trackerState),
+    };
+  }
+
+  private async shouldShowGenerateMapsButton(trackerState: LiveTrackerState): Promise<boolean> {
+    try {
+      const plannedMaps = await this.state.storage.get<LiveTrackerMap[] | { maps: LiveTrackerMap[] }>("plannedMaps");
+      const mapsCleared = (await this.state.storage.get<boolean>("mapsCleared")) === true;
+      const guildConfig = await this.databaseService.getGuildConfig(trackerState.guildId);
+      return (
+        plannedMaps == null &&
+        (guildConfig.NeatQueueInformerMapsPost === MapsPostType.BUTTON ||
+          (guildConfig.NeatQueueInformerMapsPost === MapsPostType.AUTO && mapsCleared))
+      );
+    } catch (error) {
+      this.logService.warn(
+        "LiveTracker: Failed to determine Generate Maps button visibility",
+        new Map([["error", String(error)]]),
+      );
+      return false;
+    }
   }
 
   // Typed response helpers
@@ -1049,6 +1113,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
     const { seriesScore, seriesScoreWithEmoji } = await this.computeAndUpdateSeriesScore(trackerState);
+    const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
       { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
@@ -1063,6 +1128,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         nextCheck: trackerState.status === "active" && !trackerState.isPaused ? nextCheckTime : undefined,
         enrichedMatches,
         seriesScore,
+        showGenerateMapsButton,
         substitutions: trackerState.substitutions,
         errorState: trackerState.errorState,
       },
