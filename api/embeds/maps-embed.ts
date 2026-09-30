@@ -206,6 +206,13 @@ export class MapsEmbed extends BaseTableEmbed {
               style: ButtonStyle.Secondary,
               emoji: { name: "❌" },
             },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionComponent.Repost,
+              label: "Move to bottom of chat",
+              style: ButtonStyle.Secondary,
+              emoji: { name: "⏬" },
+            },
           ],
         },
       ];

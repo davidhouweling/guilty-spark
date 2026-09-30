@@ -189,6 +189,7 @@ describe("MapsEmbed", () => {
       expect(actionRow.components.map((component) => ("custom_id" in component ? component.custom_id : ""))).toEqual([
         InteractionComponent.ConfirmClear,
         InteractionComponent.CancelClear,
+        InteractionComponent.Repost,
       ]);
     }
   });

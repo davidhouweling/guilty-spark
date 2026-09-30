@@ -711,6 +711,7 @@ describe("MapsCommand", () => {
         expect(getButtonRow(confirmationData.components).components.map((button) => button.custom_id)).toEqual([
           InteractionComponent.ConfirmClear,
           InteractionComponent.CancelClear,
+          InteractionComponent.Repost,
         ]);
 
         const confirmInteraction = aFakeButtonInteraction(InteractionComponent.ConfirmClear);
