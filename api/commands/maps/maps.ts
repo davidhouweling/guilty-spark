@@ -25,16 +25,8 @@ import type { MapMode } from "../../services/halo/hcs";
 import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
-
-export interface MapsDraft {
-  userId: string;
-  count: number;
-  playlist: MapsPlaylistType;
-  format: MapsFormatType;
-  maps: { mode: MapMode; map: string }[];
-}
-
-export const MAP_DRAFT_TTL_SECONDS = 60 * 60 * 6;
+import { MAP_DRAFT_TTL_SECONDS } from "./maps-draft";
+import type { MapsDraft } from "./maps-draft";
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
 const mapsFormatSchema = z.enum(MapsFormatType);
 
@@ -282,9 +274,10 @@ export class MapsCommand extends BaseCommand {
   private async handleRepost(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
       const draft = await this.getDraft(interaction);
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
+      const response = this.createMapsResponse(draft, availableModes);
       const message = await this.services.discordService.createMessage(interaction.channel.id, {
-        embeds: interaction.message.embeds,
-        components: interaction.message.components,
+        ...response,
         content: interaction.message.content,
       });
       await this.saveDraft(message.id, draft);
@@ -350,7 +343,7 @@ export class MapsCommand extends BaseCommand {
   private async updateDraftMessage(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
     draft: MapsDraft,
-    availableModes?: MapMode[]  ,
+    availableModes?: MapMode[],
   ): Promise<void> {
     const modes = availableModes ?? (await this.services.haloService.getMapModesForPlaylist(draft.playlist));
     await this.services.discordService.updateDeferredReply(interaction.token, this.createMapsResponse(draft, modes));

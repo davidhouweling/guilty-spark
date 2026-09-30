@@ -58,8 +58,10 @@ import {
   textChannel,
 } from "../../discord/fakes/data";
 import { EndUserError } from "../../../base/end-user-error";
-import { StatsReturnType, MapsPostType } from "../../database/types/guild_config";
+import { StatsReturnType, MapsPostType, MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config";
 import { DiscordError } from "../../discord/discord-error";
+import { MAP_DRAFT_TTL_SECONDS } from "../../../commands/maps/maps-draft";
+import { NEAT_QUEUE_BOT_USER_ID } from "../../discord/discord";
 
 const startThread: APIChannel = {
   type: ChannelType.PublicThread,
@@ -533,16 +535,20 @@ describe("NeatQueueService", () => {
       });
 
       it("posts maps message when maps are set to AUTO and player connections are disabled", async () => {
-        getGuildConfigSpy.mockReset().mockResolvedValue(
-          aFakeGuildConfigRow({
-            NeatQueueInformerPlayerConnections: "N",
-            NeatQueueInformerMapsPost: MapsPostType.AUTO,
-          }),
-        );
-        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockResolvedValue([
+        const guildConfig = aFakeGuildConfigRow({
+          NeatQueueInformerPlayerConnections: "N",
+          NeatQueueInformerMapsPost: MapsPostType.AUTO,
+          NeatQueueInformerMapsPlaylist: MapsPlaylistType.RANKED_ARENA,
+          NeatQueueInformerMapsFormat: MapsFormatType.OBJECTIVE,
+          NeatQueueInformerMapsCount: 3,
+        });
+        getGuildConfigSpy.mockReset().mockResolvedValue(guildConfig);
+        const maps = [
           { map: "Map 1", mode: "Slayer" },
           { map: "Map 2", mode: "Capture the Flag" },
-        ]);
+        ] as const;
+        const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockResolvedValue([...maps]);
+        const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
 
         await jobToComplete();
 
@@ -558,6 +564,17 @@ describe("NeatQueueService", () => {
         ];
         expect(messageData.embeds).toBeDefined();
         expect(messageData.components).toBeDefined();
+        expect(appDataPutSpy).toHaveBeenCalledWith(
+          `maps:draft:${apiMessage.id}`,
+          JSON.stringify({
+            userId: NEAT_QUEUE_BOT_USER_ID,
+            maps,
+            playlist: guildConfig.NeatQueueInformerMapsPlaylist,
+            format: guildConfig.NeatQueueInformerMapsFormat,
+            count: guildConfig.NeatQueueInformerMapsCount,
+          }),
+          { expirationTtl: MAP_DRAFT_TTL_SECONDS },
+        );
       });
 
       it("posts both players message and maps message when both are enabled", async () => {

@@ -598,6 +598,9 @@ describe("MapsCommand", () => {
 
       it("reposts the maps, then deletes the original message", async () => {
         const interaction = aFakeButtonInteraction(InteractionComponent.Repost);
+        if (interaction.member != null) {
+          interaction.member.user.id = "reposting-user";
+        }
         const { jobToComplete } = command.execute(interaction);
 
         const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
@@ -611,6 +614,7 @@ describe("MapsCommand", () => {
         const [channelId, data] = createMessageSpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
         expect(channelId).toBe(interaction.channel.id);
         expect(data.embeds?.[0]?.title).toContain("Maps:");
+        expect(data.embeds?.[0]?.fields?.at(-1)?.value).toContain("<@reposting-user>");
 
         const [delChannelId, delMessageId, delReason] = deleteMessageSpy.mock.calls[0] as [string, string, string];
         expect(delChannelId).toBe(interaction.channel.id);
