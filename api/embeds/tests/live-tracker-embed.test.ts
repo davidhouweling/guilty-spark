@@ -122,6 +122,45 @@ describe("LiveTrackerEmbed", () => {
     });
   });
 
+  describe("upcoming maps", () => {
+    const plannedMaps = [
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Strongholds", map: "Recharge" },
+      { mode: "Oddball", map: "Streets" },
+    ];
+
+    it("shows every planned map in a second embed before the first match", () => {
+      const {embeds} = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: [] });
+
+      expect(embeds).toHaveLength(2);
+      expect(embeds[1]).toMatchObject({
+        title: "Upcoming maps",
+        description:
+          "**Game 1** · Slayer on Live Fire\n**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets",
+      });
+    });
+
+    it("removes played slots by game number even when the played map differs", () => {
+      const {embeds} = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: testEnrichedMatches.slice(0, 1) });
+
+      expect(embeds).toHaveLength(2);
+      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+    });
+
+    it("omits the upcoming embed after every planned slot is played or cleared", () => {
+      expect(createLiveTrackerEmbed({ plannedMaps, enrichedMatches: testEnrichedMatches }).embeds[1]?.description).toBe(
+        "**Game 3** · Oddball on Streets",
+      );
+      expect(
+        createLiveTrackerEmbed({
+          plannedMaps,
+          enrichedMatches: [...testEnrichedMatches, Preconditions.checkExists(testEnrichedMatches[0])],
+        }).embeds,
+      ).toHaveLength(1);
+      expect(createLiveTrackerEmbed({ plannedMaps: [], enrichedMatches: [] }).embeds).toHaveLength(1);
+    });
+  });
+
   describe("paused state", () => {
     it("creates embed with paused styling", () => {
       const liveTrackerEmbed = createLiveTrackerEmbed({

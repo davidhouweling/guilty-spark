@@ -856,6 +856,31 @@ describe("LiveTrackerDO", () => {
   });
 
   describe("handleStart()", () => {
+    it("includes a confirmed pre-start plan in the initial live message", async () => {
+      const plannedMaps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(key === "plannedMaps" ? { maps: plannedMaps, token: "plan-token" } : null),
+      );
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "updateDeferredReply").mockResolvedValue(apiMessage);
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+
+      await liveTrackerDO.fetch(
+        new Request("http://do/start", { method: "POST", body: JSON.stringify(createMockStartData()) }),
+      );
+
+      expect(editMessageSpy.mock.calls[0]?.[2]?.embeds).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: "Upcoming maps",
+            description: "**Game 1** · Slayer on Live Fire",
+          }),
+        ]),
+      );
+    });
+
     it("creates new tracker state and sets alarm", async () => {
       const startData = createMockStartData();
       const request = new Request("http://do/start", {
@@ -1104,6 +1129,25 @@ describe("LiveTrackerDO", () => {
         isPaused: true,
         showGenerateMapsButton: true,
       });
+    });
+
+    it("returns planned maps in basic embed data before any matches", async () => {
+      const trackerState = createMockTrackerState();
+      const plannedMaps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(
+          key === "trackerState"
+            ? trackerState
+            : key === "plannedMaps"
+              ? { maps: plannedMaps, token: "plan-token" }
+              : null,
+        ),
+      );
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: { plannedMaps?: LiveTrackerMap[] } } = await response.json();
+
+      expect(data.embedData?.plannedMaps).toEqual(plannedMaps);
     });
   });
 
@@ -2032,6 +2076,31 @@ describe("LiveTrackerDO", () => {
         }),
       );
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(expect.any(Number));
+    });
+
+    it("includes a confirmed plan in ordinary live-message updates", async () => {
+      const trackerState = createAlarmTestTrackerState();
+      const plannedMaps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(
+          key === "trackerState"
+            ? trackerState
+            : key === "plannedMaps"
+              ? { maps: plannedMaps, token: "plan-token" }
+              : null,
+        ),
+      );
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
+      const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
+
+      await liveTrackerDO.alarm();
+
+      expect(editMessageSpy.mock.calls[0]?.[2]?.embeds).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: "Upcoming maps", description: "**Game 1** · Slayer on Live Fire" }),
+        ]),
+      );
     });
 
     it("handles fetch error and continues if not persistent", async () => {

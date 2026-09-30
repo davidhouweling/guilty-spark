@@ -898,6 +898,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
     const { seriesScore } = await this.computeAndUpdateSeriesScore(trackerState);
     const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
+    const plannedMaps = await this.getPlannedMaps();
 
     return {
       userId: trackerState.userId,
@@ -911,6 +912,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       enrichedMatches,
       seriesScore,
       showGenerateMapsButton,
+      plannedMaps,
       substitutions: trackerState.substitutions,
       errorState: trackerState.errorState,
     };
@@ -934,7 +936,20 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       lastUpdated: new Date(),
       nextCheck: options.nextCheck,
       showGenerateMapsButton: await this.shouldShowGenerateMapsButton(trackerState),
+      plannedMaps: await this.getPlannedMaps(),
     };
+  }
+
+  private async getPlannedMaps(): Promise<LiveTrackerMap[]> {
+    try {
+      const saved = await this.state.storage.get<LiveTrackerMap[] | { maps: LiveTrackerMap[]; token: string }>(
+        "plannedMaps",
+      );
+      return saved == null ? [] : Array.isArray(saved) ? saved : saved.maps;
+    } catch (error) {
+      this.logService.warn("LiveTracker: Failed to load upcoming maps", new Map([["error", String(error)]]));
+      return [];
+    }
   }
 
   private async shouldShowGenerateMapsButton(trackerState: LiveTrackerState): Promise<boolean> {
@@ -1114,6 +1129,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     const { seriesScore, seriesScoreWithEmoji } = await this.computeAndUpdateSeriesScore(trackerState);
     const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
+    const plannedMaps = await this.getPlannedMaps();
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
       { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
@@ -1129,6 +1145,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         enrichedMatches,
         seriesScore,
         showGenerateMapsButton,
+        plannedMaps,
         substitutions: trackerState.substitutions,
         errorState: trackerState.errorState,
       },

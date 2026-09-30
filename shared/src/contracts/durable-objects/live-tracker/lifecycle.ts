@@ -98,6 +98,7 @@ export const liveTrackerEmbedDataSchema = z.object({
   enrichedMatches: z.array(matchSummarySchema).optional(),
   seriesScore: z.string().optional(),
   showGenerateMapsButton: z.boolean().optional(),
+  plannedMaps: z.array(z.object({ mode: z.string(), map: z.string() })).optional(),
   substitutions: z.array(substitutionSchema).optional(),
   errorState: errorStateSchema.optional(),
   seriesData: seriesDataSchema.optional(),

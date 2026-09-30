@@ -269,6 +269,20 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       embeds.push(embed);
     }
 
+    const upcomingMaps = this.data.plannedMaps?.slice(enrichedMatches?.length ?? 0);
+    if (upcomingMaps != null && upcomingMaps.length > 0) {
+      embeds.push({
+        title: "Upcoming maps",
+        color: embedColor,
+        description: upcomingMaps
+          .map(
+            ({ mode, map }, index) =>
+              `**Game ${((enrichedMatches?.length ?? 0) + index + 1).toString()}** · ${mode} on ${map}`,
+          )
+          .join("\n"),
+      });
+    }
+
     return embeds;
   }
 
