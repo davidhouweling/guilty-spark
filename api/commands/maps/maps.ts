@@ -13,7 +13,6 @@ import {
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
-import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { BaseCommand } from "../base/base-command";
 import type {
   ExecuteResponse,
@@ -25,7 +24,7 @@ import type { MapMode } from "../../services/halo/hcs";
 import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
-import { MAP_DRAFT_TTL_SECONDS, normalizeMapsFormat } from "./maps-draft";
+import { normalizeMapsFormat, readMapsDraftFromMessage } from "./maps-draft";
 import type { MapsDraft } from "./maps-draft";
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
 const mapsFormatSchema = z.enum(MapsFormatType);
@@ -154,11 +153,7 @@ export class MapsCommand extends BaseCommand {
             { ...state, format: normalizeMapsFormat(state.format, availableModes) },
             maps,
           );
-          const message = await discordService.updateDeferredReply(
-            interaction.token,
-            this.createMapsResponse(draft, availableModes),
-          );
-          await this.saveDraft(message.id, draft);
+          await discordService.updateDeferredReply(interaction.token, this.createMapsResponse(draft, availableModes));
         } catch (error) {
           logService.error(error);
           await discordService.updateDeferredReplyWithError(interaction.token, error);
@@ -211,11 +206,10 @@ export class MapsCommand extends BaseCommand {
         { ...state, format: normalizeMapsFormat(state.format, availableModes) },
         maps,
       );
-      const message = await this.services.discordService.createMessage(
+      await this.services.discordService.createMessage(
         interaction.channel.id,
         this.createMapsResponse(draft, availableModes),
       );
-      await this.saveDraft(message.id, draft);
     } catch (error) {
       this.services.logService.error(error);
       await this.services.discordService.updateDeferredReplyWithError(interaction.token, error);
@@ -224,7 +218,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleRegenerate(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
-      const previousDraft = await this.getDraft(interaction);
+      const previousDraft = this.getDraft(interaction);
       const draft = { ...previousDraft, ...(await this.generateMapValues(previousDraft)) };
       await this.updateDraftMessage(interaction, draft);
     } catch (error) {
@@ -235,7 +229,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleCountSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = await this.getDraft(interaction);
+      const previousDraft = this.getDraft(interaction);
       const selectedCount = Number(Preconditions.checkExists(interaction.data.values[0], "expected map count"));
       if (!MAP_COUNTS.includes(selectedCount)) {
         throw new Error("Unknown map count");
@@ -251,7 +245,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handlePlaylistSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = await this.getDraft(interaction);
+      const previousDraft = this.getDraft(interaction);
       const selectedPlaylist = Preconditions.checkExists(interaction.data.values[0], "expected map playlist");
       const playlist = mapsPlaylistSchema.parse(selectedPlaylist);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(playlist);
@@ -267,7 +261,7 @@ export class MapsCommand extends BaseCommand {
 
   private async handleFormatSelect(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     try {
-      const previousDraft = await this.getDraft(interaction);
+      const previousDraft = this.getDraft(interaction);
       const selectedFormat = Preconditions.checkExists(interaction.data.values[0], "expected map format");
       const format = mapsFormatSchema.parse(selectedFormat);
       const state = { ...previousDraft, format };
@@ -281,14 +275,13 @@ export class MapsCommand extends BaseCommand {
 
   private async handleRepost(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     try {
-      const draft = await this.getDraft(interaction);
+      const draft = this.getDraft(interaction);
       const availableModes = await this.services.haloService.getMapModesForPlaylist(draft.playlist);
       const response = this.createMapsResponse(draft, availableModes);
-      const message = await this.services.discordService.createMessage(interaction.channel.id, {
+      await this.services.discordService.createMessage(interaction.channel.id, {
         ...response,
         content: interaction.message.content,
       });
-      await this.saveDraft(message.id, draft);
 
       await this.services.discordService.deleteMessage(
         interaction.channel.id,
@@ -325,27 +318,10 @@ export class MapsCommand extends BaseCommand {
     };
   }
 
-  private getDraftKey(messageId: string): string {
-    return `maps:draft:${messageId}`;
-  }
-
-  private async getDraft(
+  private getDraft(
     interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
-  ): Promise<MapsDraft> {
-    const draft = await this.env.APP_DATA.get<MapsDraft>(this.getDraftKey(interaction.message.id), { type: "json" });
-    if (draft == null) {
-      throw new EndUserError("Map draft expired; run `/maps` to generate a new one.", {
-        errorType: EndUserErrorType.WARNING,
-        handled: true,
-      });
-    }
-    return { ...draft, userId: this.getInteractionUserId(interaction) };
-  }
-
-  private async saveDraft(messageId: string, draft: MapsDraft): Promise<void> {
-    await this.env.APP_DATA.put(this.getDraftKey(messageId), JSON.stringify(draft), {
-      expirationTtl: MAP_DRAFT_TTL_SECONDS,
-    });
+  ): MapsDraft {
+    return readMapsDraftFromMessage(interaction.message, this.getInteractionUserId(interaction));
   }
 
   private async updateDraftMessage(
@@ -355,7 +331,6 @@ export class MapsCommand extends BaseCommand {
   ): Promise<void> {
     const modes = availableModes ?? (await this.services.haloService.getMapModesForPlaylist(draft.playlist));
     await this.services.discordService.updateDeferredReply(interaction.token, this.createMapsResponse(draft, modes));
-    await this.saveDraft(interaction.message.id, draft);
   }
 
   private getInteractionUserId(

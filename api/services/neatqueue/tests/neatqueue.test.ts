@@ -60,8 +60,6 @@ import {
 import { EndUserError } from "../../../base/end-user-error";
 import { StatsReturnType, MapsPostType, MapsFormatType, MapsPlaylistType } from "../../database/types/guild_config";
 import { DiscordError } from "../../discord/discord-error";
-import { MAP_DRAFT_TTL_SECONDS } from "../../../commands/maps/maps-draft";
-import { NEAT_QUEUE_BOT_USER_ID } from "../../discord/discord";
 
 const startThread: APIChannel = {
   type: ChannelType.PublicThread,
@@ -413,7 +411,6 @@ describe("NeatQueueService", () => {
 
       it("stores player association data when creating players message", async () => {
         const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
-
         await jobToComplete();
 
         // Verify APP_DATA.put was called (for both timeline and player association data)
@@ -442,7 +439,6 @@ describe("NeatQueueService", () => {
           expect.arrayContaining(["discord_user_01", "discord_user_02"]),
         );
 
-        // Verify structure of one player's data
         const rawPlayerData = state.playersAssociationData["discord_user_01"];
         const playerData = Preconditions.checkExists(rawPlayerData, "Player data should exist for discord_user_01");
         expect(playerData.discordId).toBe("discord_user_01");
@@ -549,8 +545,6 @@ describe("NeatQueueService", () => {
           { map: "Map 2", mode: "Capture the Flag" },
         ] as const;
         const generateMapsSpy = vi.spyOn(haloService, "generateMaps").mockResolvedValue([...maps]);
-        const appDataPutSpy = vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
-
         await jobToComplete();
 
         expect(generateMapsSpy).toHaveBeenCalledWith({
@@ -565,17 +559,8 @@ describe("NeatQueueService", () => {
         ];
         expect(messageData.embeds).toBeDefined();
         expect(messageData.components).toBeDefined();
-        expect(appDataPutSpy).toHaveBeenCalledWith(
-          `maps:draft:${apiMessage.id}`,
-          JSON.stringify({
-            userId: NEAT_QUEUE_BOT_USER_ID,
-            maps,
-            playlist: guildConfig.NeatQueueInformerMapsPlaylist,
-            format: MapsFormatType.SLAYER,
-            count: guildConfig.NeatQueueInformerMapsCount,
-          }),
-          { expirationTtl: MAP_DRAFT_TTL_SECONDS },
-        );
+        expect(JSON.stringify(messageData)).toContain("select_maps_count");
+        expect(JSON.stringify(messageData)).toContain("btn_maps_regenerate");
       });
 
       it("posts both players message and maps message when both are enabled", async () => {
