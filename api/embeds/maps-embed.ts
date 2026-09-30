@@ -181,6 +181,7 @@ export class MapsEmbed extends BaseTableEmbed {
             label: "Regenerate",
             style: ButtonStyle.Primary,
             disabled: locked,
+            emoji: { name: "🔄" },
           },
           {
             type: ComponentType.Button,
@@ -188,12 +189,14 @@ export class MapsEmbed extends BaseTableEmbed {
             label: locked ? "Confirmed" : "Confirm maps",
             style: ButtonStyle.Success,
             disabled: locked || this.data.maps.length === 0,
+            emoji: { name: "✅" },
           },
           {
             type: ComponentType.Button,
             custom_id: InteractionComponent.Clear,
             label: "Clear maps",
             style: ButtonStyle.Danger,
+            emoji: { name: "🗑️" },
           },
           {
             type: ComponentType.Button,

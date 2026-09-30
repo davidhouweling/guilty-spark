@@ -161,6 +161,9 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
           {
             "custom_id": "btn_maps_regenerate",
             "disabled": false,
+            "emoji": {
+              "name": "🔄",
+            },
             "label": "Regenerate",
             "style": 1,
             "type": 2,
@@ -168,12 +171,18 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
           {
             "custom_id": "btn_maps_confirm",
             "disabled": false,
+            "emoji": {
+              "name": "✅",
+            },
             "label": "Confirm maps",
             "style": 3,
             "type": 2,
           },
           {
             "custom_id": "btn_maps_clear",
+            "emoji": {
+              "name": "🗑️",
+            },
             "label": "Clear maps",
             "style": 4,
             "type": 2,

@@ -98,7 +98,15 @@ describe("MapsEmbed", () => {
     if (finalActionRow?.type === ComponentType.ActionRow) {
       expect(
         finalActionRow.components.map((component) => ("custom_id" in component ? component.custom_id : "")),
-      ).toEqual([InteractionComponent.Regenerate, InteractionComponent.Repost]);
+      ).toEqual([
+        InteractionComponent.Regenerate,
+        InteractionComponent.Confirm,
+        InteractionComponent.Clear,
+        InteractionComponent.Repost,
+      ]);
+      expect(finalActionRow.components[0]).toMatchObject({ emoji: { name: "🔄" } });
+      expect(finalActionRow.components[1]).toMatchObject({ emoji: { name: "✅" } });
+      expect(finalActionRow.components[2]).toMatchObject({ emoji: { name: "🗑️" } });
     }
   });
 
