@@ -567,6 +567,21 @@ describe("LiveTrackerDO", () => {
       expect(storageDeleteSpy).toHaveBeenCalledWith("plannedMaps");
     });
 
+    it("treats an absent plan as already cleared without deleting another key", async () => {
+      storageGetSpy.mockResolvedValue(null);
+      const storageDeleteSpy = vi.spyOn(mockStorage, "delete");
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token: "00000000-0000-4000-8000-000000000001" }),
+        }),
+      );
+
+      await expect(response.json()).resolves.toEqual({ success: true, cleared: true });
+      expect(storageDeleteSpy).not.toHaveBeenCalled();
+    });
+
     it("preserves a replacement plan queued while a matching clear is in progress", async () => {
       const originalToken = "00000000-0000-4000-8000-000000000001";
       const replacementToken = "00000000-0000-4000-8000-000000000002";
