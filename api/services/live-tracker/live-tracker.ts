@@ -380,8 +380,11 @@ export class LiveTrackerService {
     await liveTrackerMapsUpdateContract.fromResponse(response);
   }
 
-  async clearPlannedMaps(context: LiveTrackerContext, token: string): Promise<boolean> {
-    const request = liveTrackerMapsClearRequestSchema.parse({ token });
+  async clearPlannedMaps(context: LiveTrackerContext, token: string, markClearedByUser = false): Promise<boolean> {
+    const request = liveTrackerMapsClearRequestSchema.parse({
+      token,
+      ...(markClearedByUser ? { markClearedByUser } : {}),
+    });
     const response = await this.getDurableObjectStub(context).fetch("http://do/maps", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },

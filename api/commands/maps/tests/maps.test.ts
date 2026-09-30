@@ -731,6 +731,7 @@ describe("MapsCommand", () => {
             queueNumber: 42,
           }),
           "00000000-0000-4000-8000-000000000001",
+          true,
         );
         const [, data] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.description).toBe("No maps selected");
@@ -885,6 +886,7 @@ describe("MapsCommand", () => {
         expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ queueNumber: 42, guildId: "fake-guild-id" }),
           "00000000-0000-4000-8000-000000000001",
+          true,
         );
         expect(getTeams).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledOnce();

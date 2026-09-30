@@ -384,7 +384,7 @@ export class MapsCommand extends BaseCommand {
           channelId: interaction.channel.id,
           queueNumber: draft.plan.queueNumber,
         };
-        const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token);
+        const cleared = await this.services.liveTrackerService.clearPlannedMaps(context, draft.plan.token, true);
         if (!cleared) {
           throw new EndUserError("These maps are no longer the queue's current plan.", {
             errorType: EndUserErrorType.WARNING,
