@@ -31,6 +31,8 @@ import type { Services } from "../../../services/install";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { apiMessage, fakeBaseAPIApplicationCommandInteraction } from "../../../services/discord/fakes/data";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
+import type { EndUserError} from "../../../base/end-user-error";
+import { EndUserErrorType } from "../../../base/end-user-error";
 
 interface FakeMapsDraft {
   userId: string;
@@ -558,7 +560,15 @@ describe("MapsCommand", () => {
         expect(response.type).toBe(InteractionResponseType.DeferredMessageUpdate);
         const updateErrorSpy = vi.spyOn(services.discordService, "updateDeferredReplyWithError");
         await jobToComplete?.();
-        expect(updateErrorSpy).toHaveBeenCalledWith(interaction.token, expect.any(Error));
+        expect(updateErrorSpy).toHaveBeenCalledWith(
+          interaction.token,
+          expect.objectContaining<Partial<EndUserError>>({
+            name: "EndUserError",
+            endUserMessage: "Map draft expired; run `/maps` to generate a new one.",
+            errorType: EndUserErrorType.WARNING,
+            handled: true,
+          }),
+        );
       });
 
       describe("initiate button", () => {
