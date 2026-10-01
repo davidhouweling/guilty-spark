@@ -878,7 +878,7 @@ export class HaloService {
 
     return Object.entries(mapSet)
       .filter(([, maps]) => maps.length > 0)
-      .map(([mode]) => mode as MapMode);
+      .map(([mode]) => mode);
   }
 
   async generateMaps({
@@ -898,7 +898,7 @@ export class HaloService {
     const allPairs: { mode: MapMode; map: string }[] = [];
     for (const [mode, maps] of Object.entries(mapSet)) {
       for (const map of maps) {
-        allPairs.push({ mode: mode as MapMode, map });
+        allPairs.push({ mode: mode, map });
       }
     }
 
@@ -1982,7 +1982,7 @@ export class HaloService {
     const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
       (accumulator, entry) => {
         const mapMode = this.ucgMapNameToMapMode(entry.UgcGameVariantLink.PublicName);
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+
         if (accumulator[mapMode] == null) {
           this.logService.warn(`Unknown map mode encountered: ${mapMode}`, new Map([["data", JSON.stringify(entry)]]));
           accumulator[mapMode] = [];
@@ -2111,7 +2111,7 @@ export class HaloService {
         return "Slayer";
       }
       default: {
-        return trimmedName as MapMode;
+        return trimmedName;
       }
     }
   }

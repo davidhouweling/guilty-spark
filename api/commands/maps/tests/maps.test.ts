@@ -565,6 +565,28 @@ describe("MapsCommand", () => {
         expect(JSON.stringify(data.components)).not.toContain(InteractionComponent.Regenerate);
       });
 
+      it("confirms a playlist mode not in the HCS mode list", async () => {
+        vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue({
+          ...discordNeatQueueData,
+          queue: 42,
+        });
+        const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
+        const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
+        const modeField = interaction.message.embeds[0]?.fields?.find((field) => field.name === "Mode");
+        if (modeField == null) {
+          throw new Error("Expected a Mode field");
+        }
+        modeField.value = Array.from({ length: 5 }, () => "FFA Slayer").join("\n");
+
+        await command.execute(interaction).jobToComplete?.();
+
+        expect(setPlannedMapsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ queueNumber: 42 }),
+          Array.from({ length: 5 }, () => ({ mode: "FFA Slayer", map: "Live Fire" })),
+          expect.any(String),
+        );
+      });
+
       it("attributes confirmation to the user who clicks Confirm", async () => {
         vi.spyOn(services.discordService, "getTeamsFromQueueChannel").mockResolvedValue(null);
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);

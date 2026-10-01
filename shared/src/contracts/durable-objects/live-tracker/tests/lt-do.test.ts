@@ -5,6 +5,7 @@ import {
   liveTrackerStateSchema,
   liveTrackerPauseContract,
   liveTrackerStopContract,
+  liveTrackerEmbedDataSchema,
 } from "../lifecycle";
 import type { LiveTrackerStartRequest, LiveTrackerStartResponse } from "../lifecycle";
 import {
@@ -51,6 +52,52 @@ describe("liveTrackerStateSchema", () => {
 
   it("rejects an unknown status", () => {
     expect(liveTrackerStateSchema.safeParse({ ...validState, status: "unknown" }).success).toBe(false);
+  });
+});
+
+describe("liveTrackerEmbedDataSchema", () => {
+  const validEmbedData = {
+    userId: "u1",
+    guildId: "g1",
+    channelId: "c1",
+    queueNumber: 1,
+    status: "active",
+    isPaused: false,
+  };
+
+  it("accepts planned maps that match the live tracker maps schema", () => {
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts playlist-specific modes outside the HCS map list", () => {
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "FFA Slayer", map: "Live Fire" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects blank or overlong modes and empty map names", () => {
+    for (const mode of ["   ", "x".repeat(101)]) {
+      expect(
+        liveTrackerEmbedDataSchema.safeParse({
+          ...validEmbedData,
+          plannedMaps: [{ mode, map: "Live Fire" }],
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "Slayer", map: "" }],
+      }).success,
+    ).toBe(false);
   });
 });
 

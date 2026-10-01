@@ -4,6 +4,7 @@ import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LiveTrackerEmbedData } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { LiveTrackerEmbed } from "../live-tracker-embed";
 import type { DiscordService } from "../../services/discord/discord";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake";
@@ -119,6 +120,61 @@ describe("LiveTrackerEmbed", () => {
       const gameField = embed.fields?.find((field: { name: string }) => field.name === "Game");
       expect(gameField).toBeDefined();
       expect(gameField?.value).toContain("Slayer on Aquarius");
+    });
+  });
+
+  describe("upcoming maps", () => {
+    const plannedMaps: LiveTrackerMap[] = [
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Strongholds", map: "Recharge" },
+      { mode: "Oddball", map: "Streets" },
+    ];
+
+    it("shows every planned map in a second embed before the first match", () => {
+      const { embeds } = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: [] });
+
+      expect(embeds).toHaveLength(2);
+      expect(embeds[1]).toMatchObject({
+        title: "Upcoming maps",
+        description:
+          "**Game 1** · Slayer on Live Fire\n**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets",
+      });
+    });
+
+    it("removes played slots by game number even when the played map differs", () => {
+      const { embeds } = createLiveTrackerEmbed({
+        plannedMaps,
+        completedGameCount: 1,
+        enrichedMatches: testEnrichedMatches.slice(0, 1),
+      });
+
+      expect(embeds).toHaveLength(2);
+      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+    });
+
+    it("keeps the next planned slot when two match records belong to one resumed game", () => {
+      const { embeds } = createLiveTrackerEmbed({
+        plannedMaps,
+        completedGameCount: 1,
+        enrichedMatches: testEnrichedMatches,
+      });
+
+      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+    });
+
+    it("omits the upcoming embed after every planned slot is played or cleared", () => {
+      expect(
+        createLiveTrackerEmbed({ plannedMaps, completedGameCount: 2, enrichedMatches: testEnrichedMatches }).embeds[1]
+          ?.description,
+      ).toBe("**Game 3** · Oddball on Streets");
+      expect(
+        createLiveTrackerEmbed({
+          plannedMaps,
+          completedGameCount: 3,
+          enrichedMatches: [...testEnrichedMatches, Preconditions.checkExists(testEnrichedMatches[0])],
+        }).embeds,
+      ).toHaveLength(1);
+      expect(createLiveTrackerEmbed({ plannedMaps: [], enrichedMatches: [] }).embeds).toHaveLength(1);
     });
   });
 

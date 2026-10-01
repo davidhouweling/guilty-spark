@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
+import { liveTrackerMapSchema } from "./maps";
 
 const liveTrackerStatusSchema = z.enum(["active", "paused", "stopped"]);
 
@@ -98,6 +99,8 @@ export const liveTrackerEmbedDataSchema = z.object({
   enrichedMatches: z.array(matchSummarySchema).optional(),
   seriesScore: z.string().optional(),
   showGenerateMapsButton: z.boolean().optional(),
+  plannedMaps: z.array(liveTrackerMapSchema).optional(),
+  completedGameCount: z.number().int().nonnegative().optional(),
   substitutions: z.array(substitutionSchema).optional(),
   errorState: errorStateSchema.optional(),
   seriesData: seriesDataSchema.optional(),

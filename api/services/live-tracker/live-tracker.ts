@@ -22,9 +22,9 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerRepostRequest,
   LiveTrackerRepostResponse,
-  LiveTrackerMap,
   LiveTrackerMapsRequest,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import {
   liveTrackerRefreshContract,
   liveTrackerSubstitutionContract,

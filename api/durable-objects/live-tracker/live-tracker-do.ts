@@ -10,6 +10,7 @@ import type {
 } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
 import {
   liveTrackerStartContract,
   liveTrackerStartRequestSchema,
@@ -35,10 +36,8 @@ import {
   liveTrackerMapsClearContract,
   liveTrackerMapsClearRequestSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
-import type {
-  LiveTrackerRefreshRequest,
-  LiveTrackerMap,
-} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
+import type { LiveTrackerRefreshRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";
@@ -870,14 +869,29 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
    */
   private async computeAndUpdateSeriesScore(
     trackerState: LiveTrackerState,
-  ): Promise<{ seriesScore: string; seriesScoreWithEmoji: string }> {
+  ): Promise<{ seriesScore: string; seriesScoreWithEmoji: string; completedGameCount: number }> {
     const rawMatches = await this.loadMatchesFromKV(trackerState.matchIds);
     const rawMatchesArray = Object.values(rawMatches);
     const locale = await this.getLocale(trackerState);
     const seriesScore = this.haloService.getSeriesScore(rawMatchesArray, locale);
     trackerState.seriesScore = seriesScore;
 
-    return { seriesScore, seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, locale, true) };
+    return {
+      seriesScore,
+      seriesScoreWithEmoji: this.haloService.getSeriesScore(rawMatchesArray, locale, true),
+      completedGameCount: this.countCompletedGames(rawMatchesArray),
+    };
+  }
+
+  private countCompletedGames(matches: MatchStats[]): number {
+    return collapseSequentialSeriesEntries(
+      matches.map((match) => ({
+        startTime: match.MatchInfo.StartTime,
+        mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        mapVersionId: match.MatchInfo.MapVariant.VersionId,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
+      })),
+    ).length;
   }
 
   /**
@@ -896,8 +910,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   ): Promise<LiveTrackerEmbedData> {
     const currentTime = new Date();
     const enrichedMatches = await this.fetchAndMergeSeriesData(trackerState);
-    const { seriesScore } = await this.computeAndUpdateSeriesScore(trackerState);
+    const { seriesScore, completedGameCount } = await this.computeAndUpdateSeriesScore(trackerState);
     const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
+    const plannedMaps = await this.getPlannedMaps();
 
     return {
       userId: trackerState.userId,
@@ -911,6 +926,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       enrichedMatches,
       seriesScore,
       showGenerateMapsButton,
+      plannedMaps,
+      completedGameCount,
       substitutions: trackerState.substitutions,
       errorState: trackerState.errorState,
     };
@@ -924,6 +941,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       nextCheck?: Date | undefined;
     },
   ): Promise<LiveTrackerEmbedData> {
+    const completedGameCount = await this.getCompletedGameCount(trackerState);
     return {
       userId: trackerState.userId,
       guildId: trackerState.guildId,
@@ -934,7 +952,37 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       lastUpdated: new Date(),
       nextCheck: options.nextCheck,
       showGenerateMapsButton: await this.shouldShowGenerateMapsButton(trackerState),
+      ...(completedGameCount == null
+        ? {}
+        : {
+            plannedMaps: await this.getPlannedMaps(),
+            completedGameCount,
+          }),
     };
+  }
+
+  private async getCompletedGameCount(trackerState: LiveTrackerState): Promise<number | undefined> {
+    try {
+      return this.countCompletedGames(Object.values(await this.loadMatchesFromKV(trackerState.matchIds)));
+    } catch (error) {
+      this.logService.warn(
+        "LiveTracker: Failed to load completed game count for basic embed",
+        new Map([["error", String(error)]]),
+      );
+      return undefined;
+    }
+  }
+
+  private async getPlannedMaps(): Promise<LiveTrackerMap[]> {
+    try {
+      const saved = await this.state.storage.get<LiveTrackerMap[] | { maps: LiveTrackerMap[]; token: string }>(
+        "plannedMaps",
+      );
+      return saved == null ? [] : Array.isArray(saved) ? saved : saved.maps;
+    } catch (error) {
+      this.logService.warn("LiveTracker: Failed to load upcoming maps", new Map([["error", String(error)]]));
+      return [];
+    }
   }
 
   private async shouldShowGenerateMapsButton(trackerState: LiveTrackerState): Promise<boolean> {
@@ -1112,8 +1160,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     const nextAlarmInterval = this.getNextAlarmInterval(trackerState);
     const nextCheckTime = new Date(currentTime.getTime() + nextAlarmInterval + EXECUTION_BUFFER_MS);
 
-    const { seriesScore, seriesScoreWithEmoji } = await this.computeAndUpdateSeriesScore(trackerState);
+    const { seriesScore, seriesScoreWithEmoji, completedGameCount } =
+      await this.computeAndUpdateSeriesScore(trackerState);
     const showGenerateMapsButton = await this.shouldShowGenerateMapsButton(trackerState);
+    const plannedMaps = await this.getPlannedMaps();
 
     const liveTrackerEmbed = new LiveTrackerEmbed(
       { discordService: this.discordService, pagesUrl: this.env.PAGES_URL },
@@ -1129,6 +1179,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         enrichedMatches,
         seriesScore,
         showGenerateMapsButton,
+        plannedMaps,
+        completedGameCount,
         substitutions: trackerState.substitutions,
         errorState: trackerState.errorState,
       },

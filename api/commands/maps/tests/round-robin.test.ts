@@ -359,9 +359,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   });
 
   it("ensures backward compatibility with existing data structures", () => {
-    const pool = Object.entries(CURRENT_HCS_MAPS).flatMap(([mode, maps]) =>
-      maps.map((map) => ({ mode: mode as MapMode, map })),
-    );
+    const pool = Object.entries(CURRENT_HCS_MAPS).flatMap(([mode, maps]) => maps.map((map) => ({ mode: mode, map })));
 
     const result = generateRoundRobinMaps({
       count: 5,
@@ -446,9 +444,9 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
   it("adapts to completely new modes being added", () => {
     const extendedPool = createHcsPool();
     extendedPool.push(
-      { mode: "Extraction" as MapMode, map: "NewExtractionMap1" },
-      { mode: "Extraction" as MapMode, map: "NewExtractionMap2" },
-      { mode: "VIP" as MapMode, map: "NewVIPMap" },
+      { mode: "Extraction", map: "NewExtractionMap1" },
+      { mode: "Extraction", map: "NewExtractionMap2" },
+      { mode: "VIP", map: "NewVIPMap" },
     );
 
     const result = generateRoundRobinMaps({

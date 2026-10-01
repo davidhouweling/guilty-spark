@@ -15,9 +15,9 @@ import type {
   LiveTrackerSubstitutionResponse,
   LiveTrackerStatusResponse,
   LiveTrackerRepostResponse,
-  LiveTrackerMap,
   LiveTrackerMapsUpdateResponse,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { LiveTrackerService } from "../live-tracker";
 import type { LiveTrackerContext } from "../live-tracker";
 import type { LogService } from "../../log/types";
