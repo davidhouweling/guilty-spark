@@ -130,7 +130,7 @@ describe("LiveTrackerEmbed", () => {
     ];
 
     it("shows every planned map in a second embed before the first match", () => {
-      const {embeds} = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: [] });
+      const { embeds } = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: [] });
 
       expect(embeds).toHaveLength(2);
       expect(embeds[1]).toMatchObject({
@@ -141,19 +141,35 @@ describe("LiveTrackerEmbed", () => {
     });
 
     it("removes played slots by game number even when the played map differs", () => {
-      const {embeds} = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: testEnrichedMatches.slice(0, 1) });
+      const { embeds } = createLiveTrackerEmbed({
+        plannedMaps,
+        completedGameCount: 1,
+        enrichedMatches: testEnrichedMatches.slice(0, 1),
+      });
 
       expect(embeds).toHaveLength(2);
       expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
     });
 
+    it("keeps the next planned slot when two match records belong to one resumed game", () => {
+      const { embeds } = createLiveTrackerEmbed({
+        plannedMaps,
+        completedGameCount: 1,
+        enrichedMatches: testEnrichedMatches,
+      });
+
+      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+    });
+
     it("omits the upcoming embed after every planned slot is played or cleared", () => {
-      expect(createLiveTrackerEmbed({ plannedMaps, enrichedMatches: testEnrichedMatches }).embeds[1]?.description).toBe(
-        "**Game 3** · Oddball on Streets",
-      );
+      expect(
+        createLiveTrackerEmbed({ plannedMaps, completedGameCount: 2, enrichedMatches: testEnrichedMatches }).embeds[1]
+          ?.description,
+      ).toBe("**Game 3** · Oddball on Streets");
       expect(
         createLiveTrackerEmbed({
           plannedMaps,
+          completedGameCount: 3,
           enrichedMatches: [...testEnrichedMatches, Preconditions.checkExists(testEnrichedMatches[0])],
         }).embeds,
       ).toHaveLength(1);

@@ -99,6 +99,7 @@ export const liveTrackerEmbedDataSchema = z.object({
   seriesScore: z.string().optional(),
   showGenerateMapsButton: z.boolean().optional(),
   plannedMaps: z.array(z.object({ mode: z.string(), map: z.string() })).optional(),
+  completedGameCount: z.number().int().nonnegative().optional(),
   substitutions: z.array(substitutionSchema).optional(),
   errorState: errorStateSchema.optional(),
   seriesData: seriesDataSchema.optional(),

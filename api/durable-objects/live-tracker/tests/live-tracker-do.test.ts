@@ -1053,6 +1053,31 @@ describe("LiveTrackerDO", () => {
       expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
     });
 
+    it("counts resumed matches as one completed game for upcoming maps", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      const firstMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
+      const resumedMatch: MatchStats = {
+        ...firstMatch,
+        MatchId: "match2",
+        MatchInfo: { ...firstMatch.MatchInfo, StartTime: "2024-11-26T11:10:00.000Z" },
+      };
+      storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "trackerState" ? trackerState : null));
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation(async (key: string) =>
+        Promise.resolve(
+          key === "live-tracker-match:match1" ? firstMatch : key === "live-tracker-match:match2" ? resumedMatch : null,
+        ),
+      );
+      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:1");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: { completedGameCount?: number; enrichedMatches?: unknown[] } } = await response.json();
+
+      expect(data.embedData?.enrichedMatches).toHaveLength(2);
+      expect(data.embedData?.completedGameCount).toBe(1);
+    });
+
     it("shows Generate maps for BUTTON queues without a saved plan", async () => {
       const trackerState = createMockTrackerStateWithMatches();
       storageGetSpy.mockImplementation(async (key) => Promise.resolve(key === "trackerState" ? trackerState : null));
