@@ -68,6 +68,7 @@ interface FakeSeriesOverrides {
   readonly title?: string;
   readonly subtitle?: string;
   readonly guildIconUrl?: string | null;
+  readonly plannedMaps?: TrackerSeriesGroup["plannedMaps"] | undefined;
 }
 
 export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {}): TrackerSeriesGroup {
@@ -81,6 +82,7 @@ export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {})
     title: overrides.title ?? "Series",
     subtitle: overrides.subtitle ?? "Best of 3",
     guildIconUrl: overrides.guildIconUrl ?? null,
+    ...(overrides.plannedMaps !== undefined ? { plannedMaps: overrides.plannedMaps } : {}),
   };
 }
 
@@ -136,6 +138,7 @@ function getSampleSeriesGroup(): TrackerSeriesGroup {
     title: "Series",
     subtitle: "Best of 3",
     guildIconUrl: null,
+    plannedMaps: [...(sampleLiveTrackerStateMessage.data.plannedMaps ?? [])],
   };
 }
 

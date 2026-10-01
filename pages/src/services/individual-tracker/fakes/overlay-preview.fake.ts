@@ -69,11 +69,13 @@ function createResponse(
   }
 
   const seriesMatches = matches.slice(0, 2);
+  const plannedMaps = baseView.series[0]?.plannedMaps;
   const series = aFakeTrackerSeriesGroupWith({
     id: "overlay-preview-series",
     matchIds: seriesMatches.map((match) => match.matchId),
     title: SERIES_TITLE,
     subtitle: SERIES_SUBTITLE,
+    ...(plannedMaps != null ? { plannedMaps } : {}),
   });
   const teams = [
     { id: 0, name: "Eagle", players: [] },
@@ -94,6 +96,7 @@ function createResponse(
         subtitle: SERIES_SUBTITLE,
         guildIconUrl: null,
         teams,
+        ...(plannedMaps != null ? { plannedMaps } : {}),
       },
     },
   };

@@ -713,6 +713,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         await txn.delete("mapsCleared");
         return wasCleared;
       });
+      await this.broadcastMapUpdate();
       return liveTrackerMapsUpdateContract.toResponse({ success: true, wasClearedByUser }, { noStore: true });
     }
 
@@ -742,10 +743,24 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         }
         return true;
       });
+      if (cleared) {
+        await this.broadcastMapUpdate();
+      }
       return liveTrackerMapsClearContract.toResponse({ success: true, cleared }, { noStore: true });
     }
 
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  private async broadcastMapUpdate(): Promise<void> {
+    try {
+      const trackerState = await this.getState();
+      if (trackerState != null && trackerState.status !== "stopped") {
+        await this.broadcastStateUpdate(trackerState);
+      }
+    } catch (error) {
+      this.logService.warn("LiveTracker: Failed to broadcast planned maps update", new Map([["error", String(error)]]));
+    }
   }
 
   private async handleRepost(request: Request): Promise<Response> {
@@ -1740,6 +1755,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         timestamp: sub.timestamp,
       })),
       matchSummaries: Object.values(state.discoveredMatches),
+      plannedMaps: await this.getPlannedMaps(),
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
       playersAssociationData: state.playersAssociationData,

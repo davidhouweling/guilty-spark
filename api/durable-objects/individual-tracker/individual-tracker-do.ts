@@ -1288,6 +1288,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       matchIds: [],
       startedAt: isParseableTimestamp(seriesSeed.startedAt) ? seriesSeed.startedAt : new Date().toISOString(),
       isActive: true,
+      ...(seriesSeed.plannedMaps != null ? { plannedMaps: seriesSeed.plannedMaps } : {}),
     };
 
     if (seriesSeed.matchIds.length === 0) {
@@ -2190,6 +2191,12 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     );
 
     switch (payload.type) {
+      case "maps-updated": {
+        if (trackerState.activeSeries != null) {
+          trackerState.activeSeries.plannedMaps = payload.maps;
+        }
+        break;
+      }
       case "ended": {
         const hadActiveSeries = trackerState.activeSeries != null;
         this.retireActiveSeries(trackerState);
@@ -2227,9 +2234,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           const resumedSeries: ActiveSeries | null = completedSeries.at(-1) ?? null;
 
           if (resumedSeries != null) {
+            const seriesWithoutPlannedMaps = { ...resumedSeries };
+            delete seriesWithoutPlannedMaps.plannedMaps;
             trackerState.activeSeries = this.applySubstitutionToSeries(
               {
-                ...resumedSeries,
+                ...seriesWithoutPlannedMaps,
                 matchIds: [],
                 startedAt: new Date().toISOString(),
                 isActive: true,
@@ -2293,6 +2302,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           matchIds: [],
           startedAt,
           isActive: true,
+          ...(payload.plannedMaps != null ? { plannedMaps: payload.plannedMaps } : {}),
         };
         if (payload.searchStartTime != null && isParseableTimestamp(payload.searchStartTime)) {
           trackerState.searchStartTime = payload.searchStartTime;
@@ -2746,6 +2756,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         subtitle,
         guildIconUrl,
         ...(teams !== undefined ? { teams } : {}),
+        ...(seriesContext?.plannedMaps != null ? { plannedMaps: seriesContext.plannedMaps } : {}),
       };
     });
 
@@ -2792,6 +2803,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
               guildIconUrl: state.activeSeries.guildIconUrl,
               startedAt: state.activeSeries.startedAt,
               teams: state.activeSeries.teams,
+              ...(state.activeSeries.plannedMaps != null ? { plannedMaps: state.activeSeries.plannedMaps } : {}),
             },
           }
         : {}),

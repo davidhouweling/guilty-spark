@@ -71,6 +71,26 @@ describe("resolveSeriesSeed()", () => {
     });
   });
 
+  it("includes confirmed queue maps for a tracker started mid-series", async () => {
+    findActiveSeriesSpy.mockResolvedValue(anActiveSeriesForPlayerWith());
+    const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+    vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockResolvedValue(plannedMaps);
+
+    const seed = await resolve();
+
+    expect(seed?.plannedMaps).toEqual(plannedMaps);
+  });
+
+  it("keeps the series seed when queue maps cannot be loaded", async () => {
+    findActiveSeriesSpy.mockResolvedValue(anActiveSeriesForPlayerWith());
+    vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockRejectedValue(new Error("DO unavailable"));
+
+    const seed = await resolve();
+
+    expect(seed?.title).toBe("Test Server");
+    expect(seed?.plannedMaps).toBeUndefined();
+  });
+
   it("returns a seed without matches when no live tracker exists for the queue", async () => {
     findActiveSeriesSpy.mockResolvedValue(anActiveSeriesForPlayerWith());
     getStatusSpy.mockResolvedValue(null);

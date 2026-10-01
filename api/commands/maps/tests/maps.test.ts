@@ -539,6 +539,7 @@ describe("MapsCommand", () => {
           queue: 42,
         });
         const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(false);
+        const nudgeMapsSpy = vi.spyOn(services.neatQueueService, "nudgePlannedMaps").mockResolvedValue(undefined);
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
         const { jobToComplete } = command.execute(interaction);
 
@@ -551,6 +552,11 @@ describe("MapsCommand", () => {
         );
         expect(getTeams).toHaveBeenCalledWith("fake-guild-id", interaction.channel.id);
         expect(getCachedQueue).not.toHaveBeenCalled();
+        expect(nudgeMapsSpy).toHaveBeenCalledWith(
+          "fake-guild-id",
+          42,
+          Array.from({ length: 5 }, () => ({ mode: "Slayer", map: "Live Fire" })),
+        );
         const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.footer?.text).toMatch(/^Queue: 42 \| Plan: [\da-f-]+$/);
         const confirmCustomId: string = InteractionComponent.Confirm;
@@ -607,6 +613,7 @@ describe("MapsCommand", () => {
         });
         const setPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "setPlannedMaps").mockResolvedValue(true);
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
+        const nudgeMapsSpy = vi.spyOn(services.neatQueueService, "nudgePlannedMaps").mockResolvedValue(undefined);
         const error = new Error("Discord update failed");
         updateDeferredReplySpy.mockRejectedValueOnce(error);
         const interaction = aFakeButtonInteraction(InteractionComponent.Confirm);
@@ -614,6 +621,7 @@ describe("MapsCommand", () => {
         await command.execute(interaction).jobToComplete?.();
 
         expect(clearPlannedMapsSpy).toHaveBeenCalledOnce();
+        expect(nudgeMapsSpy).not.toHaveBeenCalled();
         expect(clearPlannedMapsSpy).toHaveBeenCalledWith(
           expect.objectContaining({ queueNumber: 42, channelId: interaction.channel.id }),
           setPlannedMapsSpy.mock.calls[0]?.[2],
@@ -726,6 +734,7 @@ describe("MapsCommand", () => {
         });
         const logErrorSpy = vi.spyOn(services.logService, "error");
         const clearPlannedMapsSpy = vi.spyOn(services.liveTrackerService, "clearPlannedMaps").mockResolvedValue(true);
+        const nudgeMapsSpy = vi.spyOn(services.neatQueueService, "nudgePlannedMaps").mockResolvedValue(undefined);
         const clearInteraction = aFakeButtonInteraction(InteractionComponent.Clear);
         if (clearInteraction.member != null) {
           clearInteraction.member.user.id = "clear-initiator";
@@ -750,6 +759,7 @@ describe("MapsCommand", () => {
         await clearJob?.();
 
         expect(clearPlannedMapsSpy).not.toHaveBeenCalled();
+        expect(nudgeMapsSpy).not.toHaveBeenCalled();
         expect(logErrorSpy).not.toHaveBeenCalled();
         const [, confirmationData] = updateDeferredReplySpy.mock.calls[0] as [
           string,
@@ -788,6 +798,7 @@ describe("MapsCommand", () => {
           "00000000-0000-4000-8000-000000000001",
           true,
         );
+        expect(nudgeMapsSpy).toHaveBeenCalledWith("fake-guild-id", 42, []);
         const [, data] = updateDeferredReplySpy.mock.calls[1] as [string, APIInteractionResponseCallbackData];
         expect(data.embeds?.[0]?.description).toBe("No maps selected");
         expect(data.embeds?.[0]?.footer).toBeUndefined();

@@ -2319,9 +2319,105 @@ describe("NeatQueueService", () => {
       nudgeTrackersSpy = vi.spyOn(individualTrackerService, "nudgeTrackers").mockResolvedValue(undefined);
     });
 
+    it("nudges queue players when confirmed maps change after series start", async () => {
+      const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-1", discordName: "Player", gamertag: "Tag", xboxId: "xuid-1" }],
+          },
+        ],
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith({ seriesContext }));
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, plannedMaps);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-1"], { type: "maps-updated", maps: plannedMaps });
+    });
+
+    it("excludes substituted-out players from map update nudges", async () => {
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-in", discordName: "In", gamertag: "In", xboxId: null }],
+          },
+        ],
+      };
+      const playersAssociationData = {
+        "player-out": { ...createSamplePlayerAssociationData("player-out", "Out", "Out"), xboxId: "xuid-out" },
+        "player-in": { ...createSamplePlayerAssociationData("player-in", "In", "In"), xboxId: "xuid-in" },
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+        aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
+      );
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-in"], {
+        type: "maps-updated",
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+      });
+    });
+
+    it("falls back to active linked Xbox identities for map update nudges", async () => {
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-1", discordName: "Player", gamertag: "Tag", xboxId: null }],
+          },
+        ],
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+        aFakeNeatQueueStateWith({ seriesContext, playersAssociationData: {} }),
+      );
+      vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+        aFakeLinkedIdentitiesRow({
+          UserId: "player-1",
+          Provider: "xbox",
+          ProviderUserId: "xuid-linked",
+          IsActive: 1,
+        }),
+      ]);
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-linked"], {
+        type: "maps-updated",
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+      });
+    });
+
+    it("does not nudge trackers for maps confirmed before the series starts", async () => {
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).not.toHaveBeenCalled();
+    });
+
     describe("TEAMS_CREATED nudge", () => {
       it("nudges all player XUIDs with series context when association data has XUIDs", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+        vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockResolvedValue(plannedMaps);
         const playersAssociationData = {
           discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
           discord_user_02: createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
@@ -2350,6 +2446,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
           title: "Test Server",
+          plannedMaps,
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
           guildIconUrl: null,
           teams: expect.arrayContaining<SeriesTeam>([
@@ -2613,6 +2710,7 @@ describe("NeatQueueService", () => {
           title: "Test Server",
           subtitle: "Queue #3",
           guildIconUrl: null,
+          plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
           teams: [
             {
               id: 0,
@@ -2630,14 +2728,25 @@ describe("NeatQueueService", () => {
         };
         const playersAssociationData = {
           discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
-          discord_user_03: createSamplePlayerAssociationData("discord_user_03", "newPlayer", "NewPlayer"),
+          discord_user_03: {
+            ...createSamplePlayerAssociationData("discord_user_03", "newPlayer", "NewPlayer"),
+            xboxId: null,
+          },
         };
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
           aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
         );
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
         vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
-          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03", XboxId: "xuid_discord_user_03" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03" }),
+        ]);
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          aFakeLinkedIdentitiesRow({
+            UserId: "discord_user_03",
+            Provider: "xbox",
+            ProviderUserId: "xuid_linked_03",
+            IsActive: 1,
+          }),
         ]);
         vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
         vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
@@ -2649,6 +2758,9 @@ describe("NeatQueueService", () => {
           success: true,
           substitution: { playerOutId: "discord_user_01", playerInId: "discord_user_03", teamIndex: 0 },
         });
+        vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockResolvedValue([
+          { mode: "Strongholds", map: "Recharge" },
+        ]);
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }),
         );
@@ -2656,16 +2768,22 @@ describe("NeatQueueService", () => {
         const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
         await jobToComplete?.();
 
-        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
         expect(xuids).toContain("xuid_discord_user_01");
-        expect(xuids).toContain("xuid_discord_user_03");
+        expect(xuids).not.toContain("xuid_discord_user_03");
+        const playerInXuid = xuids.find((xuid) => xuid !== "xuid_discord_user_01");
+        expect(playerInXuid).toBeDefined();
         expect(payload).toMatchObject({
           type: "substituted",
           teamId: 0,
           playerOut: expect.objectContaining({ discordId: "discord_user_01" }) as SeriesPlayer,
           playerIn: expect.objectContaining({ discordId: "discord_user_03" }) as SeriesPlayer,
         });
+        expect(nudgeTrackersSpy.mock.calls[1]).toEqual([
+          [playerInXuid],
+          { type: "maps-updated", maps: [{ mode: "Strongholds", map: "Recharge" }] },
+        ]);
       });
 
       it("nudges even when live tracker is not active", async () => {

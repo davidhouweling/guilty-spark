@@ -357,7 +357,13 @@ export class LiveTrackerService {
   }
 
   async getPlannedMaps(context: LiveTrackerContext): Promise<LiveTrackerMap[]> {
-    const response = await this.getDurableObjectStub(context).fetch("http://do/maps", { method: "GET" });
+    return this.getPlannedMapsForQueue(context.guildId, context.queueNumber);
+  }
+
+  async getPlannedMapsForQueue(guildId: string, queueNumber: number): Promise<LiveTrackerMap[]> {
+    const response = await this.getDurableObjectStubForQueue(guildId, queueNumber).fetch("http://do/maps", {
+      method: "GET",
+    });
     if (!response.ok) {
       throw new Error(`Failed to get planned maps: ${response.status.toString()}`);
     }

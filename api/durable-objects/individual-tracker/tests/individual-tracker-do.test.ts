@@ -239,6 +239,7 @@ describe("IndividualTrackerDO", () => {
               searchStartTime: "2024-11-26T09:30:00.000Z",
               teams: [],
               matchIds: [],
+              plannedMaps: [{ mode: "FFA Slayer", map: "Live Fire" }],
             },
           }),
         ),
@@ -254,6 +255,7 @@ describe("IndividualTrackerDO", () => {
         startedAt: "2024-11-26T10:00:00.000Z",
         isActive: true,
         matchIds: [],
+        plannedMaps: [{ mode: "FFA Slayer", map: "Live Fire" }],
       });
       expect(persisted.searchStartTime).toBe("2024-11-26T09:30:00.000Z");
     });
@@ -3943,6 +3945,48 @@ describe("IndividualTrackerDO", () => {
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
 
+    it("persists maps supplied by the series start nudge", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+      const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify(aSeriesPayload({ plannedMaps })),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(lastPersistedState(storagePutSpy).activeSeries?.plannedMaps).toEqual(plannedMaps);
+    });
+
+    it("replaces and clears only the active series maps on update nudges", async () => {
+      const previousMaps = [{ mode: "Slayer", map: "Aquarius" }];
+      const newMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+      const activeSeries = anActiveSeries({ plannedMaps: previousMaps });
+      const completedSeries = anActiveSeries({ isActive: false, plannedMaps: previousMaps });
+      storageGetSpy.mockImplementation(async () =>
+        Promise.resolve(aFakeIndividualTrackerInternalStateWith({ activeSeries, completedSeries: [completedSeries] })),
+      );
+
+      const updateResponse = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "maps-updated", maps: newMaps }),
+        }),
+      );
+      expect(updateResponse.status).toBe(200);
+      expect(lastPersistedState(storagePutSpy).activeSeries?.plannedMaps).toEqual(newMaps);
+      expect(lastPersistedState(storagePutSpy).completedSeries?.[0]?.plannedMaps).toEqual(previousMaps);
+
+      const clearResponse = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify({ type: "maps-updated", maps: [] }) }),
+      );
+      expect(clearResponse.status).toBe(200);
+      expect(lastPersistedState(storagePutSpy).activeSeries?.plannedMaps).toEqual([]);
+      expect(lastPersistedState(storagePutSpy).completedSeries?.[0]?.plannedMaps).toEqual(previousMaps);
+    });
+
     it("retires a still-live activeSeries instead of discarding it when a new started nudge arrives", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
@@ -4262,6 +4306,7 @@ describe("IndividualTrackerDO", () => {
       const completedSeries: ActiveSeries = {
         ...anActiveSeries(),
         isActive: false,
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           {
             id: 0,
@@ -4285,6 +4330,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(200);
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
+      expect(persisted.activeSeries?.plannedMaps).toBeUndefined();
       expect(persisted.completedSeries).toHaveLength(0);
     });
 
@@ -4504,6 +4550,59 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #5");
       expect(group?.guildIconUrl).toBe("https://cdn.discordapp.com/icons/guild-id/icon.webp");
       expect(group?.teams).toEqual(teams);
+    });
+
+    it("includes active and past planned maps in their series groups", async () => {
+      const activeMaps = [{ mode: "Slayer", map: "Live Fire" }];
+      const pastMaps = [{ mode: "FFA Slayer", map: "Recharge" }];
+      const activeIds = ["match-active-1", "match-active-2"];
+      const pastIds = ["match-past-1", "match-past-2"];
+      const seriesMatches = makeSeriesMatches([...activeIds, ...pastIds]);
+      for (const matchId of pastIds) {
+        seriesMatches.discoveredMatches[matchId] = aFakeIndividualTrackerMatchSummaryWith({
+          matchId,
+          teamRosterSignature: "sig-past-a:sig-past-b",
+        });
+      }
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...seriesMatches,
+          activeSeries: {
+            title: "Current",
+            subtitle: null,
+            guildIconUrl: null,
+            teams: [],
+            matchIds: activeIds,
+            startedAt: new Date().toISOString(),
+            isActive: true,
+            plannedMaps: activeMaps,
+          },
+          completedSeries: [
+            {
+              title: "Past",
+              subtitle: null,
+              guildIconUrl: null,
+              teams: [],
+              matchIds: pastIds,
+              startedAt: new Date().toISOString(),
+              isActive: false,
+              plannedMaps: pastMaps,
+            },
+          ],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: {
+        state: {
+          series: { plannedMaps?: typeof activeMaps }[];
+          activeSeriesContext?: { plannedMaps?: typeof activeMaps };
+        };
+      } = await response.json();
+
+      expect(body.state.activeSeriesContext?.plannedMaps).toEqual(activeMaps);
+      expect(body.state.series[0]?.plannedMaps).toEqual(activeMaps);
+      expect(body.state.series[1]?.plannedMaps).toEqual(pastMaps);
     });
 
     it("surfaces an active series group when only one active-series match is currently linked", async () => {

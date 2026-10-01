@@ -8,6 +8,7 @@ import {
   readStringRecord,
 } from "../base/json-readers";
 import type { JsonValue } from "../base/json";
+import { liveTrackerMapSchema } from "../contracts/durable-objects/live-tracker/maps";
 import type {
   LiveTrackerPlayer,
   LiveTrackerMatchSummary,
@@ -162,6 +163,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
   const teamsArray = readJsonArray(data["teams"] ?? null);
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
   const matchesArray = readJsonArray(data["matchSummaries"] ?? null);
+  const plannedMapsResult =
+    data["plannedMaps"] === undefined ? undefined : liveTrackerMapSchema.array().safeParse(data["plannedMaps"]);
   const rawMatches = readRecord<string, MatchStats>(data["rawMatches"] ?? null);
   const seriesScore = readString(data["seriesScore"] ?? null);
   const playersAssociationDataValue = data["playersAssociationData"] ?? null;
@@ -173,6 +176,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     queueNumber === null ||
     status === null ||
     lastUpdateTime === null ||
+    plannedMapsResult?.success === false ||
     playersArray === null ||
     teamsArray === null ||
     substitutionsArray === null ||
@@ -246,6 +250,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     teams,
     substitutions,
     matchSummaries,
+    ...(plannedMapsResult?.success === true ? { plannedMaps: plannedMapsResult.data } : {}),
     rawMatches,
     seriesScore,
     lastUpdateTime,

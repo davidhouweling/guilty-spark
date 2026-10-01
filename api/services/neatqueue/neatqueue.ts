@@ -781,6 +781,12 @@ export class NeatQueueService {
         ),
       }));
       const searchStartTime = this.resolveSeriesSearchStartTime(request);
+      let plannedMaps: SeriesStartedPayload["plannedMaps"];
+      try {
+        plannedMaps = await this.liveTrackerService.getPlannedMapsForQueue(request.guild, request.match_number);
+      } catch (error) {
+        this.logService.warn("Failed to load planned maps for series start nudge", new Map([["error", String(error)]]));
+      }
       const seriesContext: SeriesStartedPayload = {
         type: "started",
         title,
@@ -789,6 +795,7 @@ export class NeatQueueService {
         startedAt: new Date().toISOString(),
         ...(searchStartTime != null ? { searchStartTime } : {}),
         teams: seriesTeams,
+        ...(plannedMaps != null ? { plannedMaps } : {}),
       };
       queueState.seriesContext = seriesContext;
       this.setQueueState(request.guild, request.match_number, queueState);
@@ -822,6 +829,43 @@ export class NeatQueueService {
           ["error", String(error)],
         ]),
       );
+    }
+  }
+
+  async nudgePlannedMaps(
+    guildId: string,
+    queueNumber: number,
+    maps: SeriesStartedPayload["plannedMaps"],
+  ): Promise<void> {
+    try {
+      const state = await this.getQueueState(guildId, queueNumber);
+      if (state.seriesContext == null) {
+        return;
+      }
+      const xuids = new Set<string>();
+      const discordIdsMissingXuids = new Set<string>();
+      for (const team of state.seriesContext.teams) {
+        for (const player of team.players) {
+          const xuid =
+            player.xboxId ?? (player.discordId != null ? state.playersAssociationData[player.discordId]?.xboxId : null);
+          if (xuid != null) {
+            xuids.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
+          }
+        }
+      }
+      const fallbackXuids = await Promise.all(
+        [...discordIdsMissingXuids].map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+      );
+      for (const fallbackXuid of fallbackXuids) {
+        if (fallbackXuid != null) {
+          xuids.add(fallbackXuid);
+        }
+      }
+      await this.individualTrackerService.nudgeTrackers([...xuids], { type: "maps-updated", maps: maps ?? [] });
+    } catch (error) {
+      this.logService.warn("Failed to nudge individual trackers for planned maps", new Map([["error", String(error)]]));
     }
   }
 
@@ -1116,6 +1160,7 @@ export class NeatQueueService {
 
       // Collect all XUIDs from both original and updated teams to get both subbed-out and subbed-in players
       const playerXuidSet = new Set<string>();
+      const discordIdsMissingXuids = new Set<string>();
 
       // Add XUIDs from original teams (includes player being subbed out)
       for (const team of originalTeams) {
@@ -1123,6 +1168,8 @@ export class NeatQueueService {
           const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
           }
         }
       }
@@ -1133,7 +1180,17 @@ export class NeatQueueService {
           const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
           }
+        }
+      }
+      const fallbackXuids = await Promise.all(
+        [...discordIdsMissingXuids].map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+      );
+      for (const fallbackXuid of fallbackXuids) {
+        if (fallbackXuid != null) {
+          playerXuidSet.add(fallbackXuid);
         }
       }
 
@@ -1149,6 +1206,16 @@ export class NeatQueueService {
       if (playerXuidSet.size > 0) {
         try {
           await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
+          const playerInXuid =
+            resolvePlayerXuid(playerIn) ??
+            (playerIn.discordId != null ? await this.findActiveXboxIdentityXuid(playerIn.discordId) : null);
+          const plannedMaps = await this.liveTrackerService.getPlannedMapsForQueue(request.guild, matchNumber);
+          if (playerInXuid !== null) {
+            await this.individualTrackerService.nudgeTrackers([playerInXuid], {
+              type: "maps-updated",
+              maps: plannedMaps,
+            });
+          }
         } catch (error: unknown) {
           this.logService.warn(
             "Failed to nudge individual trackers for substitution",

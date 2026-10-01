@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { liveTrackerMapSchema } from "../durable-objects/live-tracker/maps";
 import { streamerViewSettingsSchema } from "../../individual-tracker/streamer-view-settings";
 import { defineContract, defineMessageContract } from "../base";
 import { trackerStatusSchema } from "./tracker";
@@ -60,6 +61,7 @@ export const trackerSeriesGroupSchema = z.object({
   subtitle: z.string(),
   guildIconUrl: z.string().nullable().optional(),
   teams: z.array(trackerSeriesTeamSchema).optional(),
+  plannedMaps: z.array(liveTrackerMapSchema).optional(),
 });
 export type TrackerSeriesGroup = z.infer<typeof trackerSeriesGroupSchema>;
 
@@ -69,6 +71,7 @@ export const trackerActiveSeriesContextSchema = z.object({
   guildIconUrl: z.string().nullable().optional(),
   startedAt: z.string().optional(),
   teams: z.array(trackerSeriesTeamSchema),
+  plannedMaps: z.array(liveTrackerMapSchema).optional(),
 });
 export type TrackerActiveSeriesContext = z.infer<typeof trackerActiveSeriesContextSchema>;
 

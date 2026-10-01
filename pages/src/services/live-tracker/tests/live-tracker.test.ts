@@ -197,6 +197,27 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).toHaveBeenCalledWith(sampleLiveTrackerStateMessage);
   });
 
+  it("ignores live tracker messages with invalid planned maps", async () => {
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    const connection = await service.connect({ type: "team", guildId: "123", queueNumber: "5" });
+    const messageListener = vi.fn<LiveTrackerListener>();
+    connection.subscribe(messageListener);
+
+    const [ws] = MockWebSocket.instances;
+    if (ws.onmessage) {
+      ws.onmessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            ...sampleLiveTrackerStateMessage,
+            data: { ...sampleLiveTrackerStateMessage.data, plannedMaps: [{ mode: " ", map: "Live Fire" }] },
+          }),
+        }),
+      );
+    }
+
+    expect(messageListener).not.toHaveBeenCalled();
+  });
+
   it("ignores non-string WebSocket messages", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
