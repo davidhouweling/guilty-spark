@@ -1160,6 +1160,7 @@ export class NeatQueueService {
 
       // Collect all XUIDs from both original and updated teams to get both subbed-out and subbed-in players
       const playerXuidSet = new Set<string>();
+      const discordIdsMissingXuids = new Set<string>();
 
       // Add XUIDs from original teams (includes player being subbed out)
       for (const team of originalTeams) {
@@ -1167,6 +1168,8 @@ export class NeatQueueService {
           const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
           }
         }
       }
@@ -1177,7 +1180,17 @@ export class NeatQueueService {
           const xuid = resolvePlayerXuid(player);
           if (xuid != null) {
             playerXuidSet.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
           }
+        }
+      }
+      const fallbackXuids = await Promise.all(
+        [...discordIdsMissingXuids].map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+      );
+      for (const fallbackXuid of fallbackXuids) {
+        if (fallbackXuid != null) {
+          playerXuidSet.add(fallbackXuid);
         }
       }
 
@@ -1193,7 +1206,9 @@ export class NeatQueueService {
       if (playerXuidSet.size > 0) {
         try {
           await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
-          const playerInXuid = resolvePlayerXuid(playerIn);
+          const playerInXuid =
+            resolvePlayerXuid(playerIn) ??
+            (playerIn.discordId != null ? await this.findActiveXboxIdentityXuid(playerIn.discordId) : null);
           const plannedMaps = await this.liveTrackerService.getPlannedMapsForQueue(request.guild, matchNumber);
           if (playerInXuid !== null) {
             await this.individualTrackerService.nudgeTrackers([playerInXuid], {

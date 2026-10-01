@@ -2728,14 +2728,25 @@ describe("NeatQueueService", () => {
         };
         const playersAssociationData = {
           discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
-          discord_user_03: createSamplePlayerAssociationData("discord_user_03", "newPlayer", "NewPlayer"),
+          discord_user_03: {
+            ...createSamplePlayerAssociationData("discord_user_03", "newPlayer", "NewPlayer"),
+            xboxId: null,
+          },
         };
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
           aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
         );
         vi.spyOn(env.APP_DATA, "put").mockResolvedValue();
         vi.spyOn(databaseService, "getDiscordAssociations").mockResolvedValue([
-          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03", XboxId: "xuid_discord_user_03" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord_user_03" }),
+        ]);
+        vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+          aFakeLinkedIdentitiesRow({
+            UserId: "discord_user_03",
+            Provider: "xbox",
+            ProviderUserId: "xuid_linked_03",
+            IsActive: 1,
+          }),
         ]);
         vi.spyOn(haloService, "getUsersByXuids").mockResolvedValue([]);
         vi.spyOn(haloService, "getRankedArenaCsrs").mockResolvedValue(new Map());
@@ -2760,7 +2771,9 @@ describe("NeatQueueService", () => {
         expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
         expect(xuids).toContain("xuid_discord_user_01");
-        expect(xuids).toContain("xuid_discord_user_03");
+        expect(xuids).not.toContain("xuid_discord_user_03");
+        const playerInXuid = xuids.find((xuid) => xuid !== "xuid_discord_user_01");
+        expect(playerInXuid).toBeDefined();
         expect(payload).toMatchObject({
           type: "substituted",
           teamId: 0,
@@ -2768,7 +2781,7 @@ describe("NeatQueueService", () => {
           playerIn: expect.objectContaining({ discordId: "discord_user_03" }) as SeriesPlayer,
         });
         expect(nudgeTrackersSpy.mock.calls[1]).toEqual([
-          ["xuid_discord_user_03"],
+          [playerInXuid],
           { type: "maps-updated", maps: [{ mode: "Strongholds", map: "Recharge" }] },
         ]);
       });

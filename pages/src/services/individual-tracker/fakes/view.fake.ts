@@ -68,7 +68,7 @@ interface FakeSeriesOverrides {
   readonly title?: string;
   readonly subtitle?: string;
   readonly guildIconUrl?: string | null;
-  readonly plannedMaps?: TrackerSeriesGroup["plannedMaps"];
+  readonly plannedMaps?: TrackerSeriesGroup["plannedMaps"] | undefined;
 }
 
 export function aFakeTrackerSeriesGroupWith(overrides: FakeSeriesOverrides = {}): TrackerSeriesGroup {
