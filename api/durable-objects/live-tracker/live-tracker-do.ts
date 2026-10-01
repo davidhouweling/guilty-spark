@@ -943,6 +943,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       nextCheck?: Date | undefined;
     },
   ): Promise<LiveTrackerEmbedData> {
+    const completedGameCount = await this.getCompletedGameCount(trackerState);
     return {
       userId: trackerState.userId,
       guildId: trackerState.guildId,
@@ -953,9 +954,25 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       lastUpdated: new Date(),
       nextCheck: options.nextCheck,
       showGenerateMapsButton: await this.shouldShowGenerateMapsButton(trackerState),
-      plannedMaps: await this.getPlannedMaps(),
-      completedGameCount: this.countCompletedGames(Object.values(await this.loadMatchesFromKV(trackerState.matchIds))),
+      ...(completedGameCount == null
+        ? {}
+        : {
+            plannedMaps: await this.getPlannedMaps(),
+            completedGameCount,
+          }),
     };
+  }
+
+  private async getCompletedGameCount(trackerState: LiveTrackerState): Promise<number | undefined> {
+    try {
+      return this.countCompletedGames(Object.values(await this.loadMatchesFromKV(trackerState.matchIds)));
+    } catch (error) {
+      this.logService.warn(
+        "LiveTracker: Failed to load completed game count for basic embed",
+        new Map([["error", String(error)]]),
+      );
+      return undefined;
+    }
   }
 
   private async getPlannedMaps(): Promise<LiveTrackerMap[]> {

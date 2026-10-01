@@ -1053,6 +1053,26 @@ describe("LiveTrackerDO", () => {
       expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
     });
 
+    it("returns basic pause data when match KV lookup fails", async () => {
+      const trackerState = createMockTrackerStateWithMatches();
+      trackerState.status = "active";
+      storageGetSpy.mockResolvedValue(trackerState);
+      vi.spyOn(env.APP_DATA, "get").mockRejectedValue(new Error("KV unavailable"));
+      const warnSpy = vi.spyOn(services.logService, "warn");
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+      const data: { embedData?: Record<string, unknown> } = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.embedData).toMatchObject({ status: "paused", isPaused: true });
+      expect(data.embedData?.["plannedMaps"]).toBeUndefined();
+      expect(data.embedData?.["completedGameCount"]).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "LiveTracker: Failed to load completed game count for basic embed",
+        expect.any(Map),
+      );
+    });
+
     it("counts resumed matches as one completed game for upcoming maps", async () => {
       const trackerState = createMockTrackerStateWithMatches();
       const firstMatch = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
