@@ -2676,6 +2676,7 @@ describe("NeatQueueService", () => {
           title: "Test Server",
           subtitle: "Queue #3",
           guildIconUrl: null,
+          plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
           teams: [
             {
               id: 0,
@@ -2719,7 +2720,7 @@ describe("NeatQueueService", () => {
         const { jobToComplete } = neatQueueService.handleRequest(substitutionRequest, neatQueueConfig);
         await jobToComplete?.();
 
-        expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
+        expect(nudgeTrackersSpy).toHaveBeenCalledTimes(2);
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], unknown];
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_03");
@@ -2729,6 +2730,10 @@ describe("NeatQueueService", () => {
           playerOut: expect.objectContaining({ discordId: "discord_user_01" }) as SeriesPlayer,
           playerIn: expect.objectContaining({ discordId: "discord_user_03" }) as SeriesPlayer,
         });
+        expect(nudgeTrackersSpy.mock.calls[1]).toEqual([
+          ["xuid_discord_user_03"],
+          { type: "maps-updated", maps: [{ mode: "Slayer", map: "Live Fire" }] },
+        ]);
       });
 
       it("nudges even when live tracker is not active", async () => {

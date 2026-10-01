@@ -1182,6 +1182,13 @@ export class NeatQueueService {
       if (playerXuidSet.size > 0) {
         try {
           await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
+          const playerInXuid = resolvePlayerXuid(playerIn);
+          if (updatedContext.plannedMaps !== undefined && playerInXuid !== null) {
+            await this.individualTrackerService.nudgeTrackers([playerInXuid], {
+              type: "maps-updated",
+              maps: updatedContext.plannedMaps,
+            });
+          }
         } catch (error: unknown) {
           this.logService.warn(
             "Failed to nudge individual trackers for substitution",
