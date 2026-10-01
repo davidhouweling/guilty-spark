@@ -95,7 +95,7 @@ export interface ActiveSeries {
   matchIds: string[];
   startedAt: string;
   isActive: boolean;
-  plannedMaps?: LiveTrackerMap[];
+  plannedMaps?: LiveTrackerMap[] | undefined;
 }
 
 export interface IndividualTrackerSeriesGroup {
@@ -109,7 +109,7 @@ export interface IndividualTrackerSeriesGroup {
   subtitle: string;
   guildIconUrl?: string | null;
   teams?: SeriesTeam[];
-  plannedMaps?: LiveTrackerMap[];
+  plannedMaps?: LiveTrackerMap[] | undefined;
 }
 
 export interface PreSeriesPlayerInfo {
@@ -230,7 +230,7 @@ export interface ActiveSeriesContext {
   guildIconUrl: string | null;
   startedAt?: string;
   teams: SeriesTeam[];
-  plannedMaps?: LiveTrackerMap[];
+  plannedMaps?: LiveTrackerMap[] | undefined;
 }
 
 export interface IndividualTrackerViewState {

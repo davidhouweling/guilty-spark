@@ -2341,6 +2341,36 @@ describe("NeatQueueService", () => {
       expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-1"], { type: "maps-updated", maps: plannedMaps });
     });
 
+    it("excludes substituted-out players from map update nudges", async () => {
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-in", discordName: "In", gamertag: "In", xboxId: null }],
+          },
+        ],
+      };
+      const playersAssociationData = {
+        "player-out": { ...createSamplePlayerAssociationData("player-out", "Out", "Out"), xboxId: "xuid-out" },
+        "player-in": { ...createSamplePlayerAssociationData("player-in", "In", "In"), xboxId: "xuid-in" },
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+        aFakeNeatQueueStateWith({ seriesContext, playersAssociationData }),
+      );
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-in"], {
+        type: "maps-updated",
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+      });
+    });
+
     it("does not nudge trackers for maps confirmed before the series starts", async () => {
       (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
 

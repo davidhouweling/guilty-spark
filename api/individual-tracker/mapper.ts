@@ -117,6 +117,7 @@ function toTrackerSeriesGroup(group: TrackerSeriesGroup): TrackerSeriesGroup {
     subtitle: group.subtitle,
     guildIconUrl: group.guildIconUrl,
     ...(group.teams != null ? { teams: group.teams.map(toTrackerSeriesTeam) } : {}),
+    ...(group.plannedMaps !== undefined ? { plannedMaps: group.plannedMaps } : {}),
   };
 }
 
@@ -127,6 +128,7 @@ function toTrackerActiveSeriesContext(context: TrackerActiveSeriesContext): Trac
     guildIconUrl: context.guildIconUrl,
     startedAt: context.startedAt,
     teams: context.teams.map(toTrackerSeriesTeam),
+    ...(context.plannedMaps !== undefined ? { plannedMaps: context.plannedMaps } : {}),
   };
 }
 

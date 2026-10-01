@@ -842,7 +842,7 @@ export class NeatQueueService {
       if (state.seriesContext == null) {
         return;
       }
-      const xuids = new Set(await this.extractXuidsWithFallback(state.playersAssociationData));
+      const xuids = new Set<string>();
       for (const team of state.seriesContext.teams) {
         for (const player of team.players) {
           const xuid =

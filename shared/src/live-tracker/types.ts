@@ -68,7 +68,7 @@ export interface LiveTrackerNeatQueueSeriesData {
   }[];
   readonly seriesScore: string;
   readonly matchSummaries: readonly LiveTrackerMatchSummary[];
-  readonly plannedMaps?: readonly LiveTrackerMap[];
+  readonly plannedMaps?: readonly LiveTrackerMap[] | undefined;
   readonly seriesData?: {
     seriesId: {
       guildId: string;
