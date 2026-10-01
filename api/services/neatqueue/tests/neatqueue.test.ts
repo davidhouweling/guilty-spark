@@ -2713,6 +2713,9 @@ describe("NeatQueueService", () => {
           success: true,
           substitution: { playerOutId: "discord_user_01", playerInId: "discord_user_03", teamIndex: 0 },
         });
+        vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockResolvedValue([
+          { mode: "Strongholds", map: "Recharge" },
+        ]);
         vi.spyOn(databaseService, "getGuildConfig").mockResolvedValue(
           aFakeGuildConfigRow({ NeatQueueInformerPlayerConnections: "N" }),
         );
@@ -2732,7 +2735,7 @@ describe("NeatQueueService", () => {
         });
         expect(nudgeTrackersSpy.mock.calls[1]).toEqual([
           ["xuid_discord_user_03"],
-          { type: "maps-updated", maps: [{ mode: "Slayer", map: "Live Fire" }] },
+          { type: "maps-updated", maps: [{ mode: "Strongholds", map: "Recharge" }] },
         ]);
       });
 

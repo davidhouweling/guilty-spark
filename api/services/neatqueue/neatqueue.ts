@@ -1183,10 +1183,11 @@ export class NeatQueueService {
         try {
           await this.individualTrackerService.nudgeTrackers(Array.from(playerXuidSet), substitutionPayload);
           const playerInXuid = resolvePlayerXuid(playerIn);
-          if (updatedContext.plannedMaps !== undefined && playerInXuid !== null) {
+          const plannedMaps = await this.liveTrackerService.getPlannedMapsForQueue(request.guild, matchNumber);
+          if (playerInXuid !== null) {
             await this.individualTrackerService.nudgeTrackers([playerInXuid], {
               type: "maps-updated",
-              maps: updatedContext.plannedMaps,
+              maps: plannedMaps,
             });
           }
         } catch (error: unknown) {
