@@ -5,6 +5,7 @@ import {
   liveTrackerStateSchema,
   liveTrackerPauseContract,
   liveTrackerStopContract,
+  liveTrackerEmbedDataSchema,
 } from "../lifecycle";
 import type { LiveTrackerStartRequest, LiveTrackerStartResponse } from "../lifecycle";
 import {
@@ -51,6 +52,41 @@ describe("liveTrackerStateSchema", () => {
 
   it("rejects an unknown status", () => {
     expect(liveTrackerStateSchema.safeParse({ ...validState, status: "unknown" }).success).toBe(false);
+  });
+});
+
+describe("liveTrackerEmbedDataSchema", () => {
+  const validEmbedData = {
+    userId: "u1",
+    guildId: "g1",
+    channelId: "c1",
+    queueNumber: 1,
+    status: "active",
+    isPaused: false,
+  };
+
+  it("accepts planned maps that match the live tracker maps schema", () => {
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects planned maps with unknown modes or empty map names", () => {
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "Unknown", map: "Live Fire" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      liveTrackerEmbedDataSchema.safeParse({
+        ...validEmbedData,
+        plannedMaps: [{ mode: "Slayer", map: "" }],
+      }).success,
+    ).toBe(false);
   });
 });
 

@@ -1,12 +1,7 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
 import { liveTrackerStateSchema } from "./lifecycle";
-
-export const liveTrackerMapSchema = z.object({
-  mode: z.enum(["Slayer", "Capture the Flag", "Strongholds", "Oddball", "King of the Hill", "Neutral Bomb"]),
-  map: z.string().min(1),
-});
-export type LiveTrackerMap = z.infer<typeof liveTrackerMapSchema>;
+import { liveTrackerMapSchema } from "./maps";
 
 export const liveTrackerMapsRequestSchema = z.object({
   maps: z.array(liveTrackerMapSchema).min(1).max(13),

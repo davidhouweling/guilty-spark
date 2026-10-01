@@ -11,7 +11,7 @@ import {
   liveTrackerMapsContract,
   liveTrackerMapsUpdateContract,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
-import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { LiveTrackerDO } from "../live-tracker-do";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";

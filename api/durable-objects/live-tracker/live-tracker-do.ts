@@ -36,10 +36,8 @@ import {
   liveTrackerMapsClearContract,
   liveTrackerMapsClearRequestSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
-import type {
-  LiveTrackerRefreshRequest,
-  LiveTrackerMap,
-} from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
+import type { LiveTrackerRefreshRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";

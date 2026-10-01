@@ -4,6 +4,7 @@ import { ButtonStyle, ComponentType } from "discord-api-types/v10";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { LiveTrackerEmbedData } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { LiveTrackerEmbed } from "../live-tracker-embed";
 import type { DiscordService } from "../../services/discord/discord";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake";
@@ -123,7 +124,7 @@ describe("LiveTrackerEmbed", () => {
   });
 
   describe("upcoming maps", () => {
-    const plannedMaps = [
+    const plannedMaps: LiveTrackerMap[] = [
       { mode: "Slayer", map: "Live Fire" },
       { mode: "Strongholds", map: "Recharge" },
       { mode: "Oddball", map: "Streets" },
