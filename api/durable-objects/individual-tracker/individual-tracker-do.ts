@@ -2234,9 +2234,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           const resumedSeries: ActiveSeries | null = completedSeries.at(-1) ?? null;
 
           if (resumedSeries != null) {
+            const seriesWithoutPlannedMaps = { ...resumedSeries };
+            delete seriesWithoutPlannedMaps.plannedMaps;
             trackerState.activeSeries = this.applySubstitutionToSeries(
               {
-                ...resumedSeries,
+                ...seriesWithoutPlannedMaps,
                 matchIds: [],
                 startedAt: new Date().toISOString(),
                 isActive: true,

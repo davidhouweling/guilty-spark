@@ -4306,6 +4306,7 @@ describe("IndividualTrackerDO", () => {
       const completedSeries: ActiveSeries = {
         ...anActiveSeries(),
         isActive: false,
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           {
             id: 0,
@@ -4329,6 +4330,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(200);
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.teams[0]?.players[0]?.gamertag).toBe("GT3");
+      expect(persisted.activeSeries?.plannedMaps).toBeUndefined();
       expect(persisted.completedSeries).toHaveLength(0);
     });
 
