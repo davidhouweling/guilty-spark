@@ -342,6 +342,7 @@ export class MapsCommand extends BaseCommand {
             }
             throw error;
           }
+          await this.services.neatQueueService.nudgePlannedMaps(context.guildId, context.queueNumber, draft.maps);
           return;
         }
       }
@@ -392,6 +393,7 @@ export class MapsCommand extends BaseCommand {
             handled: true,
           });
         }
+        await this.services.neatQueueService.nudgePlannedMaps(context.guildId, context.queueNumber, []);
       }
 
       await this.services.discordService.updateDeferredReply(

@@ -4,6 +4,7 @@ import type {
   StatsHighlightAccumulatedTotals,
   StatsHighlightItem,
 } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -94,6 +95,7 @@ export interface ActiveSeries {
   matchIds: string[];
   startedAt: string;
   isActive: boolean;
+  plannedMaps?: LiveTrackerMap[];
 }
 
 export interface IndividualTrackerSeriesGroup {
@@ -107,6 +109,7 @@ export interface IndividualTrackerSeriesGroup {
   subtitle: string;
   guildIconUrl?: string | null;
   teams?: SeriesTeam[];
+  plannedMaps?: LiveTrackerMap[];
 }
 
 export interface PreSeriesPlayerInfo {
@@ -227,6 +230,7 @@ export interface ActiveSeriesContext {
   guildIconUrl: string | null;
   startedAt?: string;
   teams: SeriesTeam[];
+  plannedMaps?: LiveTrackerMap[];
 }
 
 export interface IndividualTrackerViewState {

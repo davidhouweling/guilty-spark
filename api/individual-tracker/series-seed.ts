@@ -49,6 +49,15 @@ export async function resolveSeriesSeed(opts: ResolveSeriesSeedOpts): Promise<In
 
     const matchIds = await resolveSeriesMatchIds(opts, activeSeries);
     const { seriesContext } = activeSeries;
+    let plannedMaps: IndividualTrackerSeriesSeed["plannedMaps"];
+    try {
+      plannedMaps = await opts.liveTrackerService.getPlannedMapsForQueue(
+        activeSeries.guildId,
+        activeSeries.queueNumber,
+      );
+    } catch (error) {
+      logService.warn("resolveSeriesSeed: failed to load planned maps", new Map([["error", String(error)]]));
+    }
 
     return {
       title: seriesContext.title,
@@ -58,6 +67,7 @@ export async function resolveSeriesSeed(opts: ResolveSeriesSeedOpts): Promise<In
       ...(seriesContext.searchStartTime != null ? { searchStartTime: seriesContext.searchStartTime } : {}),
       teams: seriesContext.teams,
       matchIds,
+      ...(plannedMaps != null ? { plannedMaps } : {}),
     };
   } catch (error) {
     logService.warn(

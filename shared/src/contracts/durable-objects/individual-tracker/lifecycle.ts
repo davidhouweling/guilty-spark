@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defineContract } from "../../base";
 import { trackerStateSchema } from "../../individual-tracker/tracker";
 import { trackerSeriesTeamSchema } from "../../individual-tracker/view";
+import { liveTrackerMapSchema } from "../live-tracker/maps";
 
 // hasActiveSeries is optional here because old persisted DO state may predate the field.
 // trackerStateSchema marks it required (suitable for fresh API responses).
@@ -18,6 +19,7 @@ export const individualTrackerSeriesSeedSchema = z.object({
   searchStartTime: z.string().optional(),
   teams: z.array(trackerSeriesTeamSchema),
   matchIds: z.array(z.string()),
+  plannedMaps: z.array(liveTrackerMapSchema).optional(),
 });
 export type IndividualTrackerSeriesSeed = z.infer<typeof individualTrackerSeriesSeedSchema>;
 

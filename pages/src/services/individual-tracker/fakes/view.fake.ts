@@ -136,6 +136,7 @@ function getSampleSeriesGroup(): TrackerSeriesGroup {
     title: "Series",
     subtitle: "Best of 3",
     guildIconUrl: null,
+    plannedMaps: [...(sampleLiveTrackerStateMessage.data.plannedMaps ?? [])],
   };
 }
 

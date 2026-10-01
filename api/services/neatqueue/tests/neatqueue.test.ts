@@ -2319,9 +2319,41 @@ describe("NeatQueueService", () => {
       nudgeTrackersSpy = vi.spyOn(individualTrackerService, "nudgeTrackers").mockResolvedValue(undefined);
     });
 
+    it("nudges queue players when confirmed maps change after series start", async () => {
+      const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-1", discordName: "Player", gamertag: "Tag", xboxId: "xuid-1" }],
+          },
+        ],
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith({ seriesContext }));
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, plannedMaps);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-1"], { type: "maps-updated", maps: plannedMaps });
+    });
+
+    it("does not nudge trackers for maps confirmed before the series starts", async () => {
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).not.toHaveBeenCalled();
+    });
+
     describe("TEAMS_CREATED nudge", () => {
       it("nudges all player XUIDs with series context when association data has XUIDs", async () => {
         const teamsCreatedRequest = getFakeNeatQueueData("teamsCreated");
+        const plannedMaps = [{ mode: "FFA Slayer", map: "Live Fire" }];
+        vi.spyOn(liveTrackerService, "getPlannedMapsForQueue").mockResolvedValue(plannedMaps);
         const playersAssociationData = {
           discord_user_01: createSamplePlayerAssociationData("discord_user_01", "soundmanD", "SoundmanD"),
           discord_user_02: createSamplePlayerAssociationData("discord_user_02", "discord_user_02", "User02"),
@@ -2350,6 +2382,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
           title: "Test Server",
+          plannedMaps,
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
           guildIconUrl: null,
           teams: expect.arrayContaining<SeriesTeam>([

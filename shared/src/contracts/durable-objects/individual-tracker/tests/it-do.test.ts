@@ -6,7 +6,7 @@ import {
 } from "../lifecycle";
 import type { IndividualTrackerStartRequest, IndividualTrackerStartResponse } from "../lifecycle";
 import { individualTrackerStatusContract, individualTrackerViewStateContract } from "../management";
-import { seriesStartedPayloadSchema, seriesSubstitutedPayloadSchema } from "../nudge";
+import { seriesStartedPayloadSchema, seriesMapsUpdatedPayloadSchema, seriesSubstitutedPayloadSchema } from "../nudge";
 import type { SeriesStartedPayload } from "../nudge";
 import {
   editSeriesContract,
@@ -133,6 +133,11 @@ describe("seriesStartedPayloadSchema", () => {
     expect(seriesStartedPayloadSchema.parse(validPayload)).toEqual(validPayload);
   });
 
+  it("accepts confirmed maps on a started nudge", () => {
+    const payload = { ...validPayload, plannedMaps: [{ mode: "FFA Slayer", map: "Live Fire" }] };
+    expect(seriesStartedPayloadSchema.parse(payload)).toEqual(payload);
+  });
+
   it("rejects a missing title", () => {
     expect(
       seriesStartedPayloadSchema.safeParse({
@@ -154,6 +159,17 @@ describe("seriesSubstitutedPayloadSchema", () => {
         playerIn: { discordId: null, discordName: null, gamertag: null, xboxId: null },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("seriesMapsUpdatedPayloadSchema", () => {
+  it("accepts a confirmed plan and an empty clear", () => {
+    const payload = { type: "maps-updated", maps: [{ mode: "FFA Slayer", map: "Live Fire" }] };
+    expect(seriesMapsUpdatedPayloadSchema.parse(payload)).toEqual(payload);
+    expect(seriesMapsUpdatedPayloadSchema.parse({ type: "maps-updated", maps: [] })).toEqual({
+      type: "maps-updated",
+      maps: [],
+    });
   });
 });
 

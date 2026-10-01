@@ -609,6 +609,84 @@ describe("LiveTrackerDO", () => {
       await expect(liveTrackerMapsContract.fromResponse(response)).resolves.toEqual({ maps: [] });
     });
 
+    it("broadcasts a newly confirmed plan to connected live viewers", async () => {
+      const trackerState = createMockTrackerState();
+      const maps: LiveTrackerMap[] = [{ mode: "FFA Slayer", map: "Live Fire" }];
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(
+          key === "trackerState" ? trackerState : key === "plannedMaps" ? { maps, token: "token" } : null,
+        ),
+      );
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          body: JSON.stringify({ maps, token: "00000000-0000-4000-8000-000000000001" }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const message = fakeWebSocketAdapter.broadcasts.at(-1);
+      const parsed = JSON.parse(message ?? "") as { data: { plannedMaps: LiveTrackerMap[] } };
+      expect(parsed.data.plannedMaps).toEqual(maps);
+    });
+
+    it("broadcasts a cleared plan to connected live viewers", async () => {
+      const trackerState = createMockTrackerState();
+      const token = "00000000-0000-4000-8000-000000000001";
+      let saved = true;
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(
+          key === "trackerState"
+            ? trackerState
+            : key === "plannedMaps" && saved
+              ? { maps: [{ mode: "Slayer", map: "Live Fire" }], token }
+              : null,
+        ),
+      );
+      vi.spyOn(mockStorage, "delete").mockImplementation(async (key) => {
+        if (typeof key === "string" && key === "plannedMaps") {
+          saved = false;
+        }
+        return Promise.resolve(1);
+      });
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "DELETE",
+          body: JSON.stringify({ token, markClearedByUser: true }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const message = fakeWebSocketAdapter.broadcasts.at(-1);
+      const parsed = JSON.parse(message ?? "") as { data: { plannedMaps: LiveTrackerMap[] } };
+      expect(parsed.data.plannedMaps).toEqual([]);
+    });
+
+    it("keeps map confirmation successful if live viewer broadcast fails", async () => {
+      storageGetSpy.mockResolvedValue(createMockTrackerState());
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          body: JSON.stringify({
+            maps: [{ mode: "Slayer", map: "Live Fire" }],
+            token: "00000000-0000-4000-8000-000000000001",
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", expect.any(Object));
+    });
+
     it("returns the maps without exposing the stored plan token", async () => {
       const maps: LiveTrackerMap[] = [{ mode: "Slayer", map: "Live Fire" }];
       storageGetSpy.mockResolvedValue({ maps, token: "00000000-0000-4000-8000-000000000001" });
@@ -4349,6 +4427,23 @@ describe("LiveTrackerDO", () => {
       expect(initialMessage).toBeDefined();
       const parsed = JSON.parse(initialMessage ?? "") as { type: string };
       expect(parsed.type).toBe("state");
+    });
+
+    it("includes confirmed maps in the initial WebSocket state", async () => {
+      const trackerState = aFakeStateWith();
+      const plannedMaps: LiveTrackerMap[] = [{ mode: "FFA Slayer", map: "Live Fire" }];
+      storageGetSpy.mockImplementation(async (key) =>
+        Promise.resolve(
+          key === "trackerState" ? trackerState : key === "plannedMaps" ? { maps: plannedMaps, token: "token" } : null,
+        ),
+      );
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+
+      await liveTrackerDO.fetch(new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }));
+
+      const [message] = fakeWebSocketAdapter.initialMessages;
+      const parsed = JSON.parse(message ?? "") as { data: { plannedMaps: LiveTrackerMap[] } };
+      expect(parsed.data.plannedMaps).toEqual(plannedMaps);
     });
   });
 

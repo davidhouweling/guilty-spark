@@ -1,3 +1,5 @@
+import type { LiveTrackerMap } from "../contracts/durable-objects/live-tracker/maps";
+
 export interface LiveTrackerIdentity {
   readonly type: "team";
   readonly guildId: string;
@@ -66,6 +68,7 @@ export interface LiveTrackerNeatQueueSeriesData {
   }[];
   readonly seriesScore: string;
   readonly matchSummaries: readonly LiveTrackerMatchSummary[];
+  readonly plannedMaps?: readonly LiveTrackerMap[];
   readonly seriesData?: {
     seriesId: {
       guildId: string;

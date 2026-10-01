@@ -781,6 +781,12 @@ export class NeatQueueService {
         ),
       }));
       const searchStartTime = this.resolveSeriesSearchStartTime(request);
+      let plannedMaps: SeriesStartedPayload["plannedMaps"];
+      try {
+        plannedMaps = await this.liveTrackerService.getPlannedMapsForQueue(request.guild, request.match_number);
+      } catch (error) {
+        this.logService.warn("Failed to load planned maps for series start nudge", new Map([["error", String(error)]]));
+      }
       const seriesContext: SeriesStartedPayload = {
         type: "started",
         title,
@@ -789,6 +795,7 @@ export class NeatQueueService {
         startedAt: new Date().toISOString(),
         ...(searchStartTime != null ? { searchStartTime } : {}),
         teams: seriesTeams,
+        ...(plannedMaps != null ? { plannedMaps } : {}),
       };
       queueState.seriesContext = seriesContext;
       this.setQueueState(request.guild, request.match_number, queueState);
@@ -822,6 +829,32 @@ export class NeatQueueService {
           ["error", String(error)],
         ]),
       );
+    }
+  }
+
+  async nudgePlannedMaps(
+    guildId: string,
+    queueNumber: number,
+    maps: SeriesStartedPayload["plannedMaps"],
+  ): Promise<void> {
+    try {
+      const state = await this.getQueueState(guildId, queueNumber);
+      if (state.seriesContext == null) {
+        return;
+      }
+      const xuids = new Set(await this.extractXuidsWithFallback(state.playersAssociationData));
+      for (const team of state.seriesContext.teams) {
+        for (const player of team.players) {
+          const xuid =
+            player.xboxId ?? (player.discordId != null ? state.playersAssociationData[player.discordId]?.xboxId : null);
+          if (xuid != null) {
+            xuids.add(xuid);
+          }
+        }
+      }
+      await this.individualTrackerService.nudgeTrackers([...xuids], { type: "maps-updated", maps: maps ?? [] });
+    } catch (error) {
+      this.logService.warn("Failed to nudge individual trackers for planned maps", new Map([["error", String(error)]]));
     }
   }
 

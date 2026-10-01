@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../../base";
+import { liveTrackerMapSchema } from "../live-tracker/maps";
 import { trackerSeriesTeamSchema, trackerSeriesPlayerSchema } from "../../individual-tracker/view";
 
 // Reuse player schema from view
@@ -18,8 +19,15 @@ export const seriesStartedPayloadSchema = z.object({
   startedAt: z.string().optional(),
   searchStartTime: z.string().optional(),
   teams: z.array(seriesTeamSchema),
+  plannedMaps: z.array(liveTrackerMapSchema).optional(),
 });
 export type SeriesStartedPayload = z.infer<typeof seriesStartedPayloadSchema>;
+
+export const seriesMapsUpdatedPayloadSchema = z.object({
+  type: z.literal("maps-updated"),
+  maps: z.array(liveTrackerMapSchema),
+});
+export type SeriesMapsUpdatedPayload = z.infer<typeof seriesMapsUpdatedPayloadSchema>;
 
 // Event: Series ended (clear active series)
 export const seriesEndedPayloadSchema = z.object({
@@ -62,6 +70,7 @@ export const nudgePayloadSchema = z.discriminatedUnion("type", [
   seriesStartedPayloadSchema,
   seriesEndedPayloadSchema,
   seriesSubstitutedPayloadSchema,
+  seriesMapsUpdatedPayloadSchema,
 ]);
 export type NudgePayload = z.infer<typeof nudgePayloadSchema>;
 
