@@ -372,9 +372,7 @@ describe("generateRoundRobinMaps - HCS Analysis", () => {
 
   it("ensures backward compatibility with existing data structures", () => {
     // Test with the exact structure that commands/maps would use
-    const pool = Object.entries(CURRENT_HCS_MAPS).flatMap(([mode, maps]) =>
-      maps.map((map) => ({ mode: mode, map })),
-    );
+    const pool = Object.entries(CURRENT_HCS_MAPS).flatMap(([mode, maps]) => maps.map((map) => ({ mode: mode, map })));
 
     const result = generateRoundRobinMaps({
       count: 5,

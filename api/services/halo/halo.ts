@@ -1982,7 +1982,7 @@ export class HaloService {
     const playlistMapModes = rotationEntries.reduce<Record<MapMode, string[]>>(
       (accumulator, entry) => {
         const mapMode = this.ucgMapNameToMapMode(entry.UgcGameVariantLink.PublicName);
-         
+
         if (accumulator[mapMode] == null) {
           this.logService.warn(`Unknown map mode encountered: ${mapMode}`, new Map([["data", JSON.stringify(entry)]]));
           accumulator[mapMode] = [];
