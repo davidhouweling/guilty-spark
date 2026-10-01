@@ -57,4 +57,68 @@ describe("toLiveTrackerStateRenderModel", () => {
     expect(model.seriesScore).toBe("0:0");
     expect(model.seriesData?.seriesScore).toBe("0:0");
   });
+
+  it("keeps planned slots by completed game number when a match is resumed", () => {
+    const first = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
+    const second = sampleLiveTrackerStateMessage.data.matchSummaries.at(1);
+    if (first == null || second == null) {
+      throw new Error("Expected sample matches");
+    }
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [first, { ...second, gameMap: "Actual Map", gameType: "Actual Mode" }],
+        rawMatches: {
+          [first.matchId]: {
+            MatchId: first.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: first.startTime,
+              EndTime: first.endTime,
+              MapVariant: { AssetId: "map-a", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+          [second.matchId]: {
+            MatchId: second.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: second.startTime,
+              EndTime: second.endTime,
+              MapVariant: { AssetId: "map-a", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+        },
+        plannedMaps: [
+          { mode: "Slayer", map: "Planned Map" },
+          { mode: "Oddball", map: "Next Map" },
+        ],
+      },
+    };
+
+    const model = toLiveTrackerStateRenderModel(message, {});
+
+    expect(model.plannedGames).toEqual([
+      { gameNumber: 1, mode: "Actual Mode", map: "Actual Map", played: true },
+      { gameNumber: 2, mode: "Oddball", map: "Next Map", played: false },
+    ]);
+  });
+
+  it("keeps all slots tentative before the first game and removes them on clear", () => {
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: [], rawMatches: {} },
+    };
+    const model = toLiveTrackerStateRenderModel(message, {});
+
+    expect(model.plannedGames).toHaveLength(sampleLiveTrackerStateMessage.data.plannedMaps?.length ?? 0);
+    expect(model.plannedGames.every((game) => !game.played)).toBe(true);
+    expect(
+      toLiveTrackerStateRenderModel({ ...message, data: { ...message.data, plannedMaps: [] } }, {}).plannedGames,
+    ).toEqual([]);
+  });
 });

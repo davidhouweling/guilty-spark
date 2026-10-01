@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 
 import type {
   LiveTrackerMatchSummary,
@@ -100,6 +100,50 @@ async function renderLiveTrackerWith(
 describe("LiveTracker", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("shows actual played games beside tentative planned maps", async () => {
+    const message = aStateMessage(["m1"]);
+    const match = message.data.matchSummaries.at(0);
+    if (match == null) {
+      throw new Error("Expected match summary");
+    }
+    const connection = await renderLiveTrackerWith({
+      ...message,
+      data: {
+        ...message.data,
+        plannedMaps: [
+          { mode: "Oddball", map: "Streets" },
+          { mode: "Strongholds", map: "Recharge" },
+        ],
+        rawMatches: {
+          m1: {
+            MatchId: "m1",
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: match.startTime,
+              EndTime: match.endTime,
+              MapVariant: { AssetId: "aquarius", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+        },
+      },
+    });
+    connection.step();
+
+    const plan = await screen.findByRole("list", { name: "Map plan" });
+    const [played, upcoming] = within(plan).getAllByRole("listitem");
+    expect(played).toHaveTextContent("Game 1");
+    expect(played).toHaveTextContent("Slayer");
+    expect(played).toHaveTextContent("Aquarius");
+    expect(played).toHaveTextContent("Played");
+    expect(played).not.toHaveTextContent("Streets");
+    expect(upcoming).toHaveTextContent("Game 2");
+    expect(upcoming).toHaveTextContent("Strongholds");
+    expect(upcoming).toHaveTextContent("Recharge");
+    expect(upcoming).toHaveTextContent("Planned");
   });
 
   it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {
