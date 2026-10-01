@@ -74,13 +74,24 @@ describe("liveTrackerEmbedDataSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects planned maps with unknown modes or empty map names", () => {
+  it("accepts playlist-specific modes outside the HCS map list", () => {
     expect(
       liveTrackerEmbedDataSchema.safeParse({
         ...validEmbedData,
-        plannedMaps: [{ mode: "Unknown", map: "Live Fire" }],
+        plannedMaps: [{ mode: "FFA Slayer", map: "Live Fire" }],
       }).success,
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("rejects blank or overlong modes and empty map names", () => {
+    for (const mode of ["   ", "x".repeat(101)]) {
+      expect(
+        liveTrackerEmbedDataSchema.safeParse({
+          ...validEmbedData,
+          plannedMaps: [{ mode, map: "Live Fire" }],
+        }).success,
+      ).toBe(false);
+    }
     expect(
       liveTrackerEmbedDataSchema.safeParse({
         ...validEmbedData,

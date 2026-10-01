@@ -1,9 +1,10 @@
 import type { APIMessage } from "discord-api-types/v10";
 import { ComponentType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { liveTrackerMapSchema } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { z } from "zod";
 import type { MapMode } from "../../services/halo/hcs";
-import { ALL_MODES, MAP_COUNTS } from "../../services/halo/hcs";
+import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
 import { InteractionComponent, mapFormatLabels, mapPlaylistLabels } from "../../embeds/maps-embed";
 import { GAMECOACH_GG_URLS } from "./gamecoachgg";
@@ -95,7 +96,7 @@ function readMapsFromEmbeds(message: APIMessage): { mode: MapMode; map: string }
         throw new Error("Map table game numbers are out of order");
       }
       const modeValue = Preconditions.checkExists(modes[rowIndex]);
-      const mode = Preconditions.checkExists(ALL_MODES.find((candidate) => candidate === modeValue));
+      const mode = liveTrackerMapSchema.shape.mode.parse(modeValue);
       maps.push({ mode, map: readMapName(Preconditions.checkExists(mapNames[rowIndex])) });
     }
   }

@@ -623,12 +623,36 @@ describe("LiveTrackerDO", () => {
         new Request("http://do/maps", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ maps: [{ mode: "Not a mode", map: "Recharge" }] }),
+          body: JSON.stringify({
+            maps: [{ mode: " ", map: "Recharge" }],
+            token: "00000000-0000-4000-8000-000000000001",
+          }),
         }),
       );
 
       expect(response.status).toBe(400);
       expect(storagePutSpy).not.toHaveBeenCalled();
+    });
+
+    it("stores planned maps with modes from other playlists", async () => {
+      storageGetSpy.mockResolvedValue(null);
+
+      const response = await liveTrackerDO.fetch(
+        new Request("http://do/maps", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            maps: [{ mode: "FFA Slayer", map: "Live Fire" }],
+            token: "00000000-0000-4000-8000-000000000001",
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(storagePutSpy).toHaveBeenCalledWith("plannedMaps", {
+        maps: [{ mode: "FFA Slayer", map: "Live Fire" }],
+        token: "00000000-0000-4000-8000-000000000001",
+      });
     });
 
     it("clears only the plan matching its confirmation token", async () => {
