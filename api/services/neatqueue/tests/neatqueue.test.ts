@@ -2371,6 +2371,40 @@ describe("NeatQueueService", () => {
       });
     });
 
+    it("falls back to active linked Xbox identities for map update nudges", async () => {
+      const seriesContext: SeriesStartedPayload = {
+        type: "started",
+        title: "Test Server",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [{ discordId: "player-1", discordName: "Player", gamertag: "Tag", xboxId: null }],
+          },
+        ],
+      };
+      (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(
+        aFakeNeatQueueStateWith({ seriesContext, playersAssociationData: {} }),
+      );
+      vi.spyOn(databaseService, "findLinkedIdentitiesByUserId").mockResolvedValue([
+        aFakeLinkedIdentitiesRow({
+          UserId: "player-1",
+          Provider: "xbox",
+          ProviderUserId: "xuid-linked",
+          IsActive: 1,
+        }),
+      ]);
+
+      await neatQueueService.nudgePlannedMaps("guild-1", 3, [{ mode: "Slayer", map: "Live Fire" }]);
+
+      expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid-linked"], {
+        type: "maps-updated",
+        maps: [{ mode: "Slayer", map: "Live Fire" }],
+      });
+    });
+
     it("does not nudge trackers for maps confirmed before the series starts", async () => {
       (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
 

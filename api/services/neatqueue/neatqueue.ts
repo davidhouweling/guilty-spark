@@ -843,13 +843,24 @@ export class NeatQueueService {
         return;
       }
       const xuids = new Set<string>();
+      const discordIdsMissingXuids = new Set<string>();
       for (const team of state.seriesContext.teams) {
         for (const player of team.players) {
           const xuid =
             player.xboxId ?? (player.discordId != null ? state.playersAssociationData[player.discordId]?.xboxId : null);
           if (xuid != null) {
             xuids.add(xuid);
+          } else if (player.discordId != null) {
+            discordIdsMissingXuids.add(player.discordId);
           }
+        }
+      }
+      const fallbackXuids = await Promise.all(
+        [...discordIdsMissingXuids].map(async (discordId) => this.findActiveXboxIdentityXuid(discordId)),
+      );
+      for (const fallbackXuid of fallbackXuids) {
+        if (fallbackXuid != null) {
+          xuids.add(fallbackXuid);
         }
       }
       await this.individualTrackerService.nudgeTrackers([...xuids], { type: "maps-updated", maps: maps ?? [] });
