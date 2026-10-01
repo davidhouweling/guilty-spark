@@ -6,8 +6,11 @@ import type {
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import type {
   LiveTrackerMatchRenderModel,
+  LiveTrackerPlannedGameRenderModel,
   LiveTrackerStateRenderModel,
   LiveTrackerSubstitutionRenderModel,
 } from "./types";
@@ -103,6 +106,38 @@ function transformNeatQueueData(
   return { matches, teams, substitutions };
 }
 
+function toPlannedGames(
+  matches: readonly LiveTrackerMatchRenderModel[],
+  plannedMaps: LiveTrackerNeatQueueSeriesData["plannedMaps"],
+): readonly LiveTrackerPlannedGameRenderModel[] {
+  const completedGames = collapseSequentialSeriesEntries(
+    matches.flatMap((match) => {
+      const raw = match.rawMatchStats;
+      return !isMatchStats(raw)
+        ? []
+        : [
+            {
+              startTime: raw.MatchInfo.StartTime,
+              mapAssetId: raw.MatchInfo.MapVariant.AssetId,
+              mapVersionId: raw.MatchInfo.MapVariant.VersionId,
+              gameVariantCategory: raw.MatchInfo.GameVariantCategory,
+              match,
+            },
+          ];
+    }),
+  );
+
+  return (plannedMaps ?? []).map((planned, index) => {
+    const playedMatch = completedGames.at(index)?.match;
+    return {
+      gameNumber: index + 1,
+      mode: playedMatch?.gameType ?? planned.mode,
+      map: playedMatch?.gameMap ?? planned.map,
+      played: playedMatch != null,
+    };
+  });
+}
+
 export function toLiveTrackerStateRenderModel(
   message: LiveTrackerStateMessage,
   medalMetadata: MedalMetadata,
@@ -119,6 +154,7 @@ export function toLiveTrackerStateRenderModel(
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
+    plannedGames: toPlannedGames(matches, message.data.plannedMaps),
     substitutions,
     seriesScore: normalizeSeriesScore(message.data.seriesScore),
     medalMetadata,

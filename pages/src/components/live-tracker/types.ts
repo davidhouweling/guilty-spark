@@ -53,6 +53,13 @@ export interface LiveTrackerSubstitutionRenderModel {
   readonly timestamp: string;
 }
 
+export interface LiveTrackerPlannedGameRenderModel {
+  readonly gameNumber: number;
+  readonly mode: string;
+  readonly map: string;
+  readonly played: boolean;
+}
+
 export interface LiveTrackerSeriesDataRenderModel {
   readonly seriesId: {
     readonly guildId: string;
@@ -83,6 +90,7 @@ export interface LiveTrackerNeatQueueStateRenderModel {
   readonly lastUpdateTime: string;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly matches: readonly LiveTrackerMatchRenderModel[];
+  readonly plannedGames: readonly LiveTrackerPlannedGameRenderModel[];
   readonly substitutions: readonly LiveTrackerSubstitutionRenderModel[];
   readonly seriesScore: string;
   readonly medalMetadata: MedalMetadata;

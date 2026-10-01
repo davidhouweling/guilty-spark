@@ -364,6 +364,28 @@ export function LiveTrackerView(): React.ReactElement {
                         </Alert>
                       </div>
                     )}
+                    {state.plannedGames.length > 0 && (
+                      <div className={styles.plannedGames}>
+                        <Heading tagName="h3" className={styles.plannedGamesHeader}>
+                          Map plan
+                        </Heading>
+                        <ol className={styles.plannedGamesList} aria-label="Map plan">
+                          {state.plannedGames.map((game) => (
+                            <li
+                              key={game.gameNumber}
+                              className={classNames(styles.plannedGame, game.played && styles.plannedGamePlayed)}
+                            >
+                              <span className={styles.plannedGameNumber}>Game {game.gameNumber}</span>
+                              <span className={styles.plannedGameDetails}>
+                                <strong>{game.mode}</strong>
+                                <span>{game.map}</span>
+                              </span>
+                              <span className={styles.plannedGameStatus}>{game.played ? "Played" : "Planned"}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
                   </section>
                   {state.teams.map((team, teamIndex) => {
                     const teamColorId = teamIndex === 0 ? team1Color : team2Color;
