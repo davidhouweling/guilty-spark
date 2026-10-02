@@ -55,6 +55,7 @@ import {
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { StatsReturnType } from "../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
+import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config";
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { toMissingPermissionsError } from "../../base/missing-permissions-error";
@@ -2750,16 +2751,13 @@ export class StatsCommand extends BaseCommand {
           shouldPostOverviewInThread = true;
         }
       } else {
-        const seriesOverviewMessage = await discordService.createMessage(metadata.channelId, {
-          embeds: amendedSeriesEmbed.embeds,
-          components: amendedSeriesEmbed.components,
+        const destination = await this.createFixSeriesStatsThread({
+          metadata,
+          neatQueueConfig,
+          seriesEmbed: amendedSeriesEmbed,
+          threadName: `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
         });
-        const createdThread = await discordService.startThreadFromMessage(
-          metadata.channelId,
-          seriesOverviewMessage.id,
-          `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
-        );
-        destinationThreadId = createdThread.id;
+        ({ threadId: destinationThreadId, shouldPostOverviewInThread } = destination);
       }
 
       if (shouldPostOverviewInThread) {
@@ -2788,6 +2786,52 @@ export class StatsCommand extends BaseCommand {
     neatQueueMessage: APIMessage,
   ): ExistingSeriesStatsThreadLocation | undefined {
     return neatQueueMessage.thread != null ? { threadId: neatQueueMessage.thread.id } : undefined;
+  }
+
+  /**
+   * Mirrors NeatQueue series posting, falling back to a channel post if the result thread can't be started.
+   */
+  private async createFixSeriesStatsThread({
+    metadata,
+    neatQueueConfig,
+    seriesEmbed,
+    threadName,
+  }: {
+    metadata: FixFlowMetadata;
+    neatQueueConfig: NeatQueueConfigRow | undefined;
+    seriesEmbed: SeriesOverviewEmbedOutput;
+    threadName: string;
+  }): Promise<{ threadId: string; shouldPostOverviewInThread: boolean }> {
+    const { discordService, logService } = this.services;
+
+    if (neatQueueConfig?.PostSeriesMode === NeatQueuePostSeriesDisplayMode.THREAD) {
+      try {
+        const thread = await discordService.startThreadFromMessage(
+          metadata.channelId,
+          metadata.queueData.message.id,
+          threadName,
+        );
+        return { threadId: thread.id, shouldPostOverviewInThread: true };
+      } catch (error) {
+        logService.warn(
+          error,
+          new Map([
+            ["guildId", metadata.guildId],
+            ["channelId", metadata.channelId],
+            ["queue", metadata.queueData.queue.toString()],
+            ["reason", "Failed to start thread from NeatQueue result, falling back to channel post"],
+          ]),
+        );
+      }
+    }
+
+    const postChannelId = neatQueueConfig?.PostSeriesChannelId ?? metadata.channelId;
+    const seriesOverviewMessage = await discordService.createMessage(postChannelId, {
+      embeds: seriesEmbed.embeds,
+      components: seriesEmbed.components,
+    });
+    const thread = await discordService.startThreadFromMessage(postChannelId, seriesOverviewMessage.id, threadName);
+    return { threadId: thread.id, shouldPostOverviewInThread: false };
   }
 
   /**
