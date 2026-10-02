@@ -2392,7 +2392,7 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
-    it("deletes previous series error messages from the queue's post channel", async () => {
+    it("deletes previous series error messages from the results channel when no post channel is set", async () => {
       const interaction: APIMessageComponentButtonInteraction = {
         ...fakeButtonClickInteraction,
         data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
@@ -2401,7 +2401,7 @@ describe("StatsCommand", () => {
 
       vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
         guildId: "fake-guild-id",
-        channelId: "fake-channel-id",
+        channelId: "queue-channel-id",
         queueData: {
           ...discordNeatQueueData,
           message: { ...discordNeatQueueData.message, id: "queue-neatqueue-message-id" },
@@ -2416,7 +2416,10 @@ describe("StatsCommand", () => {
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
-        aFakeNeatQueueConfigRow({ ChannelId: "fake-channel-id", PostSeriesChannelId: "post-channel-id" }),
+        aFakeNeatQueueConfigRow({
+          ChannelId: "queue-channel-id",
+          ResultsChannelId: "fake-channel-id",
+        }),
       ]);
       vi.spyOn(services.leaderboardService, "persistReconciledSeriesData").mockResolvedValue();
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
@@ -2433,13 +2436,13 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(interaction);
       await jobToComplete?.();
 
-      expect(findSeriesErrorMessagesInChannelSpy).toHaveBeenCalledWith("fake-guild-id", "post-channel-id", {
+      expect(findSeriesErrorMessagesInChannelSpy).toHaveBeenCalledWith("fake-guild-id", "fake-channel-id", {
         queueNumber: 777,
         resultsChannelId: "fake-channel-id",
         afterMessageId: "queue-neatqueue-message-id",
       });
       expect(deleteMessageSpy).toHaveBeenCalledWith(
-        "post-channel-id",
+        "fake-channel-id",
         "post-channel-error-id",
         "Replacing amended series stats",
       );

@@ -1193,6 +1193,10 @@ export class DiscordService {
   }
 
   private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
+    return this.getSearchResultGroups(searchResponse).flatMap((messages) => messages);
+  }
+
+  private getSearchResultGroups(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[][] {
     if ("retry_after" in searchResponse) {
       const isSearchIndexNotReady =
         searchResponse.code === 110000 ||
@@ -1204,7 +1208,7 @@ export class DiscordService {
       throw new EndUserError(SEARCH_RATE_LIMIT_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
     }
 
-    return searchResponse.messages.flatMap((messages) => messages);
+    return searchResponse.messages;
   }
 
   private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
@@ -1299,12 +1303,16 @@ export class DiscordService {
         offset: page * SEARCH_RESULT_PAGE_SIZE,
       });
 
-      const messages = this.flattenSearchMessages(searchResponse);
+      const messageGroups = this.getSearchResultGroups(searchResponse);
+      const messages = messageGroups.flatMap((group) => {
+        const searchResult = group.at(-1);
+        return searchResult != null ? [searchResult] : [];
+      });
       errorMessages.push(
         ...messages.filter((message) => isDiscordSeriesErrorMessage(message, queueNumber, resultsChannelId)),
       );
 
-      if (messages.length < SEARCH_RESULT_PAGE_SIZE) {
+      if (messageGroups.length < SEARCH_RESULT_PAGE_SIZE) {
         return errorMessages;
       }
     }

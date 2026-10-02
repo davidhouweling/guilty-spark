@@ -1966,6 +1966,7 @@ describe("DiscordService", () => {
 
     it("returns only error messages for the queue and results channel posted after the result message", async () => {
       const matchingError = anErrorMessageWith("matching-error", { Channel: "<#results-channel-id>", Queue: "777" });
+      const contextError = anErrorMessageWith("context-error", { Channel: "<#results-channel-id>", Queue: "777" });
       const otherQueueError = anErrorMessageWith("other-queue", { Channel: "<#results-channel-id>", Queue: "778" });
       const otherChannelError = anErrorMessageWith("other-channel", { Channel: "<#other-channel-id>", Queue: "777" });
       const nonErrorMessage: APIMessage = { ...apiMessage, id: "non-error", embeds: [] };
@@ -1974,7 +1975,7 @@ describe("DiscordService", () => {
           JSON.stringify({
             doing_deep_historical_index: false,
             total_results: 4,
-            messages: [[matchingError], [otherQueueError], [otherChannelError], [nonErrorMessage]],
+            messages: [[contextError, matchingError], [otherQueueError], [otherChannelError], [nonErrorMessage]],
           }),
         ),
       );
@@ -1987,6 +1988,26 @@ describe("DiscordService", () => {
       );
       expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("min_id=neatqueue-message-id"), expect.anything());
       expect(messages.map((message) => message.id)).toEqual(["matching-error"]);
+    });
+
+    it("uses search result group count when deciding whether to fetch another page", async () => {
+      const searchGroupsWithContext = Array.from({ length: 13 }, (_, index) => [
+        { ...apiMessage, id: `context-${index.toString()}`, embeds: [] },
+        { ...apiMessage, id: `result-${index.toString()}`, embeds: [] },
+      ]);
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            doing_deep_historical_index: false,
+            total_results: 13,
+            messages: searchGroupsWithContext,
+          }),
+        ),
+      );
+
+      await discordService.findSeriesErrorMessagesInChannel("fake-guild-id", "post-channel-id", query);
+
+      expect(mockFetch).toHaveBeenCalledOnce();
     });
 
     it("pages through full pages of search results", async () => {

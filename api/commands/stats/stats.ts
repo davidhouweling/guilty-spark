@@ -2798,12 +2798,13 @@ export class StatsCommand extends BaseCommand {
     neatQueueConfig: NeatQueueConfigRow | undefined,
   ): Promise<void> {
     const { discordService, logService } = this.services;
-    const postChannelId = neatQueueConfig?.PostSeriesChannelId ?? metadata.channelId;
+    const resultsChannelId = neatQueueConfig?.ResultsChannelId ?? metadata.channelId;
+    const postChannelId = neatQueueConfig?.PostSeriesChannelId ?? resultsChannelId;
 
     try {
       const errorMessages = await discordService.findSeriesErrorMessagesInChannel(metadata.guildId, postChannelId, {
         queueNumber: metadata.queueData.queue,
-        resultsChannelId: metadata.channelId,
+        resultsChannelId,
         afterMessageId: metadata.queueData.message.id,
       });
       await this.deleteMessagesInChunks(
