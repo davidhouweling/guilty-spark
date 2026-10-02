@@ -608,7 +608,13 @@ export class StatsCommand extends BaseCommand {
           }
           case InteractionButton.ManualQueueSelect.toString(): {
             return {
-              response: { type: InteractionResponseType.DeferredMessageUpdate },
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Loading recent custom games...")],
+                  components: [],
+                },
+              },
               jobToComplete: async () =>
                 this.handleManualQueueSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
@@ -616,14 +622,26 @@ export class StatsCommand extends BaseCommand {
           case InteractionButton.ManualQueuePreviousPage.toString():
           case InteractionButton.ManualQueueNextPage.toString(): {
             return {
-              response: { type: InteractionResponseType.DeferredMessageUpdate },
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Loading queue selection...")],
+                  components: [],
+                },
+              },
               jobToComplete: async () =>
                 this.handleManualQueuePageJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           case InteractionButton.ManualPlayerSelect.toString(): {
             return {
-              response: { type: InteractionResponseType.DeferredMessageUpdate },
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Fetching recent custom games...")],
+                  components: [],
+                },
+              },
               jobToComplete: async () =>
                 this.handleManualPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };

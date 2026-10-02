@@ -1559,13 +1559,20 @@ describe("StatsCommand", () => {
           custom_id: "btn_stats_manual_queue_select",
         });
 
-        const { jobToComplete } = statsCommand.execute({
+        const { response, jobToComplete } = statsCommand.execute({
           ...fakeButtonClickInteraction,
           data: {
             component_type: ComponentType.Button,
             custom_id: "btn_stats_manual_queue_next_page",
           },
           message: { ...fakeButtonClickInteraction.message, id: "manual-flow-message-id" },
+        });
+        expect(response).toMatchObject({
+          type: InteractionResponseType.UpdateMessage,
+          data: {
+            components: [],
+            embeds: [expect.objectContaining({ description: "Loading queue selection..." })],
+          },
         });
         await jobToComplete?.();
 
@@ -1619,9 +1626,16 @@ describe("StatsCommand", () => {
       it("stores the selected queue channel and shows the invoker's recent games", async () => {
         mockLinkedPlayerWithRecentGames();
 
-        const { jobToComplete } = statsCommand.execute(
+        const { response, jobToComplete } = statsCommand.execute(
           aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_queue_select", ["queue-b"]),
         );
+        expect(response).toMatchObject({
+          type: InteractionResponseType.UpdateMessage,
+          data: {
+            components: [],
+            embeds: [expect.objectContaining({ description: "Loading recent custom games..." })],
+          },
+        });
         await jobToComplete?.();
 
         expect(getLastManualMetadata()).toMatchObject({
@@ -1659,9 +1673,16 @@ describe("StatsCommand", () => {
           .spyOn(services.databaseService, "getDiscordAssociations")
           .mockResolvedValue([aFakeDiscordAssociationsRow({ DiscordId: "other-player-id", XboxId: "xuid-2" })]);
 
-        const { jobToComplete } = statsCommand.execute(
+        const { response, jobToComplete } = statsCommand.execute(
           aManualSelectInteractionWith(ComponentType.UserSelect, "btn_stats_manual_player_select", ["other-player-id"]),
         );
+        expect(response).toMatchObject({
+          type: InteractionResponseType.UpdateMessage,
+          data: {
+            components: [],
+            embeds: [expect.objectContaining({ description: "Fetching recent custom games..." })],
+          },
+        });
         await jobToComplete?.();
 
         expect(getDiscordAssociationsSpy).toHaveBeenCalledWith(["other-player-id"]);
