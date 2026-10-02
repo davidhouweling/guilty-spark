@@ -84,7 +84,7 @@ export interface QueueData {
 
 export interface ExistingSeriesStatsThreadLocation {
   threadId: string;
-  parentOverviewMessageId?: string;
+  parentOverviewMessage?: { channelId: string; messageId: string } | undefined;
 }
 
 /**
@@ -367,12 +367,10 @@ export class DiscordService {
       queryParameters: { limit: 100 },
     });
 
+    const queueTitlePattern = new RegExp(`Winner For Queue#${queue != null ? `${queue.toString()}(?!\\d)` : ""}`);
     const queueMessage = this.findNeatQueueMessage(
       messages,
-      (message) =>
-        message.embeds.find((embed) =>
-          new RegExp(`Winner For Queue#${queue != null ? queue.toString() : ""}`).test(embed.title ?? ""),
-        ) != null,
+      (message) => message.embeds.find((embed) => queueTitlePattern.test(embed.title ?? "")) != null,
     );
 
     if (!queueMessage) {
@@ -1226,7 +1224,10 @@ export class DiscordService {
     }
 
     if (message.thread != null) {
-      return { threadId: message.thread.id, parentOverviewMessageId: message.id };
+      return {
+        threadId: message.thread.id,
+        parentOverviewMessage: { channelId: message.channel_id, messageId: message.id },
+      };
     }
 
     const channel = await this.getChannel(message.channel_id);

@@ -2395,10 +2395,10 @@ export class StatsCommand extends BaseCommand {
         metadata.queueData.queue,
       );
 
-      if (existingLocation?.parentOverviewMessageId != null) {
+      if (existingLocation?.parentOverviewMessage != null) {
         const overviewMessage = await discordService.getMessage(
-          metadata.channelId,
-          existingLocation.parentOverviewMessageId,
+          existingLocation.parentOverviewMessage.channelId,
+          existingLocation.parentOverviewMessage.messageId,
         );
         const matchIds = extractDiscordSeriesMatchIdsFromEmbeds(overviewMessage.embeds);
         for (const matchId of matchIds) {
@@ -2702,11 +2702,15 @@ export class StatsCommand extends BaseCommand {
           "Replacing amended series stats",
         );
 
-        if (existingLocation.parentOverviewMessageId != null) {
-          await discordService.editMessage(metadata.channelId, existingLocation.parentOverviewMessageId, {
-            embeds: amendedSeriesEmbed.embeds,
-            components: amendedSeriesEmbed.components,
-          });
+        if (existingLocation.parentOverviewMessage != null) {
+          await discordService.editMessage(
+            existingLocation.parentOverviewMessage.channelId,
+            existingLocation.parentOverviewMessage.messageId,
+            {
+              embeds: amendedSeriesEmbed.embeds,
+              components: amendedSeriesEmbed.components,
+            },
+          );
           destinationThreadId = existingLocation.threadId;
         } else {
           destinationThreadId = existingLocation.threadId;
@@ -2735,10 +2739,13 @@ export class StatsCommand extends BaseCommand {
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
       await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale);
       try {
-        const neatQueueConfig = await databaseService.getNeatQueueConfig(metadata.guildId, metadata.channelId);
+        const neatQueueConfig = await this.resolveNeatQueueConfigForResultsChannel(
+          metadata.guildId,
+          metadata.channelId,
+        );
         await leaderboardService.persistReconciledSeriesData({
           guildId: metadata.guildId,
-          channelId: metadata.channelId,
+          channelId: neatQueueConfig.ChannelId,
           queueNumber: metadata.queueData.queue,
           neatQueueConfig,
           series,
@@ -2765,6 +2772,26 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private async resolveNeatQueueConfigForResultsChannel(
+    guildId: string,
+    resultsChannelId: string,
+  ): Promise<NeatQueueConfigRow> {
+    const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
+    const queueChannelMatch = configuredQueues.find((queue) => queue.ChannelId === resultsChannelId);
+    if (queueChannelMatch != null) {
+      return queueChannelMatch;
+    }
+
+    const resultsChannelMatches = configuredQueues.filter((queue) => queue.ResultsChannelId === resultsChannelId);
+    if (resultsChannelMatches.length !== 1) {
+      throw new Error(
+        `Expected exactly one NeatQueue config for results channel ${resultsChannelId}, found ${resultsChannelMatches.length.toString()}`,
+      );
+    }
+
+    return Preconditions.checkExists(resultsChannelMatches[0]);
   }
 
   private async handleFixCancelJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {

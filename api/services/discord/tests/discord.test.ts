@@ -512,6 +512,18 @@ describe("DiscordService", () => {
       );
     });
 
+    it("does not match a queue whose number only starts with the requested queue number", async () => {
+      const longerQueueMessage = {
+        ...channelMessages[1],
+        embeds: [{ ...channelMessages[1]?.embeds[0], title: "🏆 Winner For Queue#777 🏆" }],
+      };
+      mockFetch.mockClear().mockResolvedValue(new Response(JSON.stringify([longerQueueMessage])));
+
+      await expect(discordService.getTeamsFromQueueResult("fake-guild-id", "fake-channel", 77)).rejects.toThrow(
+        EndUserError,
+      );
+    });
+
     it("falls back to message timestamp when embed timestamp is missing", async () => {
       const messageWithoutEmbedTimestamp = {
         ...channelMessages[1],
@@ -1779,7 +1791,10 @@ describe("DiscordService", () => {
 
       const result = await discordService.findExistingSeriesStatsThreadLocation("fake-guild-id", 777);
 
-      expect(result).toEqual({ threadId: "new-thread-id", parentOverviewMessageId: "overview-message-id" });
+      expect(result).toEqual({
+        threadId: "new-thread-id",
+        parentOverviewMessage: { channelId: "parent-channel-id", messageId: "overview-message-id" },
+      });
     });
 
     it("returns just the thread id when the overview message already lives inside a thread", async () => {
