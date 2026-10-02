@@ -1957,6 +1957,58 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("findSeriesErrorMessagesInChannel()", () => {
+    const query = { queueNumber: 777, resultsChannelId: "results-channel-id", afterMessageId: "neatqueue-message-id" };
+
+    function anErrorMessageWith(id: string, data: Record<string, string>): APIMessage {
+      return { ...apiMessage, id, embeds: [new EndUserError("Something broke", { data }).discordEmbed] };
+    }
+
+    it("returns only error messages for the queue and results channel posted after the result message", async () => {
+      const matchingError = anErrorMessageWith("matching-error", { Channel: "<#results-channel-id>", Queue: "777" });
+      const otherQueueError = anErrorMessageWith("other-queue", { Channel: "<#results-channel-id>", Queue: "778" });
+      const otherChannelError = anErrorMessageWith("other-channel", { Channel: "<#other-channel-id>", Queue: "777" });
+      const nonErrorMessage: APIMessage = { ...apiMessage, id: "non-error", embeds: [] };
+      mockFetch.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            doing_deep_historical_index: false,
+            total_results: 4,
+            messages: [[matchingError], [otherQueueError], [otherChannelError], [nonErrorMessage]],
+          }),
+        ),
+      );
+
+      const messages = await discordService.findSeriesErrorMessagesInChannel("fake-guild-id", "post-channel-id", query);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("channel_id=post-channel-id"),
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("min_id=neatqueue-message-id"), expect.anything());
+      expect(messages.map((message) => message.id)).toEqual(["matching-error"]);
+    });
+
+    it("pages through full pages of search results", async () => {
+      const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `page-1-message-${index.toString()}`, embeds: [] },
+      ]);
+      const secondPage = [[anErrorMessageWith("page-2-error", { Channel: "<#results-channel-id>", Queue: "777" })]];
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: firstPage })),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ doing_deep_historical_index: false, total_results: 26, messages: secondPage })),
+        );
+
+      const messages = await discordService.findSeriesErrorMessagesInChannel("fake-guild-id", "post-channel-id", query);
+
+      expect(mockFetch).toHaveBeenNthCalledWith(2, expect.stringContaining("offset=25"), expect.anything());
+      expect(messages.map((message) => message.id)).toEqual(["page-2-error"]);
+    });
+  });
+
   describe("findQueueNumberForThread()", () => {
     it("extracts the queue number from the most recent overview embed", async () => {
       const overviewMessage: APIMessage = {

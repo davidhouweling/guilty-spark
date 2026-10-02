@@ -38,7 +38,11 @@ import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/h
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
-import type { PreservedMessageContent, QueueData } from "../../services/discord/discord";
+import type {
+  ExistingSeriesStatsThreadLocation,
+  PreservedMessageContent,
+  QueueData,
+} from "../../services/discord/discord";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
@@ -2147,22 +2151,47 @@ export class StatsCommand extends BaseCommand {
       }
 
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
-      const queueNumber = await discordService.findQueueNumberForThread(guildId, interaction.channel.id);
-
-      if (queueNumber == null) {
-        throw new EndUserError(
-          "Could not determine which queue this thread's stats are for. Try running /stats fix queue_number:<queue> from the parent channel instead.",
-        );
-      }
-
+      const threadId = interaction.channel.id;
       const parentChannelId = "parent_id" in interaction.channel ? interaction.channel.parent_id : undefined;
-      const channelId = parentChannelId ?? interaction.channel.id;
-      const queueData = await discordService.getTeamsFromQueueResult(guildId, channelId, queueNumber);
+      const channelId = parentChannelId ?? threadId;
+      const queueNumber = await discordService.findQueueNumberForThread(guildId, threadId);
+      const queueData =
+        queueNumber != null
+          ? await discordService.getTeamsFromQueueResult(guildId, channelId, queueNumber)
+          : await this.getQueueDataFromThreadStarterMessage(guildId, channelId, threadId);
 
       await this.fixCommandStartFlow(interaction, channelId, queueData);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  /**
+   * Threads started from a message share its ID, so an error-only thread can still be traced back to the
+   * NeatQueue result message it hangs off.
+   */
+  private async getQueueDataFromThreadStarterMessage(
+    guildId: string,
+    channelId: string,
+    threadId: string,
+  ): Promise<QueueData> {
+    const { discordService } = this.services;
+    const notFoundError = new EndUserError(
+      "Could not determine which queue this thread's stats are for. Try running /stats fix queue_number:<queue> from the parent channel instead.",
+    );
+
+    let starterMessage: APIMessage;
+    try {
+      starterMessage = await discordService.getMessage(channelId, threadId);
+    } catch {
+      throw notFoundError;
+    }
+
+    if (starterMessage.author.id !== NEAT_QUEUE_BOT_USER_ID) {
+      throw notFoundError;
+    }
+
+    return discordService.getTeamsFromMessage(guildId, starterMessage);
   }
 
   private async fixCommandStartFlow(
@@ -2639,7 +2668,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async handleFixConfirmationJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const { databaseService, discordService, haloService, leaderboardService, logService } = this.services;
+    const { databaseService, discordService, haloService } = this.services;
 
     try {
       const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
@@ -2681,10 +2710,14 @@ export class StatsCommand extends BaseCommand {
       amendedOverviewEmbed.fields ??= [];
       amendedOverviewEmbed.fields.push(amendedField);
 
-      const existingLocation = await discordService.findExistingSeriesStatsThreadLocation(
+      const neatQueueConfig = await this.tryResolveNeatQueueConfigForResultsChannel(
         metadata.guildId,
-        metadata.queueData.queue,
+        metadata.channelId,
       );
+      const existingLocation =
+        (await discordService.findExistingSeriesStatsThreadLocation(metadata.guildId, metadata.queueData.queue)) ??
+        this.getNeatQueueResultThreadLocation(metadata.queueData.message);
+      await this.deletePreviousSeriesErrorMessages(metadata, neatQueueConfig);
 
       let destinationThreadId: string;
       let shouldPostOverviewInThread = false;
@@ -2738,31 +2771,8 @@ export class StatsCommand extends BaseCommand {
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
       await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale);
-      try {
-        const neatQueueConfig = await this.resolveNeatQueueConfigForResultsChannel(
-          metadata.guildId,
-          metadata.channelId,
-        );
-        await leaderboardService.persistReconciledSeriesData({
-          guildId: metadata.guildId,
-          channelId: neatQueueConfig.ChannelId,
-          queueNumber: metadata.queueData.queue,
-          neatQueueConfig,
-          series,
-          winnerTeamIndex:
-            metadata.selectedSeriesOutcome === "TEAM_0" ? 0 : metadata.selectedSeriesOutcome === "TEAM_1" ? 1 : -1,
-          locale,
-        });
-      } catch (error) {
-        logService.warn(
-          error,
-          new Map([
-            ["context", "Stats fix leaderboard reconciliation failed"],
-            ["guildId", metadata.guildId],
-            ["channelId", metadata.channelId],
-            ["queue", metadata.queueData.queue.toString()],
-          ]),
-        );
+      if (neatQueueConfig != null) {
+        await this.persistFixedSeriesToLeaderboard(metadata, neatQueueConfig, series, locale);
       }
 
       await discordService.updateDeferredReply(interaction.token, {
@@ -2771,6 +2781,95 @@ export class StatsCommand extends BaseCommand {
       });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private getNeatQueueResultThreadLocation(
+    neatQueueMessage: APIMessage,
+  ): ExistingSeriesStatsThreadLocation | undefined {
+    return neatQueueMessage.thread != null ? { threadId: neatQueueMessage.thread.id } : undefined;
+  }
+
+  /**
+   * Channel-mode failures post the error straight into the post channel rather than a thread.
+   */
+  private async deletePreviousSeriesErrorMessages(
+    metadata: FixFlowMetadata,
+    neatQueueConfig: NeatQueueConfigRow | undefined,
+  ): Promise<void> {
+    const { discordService, logService } = this.services;
+    const postChannelId = neatQueueConfig?.PostSeriesChannelId ?? metadata.channelId;
+
+    try {
+      const errorMessages = await discordService.findSeriesErrorMessagesInChannel(metadata.guildId, postChannelId, {
+        queueNumber: metadata.queueData.queue,
+        resultsChannelId: metadata.channelId,
+        afterMessageId: metadata.queueData.message.id,
+      });
+      await this.deleteMessagesInChunks(
+        postChannelId,
+        errorMessages.map((message) => message.id),
+        "Replacing amended series stats",
+      );
+    } catch (error) {
+      logService.warn(
+        error,
+        new Map([
+          ["guildId", metadata.guildId],
+          ["channelId", postChannelId],
+          ["queue", metadata.queueData.queue.toString()],
+          ["reason", "Failed to clean up previous series error messages"],
+        ]),
+      );
+    }
+  }
+
+  private async persistFixedSeriesToLeaderboard(
+    metadata: FixFlowMetadata,
+    neatQueueConfig: NeatQueueConfigRow,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
+    try {
+      await this.services.leaderboardService.persistReconciledSeriesData({
+        guildId: metadata.guildId,
+        channelId: neatQueueConfig.ChannelId,
+        queueNumber: metadata.queueData.queue,
+        neatQueueConfig,
+        series,
+        winnerTeamIndex:
+          metadata.selectedSeriesOutcome === "TEAM_0" ? 0 : metadata.selectedSeriesOutcome === "TEAM_1" ? 1 : -1,
+        locale,
+      });
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["context", "Stats fix leaderboard reconciliation failed"],
+          ["guildId", metadata.guildId],
+          ["channelId", metadata.channelId],
+          ["queue", metadata.queueData.queue.toString()],
+        ]),
+      );
+    }
+  }
+
+  private async tryResolveNeatQueueConfigForResultsChannel(
+    guildId: string,
+    resultsChannelId: string,
+  ): Promise<NeatQueueConfigRow | undefined> {
+    try {
+      return await this.resolveNeatQueueConfigForResultsChannel(guildId, resultsChannelId);
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["context", "Stats fix queue config resolution failed"],
+          ["guildId", guildId],
+          ["channelId", resultsChannelId],
+        ]),
+      );
+      return undefined;
     }
   }
 
