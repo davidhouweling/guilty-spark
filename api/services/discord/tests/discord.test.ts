@@ -1860,7 +1860,8 @@ describe("DiscordService", () => {
   });
 
   describe("findBotMessagesInThread()", () => {
-    it("returns the flattened search results for the given thread", async () => {
+    it("returns only matching search messages for the given thread", async () => {
+      const contextMessage: APIMessage = { ...apiMessage, id: "context-message" };
       const firstMessage: APIMessage = { ...apiMessage, id: "message-1" };
       const secondMessage: APIMessage = { ...apiMessage, id: "message-2" };
       mockFetch.mockResolvedValue(
@@ -1868,7 +1869,7 @@ describe("DiscordService", () => {
           JSON.stringify({
             doing_deep_historical_index: false,
             total_results: 2,
-            messages: [[firstMessage], [secondMessage]],
+            messages: [[contextMessage, firstMessage], [secondMessage]],
           }),
         ),
       );
@@ -1914,8 +1915,9 @@ describe("DiscordService", () => {
       );
     });
 
-    it("pages through multiple full pages of search results", async () => {
+    it("pages by matching search result groups", async () => {
       const firstPage = Array.from({ length: 25 }, (_, index) => [
+        { ...apiMessage, id: `context-${index.toString()}` },
         { ...apiMessage, id: `page-1-message-${index.toString()}` },
       ]);
       const secondPage = [[{ ...apiMessage, id: "page-2-message-0" }]];

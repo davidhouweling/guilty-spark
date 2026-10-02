@@ -1193,7 +1193,10 @@ export class DiscordService {
   }
 
   private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
-    return this.getSearchResultGroups(searchResponse).flatMap((messages) => messages);
+    return this.getSearchResultGroups(searchResponse).flatMap((group) => {
+      const searchResult = group.at(-1);
+      return searchResult != null ? [searchResult] : [];
+    });
   }
 
   private getSearchResultGroups(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[][] {
@@ -1304,10 +1307,7 @@ export class DiscordService {
       });
 
       const messageGroups = this.getSearchResultGroups(searchResponse);
-      const messages = messageGroups.flatMap((group) => {
-        const searchResult = group.at(-1);
-        return searchResult != null ? [searchResult] : [];
-      });
+      const messages = this.flattenSearchMessages(searchResponse);
       errorMessages.push(
         ...messages.filter((message) => isDiscordSeriesErrorMessage(message, queueNumber, resultsChannelId)),
       );
