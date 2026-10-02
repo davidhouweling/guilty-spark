@@ -1378,6 +1378,252 @@ describe("StatsCommand", () => {
     });
   });
 
+  describe("/stats manual", () => {
+    const ctfMatchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+    let setInteractionMetadataSpy: MockInstance<typeof services.discordService.setInteractionMetadata>;
+
+    function mockLinkedPlayerWithRecentGames(): void {
+      vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+        aFakeDiscordAssociationsRow({ DiscordId: "invoker-id", XboxId: "xuid-1" }),
+      ]);
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
+      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+        gamertag: "player-one",
+        xuid: "xuid-1",
+        suggestedGroupings: [],
+        matches: [aFakeMatchHistoryEntryWith({ matchId: ctfMatchId, modeName: "CTF", mapName: "Bazaar" })],
+      });
+    }
+
+    function aManualSelectInteractionWith(
+      componentType: ComponentType.StringSelect | ComponentType.UserSelect,
+      customId: string,
+      values: string[],
+    ): APIMessageComponentSelectMenuInteraction {
+      const data: APIMessageComponentSelectMenuInteraction["data"] =
+        componentType === ComponentType.UserSelect
+          ? { component_type: componentType, custom_id: customId, values, resolved: { users: {} } }
+          : { component_type: componentType, custom_id: customId, values };
+      return {
+        ...fakeButtonClickInteraction,
+        data,
+        message: { ...fakeButtonClickInteraction.message, id: "manual-flow-message-id" },
+      };
+    }
+
+    async function runManualCommandWith(options: Map<string, number>): Promise<void> {
+      vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+        name: "manual",
+        mappedOptions: options,
+        options: [],
+      });
+
+      const { response, jobToComplete } = statsCommand.execute(applicationCommandInteractionStatsFix);
+      expect(response).toEqual({
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      });
+      await jobToComplete?.();
+    }
+
+    function getLastManualMetadata(): Record<string, unknown> {
+      const [key, metadata] = Preconditions.checkExists(setInteractionMetadataSpy.mock.calls.at(-1));
+      expect(key).toBe("statsManual:manual-flow-message-id");
+      return metadata;
+    }
+
+    beforeEach(() => {
+      vi.spyOn(services.discordService, "getDiscordUserId").mockReturnValue("invoker-id");
+      updateDeferredReplySpy.mockResolvedValue({ ...apiMessage, id: "manual-flow-message-id" });
+      setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+    });
+
+    describe("subcommand", () => {
+      it("allocates a 10-digit queue number and shows the invoker's recent games when no queue number is given", async () => {
+        const findNeatQueueConfigSpy = vi.spyOn(services.databaseService, "findNeatQueueConfig");
+        mockLinkedPlayerWithRecentGames();
+
+        await runManualCommandWith(new Map());
+
+        const metadata = getLastManualMetadata();
+        expect(metadata).toMatchObject({
+          guildId: "fake-guild-id",
+          queueChannelId: null,
+          selectedPlayerId: "invoker-id",
+        });
+        expect(metadata["queueNumber"]?.toString()).toHaveLength(10);
+        expect(findNeatQueueConfigSpy).not.toHaveBeenCalled();
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.components).toEqual([
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              expect.objectContaining({
+                custom_id: "btn_stats_manual_games_select",
+                options: [expect.objectContaining({ value: ctfMatchId, default: false })],
+              }),
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              expect.objectContaining({
+                type: ComponentType.UserSelect,
+                custom_id: "btn_stats_manual_player_select",
+                default_values: [{ id: "invoker-id", type: "user" }],
+              }),
+            ],
+          },
+          {
+            type: ComponentType.ActionRow,
+            components: [expect.objectContaining({ custom_id: "btn_stats_fix_cancel" })],
+          },
+        ]);
+      });
+
+      it("uses the only configured queue when a queue number is given", async () => {
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-channel-id" }),
+        ]);
+        mockLinkedPlayerWithRecentGames();
+
+        await runManualCommandWith(new Map([["queue_number", 42]]));
+
+        expect(getLastManualMetadata()).toMatchObject({ queueNumber: 42, queueChannelId: "queue-channel-id" });
+      });
+
+      it("asks which queue the series was from when several queues are configured", async () => {
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-b" }),
+        ]);
+        vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([]);
+        const getEnrichedMatchHistorySpy = vi.spyOn(services.haloService, "getEnrichedMatchHistory");
+
+        await runManualCommandWith(new Map([["queue_number", 42]]));
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.components?.[0]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            expect.objectContaining({
+              custom_id: "btn_stats_manual_queue_select",
+              options: [
+                { label: "Queue queue-a", value: "queue-a" },
+                { label: "Queue queue-b", value: "queue-b" },
+              ],
+            }),
+          ],
+        });
+        expect(getLastManualMetadata()).toEqual({
+          guildId: "fake-guild-id",
+          channelId: applicationCommandInteractionStatsFix.channel.id,
+          queueNumber: 42,
+          queueChannelId: null,
+        });
+        expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
+      });
+
+      it("keeps the player picker visible when the player has no linked Halo account", async () => {
+        vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([]);
+
+        await runManualCommandWith(new Map());
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toBe(
+          "That player does not have a linked Xbox account. Pick a different player.",
+        );
+        expect(payload.components).toHaveLength(2);
+        expect(payload.components?.[0]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [expect.objectContaining({ custom_id: "btn_stats_manual_player_select" })],
+        });
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("queue select", () => {
+      beforeEach(() => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+          queueChannelId: null,
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-b" }),
+        ]);
+      });
+
+      it("stores the selected queue channel and shows the invoker's recent games", async () => {
+        mockLinkedPlayerWithRecentGames();
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_queue_select", ["queue-b"]),
+        );
+        await jobToComplete?.();
+
+        expect(getLastManualMetadata()).toMatchObject({
+          queueNumber: 42,
+          queueChannelId: "queue-b",
+          selectedPlayerId: "invoker-id",
+        });
+      });
+
+      it("rejects a channel that is not a configured queue", async () => {
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_queue_select", ["queue-z"]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({ message: "The selected channel is not a configured NeatQueue channel." }),
+        );
+        expect(setInteractionMetadataSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("player select", () => {
+      it("loads the selected player's recent games", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          guildId: "fake-guild-id",
+          channelId: "fake-channel-id",
+          queueNumber: 42,
+          queueChannelId: null,
+          selectedPlayerId: "invoker-id",
+        });
+        mockLinkedPlayerWithRecentGames();
+        const getDiscordAssociationsSpy = vi
+          .spyOn(services.databaseService, "getDiscordAssociations")
+          .mockResolvedValue([aFakeDiscordAssociationsRow({ DiscordId: "other-player-id", XboxId: "xuid-2" })]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.UserSelect, "btn_stats_manual_player_select", ["other-player-id"]),
+        );
+        await jobToComplete?.();
+
+        expect(getDiscordAssociationsSpy).toHaveBeenCalledWith(["other-player-id"]);
+        expect(getLastManualMetadata()).toMatchObject({ selectedPlayerId: "other-player-id" });
+      });
+
+      it("returns an expiry error when manual flow state cannot be found", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(null);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.UserSelect, "btn_stats_manual_player_select", ["other-player-id"]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({ message: "Could not find manual stats state. Please run /stats manual again." }),
+        );
+      });
+    });
+  });
+
   describe("execute(): message component fix player select", () => {
     it("retries fix-flow metadata with backoff before returning not-found error", async () => {
       const interaction: APIMessageComponentSelectMenuInteraction = {
