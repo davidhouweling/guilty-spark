@@ -68,6 +68,7 @@ import {
   extractQueueNumberFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
+  isDiscordSeriesErrorMessage,
 } from "./discord-series-stats";
 
 export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
@@ -85,6 +86,12 @@ export interface QueueData {
 export interface ExistingSeriesStatsThreadLocation {
   threadId: string;
   parentOverviewMessage?: { channelId: string; messageId: string } | undefined;
+}
+
+export interface SeriesErrorMessageQuery {
+  queueNumber: number;
+  resultsChannelId: string;
+  afterMessageId: string;
 }
 
 /**
@@ -1186,6 +1193,13 @@ export class DiscordService {
   }
 
   private flattenSearchMessages(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[] {
+    return this.getSearchResultGroups(searchResponse).flatMap((group) => {
+      const searchResult = group.at(-1);
+      return searchResult != null ? [searchResult] : [];
+    });
+  }
+
+  private getSearchResultGroups(searchResponse: RESTGetAPIGuildMessagesSearchResult): APIMessage[][] {
     if ("retry_after" in searchResponse) {
       const isSearchIndexNotReady =
         searchResponse.code === 110000 ||
@@ -1197,7 +1211,7 @@ export class DiscordService {
       throw new EndUserError(SEARCH_RATE_LIMIT_MESSAGE, { errorType: EndUserErrorType.WARNING, handled: true });
     }
 
-    return searchResponse.messages.flatMap((messages) => messages);
+    return searchResponse.messages;
   }
 
   private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
@@ -1271,6 +1285,47 @@ export class DiscordService {
     );
 
     return allMessages;
+  }
+
+  async findSeriesErrorMessagesInChannel(
+    guildId: string,
+    channelId: string,
+    { queueNumber, resultsChannelId, afterMessageId }: SeriesErrorMessageQuery,
+  ): Promise<APIMessage[]> {
+    const errorMessages: APIMessage[] = [];
+
+    for (let page = 0; page < MAX_SEARCH_RESULT_PAGES; page++) {
+      const searchResponse = await this.searchGuildMessages(guildId, {
+        channel_id: [channelId],
+        author_id: [this.env.DISCORD_APP_ID],
+        author_type: [MessageSearchAuthorType.Bot],
+        min_id: afterMessageId,
+        sort_by: MessageSearchSortMode.Timestamp,
+        sort_order: "asc",
+        limit: SEARCH_RESULT_PAGE_SIZE,
+        offset: page * SEARCH_RESULT_PAGE_SIZE,
+      });
+
+      const messageGroups = this.getSearchResultGroups(searchResponse);
+      const messages = this.flattenSearchMessages(searchResponse);
+      errorMessages.push(
+        ...messages.filter((message) => isDiscordSeriesErrorMessage(message, queueNumber, resultsChannelId)),
+      );
+
+      if (messageGroups.length < SEARCH_RESULT_PAGE_SIZE) {
+        return errorMessages;
+      }
+    }
+
+    this.logService.warn(
+      "findSeriesErrorMessagesInChannel: reached page limit while paging through search results",
+      new Map([
+        ["channelId", channelId],
+        ["maxPages", MAX_SEARCH_RESULT_PAGES.toString()],
+      ]),
+    );
+
+    return errorMessages;
   }
 
   private getGuildMemberCacheKey(guildId: string, userId: string): string {

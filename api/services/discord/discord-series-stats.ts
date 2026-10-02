@@ -7,6 +7,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { EmbedColors } from "../../embeds/colors";
+import { EndUserError } from "../../base/end-user-error";
 import type { HaloService } from "../halo/halo";
 import type { LogService } from "../log/types";
 import type { DiscordService } from "./discord";
@@ -54,6 +55,20 @@ export function extractQueueNumberFromSeriesOverviewEmbed(message: APIMessage): 
   }
 
   return undefined;
+}
+
+export function isDiscordSeriesErrorMessage(
+  message: APIMessage,
+  queueNumber: number,
+  resultsChannelId: string,
+): boolean {
+  return message.embeds.some((embed) => {
+    const endUserError = EndUserError.fromDiscordEmbed(embed);
+    return (
+      endUserError?.data["Queue"] === queueNumber.toString() &&
+      endUserError.data["Channel"] === `<#${resultsChannelId}>`
+    );
+  });
 }
 
 export function extractDiscordSeriesMatchIdsFromEmbeds(embeds: readonly APIEmbed[]): string[] {
