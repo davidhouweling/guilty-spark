@@ -1520,8 +1520,68 @@ describe("StatsCommand", () => {
           channelId: applicationCommandInteractionStatsFix.channel.id,
           queueNumber: 42,
           queueChannelId: null,
+          queuePage: 0,
         });
         expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
+      });
+
+      it("makes configured queues beyond the first page selectable", async () => {
+        const configuredQueues = Array.from({ length: 27 }, (_, index) =>
+          aFakeNeatQueueConfigRow({ ChannelId: `queue-${index.toString().padStart(2, "0")}` }),
+        );
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue(configuredQueues);
+        vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([]);
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          guildId: "fake-guild-id",
+          channelId: applicationCommandInteractionStatsFix.channel.id,
+          queueNumber: 42,
+          queueChannelId: null,
+          queuePage: 0,
+        });
+
+        await runManualCommandWith(new Map([["queue_number", 42]]));
+        const firstPage = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const firstQueueSelect = firstPage.components?.[0];
+        expect(firstQueueSelect?.type).toBe(ComponentType.ActionRow);
+        if (firstQueueSelect?.type !== ComponentType.ActionRow) {
+          throw new Error("Expected queue selector action row");
+        }
+        const [firstQueueMenu] = firstQueueSelect.components;
+        if (firstQueueMenu?.type !== ComponentType.StringSelect) {
+          throw new Error("Expected queue string select");
+        }
+        expect(firstQueueMenu.options).toHaveLength(25);
+        expect(firstQueueMenu.options).toContainEqual({
+          label: "Queue queue-24",
+          value: "queue-24",
+        });
+        expect(firstQueueMenu).toMatchObject({
+          custom_id: "btn_stats_manual_queue_select",
+        });
+
+        const { jobToComplete } = statsCommand.execute({
+          ...fakeButtonClickInteraction,
+          data: {
+            component_type: ComponentType.Button,
+            custom_id: "btn_stats_manual_queue_next_page",
+          },
+          message: { ...fakeButtonClickInteraction.message, id: "manual-flow-message-id" },
+        });
+        await jobToComplete?.();
+
+        const secondPage = Preconditions.checkExists(updateDeferredReplySpy.mock.calls.at(-1)?.[1]);
+        const secondQueueSelect = secondPage.components?.[0];
+        if (secondQueueSelect?.type !== ComponentType.ActionRow) {
+          throw new Error("Expected queue selector action row");
+        }
+        expect(secondQueueSelect.components[0]).toMatchObject({
+          custom_id: "btn_stats_manual_queue_select",
+          options: [
+            { label: "Queue queue-25", value: "queue-25" },
+            { label: "Queue queue-26", value: "queue-26" },
+          ],
+        });
+        expect(getLastManualMetadata()).toMatchObject({ queuePage: 1 });
       });
 
       it("keeps the player picker visible when the player has no linked Halo account", async () => {

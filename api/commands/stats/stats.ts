@@ -112,12 +112,14 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   channelId: string;
   queueNumber: number;
   queueChannelId: string | null;
-  selectedPlayerId?: string;
+  queuePage?: number | undefined;
+  selectedPlayerId?: string | undefined;
 }
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
 const DISCORD_SELECT_OPTION_LABEL_LIMIT = 100;
+const MANUAL_QUEUE_SELECT_PAGE_SIZE = 25;
 const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
@@ -171,6 +173,8 @@ export enum InteractionButton {
   FixConfirm = "btn_stats_fix_confirm",
   FixCancel = "btn_stats_fix_cancel",
   ManualQueueSelect = "btn_stats_manual_queue_select",
+  ManualQueuePreviousPage = "btn_stats_manual_queue_previous_page",
+  ManualQueueNextPage = "btn_stats_manual_queue_next_page",
   ManualPlayerSelect = "btn_stats_manual_player_select",
   ManualGamesSelect = "btn_stats_manual_games_select",
 }
@@ -593,6 +597,14 @@ export class StatsCommand extends BaseCommand {
               response: { type: InteractionResponseType.DeferredMessageUpdate },
               jobToComplete: async () =>
                 this.handleManualQueueSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualQueuePreviousPage.toString():
+          case InteractionButton.ManualQueueNextPage.toString(): {
+            return {
+              response: { type: InteractionResponseType.DeferredMessageUpdate },
+              jobToComplete: async () =>
+                this.handleManualQueuePageJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           case InteractionButton.ManualPlayerSelect.toString(): {
@@ -2186,6 +2198,7 @@ export class StatsCommand extends BaseCommand {
         channelId: interaction.channel.id,
         queueNumber: queueNumber ?? allocateManualQueueNumber(),
         queueChannelId: null,
+        queuePage: 0,
       };
 
       if (queueNumber != null) {
@@ -2214,10 +2227,40 @@ export class StatsCommand extends BaseCommand {
     metadata: ManualFlowMetadata,
     configuredQueues: readonly NeatQueueConfigRow[],
   ): Promise<void> {
-    const queueChannelNames = await this.getQueueChannelNames(metadata.guildId, configuredQueues);
+    const sortedQueues = [...configuredQueues].sort((left, right) => left.ChannelId.localeCompare(right.ChannelId));
+    const pageCount = Math.ceil(sortedQueues.length / MANUAL_QUEUE_SELECT_PAGE_SIZE);
+    const page = Math.min(metadata.queuePage ?? 0, pageCount - 1);
+    const pageStart = page * MANUAL_QUEUE_SELECT_PAGE_SIZE;
+    const queueChannelNames = await this.getQueueChannelNames(metadata.guildId, sortedQueues);
+    const queueNavigationRow: APIMessageTopLevelComponent | null =
+      pageCount > 1
+        ? {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.ManualQueuePreviousPage,
+                label: "Previous page",
+                style: ButtonStyle.Secondary,
+                disabled: page === 0,
+              },
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.ManualQueueNextPage,
+                label: "Next page",
+                style: ButtonStyle.Secondary,
+                disabled: page === pageCount - 1,
+              },
+            ],
+          }
+        : null;
     const message = await this.services.discordService.updateDeferredReply(interactionToken, {
       embeds: [
-        this.createStatusEmbed(`Select which queue channel queue #${metadata.queueNumber.toString()} was from.`),
+        this.createStatusEmbed(
+          `Select which queue channel queue #${metadata.queueNumber.toString()} was from.${
+            pageCount > 1 ? ` (page ${(page + 1).toString()} of ${pageCount.toString()})` : ""
+          }`,
+        ),
       ],
       components: [
         {
@@ -2228,18 +2271,39 @@ export class StatsCommand extends BaseCommand {
               custom_id: InteractionButton.ManualQueueSelect,
               min_values: 1,
               max_values: 1,
-              options: configuredQueues.slice(0, 25).map((queue) => ({
+              options: sortedQueues.slice(pageStart, pageStart + MANUAL_QUEUE_SELECT_PAGE_SIZE).map((queue) => ({
                 label: this.getQueueOptionLabel(queue.ChannelId, queueChannelNames),
                 value: queue.ChannelId,
               })),
             },
           ],
         },
+        ...(queueNavigationRow == null ? [] : [queueNavigationRow]),
         this.createFixCancelActionRow(),
       ],
     });
 
-    await this.setManualMetadata(message.id, metadata);
+    await this.setManualMetadata(message.id, { ...metadata, queuePage: page });
+  }
+
+  private async handleManualQueuePageJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+      if (configuredQueues.length < 2) {
+        throw new EndUserError("The configured queues have changed. Please run /stats manual again.");
+      }
+
+      const pageCount = Math.ceil(configuredQueues.length / MANUAL_QUEUE_SELECT_PAGE_SIZE);
+      const pageDelta = interaction.data.custom_id === InteractionButton.ManualQueueNextPage.toString() ? 1 : -1;
+      const queuePage = Math.max(0, Math.min((metadata.queuePage ?? 0) + pageDelta, pageCount - 1));
+
+      await this.showManualQueueSelect(interaction.token, { ...metadata, queuePage }, configuredQueues);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
   }
 
   private async handleManualQueueSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
