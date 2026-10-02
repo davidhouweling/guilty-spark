@@ -459,6 +459,20 @@ export class StatsCommand extends BaseCommand {
       {
         type: InteractionType.MessageComponent,
         data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualQueuePreviousPage,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualQueueNextPage,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
           component_type: ComponentType.UserSelect,
           custom_id: InteractionButton.ManualPlayerSelect,
           values: [],

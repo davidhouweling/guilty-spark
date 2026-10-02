@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { getCommands } from "../commands";
+import { InteractionButton } from "../stats/stats";
 import { installFakeServicesWith } from "../../services/fakes/services";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 
@@ -39,6 +40,11 @@ describe("getCommands", () => {
 
     const leaderboardCommand = commandMap.get("leaderboard");
     expect(leaderboardCommand).toBeDefined();
+  });
+
+  it("registers manual queue pagination buttons for component dispatch", () => {
+    expect(commandMap.get(InteractionButton.ManualQueuePreviousPage)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualQueueNextPage)).toBe(commandMap.get("stats"));
   });
 
   it("all commands have required data property", () => {
