@@ -2565,13 +2565,14 @@ describe("StatsCommand", () => {
         await confirmFixWith(
           aFakeNeatQueueConfigRow({
             ChannelId: "fake-channel-id",
+            ResultsChannelId: "results-channel-id",
             PostSeriesMode: NeatQueuePostSeriesDisplayMode.CHANNEL,
           }),
         );
 
-        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "fake-channel-id", expect.anything());
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "results-channel-id", expect.anything());
         expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
-          "fake-channel-id",
+          "results-channel-id",
           "new-overview-message-id",
           expect.stringContaining("Queue #777 series stats"),
         );
@@ -2605,17 +2606,18 @@ describe("StatsCommand", () => {
         await confirmFixWith(
           aFakeNeatQueueConfigRow({
             ChannelId: "fake-channel-id",
+            ResultsChannelId: "results-channel-id",
             PostSeriesMode: NeatQueuePostSeriesDisplayMode.THREAD,
           }),
         );
 
         expect(startThreadFromMessageSpy).toHaveBeenNthCalledWith(
           2,
-          "fake-channel-id",
+          "results-channel-id",
           "new-overview-message-id",
           expect.stringContaining("Queue #777 series stats"),
         );
-        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "fake-channel-id", expect.anything());
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "results-channel-id", expect.anything());
         expect(createMessageSpy).toHaveBeenCalledWith("fallback-thread-id", expect.anything());
         expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
       });

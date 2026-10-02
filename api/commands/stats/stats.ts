@@ -2825,7 +2825,8 @@ export class StatsCommand extends BaseCommand {
       }
     }
 
-    const postChannelId = neatQueueConfig?.PostSeriesChannelId ?? metadata.channelId;
+    const postChannelId =
+      neatQueueConfig?.PostSeriesChannelId ?? neatQueueConfig?.ResultsChannelId ?? metadata.channelId;
     const seriesOverviewMessage = await discordService.createMessage(postChannelId, {
       embeds: seriesEmbed.embeds,
       components: seriesEmbed.components,
