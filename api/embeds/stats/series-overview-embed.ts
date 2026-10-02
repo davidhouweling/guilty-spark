@@ -49,7 +49,7 @@ export class SeriesOverviewEmbed {
   }: {
     guildId: string;
     channelId: string;
-    messageId: string;
+    messageId?: string | undefined;
     pagesUrl?: string;
     locale: string;
     queue: number;
@@ -151,7 +151,9 @@ export class SeriesOverviewEmbed {
       if (isFirstEmbed) {
         embed.title = `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale, true)})`;
         embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`;
-        embed.url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+        if (messageId != null) {
+          embed.url = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+        }
       }
 
       // Add fields

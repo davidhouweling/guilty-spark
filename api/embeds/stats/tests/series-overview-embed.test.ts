@@ -69,6 +69,37 @@ describe("SeriesOverviewEmbed", () => {
       expect(firstEmbed?.description).toContain("Team Beta");
     });
 
+    it("links the embed title to the source message when a message id is provided", async () => {
+      const output = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        messageId: "message123",
+        locale: "en-US",
+        queue: 1,
+        series: [sampleMatchStats],
+        finalTeams: [],
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      expect(output.embeds[0]?.url).toBe("https://discord.com/channels/guild123/channel123/message123");
+    });
+
+    it("omits the embed title link when no message id is provided", async () => {
+      const output = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        locale: "en-US",
+        queue: 1,
+        series: [sampleMatchStats],
+        finalTeams: [],
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      expect(output.embeds[0]?.url).toBeUndefined();
+    });
+
     it("creates an embed with substitutions", async () => {
       const finalTeams: TeamMapping[] = [
         {

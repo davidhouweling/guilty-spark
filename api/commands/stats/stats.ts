@@ -90,6 +90,7 @@ import {
   parsePlayerCompareAggregation,
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
+import type { MatchHistoryEntry } from "../../services/halo/types";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -2298,7 +2299,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async handleFixPlayerSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { databaseService, discordService, haloService } = this.services;
+    const { discordService } = this.services;
 
     try {
       const selectedPlayerId = Preconditions.checkExists(interaction.data.values[0], "No player selected");
@@ -2307,33 +2308,10 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
       }
 
-      const [association] = await databaseService.getDiscordAssociations([selectedPlayerId]);
-      if (association?.XboxId == null || association.XboxId === "") {
-        throw new EndUserError("That player does not have a linked Xbox account.");
-      }
-
-      const [user] = await haloService.getUsersByXuids([association.XboxId]);
-      if (user == null) {
-        throw new EndUserError("Could not find a Halo account for that player.");
-      }
-
       const locale = interaction.guild_locale ?? interaction.locale;
-      const matchHistory = await haloService.getEnrichedMatchHistory(user.gamertag, locale, MatchType.Custom, 25);
-      if (matchHistory.matches.length === 0) {
-        throw new EndUserError("No recent custom games were found for that player.");
-      }
-
+      const recentGames = await this.getRecentCustomGames(selectedPlayerId, locale);
       const preselectedMatchIds = await this.getPreselectedFixMatchIds(metadata, interaction);
-
-      const gameOptions: APISelectMenuOption[] = matchHistory.matches.map<APISelectMenuOption>((match) => {
-        const label = this.getFixGameSelectionLabel(match.modeName, match.mapName, match.resultString);
-        return {
-          label: label.slice(0, 100),
-          value: match.matchId,
-          description: this.getFixGameSelectionDescription(match.endTime, match.endTimeIso).slice(0, 100),
-          default: preselectedMatchIds.has(match.matchId),
-        };
-      });
+      const gameOptions = this.toGameSelectOptions(recentGames, preselectedMatchIds);
 
       const selectedMatchIds = gameOptions.filter((option) => Boolean(option.default)).map((option) => option.value);
       await this.setFixMetadata(interaction.message.id, {
@@ -2373,6 +2351,42 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private async getRecentCustomGames(discordUserId: string, locale: string): Promise<MatchHistoryEntry[]> {
+    const { databaseService, haloService } = this.services;
+
+    const [association] = await databaseService.getDiscordAssociations([discordUserId]);
+    if (association?.XboxId == null || association.XboxId === "") {
+      throw new EndUserError("That player does not have a linked Xbox account.");
+    }
+
+    const [user] = await haloService.getUsersByXuids([association.XboxId]);
+    if (user == null) {
+      throw new EndUserError("Could not find a Halo account for that player.");
+    }
+
+    const matchHistory = await haloService.getEnrichedMatchHistory(user.gamertag, locale, MatchType.Custom, 25);
+    if (matchHistory.matches.length === 0) {
+      throw new EndUserError("No recent custom games were found for that player.");
+    }
+
+    return matchHistory.matches;
+  }
+
+  private toGameSelectOptions(
+    matches: readonly MatchHistoryEntry[],
+    preselectedMatchIds: ReadonlySet<string>,
+  ): APISelectMenuOption[] {
+    return matches.map<APISelectMenuOption>((match) => {
+      const label = this.getFixGameSelectionLabel(match.modeName, match.mapName, match.resultString);
+      return {
+        label: label.slice(0, 100),
+        value: match.matchId,
+        description: this.getFixGameSelectionDescription(match.endTime, match.endTimeIso).slice(0, 100),
+        default: preselectedMatchIds.has(match.matchId),
+      };
+    });
   }
 
   private getFixGameSelectionLabel(modeName: string, mapName: string, result: string): string {
@@ -2971,17 +2985,13 @@ export class StatsCommand extends BaseCommand {
     await this.services.discordService.setInteractionMetadata(this.fixMetadataKey(messageId), metadata);
   }
 
-  private async getFixMetadata(messageId: string): Promise<FixFlowMetadata | null> {
-    const metadata = await this.services.discordService.getInteractionMetadata<FixFlowMetadata>(
-      this.fixMetadataKey(messageId),
-    );
-
-    return metadata;
+  private async getFixMetadataWithRetry(messageId: string): Promise<FixFlowMetadata | null> {
+    return this.getInteractionMetadataWithRetry<FixFlowMetadata>(this.fixMetadataKey(messageId));
   }
 
-  private async getFixMetadataWithRetry(messageId: string): Promise<FixFlowMetadata | null> {
+  private async getInteractionMetadataWithRetry<T extends Record<string, unknown>>(key: string): Promise<T | null> {
     for (let attempt = 0; attempt <= FIX_METADATA_MAX_RETRIES; attempt += 1) {
-      const metadata = await this.getFixMetadata(messageId);
+      const metadata = await this.services.discordService.getInteractionMetadata<T>(key);
       if (metadata != null) {
         return metadata;
       }
