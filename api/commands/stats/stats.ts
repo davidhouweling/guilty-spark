@@ -118,7 +118,6 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   guildId: string;
   channelId: string;
   queueNumber: number;
-  seriesId?: string | undefined;
   queueChannelId: string | null;
   queuePage?: number | undefined;
   selectedPlayerId?: string | undefined;
@@ -2252,7 +2251,7 @@ export class StatsCommand extends BaseCommand {
     queueNumber: number,
     series: MatchStats[],
     locale: string,
-    seriesId?: string,
+    isManualSeries = false,
   ): Promise<void> {
     const { discordService, haloService, logService } = this.services;
 
@@ -2265,13 +2264,12 @@ export class StatsCommand extends BaseCommand {
         queueNumber,
         matches: series,
         locale,
-        seriesId,
+        isManualSeries,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({
         guildId,
         queueNumber,
-        seriesId,
         matchIds: renderData.matches.map((match) => match.matchId),
         renderData,
       });
@@ -2319,7 +2317,6 @@ export class StatsCommand extends BaseCommand {
         guildId,
         channelId: interaction.channel.id,
         queueNumber: queueNumber ?? allocateManualQueueNumber(),
-        seriesId: crypto.randomUUID(),
         queueChannelId: null,
         queuePage: 0,
       };
@@ -2684,7 +2681,6 @@ export class StatsCommand extends BaseCommand {
       pagesUrl: this.env.PAGES_URL,
       locale,
       queue: metadata.queueNumber,
-      seriesId: metadata.seriesId,
       series,
       finalTeams: Preconditions.checkExists(metadata.teams, "Expected manual series teams"),
       substitutions: [],
@@ -2710,14 +2706,11 @@ export class StatsCommand extends BaseCommand {
       const teamMappings = resolveManualSeriesTeamMappings(series);
       const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
 
-      if (metadata.seriesId != null) {
-        await discordService.cacheDiscordSeriesMatchIds(
-          metadata.guildId,
-          metadata.queueNumber,
-          metadata.seriesId,
-          series.map((match) => match.MatchId),
-        );
-      }
+      await discordService.cacheDiscordSeriesMatchIds(
+        metadata.guildId,
+        metadata.queueNumber,
+        series.map((match) => match.MatchId),
+      );
 
       const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
       const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
@@ -2754,7 +2747,7 @@ export class StatsCommand extends BaseCommand {
         await this.rollbackManualSeriesPublication(publication, error);
       }
 
-      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale, metadata.seriesId);
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale, true);
       if (queueConfig != null) {
         await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
       }

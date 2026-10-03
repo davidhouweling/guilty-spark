@@ -15,7 +15,6 @@ interface DiscordSeriesStatsAppProps {
   readonly apiHost: string;
   readonly guildId: string;
   readonly queueNumber: string;
-  readonly seriesId?: string | undefined;
 }
 
 interface DiscordSeriesStatsDataProps {
@@ -24,7 +23,6 @@ interface DiscordSeriesStatsDataProps {
   readonly medalMetadataResolver: Services["medalMetadataResolver"];
   readonly guildId: string;
   readonly queueNumber: string;
-  readonly seriesId?: string | undefined;
 }
 
 function DiscordSeriesStatsData({
@@ -33,7 +31,6 @@ function DiscordSeriesStatsData({
   medalMetadataResolver,
   guildId,
   queueNumber,
-  seriesId,
 }: DiscordSeriesStatsDataProps): ReactElement {
   const DiscordSeriesStats = useMemo(
     () => createDiscordSeriesStats({ matchAnalyticsService, medalMetadataResolver }),
@@ -47,9 +44,8 @@ function DiscordSeriesStatsData({
       discordSeriesStatsService,
       guildId,
       queueNumber,
-      seriesId,
     });
-  }, [discordSeriesStatsService, guildId, queueNumber, seriesId, store]);
+  }, [discordSeriesStatsService, guildId, queueNumber, store]);
 
   useEffect(() => {
     presenter.start();
@@ -98,12 +94,7 @@ function DiscordSeriesStatsData({
   );
 }
 
-export function DiscordSeriesStatsApp({
-  apiHost,
-  guildId,
-  queueNumber,
-  seriesId,
-}: DiscordSeriesStatsAppProps): ReactElement {
+export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: DiscordSeriesStatsAppProps): ReactElement {
   const [loadingServices, setLoadingServices] = useState(ComponentLoaderStatus.PENDING);
   const [services, setServices] = useState<Services | null>(null);
 
@@ -151,7 +142,6 @@ export function DiscordSeriesStatsApp({
             medalMetadataResolver={services.medalMetadataResolver}
             guildId={guildId}
             queueNumber={queueNumber}
-            seriesId={seriesId}
           />
         ) : (
           <ErrorState message="Stats service failed to load" />

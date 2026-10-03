@@ -123,6 +123,7 @@ export type DiscordSeriesLookupResult =
       guildId: string;
       queueNumber: number;
       matchIds: string[];
+      isManualSeries?: boolean | undefined;
     }
   | DiscordSeriesStatsPending
   | DiscordSeriesStatsNotFound;
@@ -148,8 +149,8 @@ const SEARCH_INDEXING_MESSAGE =
   "Discord is still indexing recent messages for search. Please try again in a few seconds.";
 const SEARCH_RATE_LIMIT_MESSAGE = "Discord is rate limiting message search. Please try again in a few seconds.";
 
-function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number, seriesId?: string): string {
-  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId)}:lookup`;
+function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
+  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
 }
 
 function getActiveQueueLookupCacheKey(guildId: string, channelId: string): string {
@@ -417,31 +418,21 @@ export class DiscordService {
   async getSeriesStatsLookup(
     guildId: string,
     queueNumber: number,
-    seriesId?: string,
   ): Promise<DiscordSeriesStats | DiscordSeriesLookupResult | DiscordSeriesStatsForbidden> {
     try {
-      const cached = await this.getCachedDiscordSeriesStats(guildId, queueNumber, seriesId);
+      const cached = await this.getCachedDiscordSeriesStats(guildId, queueNumber);
       if (cached != null) {
         return cached;
       }
 
-      const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber, seriesId);
-      if (cachedLookup != null) {
-        return cachedLookup;
+      const manualMatchIds = await this.getManualSeriesMatchIds(guildId, queueNumber);
+      if (manualMatchIds != null) {
+        return { status: "lookup-resolved", guildId, queueNumber, matchIds: manualMatchIds, isManualSeries: true };
       }
 
-      if (seriesId != null) {
-        const matchIds = await this.getManualSeriesMatchIds(guildId, queueNumber, seriesId);
-        if (matchIds != null) {
-          return { status: "lookup-resolved", guildId, queueNumber, matchIds };
-        }
-
-        return {
-          status: "not-found",
-          guildId,
-          queueNumber,
-          reason: "No matching manual series stats were found",
-        };
+      const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber);
+      if (cachedLookup != null) {
+        return cachedLookup;
       }
 
       const lookupResult = await this.findDiscordSeriesLookupResult(guildId, queueNumber);
@@ -467,15 +458,16 @@ export class DiscordService {
   async getSeriesStats({
     guildId,
     queueNumber,
-    seriesId,
     resolveRenderData,
   }: {
     guildId: string;
     queueNumber: number;
-    seriesId?: string | undefined;
-    resolveRenderData: (matchIds: string[]) => Promise<DiscordSeriesStatsResolved["renderData"]>;
+    resolveRenderData: (
+      matchIds: string[],
+      isManualSeries: boolean,
+    ) => Promise<DiscordSeriesStatsResolved["renderData"]>;
   }): Promise<DiscordSeriesStats | DiscordSeriesStatsForbidden> {
-    const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber, seriesId);
+    const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber);
 
     if (lookupOrCached.status === "pending-index") {
       return lookupOrCached;
@@ -493,7 +485,7 @@ export class DiscordService {
       return lookupOrCached;
     }
 
-    const renderData = await resolveRenderData(lookupOrCached.matchIds);
+    const renderData = await resolveRenderData(lookupOrCached.matchIds, lookupOrCached.isManualSeries === true);
     const resolvedResponse: DiscordSeriesStats = {
       status: "resolved",
       guildId,
@@ -505,7 +497,6 @@ export class DiscordService {
     await this.cacheResolvedDiscordSeriesStats({
       guildId,
       queueNumber,
-      seriesId,
       matchIds: lookupOrCached.matchIds,
       renderData,
     });
@@ -513,12 +504,8 @@ export class DiscordService {
     return resolvedResponse;
   }
 
-  private async getCachedDiscordSeriesStats(
-    guildId: string,
-    queueNumber: number,
-    seriesId?: string,
-  ): Promise<DiscordSeriesStats | null> {
-    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId);
+  private async getCachedDiscordSeriesStats(guildId: string, queueNumber: number): Promise<DiscordSeriesStats | null> {
+    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber);
     const cached = await this.env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
     if (cached == null || typeof cached !== "object") {
       return null;
@@ -637,9 +624,8 @@ export class DiscordService {
   private async getCachedDiscordSeriesLookupResult(
     guildId: string,
     queueNumber: number,
-    seriesId?: string,
   ): Promise<DiscordSeriesLookupResult | null> {
-    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber, seriesId);
+    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber);
     const cached = await this.env.APP_DATA.get<DiscordSeriesLookupResult>(lookupCacheKey, { type: "json" });
     if (cached == null || typeof cached !== "object") {
       return null;
@@ -660,14 +646,15 @@ export class DiscordService {
       return null;
     }
 
+    const hasValidManualMarker = cached.isManualSeries == null || typeof cached.isManualSeries === "boolean";
     const hasValidMatchIds =
       Array.isArray(cached.matchIds) && cached.matchIds.every((matchId) => typeof matchId === "string");
-    if (!hasValidMatchIds) {
+    if (!hasValidMatchIds || !hasValidManualMarker) {
       this.logService.warn(
         "Invalid cached discord series lookup payload, treating as cache miss",
         new Map([
           ["cacheKey", lookupCacheKey],
-          ["reason", "matchIds must be an array of strings"],
+          ["reason", "matchIds must be strings and isManualSeries must be a boolean when present"],
         ]),
       );
       return null;
@@ -679,17 +666,15 @@ export class DiscordService {
   async cacheResolvedDiscordSeriesStats({
     guildId,
     queueNumber,
-    seriesId,
     matchIds,
     renderData,
   }: {
     guildId: string;
     queueNumber: number;
-    seriesId?: string | undefined;
     matchIds: string[];
     renderData: DiscordSeriesStatsResolved["renderData"];
   }): Promise<void> {
-    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId);
+    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber);
     const resolvedResponse: DiscordSeriesStatsResolved = {
       status: "resolved",
       guildId,
@@ -703,22 +688,17 @@ export class DiscordService {
     });
   }
 
-  async cacheDiscordSeriesMatchIds(
-    guildId: string,
-    queueNumber: number,
-    seriesId: string,
-    matchIds: string[],
-  ): Promise<void> {
-    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber, seriesId);
+  async cacheDiscordSeriesMatchIds(guildId: string, queueNumber: number, matchIds: string[]): Promise<void> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
     await this.env.APP_DATA.put(key, JSON.stringify(matchIds));
+    await Promise.all([
+      this.env.APP_DATA.delete(getDiscordSeriesStatsCacheKey(guildId, queueNumber)),
+      this.env.APP_DATA.delete(getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber)),
+    ]);
   }
 
-  private async getManualSeriesMatchIds(
-    guildId: string,
-    queueNumber: number,
-    seriesId: string,
-  ): Promise<string[] | null> {
-    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber, seriesId);
+  private async getManualSeriesMatchIds(guildId: string, queueNumber: number): Promise<string[] | null> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
     const matchIds = await this.env.APP_DATA.get(key, { type: "json" });
     if (matchIds == null) {
       return null;

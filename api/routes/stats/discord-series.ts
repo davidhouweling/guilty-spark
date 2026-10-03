@@ -10,7 +10,6 @@ import type {
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { z } from "zod";
 import type { DiscordSeriesLookupResult, DiscordService } from "../../services/discord/discord";
 import {
   buildDiscordSeriesRenderDataFromMatches,
@@ -19,15 +18,6 @@ import {
 import type { RoutesRegisterHandler } from "../base/types";
 import type { HaloService } from "../../services/halo/halo";
 import type { LogService } from "../../services/log/types";
-
-function parseSeriesId(request: Request): string | null | false {
-  const seriesId = new URL(request.url).searchParams.get("seriesId");
-  if (seriesId == null) {
-    return null;
-  }
-
-  return z.uuid().safeParse(seriesId).success ? seriesId : false;
-}
 
 function getResponseOptions(response: DiscordSeriesStats): {
   status: number;
@@ -105,7 +95,7 @@ async function tryBuildRenderData({
   guildId,
   queueNumber,
   matchIds,
-  seriesId,
+  isManualSeries,
 }: {
   discordService: DiscordService;
   logService: LogService;
@@ -113,7 +103,7 @@ async function tryBuildRenderData({
   guildId: string;
   queueNumber: number;
   matchIds: string[];
-  seriesId?: string | undefined;
+  isManualSeries: boolean;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   const matches = await haloService.getMatchDetails(matchIds);
 
@@ -124,7 +114,7 @@ async function tryBuildRenderData({
     guildId,
     queueNumber,
     matches,
-    seriesId,
+    isManualSeries,
   });
 }
 
@@ -141,19 +131,13 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       return parsedParams.response;
     }
 
-    const seriesId = parseSeriesId(request);
-    if (seriesId === false) {
-      return errorContract.toResponse({ error: "Invalid seriesId" }, { status: 400, noStore: true });
-    }
-
     const { guildId, queueNumber } = parsedParams.data;
 
     try {
       const response = await discordService.getSeriesStats({
         guildId,
         queueNumber,
-        seriesId: seriesId ?? undefined,
-        resolveRenderData: async (matchIds: string[]) =>
+        resolveRenderData: async (matchIds: string[], isManualSeries: boolean) =>
           tryBuildRenderData({
             discordService,
             logService,
@@ -161,7 +145,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
             guildId,
             queueNumber,
             matchIds,
-            seriesId: seriesId ?? undefined,
+            isManualSeries,
           }),
       });
 
@@ -187,15 +171,10 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       return parsedParams.response;
     }
 
-    const seriesId = parseSeriesId(request);
-    if (seriesId === false) {
-      return errorContract.toResponse({ error: "Invalid seriesId" }, { status: 400, noStore: true });
-    }
-
     const { guildId, queueNumber } = parsedParams.data;
 
     try {
-      const lookupOrCached = await discordService.getSeriesStatsLookup(guildId, queueNumber, seriesId ?? undefined);
+      const lookupOrCached = await discordService.getSeriesStatsLookup(guildId, queueNumber);
       return toLookupResponse(lookupOrCached);
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve discord series stats lookup route"]]));

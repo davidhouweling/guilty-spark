@@ -9,15 +9,12 @@ import ErrorState from "../../../../components/error-state/error-state.astro";
 import { installDiscordSeriesStatsService } from "../../../../services/stats/install";
 
 const { guildId = "", queueNumber = "" } = Astro.params;
-const seriesId = Astro.url.searchParams.get("seriesId") ?? undefined;
 
 const isSnowflake = /^\d+$/.test(guildId);
 const isStrictPositiveInteger = /^[1-9]\d*$/.test(queueNumber);
-const isValidSeriesId =
-  seriesId == null || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seriesId);
 const parsedQueueNumber = Number(queueNumber);
 const isSafeQueueNumber = Number.isSafeInteger(parsedQueueNumber) && parsedQueueNumber > 0;
-const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber || !isValidSeriesId;
+const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber;
 let lookupStatus = hasInvalidParams ? 404 : 500;
 let retryAfterSeconds = 2;
 
@@ -34,7 +31,7 @@ if (hasInvalidParams) {
 } else {
   try {
     const statsService = await installDiscordSeriesStatsService(String(API_HOST));
-    const response = await statsService.getLookup(guildId, queueNumber, seriesId);
+    const response = await statsService.getLookup(guildId, queueNumber);
     lookupStatus = response.status;
     Astro.response.status = lookupStatus;
 
@@ -58,13 +55,7 @@ if (hasInvalidParams) {
     hasInvalidParams || lookupStatus === 404 ? (
       <ErrorState title="Queue not found" message="No matching queue was found for this guild." />
     ) : lookupStatus === 200 ? (
-      <DiscordSeriesStatsApp
-        client:only="react"
-        apiHost={API_HOST}
-        guildId={guildId}
-        queueNumber={queueNumber}
-        seriesId={seriesId}
-      />
+      <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
     ) : lookupStatus === 503 ? (
       <LoadingState text={`Stats are still indexing. Retry in ${retryAfterSeconds.toString()}s.`} />
     ) : lookupStatus === 403 ? (

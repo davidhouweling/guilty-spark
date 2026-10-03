@@ -90,7 +90,7 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
       queueNumber: 42,
       matches,
       locale: "en-US",
-      seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
+      isManualSeries: true,
     });
 
     expect(renderData.seriesScore).toBe("2:0");
@@ -103,10 +103,9 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
 });
 
 describe("getDiscordSeriesStatsCacheKey()", () => {
-  it("separates manual series sharing the same queue number", () => {
-    expect(getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-one")).not.toBe(
-      getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-two"),
-    );
+  it("uses the guild and queue number as the stats identity", () => {
+    expect(getDiscordSeriesStatsCacheKey("guild-1", 7777)).toBe("stats:discord:series:guild-1:7777");
+    expect(getDiscordSeriesStatsMatchIdsKey("guild-1", 7777)).toBe("stats:discord:series:guild-1:7777:match-ids");
   });
 });
 
@@ -117,11 +116,8 @@ describe("DiscordService.cacheDiscordSeriesMatchIds()", () => {
     const putSpy = vi.spyOn(env.APP_DATA, "put");
     const matchIds = ["match-one", "match-two"];
 
-    await discordService.cacheDiscordSeriesMatchIds("guild-1", 7777, "series-one", matchIds);
+    await discordService.cacheDiscordSeriesMatchIds("guild-1", 7777, matchIds);
 
-    expect(putSpy).toHaveBeenCalledWith(
-      getDiscordSeriesStatsMatchIdsKey("guild-1", 7777, "series-one"),
-      JSON.stringify(matchIds),
-    );
+    expect(putSpy).toHaveBeenCalledWith(getDiscordSeriesStatsMatchIdsKey("guild-1", 7777), JSON.stringify(matchIds));
   });
 });

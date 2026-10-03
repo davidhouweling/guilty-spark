@@ -34,7 +34,7 @@ describe("DiscordSeriesStatsPresenter", () => {
 
     presenter.start();
     await vi.waitFor(() => {
-      expect(getStats).toHaveBeenCalledWith("123456789012345678", "7777", undefined);
+      expect(getStats).toHaveBeenCalledWith("123456789012345678", "7777");
       expect(store.getSnapshot()).toMatchObject({
         errorMessage: null,
         loaderStatus: ComponentLoaderStatus.LOADED,
@@ -43,7 +43,7 @@ describe("DiscordSeriesStatsPresenter", () => {
     });
   });
 
-  it("passes the manual series id to the service", async (): Promise<void> => {
+  it("loads manual series using the queue number", async (): Promise<void> => {
     const response = aFakeResolvedDiscordSeriesStatsWith();
     const getStats = vi.fn<DiscordSeriesStatsService["getStats"]>(async () =>
       Promise.resolve<DiscordSeriesStatsResult>({
@@ -58,12 +58,11 @@ describe("DiscordSeriesStatsPresenter", () => {
       discordSeriesStatsService: createServiceWith(getStats),
       guildId: "123456789012345678",
       queueNumber: "7777",
-      seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
     });
 
     presenter.start();
     await vi.waitFor(() => {
-      expect(getStats).toHaveBeenCalledWith("123456789012345678", "7777", "d9408885-89bc-4bb3-a7b8-248e7304a846");
+      expect(getStats).toHaveBeenCalledWith("123456789012345678", "7777");
     });
   });
 

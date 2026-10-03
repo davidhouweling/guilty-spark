@@ -1533,7 +1533,7 @@ describe("StatsCommand", () => {
           queueChannelId: null,
           queuePage: 0,
         });
-        expect(typeof metadata["seriesId"]).toBe("string");
+        expect(metadata["seriesId"]).toBeUndefined();
         expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
       });
 
@@ -2040,7 +2040,6 @@ describe("StatsCommand", () => {
         queueChannelId: null,
         selectedPlayerId: "invoker-id",
         selectedMatchIds: [ctfMatchId, slayerMatchId],
-        seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
         teams: [
           { name: "Eagle", playerIds: ["discord-1"] },
           { name: "Cobra", playerIds: ["discord-4"] },
@@ -2117,17 +2116,14 @@ describe("StatsCommand", () => {
           expect.objectContaining({
             guildId: "fake-guild-id",
             queueNumber: 20261003050709,
-            seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
           }),
         );
-        expect(cacheDiscordSeriesMatchIdsSpy).toHaveBeenCalledWith(
-          "fake-guild-id",
-          20261003050709,
-          "d9408885-89bc-4bb3-a7b8-248e7304a846",
-          [ctfMatchId, slayerMatchId],
-        );
+        expect(cacheDiscordSeriesMatchIdsSpy).toHaveBeenCalledWith("fake-guild-id", 20261003050709, [
+          ctfMatchId,
+          slayerMatchId,
+        ]);
         expect(JSON.stringify(overviewPayload.components)).toContain(
-          "http://localhost:4321/stats/discord/fake-guild-id/20261003050709?seriesId=d9408885-89bc-4bb3-a7b8-248e7304a846",
+          "http://localhost:4321/stats/discord/fake-guild-id/20261003050709",
         );
         expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
