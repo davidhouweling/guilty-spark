@@ -12,19 +12,16 @@ function aMatch(matchId: string): MatchStats {
 }
 
 describe("allocateManualQueueNumber()", () => {
-  it("returns the lowest 10-digit number when the random source returns 0", () => {
-    expect(allocateManualQueueNumber(() => 0)).toBe(MANUAL_QUEUE_NUMBER_MIN);
+  it("formats the UTC creation time as YYYYMMDDHHmmss", () => {
+    expect(allocateManualQueueNumber(new Date("2026-10-03T05:07:09.123Z"))).toBe(20261003050709);
   });
 
-  it("returns the highest 10-digit number when the random source approaches 1", () => {
-    expect(allocateManualQueueNumber(() => 0.9999999999)).toBe(9_999_999_999);
-  });
-
-  it("returns a 10-digit integer by default", () => {
+  it("returns a safe integer above the manual queue number threshold by default", () => {
     const queueNumber = allocateManualQueueNumber();
 
     expect(Number.isSafeInteger(queueNumber)).toBe(true);
-    expect(queueNumber.toString()).toHaveLength(10);
+    expect(queueNumber).toBeGreaterThanOrEqual(MANUAL_QUEUE_NUMBER_MIN);
+    expect(queueNumber.toString()).toHaveLength(14);
   });
 });
 

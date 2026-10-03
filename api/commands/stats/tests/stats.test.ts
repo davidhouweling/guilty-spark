@@ -1439,19 +1439,22 @@ describe("StatsCommand", () => {
     });
 
     describe("subcommand", () => {
-      it("allocates a 10-digit queue number and shows the invoker's recent games when no queue number is given", async () => {
+      it("uses the current UTC time as the queue number and shows the invoker's recent games when no queue number is given", async () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(new Date("2026-10-03T05:07:09.123Z"));
         const findNeatQueueConfigSpy = vi.spyOn(services.databaseService, "findNeatQueueConfig");
         mockLinkedPlayerWithRecentGames();
 
         await runManualCommandWith(new Map());
+        vi.useRealTimers();
 
         const metadata = getLastManualMetadata();
         expect(metadata).toMatchObject({
           guildId: "fake-guild-id",
+          queueNumber: 20261003050709,
           queueChannelId: null,
           selectedPlayerId: "invoker-id",
         });
-        expect(metadata["queueNumber"]?.toString()).toHaveLength(10);
         expect(findNeatQueueConfigSpy).not.toHaveBeenCalled();
         const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
         expect(payload.components).toEqual([
