@@ -66,6 +66,7 @@ import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
   extractDiscordSeriesMatchIdsFromEmbeds,
   extractQueueNumberFromSeriesOverviewEmbed,
+  extractTeamsFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
   getDiscordSeriesStatsMatchIdsKey,
@@ -754,6 +755,35 @@ export class DiscordService {
     return this.buildQueueDataFromMessage(guildId, message, embed, queueNumber, false);
   }
 
+  /**
+   * Manual series have no NeatQueue result, so their teams are recovered from the overview's team lines instead.
+   */
+  async getTeamsFromSeriesOverview(guildId: string, message: APIMessage, queueNumber: number): Promise<QueueData> {
+    const embed = getDiscordSeriesOverviewEmbed(message, queueNumber);
+    const teams = embed == null ? [] : extractTeamsFromSeriesOverviewEmbed(embed);
+    if (teams.length !== 2) {
+      throw new EndUserError(`Could not read the teams from the series stats for queue #${queueNumber.toString()}.`, {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    const members = new Map<string, APIGuildMember>();
+    for (const playerId of teams.flatMap((team) => team.playerIds)) {
+      members.set(playerId, await this.getGuildMember(guildId, playerId));
+    }
+
+    return {
+      message,
+      timestamp: new Date(message.timestamp),
+      queue: queueNumber,
+      teams: teams.map((team) => ({
+        name: team.name,
+        players: team.playerIds.map((playerId) => Preconditions.checkExists(members.get(playerId))),
+      })),
+    };
+  }
+
   async getTeamsFromQueueChannel(guildId: string, channelId: string): Promise<QueueData | null> {
     const messages = await this.fetch<APIMessage[]>(Routes.channelMessages(channelId), {
       method: "GET",
@@ -1256,7 +1286,7 @@ export class DiscordService {
     return searchResponse.messages;
   }
 
-  private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
+  async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
     const searchResponse = await this.searchGuildMessages(guildId, {
       content: `Series stats for queue #${queueNumber.toString()}`,
       author_id: [this.env.DISCORD_APP_ID],

@@ -5,6 +5,7 @@ import { MatchOutcome } from "halo-infinite-api";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import {
   buildDiscordSeriesRenderDataFromMatches,
+  extractTeamsFromSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
   getDiscordSeriesStatsMatchIdsKey,
 } from "../discord-series-stats";
@@ -13,6 +14,24 @@ import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { getMatchStats, aMatchWithSwappableRosters } from "../../halo/fakes/data";
 import { guild } from "../fakes/data";
+
+describe("extractTeamsFromSeriesOverviewEmbed()", () => {
+  it("parses each bold team line into a team name and mentioned player ids", () => {
+    const teams = extractTeamsFromSeriesOverviewEmbed({
+      description: "**Eagle:** <@111> <@!222>\n**Cobra:** <@333>\n\n-# Start time: <t:1:f> | End time: <t:2:f>",
+    });
+
+    expect(teams).toEqual([
+      { name: "Eagle", playerIds: ["111", "222"] },
+      { name: "Cobra", playerIds: ["333"] },
+    ]);
+  });
+
+  it("returns no teams when the description has no team lines", () => {
+    expect(extractTeamsFromSeriesOverviewEmbed({ description: "-# Start time: <t:1:f>" })).toEqual([]);
+    expect(extractTeamsFromSeriesOverviewEmbed({})).toEqual([]);
+  });
+});
 
 describe("buildDiscordSeriesRenderDataFromMatches()", () => {
   it("uses the guild's preferred locale instead of a hardcoded locale", async () => {
