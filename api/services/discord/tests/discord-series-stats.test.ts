@@ -110,7 +110,7 @@ describe("getDiscordSeriesStatsCacheKey()", () => {
 });
 
 describe("DiscordService.cacheDiscordSeriesMatchIds()", () => {
-  it("stores the manual series match-id lookup without an expiration", async () => {
+  it("stores the manual series match-id lookup by guild and queue number", async () => {
     const env = aFakeEnvWith();
     const discordService = aFakeDiscordServiceWith({ env });
     const putSpy = vi.spyOn(env.APP_DATA, "put");

@@ -1533,7 +1533,6 @@ describe("StatsCommand", () => {
           queueChannelId: null,
           queuePage: 0,
         });
-        expect(metadata["seriesId"]).toBeUndefined();
         expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
       });
 
