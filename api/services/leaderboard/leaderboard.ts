@@ -1254,8 +1254,9 @@ export class LeaderboardService {
       );
       const startedAt = this.toEpochSeconds(match.MatchInfo.StartTime) ?? nowEpoch;
       const endedAt = this.toEpochSeconds(match.MatchInfo.EndTime) ?? nowEpoch;
-      const team0Score = match.Teams.find((team) => team.TeamId === 0)?.Stats.CoreStats.Score ?? null;
-      const team1Score = match.Teams.find((team) => team.TeamId === 1)?.Stats.CoreStats.Score ?? null;
+      const [team0, team1] = [...match.Teams].sort((left, right) => left.TeamId - right.TeamId);
+      const team0Score = team0?.Stats.CoreStats.Score ?? null;
+      const team1Score = team1?.Stats.CoreStats.Score ?? null;
       const objectiveTimeByTeamId = new Map(
         match.Teams.map((team) => [
           team.TeamId,

@@ -940,6 +940,52 @@ describe("LeaderboardService", () => {
     expect(payload.seriesPlayers.every((player) => player.SeriesWon === 0)).toBe(true);
   });
 
+  it("persists scores for matches whose Halo team IDs are 2 and 3", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const service = new LeaderboardService({
+      databaseService,
+      haloService,
+      logService: aFakeLogServiceWith(),
+    });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const matchWithNonstandardTeamIds = {
+      ...match,
+      Teams: match.Teams.map((team, index) => ({
+        ...team,
+        TeamId: team.TeamId + 2,
+        Stats: {
+          ...team.Stats,
+          CoreStats: { ...team.Stats.CoreStats, Score: index === 0 ? 50 : 45 },
+        },
+      })),
+      Players: match.Players.map((player) => ({
+        ...player,
+        LastTeamId: player.LastTeamId + 2,
+        PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
+          ...teamStats,
+          TeamId: teamStats.TeamId + 2,
+        })),
+      })),
+    };
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [matchWithNonstandardTeamIds],
+      winnerTeamIndex: 2,
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const game = Preconditions.checkExists(payload.games.find((row) => row.MatchId === match.MatchId));
+    expect(game.Team0Score).toBe(50);
+    expect(game.Team1Score).toBe(45);
+  });
+
   it("uses stable series-team identity when assigning series wins", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

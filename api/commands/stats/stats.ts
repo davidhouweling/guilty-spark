@@ -32,10 +32,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import {
-  buildPresentAtBeginningTeamRosters,
-  resolveMatchTeamIdToSeriesTeamId,
-} from "@guilty-spark/shared/halo/series-team-identity";
+import { buildPresentAtBeginningTeamRosters } from "@guilty-spark/shared/halo/series-team-identity";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
@@ -1812,7 +1809,7 @@ export class StatsCommand extends BaseCommand {
     guildConfig: GuildConfigRow,
     locale: string,
     allowLoadGamesButton = true,
-    postedMessageIds?: string[]  ,
+    postedMessageIds?: string[],
   ): Promise<void> {
     const { discordService } = this.services;
 
@@ -2126,7 +2123,7 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
-    postedMessageIds?: string[]  ,
+    postedMessageIds?: string[],
   ): Promise<void> {
     const { discordService, haloService } = this.services;
 
@@ -2544,7 +2541,7 @@ export class StatsCommand extends BaseCommand {
       );
       const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
       await this.showManualSeriesPreview(interaction, {
-        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome },
+        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
         series,
         derivedSeriesOutcome,
       });
@@ -2586,18 +2583,23 @@ export class StatsCommand extends BaseCommand {
     return series;
   }
 
-  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
+  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome | null {
     const orderedSeries = [...series].sort((left, right) =>
       left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
     );
-    const [anchorMatch] = orderedSeries;
-    const anchorRosters = anchorMatch == null ? null : buildPresentAtBeginningTeamRosters(anchorMatch);
+    const mappings = this.getManualSeriesTeamMappings(orderedSeries);
+    if (mappings == null) {
+      return null;
+    }
     const canonicalSeries = orderedSeries.map((match) => {
-      const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
+      const matchTeamIdToSeriesTeamId = Preconditions.checkExists(
+        mappings.matchTeamIdToSeriesTeamId.get(match.MatchId),
+        "Expected resolved manual series team mapping",
+      );
       const teams = [...match.Teams].sort(
         (left, right) =>
-          (matchTeamIdToSeriesTeamId?.get(left.TeamId) ?? left.TeamId) -
-          (matchTeamIdToSeriesTeamId?.get(right.TeamId) ?? right.TeamId),
+          Preconditions.checkExists(matchTeamIdToSeriesTeamId.get(left.TeamId)) -
+          Preconditions.checkExists(matchTeamIdToSeriesTeamId.get(right.TeamId)),
       );
 
       return { ...match, Teams: teams };
@@ -2612,11 +2614,19 @@ export class StatsCommand extends BaseCommand {
       metadata,
       series,
       derivedSeriesOutcome,
-    }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome },
+    }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome | null },
   ): Promise<void> {
     const { discordService } = this.services;
     const teams = Preconditions.checkExists(metadata.teams, "Expected manual series teams");
-    const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
+    const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome ?? undefined;
+    const derivedResultLabel =
+      derivedSeriesOutcome == null
+        ? "Could not determine automatically"
+        : this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams);
+    const selectedResultLabel =
+      selectedSeriesOutcome == null
+        ? "Select a final result"
+        : this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams);
     const seriesEmbed = await this.createManualSeriesEmbed(
       metadata,
       series,
@@ -2626,7 +2636,7 @@ export class StatsCommand extends BaseCommand {
     const message = await discordService.updateDeferredReply(interaction.token, {
       embeds: [
         this.createStatusEmbed(
-          `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams)}\nFinal result: ${this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams)}`,
+          `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${derivedResultLabel}\nFinal result: ${selectedResultLabel}`,
         ),
         ...seriesEmbed.embeds,
       ],
@@ -2865,14 +2875,16 @@ export class StatsCommand extends BaseCommand {
     }
 
     if ((!publication.createdThread || !threadDeleted) && publication.messageIds.length > 0) {
-      try {
-        await discordService.bulkDeleteMessages(
-          publication.threadId,
-          publication.messageIds,
-          "Removing incomplete manual series stats",
-        );
-      } catch (error) {
-        cleanupErrors.push(error);
+      for (const messageId of publication.messageIds) {
+        try {
+          await discordService.deleteMessage(
+            publication.threadId,
+            messageId,
+            "Removing incomplete manual series stats",
+          );
+        } catch (error) {
+          cleanupErrors.push(error);
+        }
       }
     }
 
@@ -2906,7 +2918,10 @@ export class StatsCommand extends BaseCommand {
     locale: string,
   ): Promise<void> {
     try {
-      const seriesTeamIdByXuid = this.getManualSeriesTeamIdByXuid(series);
+      const mappings = Preconditions.checkExists(
+        this.getManualSeriesTeamMappings(series),
+        "Cannot resolve stable team identities from the manual series rosters",
+      );
       await this.services.leaderboardService.persistReconciledSeriesData({
         guildId: metadata.guildId,
         channelId: queueConfig.ChannelId,
@@ -2914,7 +2929,7 @@ export class StatsCommand extends BaseCommand {
         neatQueueConfig: queueConfig,
         series,
         winnerTeamIndex: this.getManualWinnerTeamId(series, metadata.selectedSeriesOutcome),
-        seriesTeamIdByXuid,
+        seriesTeamIdByXuid: mappings.playerToSeriesTeamId,
         locale,
       });
     } catch (error) {
@@ -2944,7 +2959,10 @@ export class StatsCommand extends BaseCommand {
     return Preconditions.checkExists(winningTeam, "Expected winning team in first match").TeamId;
   }
 
-  private getManualSeriesTeamIdByXuid(series: MatchStats[]): ReadonlyMap<string, number> {
+  private getManualSeriesTeamMappings(series: MatchStats[]): {
+    playerToSeriesTeamId: ReadonlyMap<string, number>;
+    matchTeamIdToSeriesTeamId: ReadonlyMap<string, ReadonlyMap<number, number>>;
+  } | null {
     const [firstMatch, ...remainingMatches] = [...series].sort((left, right) =>
       left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
     );
@@ -2961,6 +2979,7 @@ export class StatsCommand extends BaseCommand {
       anchorRosters.map((roster) => [roster.matchTeamId, new Set(roster.xuids)]),
     );
     const playerToSeriesTeamId = new Map<string, number>();
+    const matchTeamIdToSeriesTeamId = new Map<string, ReadonlyMap<number, number>>();
     const matches = [firstMatch, ...remainingMatches];
     for (const [index, match] of matches.entries()) {
       const playersByMatchTeam = new Map<number, Set<string>>();
@@ -2988,14 +3007,24 @@ export class StatsCommand extends BaseCommand {
       const swappedSideOverlap =
         this.getRosterOverlap(firstRoster, secondAnchorPlayers) +
         this.getRosterOverlap(secondRoster, firstAnchorPlayers);
+      if (index > 0 && sameSideOverlap === swappedSideOverlap) {
+        return null;
+      }
       const firstTeamSeriesId =
-        index === 0 || sameSideOverlap >= swappedSideOverlap
+        index === 0 || sameSideOverlap > swappedSideOverlap
           ? Preconditions.checkExists(anchorTeam0)
           : Preconditions.checkExists(anchorTeam1);
       const secondTeamSeriesId =
-        index === 0 || sameSideOverlap >= swappedSideOverlap
+        index === 0 || sameSideOverlap > swappedSideOverlap
           ? Preconditions.checkExists(anchorTeam1)
           : Preconditions.checkExists(anchorTeam0);
+      matchTeamIdToSeriesTeamId.set(
+        match.MatchId,
+        new Map([
+          [Preconditions.checkExists(firstTeamId), firstTeamSeriesId],
+          [Preconditions.checkExists(secondTeamId), secondTeamSeriesId],
+        ]),
+      );
 
       for (const player of match.Players) {
         if (player.PlayerType !== 1) {
@@ -3011,7 +3040,7 @@ export class StatsCommand extends BaseCommand {
       }
     }
 
-    return playerToSeriesTeamId;
+    return { playerToSeriesTeamId, matchTeamIdToSeriesTeamId };
   }
 
   private getRosterOverlap(roster: ReadonlySet<string>, anchorRoster: ReadonlySet<string>): number {
@@ -3585,7 +3614,7 @@ export class StatsCommand extends BaseCommand {
 
   private getFixSeriesOutcomeOptions(
     teams: readonly { name: string }[],
-    selectedSeriesOutcome: FixSeriesOutcome,
+    selectedSeriesOutcome: FixSeriesOutcome | undefined,
   ): APISelectMenuOption[] {
     const firstTeamName = this.getFixSeriesOutcomeTeamName(teams, 0);
     const secondTeamName = this.getFixSeriesOutcomeTeamName(teams, 1);

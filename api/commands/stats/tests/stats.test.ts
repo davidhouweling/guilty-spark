@@ -1849,6 +1849,88 @@ describe("StatsCommand", () => {
         expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
       });
 
+      it("derives the default outcome after a substitute joins the team that swapped sides", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-substitute-swap",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["0400000000000000", "0800000000000000"],
+            team1PlayerIds: ["0100000000000000", "0900000000000000"],
+            team0Outcome: MatchOutcome.Loss.valueOf(),
+            team1Outcome: MatchOutcome.Win.valueOf(),
+          }),
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TEAM_0" });
+      });
+
+      it("requires an explicit outcome when a roster replacement makes team identity ambiguous", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-unknown-rosters",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["1100000000000000", "1200000000000000"],
+            team1PlayerIds: ["1400000000000000", "1800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Could not determine automatically");
+        expect(payload.embeds?.[0]?.description).toContain("Final result: Select a final result");
+        expect(payload.components?.[0]).toMatchObject({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              options: [{ default: false }, { default: false }, { default: false }],
+            },
+          ],
+        });
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: undefined });
+      });
+
       it("stores the adjusted outcome and marks it as the final result in the preview", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
           ...baseMetadata,
@@ -2155,17 +2237,50 @@ describe("StatsCommand", () => {
           .mockResolvedValueOnce({ ...apiMessage, id: "manual-overview-in-thread" })
           .mockResolvedValueOnce({ ...apiMessage, id: "manual-series-embed" })
           .mockRejectedValueOnce(postError);
-        const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
 
         await confirm();
 
         expect(deleteChannelSpy).not.toHaveBeenCalled();
-        expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
+        expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+          1,
           "command-channel-id",
-          ["manual-overview-in-thread", "manual-series-embed"],
+          "manual-overview-in-thread",
+          "Removing incomplete manual series stats",
+        );
+        expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+          2,
+          "command-channel-id",
+          "manual-series-embed",
           "Removing incomplete manual series stats",
         );
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", postError);
+      });
+
+      it("continues deleting tracked messages when one rollback deletion fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+        const postError = new Error("Thread content post failed");
+        const cleanupError = new Error("Message deletion failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-overview-in-thread" })
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-series-embed" })
+          .mockRejectedValueOnce(postError);
+        const deleteMessageSpy = vi
+          .spyOn(services.discordService, "deleteMessage")
+          .mockRejectedValueOnce(cleanupError)
+          .mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteMessageSpy).toHaveBeenCalledTimes(2);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({
+            errors: [postError, cleanupError],
+          }),
+        );
       });
 
       it("maps the selected winner to its actual Halo team ID and stable roster IDs", async () => {
