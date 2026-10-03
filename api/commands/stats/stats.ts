@@ -2734,7 +2734,9 @@ export class StatsCommand extends BaseCommand {
       });
 
       const publication = await this.postManualSeriesOverview({
-        postChannelId: queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId,
+        postChannelId: this.isThreadChannel((await discordService.getChannel(metadata.channelId)).type)
+          ? metadata.channelId
+          : (queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId),
         seriesEmbed,
         threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(displaySeries, locale, true)})`,
       });

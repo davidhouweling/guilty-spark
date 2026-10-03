@@ -2266,6 +2266,28 @@ describe("StatsCommand", () => {
         });
       });
 
+      it("keeps manual stats in the invoking thread when a queue destination is configured", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({
+            ChannelId: "queue-a",
+            ResultsChannelId: "results-channel-id",
+            PostSeriesChannelId: "post-channel-id",
+          }),
+        ]);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+
+        await confirm();
+
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "command-channel-id", expect.anything());
+        expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalled();
+      });
+
       it("posts game stats immediately when reusing a thread with lazy game stats configured", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
