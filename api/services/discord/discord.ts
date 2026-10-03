@@ -68,6 +68,7 @@ import {
   extractQueueNumberFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
+  getDiscordSeriesStatsMatchIdsKey,
   isDiscordSeriesErrorMessage,
 } from "./discord-series-stats";
 
@@ -430,6 +431,11 @@ export class DiscordService {
       }
 
       if (seriesId != null) {
+        const matchIds = await this.getManualSeriesMatchIds(guildId, queueNumber, seriesId);
+        if (matchIds != null) {
+          return { status: "lookup-resolved", guildId, queueNumber, matchIds };
+        }
+
         return {
           status: "not-found",
           guildId,
@@ -695,6 +701,42 @@ export class DiscordService {
     await this.env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), {
       expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
     });
+  }
+
+  async cacheDiscordSeriesMatchIds(
+    guildId: string,
+    queueNumber: number,
+    seriesId: string,
+    matchIds: string[],
+  ): Promise<void> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber, seriesId);
+    await this.env.APP_DATA.put(key, JSON.stringify(matchIds));
+  }
+
+  private async getManualSeriesMatchIds(
+    guildId: string,
+    queueNumber: number,
+    seriesId: string,
+  ): Promise<string[] | null> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber, seriesId);
+    const matchIds = await this.env.APP_DATA.get(key, { type: "json" });
+    if (matchIds == null) {
+      return null;
+    }
+
+    if (
+      !Array.isArray(matchIds) ||
+      matchIds.length === 0 ||
+      !matchIds.every((matchId) => typeof matchId === "string")
+    ) {
+      this.logService.warn(
+        "Invalid manual discord series match IDs, treating as not found",
+        new Map([["cacheKey", key]]),
+      );
+      return null;
+    }
+
+    return matchIds;
   }
 
   async getTeamsFromMessage(guildId: string, message: APIMessage): Promise<QueueData> {

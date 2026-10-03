@@ -26,6 +26,7 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { MatchOutcome } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   LeaderboardMetric,
@@ -1894,6 +1895,7 @@ describe("StatsCommand", () => {
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<
         typeof services.discordService.cacheResolvedDiscordSeriesStats
       >;
+      let cacheDiscordSeriesMatchIdsSpy: MockInstance<typeof services.discordService.cacheDiscordSeriesMatchIds>;
       let persistReconciledSeriesDataSpy: MockInstance<typeof services.leaderboardService.persistReconciledSeriesData>;
 
       async function confirm(): Promise<void> {
@@ -1922,6 +1924,9 @@ describe("StatsCommand", () => {
         } as RESTPostAPIChannelThreadsResult);
         cacheResolvedDiscordSeriesStatsSpy = vi
           .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
+          .mockResolvedValue();
+        cacheDiscordSeriesMatchIdsSpy = vi
+          .spyOn(services.discordService, "cacheDiscordSeriesMatchIds")
           .mockResolvedValue();
         persistReconciledSeriesDataSpy = vi
           .spyOn(services.leaderboardService, "persistReconciledSeriesData")
@@ -1956,6 +1961,12 @@ describe("StatsCommand", () => {
             seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
           }),
         );
+        expect(cacheDiscordSeriesMatchIdsSpy).toHaveBeenCalledWith(
+          "fake-guild-id",
+          20261003050709,
+          "d9408885-89bc-4bb3-a7b8-248e7304a846",
+          [ctfMatchId, slayerMatchId],
+        );
         expect(JSON.stringify(overviewPayload.components)).toContain(
           "http://localhost:4321/stats/discord/fake-guild-id/20261003050709?seriesId=d9408885-89bc-4bb3-a7b8-248e7304a846",
         );
@@ -1964,6 +1975,17 @@ describe("StatsCommand", () => {
           embeds: [expect.objectContaining({ description: "Series stats were posted in <#new-thread-id>." })],
           components: [],
         });
+      });
+
+      it("does not publish the overview when persisting manual-series match ids fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        cacheDiscordSeriesMatchIdsSpy.mockRejectedValue(new Error("KV write failed"));
+
+        await confirm();
+
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", expect.any(Error));
       });
 
       it("publishes a manually selected tie in the public overview", async () => {
@@ -2179,34 +2201,47 @@ describe("StatsCommand", () => {
         vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
           aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
         ]);
+        const wrapPlayerIds = (match: MatchStats): MatchStats => ({
+          ...match,
+          Players: match.Players.map((player) => ({
+            ...player,
+            PlayerId: `xuid(${player.PlayerId})`,
+          })),
+        });
         vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
-          aMatchWithSwappableRosters({
-            matchId: "manual-turnover-1",
-            startTime: "2026-10-03T10:00:00Z",
-            mapAssetId: "manual-map-1",
-            team0PlayerIds: ["0100000000000000", "0200000000000000"],
-            team1PlayerIds: ["0300000000000000", "0400000000000000"],
-            team0Outcome: MatchOutcome.Win.valueOf(),
-            team1Outcome: MatchOutcome.Loss.valueOf(),
-          }),
-          aMatchWithSwappableRosters({
-            matchId: "manual-turnover-2",
-            startTime: "2026-10-03T10:15:00Z",
-            mapAssetId: "manual-map-2",
-            team0PlayerIds: ["0100000000000000", "0500000000000000"],
-            team1PlayerIds: ["0300000000000000", "0600000000000000"],
-            team0Outcome: MatchOutcome.Win.valueOf(),
-            team1Outcome: MatchOutcome.Loss.valueOf(),
-          }),
-          aMatchWithSwappableRosters({
-            matchId: "manual-turnover-3",
-            startTime: "2026-10-03T10:30:00Z",
-            mapAssetId: "manual-map-3",
-            team0PlayerIds: ["0600000000000000", "0700000000000000"],
-            team1PlayerIds: ["0500000000000000", "0800000000000000"],
-            team0Outcome: MatchOutcome.Win.valueOf(),
-            team1Outcome: MatchOutcome.Loss.valueOf(),
-          }),
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-1",
+              startTime: "2026-10-03T10:00:00Z",
+              mapAssetId: "manual-map-1",
+              team0PlayerIds: ["0100000000000000", "0200000000000000"],
+              team1PlayerIds: ["0300000000000000", "0400000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-2",
+              startTime: "2026-10-03T10:15:00Z",
+              mapAssetId: "manual-map-2",
+              team0PlayerIds: ["0100000000000000", "0500000000000000"],
+              team1PlayerIds: ["0300000000000000", "0600000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-3",
+              startTime: "2026-10-03T10:30:00Z",
+              mapAssetId: "manual-map-3",
+              team0PlayerIds: ["0600000000000000", "0700000000000000"],
+              team1PlayerIds: ["0500000000000000", "0800000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
         ]);
 
         await confirm();

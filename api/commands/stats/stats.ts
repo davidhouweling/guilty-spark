@@ -2695,6 +2695,15 @@ export class StatsCommand extends BaseCommand {
         this.findManualQueueConfig(metadata),
       ]);
 
+      if (metadata.seriesId != null) {
+        await discordService.cacheDiscordSeriesMatchIds(
+          metadata.guildId,
+          metadata.queueNumber,
+          metadata.seriesId,
+          series.map((match) => match.MatchId),
+        );
+      }
+
       const seriesEmbed = await this.createManualSeriesEmbed(metadata, series, locale);
       const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
       overviewEmbed.fields ??= [];
@@ -2899,7 +2908,9 @@ export class StatsCommand extends BaseCommand {
         const seriesTeamId = player.LastTeamId === firstTeamId ? firstTeamSeriesId : secondTeamSeriesId;
         const xuid = getPlayerXuid(player);
         playerToSeriesTeamId.set(xuid, seriesTeamId);
-        Preconditions.checkExists(anchorPlayersByTeam.get(seriesTeamId), "Expected resolved series roster").add(xuid);
+        Preconditions.checkExists(anchorPlayersByTeam.get(seriesTeamId), "Expected resolved series roster").add(
+          player.PlayerId,
+        );
       }
     }
 

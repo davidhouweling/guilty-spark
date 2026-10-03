@@ -23,6 +23,10 @@ export function getDiscordSeriesStatsCacheKey(guildId: string, queueNumber: numb
   return `stats:discord:series:${guildId}:${seriesKey}`;
 }
 
+export function getDiscordSeriesStatsMatchIdsKey(guildId: string, queueNumber: number, seriesId: string): string {
+  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId)}:match-ids`;
+}
+
 export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: number): APIEmbed | null {
   for (const embed of message.embeds) {
     if (embed.type !== EmbedType.Rich) {

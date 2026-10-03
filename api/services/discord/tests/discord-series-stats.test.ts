@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { buildDiscordSeriesRenderDataFromMatches, getDiscordSeriesStatsCacheKey } from "../discord-series-stats";
+import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import {
+  buildDiscordSeriesRenderDataFromMatches,
+  getDiscordSeriesStatsCacheKey,
+  getDiscordSeriesStatsMatchIdsKey,
+} from "../discord-series-stats";
 import { aFakeDiscordServiceWith } from "../fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -37,6 +42,22 @@ describe("getDiscordSeriesStatsCacheKey()", () => {
   it("separates manual series sharing the same queue number", () => {
     expect(getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-one")).not.toBe(
       getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-two"),
+    );
+  });
+});
+
+describe("DiscordService.cacheDiscordSeriesMatchIds()", () => {
+  it("stores the manual series match-id lookup without an expiration", async () => {
+    const env = aFakeEnvWith();
+    const discordService = aFakeDiscordServiceWith({ env });
+    const putSpy = vi.spyOn(env.APP_DATA, "put");
+    const matchIds = ["match-one", "match-two"];
+
+    await discordService.cacheDiscordSeriesMatchIds("guild-1", 7777, "series-one", matchIds);
+
+    expect(putSpy).toHaveBeenCalledWith(
+      getDiscordSeriesStatsMatchIdsKey("guild-1", 7777, "series-one"),
+      JSON.stringify(matchIds),
     );
   });
 });
