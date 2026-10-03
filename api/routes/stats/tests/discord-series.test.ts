@@ -7,12 +7,15 @@ import type {
   DiscordSeriesStatsResolved,
   DiscordSeriesStatsResponse,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { EmbedColors } from "../../../embeds/colors";
 import { DiscordError } from "../../../services/discord/discord-error";
+import { getDiscordSeriesStatsMatchIdsKey } from "../../../services/discord/discord-series-stats";
 import { guild } from "../../../services/discord/fakes/data";
 import { installFakeServicesWith } from "../../../services/fakes/services";
+import { getMatchStats } from "../../../services/halo/fakes/data";
 import { statsRoutesRegisterHandler } from "../stats";
 
 function aFakeMessageWith(opts: {
@@ -93,6 +96,33 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
   beforeEach(() => {
     env = aFakeEnvWith();
     router = createApiRouter();
+  });
+
+  it("resolves manual stats by queue number without a separate series id", async () => {
+    const services = installFakeServicesWith({ env });
+    const getSeriesStatsLookupSpy = vi.spyOn(services.discordService, "getSeriesStatsLookup");
+    const matchIds = ["manual-match-one", "manual-match-two"];
+    const matchIdsKey = getDiscordSeriesStatsMatchIdsKey("123456789012345678", 7777);
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      if (key !== matchIdsKey) {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve(options?.type === "json" ? matchIds : JSON.stringify(matchIds));
+    });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777/lookup"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: "resolved", matchIds });
+    expect(getSeriesStatsLookupSpy).toHaveBeenCalledWith("123456789012345678", 7777);
   });
 
   it("returns resolved payload when a blue overview embed with match ids exists", async () => {
@@ -279,6 +309,56 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
       renderData: aFakeRenderDataWith(["cached-match-1"]),
     });
     expect(appDataGetSpy).toHaveBeenCalledWith(cacheKey, { type: "json" });
+  });
+
+  it("rebuilds manual stats from the durable match-id lookup when render data is absent", async () => {
+    const matchId = "d81554d7-ddfe-44da-a6cb-000000000ctf";
+    const durableMatchIdsKey = getDiscordSeriesStatsMatchIdsKey("123456789012345678", 7777);
+    const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+    appDataGetSpy.mockImplementation(async (key: string, options?: { type?: string }) => {
+      if (key !== durableMatchIdsKey) {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve(options?.type === "json" ? [matchId] : JSON.stringify([matchId]));
+    });
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.discordService, "searchGuildMessages").mockImplementation(() => {
+        throw new Error("Manual series recovery should not search Discord");
+      });
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue({
+        ...guild,
+        id: "123456789012345678",
+        name: "NeatQueue League",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats(matchId)),
+      ]);
+      return services;
+    });
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      new Request("http://localhost/api/stats/discord/123456789012345678/7777"),
+      env,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    const response = await res.json<DiscordSeriesStatsResolved>();
+    expect(response).toMatchObject({
+      status: "resolved",
+      guildId: "123456789012345678",
+      queueNumber: 7777,
+      matchIds: [matchId],
+      renderData: {
+        title: "Queue #7777 Series Stats",
+        subtitle: "NeatQueue League",
+      },
+    });
+    expect(response.renderData.matches[0]?.seriesMatch).toBeDefined();
+    expect(await env.APP_DATA.get(durableMatchIdsKey, { type: "json" })).toEqual([matchId]);
   });
 
   it("returns cached pending-index response with Retry-After and no-store headers", async () => {

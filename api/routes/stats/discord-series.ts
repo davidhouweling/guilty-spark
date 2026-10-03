@@ -95,6 +95,7 @@ async function tryBuildRenderData({
   guildId,
   queueNumber,
   matchIds,
+  isManualSeries,
 }: {
   discordService: DiscordService;
   logService: LogService;
@@ -102,6 +103,7 @@ async function tryBuildRenderData({
   guildId: string;
   queueNumber: number;
   matchIds: string[];
+  isManualSeries: boolean;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   const matches = await haloService.getMatchDetails(matchIds);
 
@@ -112,6 +114,7 @@ async function tryBuildRenderData({
     guildId,
     queueNumber,
     matches,
+    isManualSeries,
   });
 }
 
@@ -134,7 +137,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
       const response = await discordService.getSeriesStats({
         guildId,
         queueNumber,
-        resolveRenderData: async (matchIds: string[]) =>
+        resolveRenderData: async (matchIds: string[], isManualSeries: boolean) =>
           tryBuildRenderData({
             discordService,
             logService,
@@ -142,6 +145,7 @@ export const statsDiscordSeriesRoute: RoutesRegisterHandler = (router, installSe
             guildId,
             queueNumber,
             matchIds,
+            isManualSeries,
           }),
       });
 

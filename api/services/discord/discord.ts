@@ -68,6 +68,7 @@ import {
   extractQueueNumberFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
+  getDiscordSeriesStatsMatchIdsKey,
   isDiscordSeriesErrorMessage,
 } from "./discord-series-stats";
 
@@ -122,6 +123,7 @@ export type DiscordSeriesLookupResult =
       guildId: string;
       queueNumber: number;
       matchIds: string[];
+      isManualSeries?: boolean | undefined;
     }
   | DiscordSeriesStatsPending
   | DiscordSeriesStatsNotFound;
@@ -423,6 +425,11 @@ export class DiscordService {
         return cached;
       }
 
+      const manualMatchIds = await this.getManualSeriesMatchIds(guildId, queueNumber);
+      if (manualMatchIds != null) {
+        return { status: "lookup-resolved", guildId, queueNumber, matchIds: manualMatchIds, isManualSeries: true };
+      }
+
       const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber);
       if (cachedLookup != null) {
         return cachedLookup;
@@ -455,7 +462,10 @@ export class DiscordService {
   }: {
     guildId: string;
     queueNumber: number;
-    resolveRenderData: (matchIds: string[]) => Promise<DiscordSeriesStatsResolved["renderData"]>;
+    resolveRenderData: (
+      matchIds: string[],
+      isManualSeries: boolean,
+    ) => Promise<DiscordSeriesStatsResolved["renderData"]>;
   }): Promise<DiscordSeriesStats | DiscordSeriesStatsForbidden> {
     const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber);
 
@@ -475,7 +485,7 @@ export class DiscordService {
       return lookupOrCached;
     }
 
-    const renderData = await resolveRenderData(lookupOrCached.matchIds);
+    const renderData = await resolveRenderData(lookupOrCached.matchIds, lookupOrCached.isManualSeries === true);
     const resolvedResponse: DiscordSeriesStats = {
       status: "resolved",
       guildId,
@@ -636,14 +646,15 @@ export class DiscordService {
       return null;
     }
 
+    const hasValidManualMarker = cached.isManualSeries == null || typeof cached.isManualSeries === "boolean";
     const hasValidMatchIds =
       Array.isArray(cached.matchIds) && cached.matchIds.every((matchId) => typeof matchId === "string");
-    if (!hasValidMatchIds) {
+    if (!hasValidMatchIds || !hasValidManualMarker) {
       this.logService.warn(
         "Invalid cached discord series lookup payload, treating as cache miss",
         new Map([
           ["cacheKey", lookupCacheKey],
-          ["reason", "matchIds must be an array of strings"],
+          ["reason", "matchIds must be strings and isManualSeries must be a boolean when present"],
         ]),
       );
       return null;
@@ -675,6 +686,37 @@ export class DiscordService {
     await this.env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), {
       expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
     });
+  }
+
+  async cacheDiscordSeriesMatchIds(guildId: string, queueNumber: number, matchIds: string[]): Promise<void> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
+    await this.env.APP_DATA.put(key, JSON.stringify(matchIds));
+    await Promise.all([
+      this.env.APP_DATA.delete(getDiscordSeriesStatsCacheKey(guildId, queueNumber)),
+      this.env.APP_DATA.delete(getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber)),
+    ]);
+  }
+
+  private async getManualSeriesMatchIds(guildId: string, queueNumber: number): Promise<string[] | null> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
+    const matchIds = await this.env.APP_DATA.get(key, { type: "json" });
+    if (matchIds == null) {
+      return null;
+    }
+
+    if (
+      !Array.isArray(matchIds) ||
+      matchIds.length === 0 ||
+      !matchIds.every((matchId) => typeof matchId === "string")
+    ) {
+      this.logService.warn(
+        "Invalid manual discord series match IDs, treating as not found",
+        new Map([["cacheKey", key]]),
+      );
+      return null;
+    }
+
+    return matchIds;
   }
 
   async getTeamsFromMessage(guildId: string, message: APIMessage): Promise<QueueData> {
@@ -1412,6 +1454,15 @@ export class DiscordService {
 
   async deleteMessage(channelId: string, messageId: string, reason: string): Promise<void> {
     await this.fetch(Routes.channelMessage(channelId, messageId), {
+      method: "DELETE",
+      headers: {
+        "X-Audit-Log-Reason": reason,
+      },
+    });
+  }
+
+  async deleteChannel(channelId: string, reason: string): Promise<void> {
+    await this.fetch(Routes.channel(channelId), {
       method: "DELETE",
       headers: {
         "X-Audit-Log-Reason": reason,

@@ -117,7 +117,9 @@ export class DiscordSeriesStatsPresenter {
   }
 
   private async fetchMedalMetadata(): Promise<void> {
-    const rawMatches = this.renderData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+    const rawMatches = this.renderData.matches
+      .map((match) => match.rawMatch)
+      .filter((match): match is MatchStats => isMatchStats(match));
     if (rawMatches.length === 0) {
       return;
     }
@@ -136,7 +138,9 @@ export class DiscordSeriesStatsPresenter {
       getTeamColorOrDefault(DEFAULT_TEAM_COLORS[1], 1),
     ];
 
-    const rawMatches = this.renderData.matches.map((m) => m.rawMatch).filter((m): m is MatchStats => isMatchStats(m));
+    const rawMatches = this.renderData.matches
+      .map((match) => match.seriesMatch ?? match.rawMatch)
+      .filter((match): match is MatchStats => isMatchStats(match));
 
     let playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }> = new Map(
       this.renderData.matches.flatMap((match) =>
@@ -189,7 +193,8 @@ export class DiscordSeriesStatsPresenter {
       gameScore: match.gameScore,
       gameSubScore: match.gameSubScore ?? null,
       gameMap: match.gameMap,
-      winningTeamColorHex: DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, teamColors)?.hex ?? null,
+      winningTeamColorHex:
+        DiscordSeriesStatsPresenter.getWinningTeamColor(match.seriesMatch ?? match.rawMatch, teamColors)?.hex ?? null,
     }));
 
     const teams: DiscordSeriesTeamCard[] = this.renderData.teams.map((team, teamIndex) => {

@@ -26,6 +26,7 @@ import {
   MessageType,
 } from "discord-api-types/v10";
 import { MatchOutcome } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   LeaderboardMetric,
@@ -1524,7 +1525,8 @@ describe("StatsCommand", () => {
             }),
           ],
         });
-        expect(getLastManualMetadata()).toEqual({
+        const metadata = getLastManualMetadata();
+        expect(metadata).toMatchObject({
           guildId: "fake-guild-id",
           channelId: applicationCommandInteractionStatsFix.channel.id,
           queueNumber: 42,
@@ -1774,6 +1776,13 @@ describe("StatsCommand", () => {
           selectedMatchIds: [ctfMatchId, slayerMatchId],
           teams,
         });
+        expect(payload.components?.[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            expect.objectContaining({ custom_id: "btn_stats_manual_confirm" }),
+            expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
+          ],
+        });
       });
 
       it("rejects a series when a later selected game does not have exactly two teams", async () => {
@@ -1839,6 +1848,163 @@ describe("StatsCommand", () => {
         expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
       });
 
+      it("derives the default outcome after a substitute joins the team that swapped sides", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const matches = [
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-substitute-swap",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["0400000000000000", "0800000000000000"],
+            team1PlayerIds: ["0100000000000000", "0900000000000000"],
+            team0Outcome: MatchOutcome.Loss.valueOf(),
+            team1Outcome: MatchOutcome.Win.valueOf(),
+          }),
+        ].map((match, matchIndex) => ({
+          ...match,
+          Teams: match.Teams.map((team, teamIndex) => ({
+            ...team,
+            Stats: {
+              ...team.Stats,
+              CoreStats: {
+                ...team.Stats.CoreStats,
+                Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
+              },
+            },
+          })),
+        }));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(matches);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
+        expect(payload.embeds?.[1]?.title).toContain("2:0");
+        expect(payload.embeds?.[1]?.fields?.[2]?.value).toContain("40:15");
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TEAM_0" });
+      });
+
+      it("requires an explicit outcome when a roster replacement makes team identity ambiguous", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-unknown-rosters",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["1100000000000000", "1200000000000000"],
+            team1PlayerIds: ["1400000000000000", "1800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Could not determine automatically");
+        expect(payload.embeds?.[0]?.description).toContain("Final result: Select a final result");
+        expect(payload.components?.[0]).toMatchObject({
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              options: [{ default: false }, { default: false }, { default: false }],
+            },
+          ],
+        });
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: undefined });
+      });
+
+      it("shows the preview and accepts an explicit outcome when the first game's initial roster is incomplete", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const firstMatch = aMatchWithSwappableRosters({
+          matchId: "manual-series-incomplete-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-series-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const secondMatch = aMatchWithSwappableRosters({
+          matchId: "manual-series-follow-up",
+          startTime: "2026-10-03T10:15:00Z",
+          mapAssetId: "manual-series-map-2",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const incompleteFirstMatch = {
+          ...firstMatch,
+          Players: firstMatch.Players.map((player) =>
+            player.LastTeamId === 1
+              ? { ...player, ParticipationInfo: { ...player.ParticipationInfo, PresentAtBeginning: false } }
+              : player,
+          ),
+        };
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([incompleteFirstMatch, secondMatch]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        expect(Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]).embeds?.[0]?.description).toContain(
+          "Derived result: Could not determine automatically",
+        );
+
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...baseMetadata,
+          selectedMatchIds: [ctfMatchId, slayerMatchId],
+          teams,
+        });
+        const { jobToComplete: selectOutcomeJob } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_outcome_select", ["TEAM_0"]),
+        );
+        await selectOutcomeJob?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TEAM_0" });
+        expect(
+          Preconditions.checkExists(updateDeferredReplySpy.mock.calls.at(-1)?.[1]).embeds?.[0]?.description,
+        ).toContain("Final result: Eagle wins");
+      });
+
       it("stores the adjusted outcome and marks it as the final result in the preview", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
           ...baseMetadata,
@@ -1856,6 +2022,608 @@ describe("StatsCommand", () => {
         const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
         expect(payload.embeds?.[0]?.description).toContain("Final result: Tie");
         expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TIE", teams });
+      });
+    });
+
+    describe("confirm", () => {
+      const slayerMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const confirmInteraction: APIMessageComponentButtonInteraction = {
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_manual_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "manual-flow-message-id" },
+      };
+      const confirmedMetadata = {
+        guildId: "fake-guild-id",
+        channelId: "command-channel-id",
+        queueNumber: 20261003050709,
+        queueChannelId: null,
+        selectedPlayerId: "invoker-id",
+        selectedMatchIds: [ctfMatchId, slayerMatchId],
+        teams: [
+          { name: "Eagle", playerIds: ["discord-1"] },
+          { name: "Cobra", playerIds: ["discord-4"] },
+        ],
+        selectedSeriesOutcome: "TEAM_1",
+      };
+      let createMessageSpy: MockInstance<typeof services.discordService.createMessage>;
+      let startThreadFromMessageSpy: MockInstance<typeof services.discordService.startThreadFromMessage>;
+      let deleteChannelSpy: MockInstance<typeof services.discordService.deleteChannel>;
+      let cacheResolvedDiscordSeriesStatsSpy: MockInstance<
+        typeof services.discordService.cacheResolvedDiscordSeriesStats
+      >;
+      let cacheDiscordSeriesMatchIdsSpy: MockInstance<typeof services.discordService.cacheDiscordSeriesMatchIds>;
+      let persistReconciledSeriesDataSpy: MockInstance<typeof services.leaderboardService.persistReconciledSeriesData>;
+
+      async function confirm(): Promise<void> {
+        const { response, jobToComplete } = statsCommand.execute(confirmInteraction);
+        expect(response).toMatchObject({ type: InteractionResponseType.UpdateMessage });
+        await jobToComplete?.();
+      }
+
+      beforeEach(() => {
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          Preconditions.checkExists(getMatchStats(ctfMatchId)),
+          Preconditions.checkExists(getMatchStats(slayerMatchId)),
+        ]);
+        vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+        );
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(textChannel);
+        createMessageSpy = vi
+          .spyOn(services.discordService, "createMessage")
+          .mockResolvedValueOnce({ ...apiMessage, id: "overview-message-id" })
+          .mockResolvedValue(apiMessage);
+        startThreadFromMessageSpy = vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
+          id: "new-thread-id",
+          type: ChannelType.PublicThread,
+        } as RESTPostAPIChannelThreadsResult);
+        deleteChannelSpy = vi.spyOn(services.discordService, "deleteChannel").mockResolvedValue();
+        cacheResolvedDiscordSeriesStatsSpy = vi
+          .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
+          .mockResolvedValue();
+        cacheDiscordSeriesMatchIdsSpy = vi
+          .spyOn(services.discordService, "cacheDiscordSeriesMatchIds")
+          .mockResolvedValue();
+        persistReconciledSeriesDataSpy = vi
+          .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+          .mockResolvedValue();
+      });
+
+      it("posts the overview to the command channel, threads the stats and skips the leaderboard without a queue channel", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+
+        await confirm();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const [overviewChannelId, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+        expect(overviewChannelId).toBe("command-channel-id");
+        expect(overviewPayload.embeds?.[0]?.title).toContain("Series stats for queue #20261003050709");
+        expect(overviewPayload.embeds?.[0]?.fields).toContainEqual(
+          expect.objectContaining({ name: "Final series result", value: "Cobra wins" }),
+        );
+        expect(overviewPayload.embeds?.[0]?.fields).toContainEqual(
+          expect.objectContaining({ name: "Created manually by" }),
+        );
+        expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
+          "command-channel-id",
+          "overview-message-id",
+          expect.stringContaining("Queue #20261003050709 series stats"),
+        );
+        expect(createMessageSpy).toHaveBeenCalledWith("new-thread-id", expect.anything());
+        expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            guildId: "fake-guild-id",
+            queueNumber: 20261003050709,
+          }),
+        );
+        expect(cacheDiscordSeriesMatchIdsSpy).toHaveBeenCalledWith("fake-guild-id", 20261003050709, [
+          ctfMatchId,
+          slayerMatchId,
+        ]);
+        expect(JSON.stringify(overviewPayload.components)).toContain(
+          "http://localhost:4321/stats/discord/fake-guild-id/20261003050709",
+        );
+        expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+          embeds: [expect.objectContaining({ description: "Series stats were posted in <#new-thread-id>." })],
+          components: [],
+        });
+      });
+
+      it("publishes substitution-aware series scores and team totals", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+          new Map([
+            ["0100000000000000", "Player A"],
+            ["0200000000000000", "Player B"],
+            ["0400000000000000", "Player C"],
+            ["0800000000000000", "Player D"],
+            ["0900000000000000", "Substitute"],
+          ]),
+        );
+        const anchorMatch = aMatchWithSwappableRosters({
+          matchId: "manual-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const substituteMatch = aMatchWithSwappableRosters({
+          matchId: "manual-substitute",
+          startTime: "2026-10-03T10:15:00Z",
+          mapAssetId: "manual-map-2",
+          team0PlayerIds: ["0400000000000000", "0800000000000000"],
+          team1PlayerIds: ["0100000000000000", "0900000000000000"],
+          team0Outcome: MatchOutcome.Loss.valueOf(),
+          team1Outcome: MatchOutcome.Win.valueOf(),
+        });
+        const matches = [anchorMatch, substituteMatch].map((match, matchIndex) => ({
+          ...match,
+          Teams: match.Teams.map((team, teamIndex) => ({
+            ...team,
+            Stats: {
+              ...team.Stats,
+              CoreStats: {
+                ...team.Stats.CoreStats,
+                Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
+                Kills: matchIndex === 0 ? (teamIndex === 0 ? 10 : 20) : teamIndex === 0 ? 30 : 40,
+              },
+            },
+          })),
+        }));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(matches);
+
+        await confirm();
+
+        const [, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+        expect(overviewPayload.embeds?.[0]?.title).toContain("2:0");
+        expect(overviewPayload.embeds?.[0]?.fields?.[2]?.value).toContain("40:15");
+        const [, teamStatsPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[1]);
+        const eagleField = teamStatsPayload.embeds?.[0]?.fields?.find((field) => field.name === "Eagle");
+        expect(eagleField?.value).toContain("50");
+        const eaglePlayerEmbed = createMessageSpy.mock.calls
+          .map(([, payload]) => payload.embeds?.[0])
+          .find((embed) => embed?.title === "Accumulated Series Stats by Players for Eagle");
+        expect(eaglePlayerEmbed?.fields?.some((field) => field.name.startsWith("Substitute"))).toBe(true);
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(expect.objectContaining({ seriesScore: "2:0" }));
+      });
+
+      it("does not publish the overview when persisting manual-series match ids fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        cacheDiscordSeriesMatchIdsSpy.mockRejectedValue(new Error("KV write failed"));
+
+        await confirm();
+
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", expect.any(Error));
+      });
+
+      it("publishes a manually selected tie in the public overview", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          selectedSeriesOutcome: "TIE",
+        });
+
+        await confirm();
+
+        const [, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+        expect(overviewPayload.embeds?.[0]?.fields).toContainEqual(
+          expect.objectContaining({ name: "Final series result", value: "Tie" }),
+        );
+      });
+
+      it("posts to the queue's post channel and persists to the leaderboard when a queue channel is known", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+        });
+        const queueConfig = aFakeNeatQueueConfigRow({ ChannelId: "queue-a", PostSeriesChannelId: "post-channel-id" });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([queueConfig]);
+
+        await confirm();
+
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "post-channel-id", expect.anything());
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            guildId: "fake-guild-id",
+            channelId: "queue-a",
+            queueNumber: 42,
+            neatQueueConfig: queueConfig,
+            winnerTeamIndex: 1,
+          }),
+        );
+      });
+
+      it("posts directly into the command channel when it is already a thread", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+
+        await confirm();
+
+        expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "command-channel-id", expect.anything());
+        expect(createMessageSpy).toHaveBeenNthCalledWith(2, "command-channel-id", expect.anything());
+        expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
+          embeds: [expect.objectContaining({ description: "Series stats were posted in <#command-channel-id>." })],
+          components: [],
+        });
+      });
+
+      it("keeps manual stats in the invoking thread when a queue destination is configured", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({
+            ChannelId: "queue-a",
+            ResultsChannelId: "results-channel-id",
+            PostSeriesChannelId: "post-channel-id",
+          }),
+        ]);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+
+        await confirm();
+
+        expect(createMessageSpy).toHaveBeenNthCalledWith(1, "command-channel-id", expect.anything());
+        expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalled();
+      });
+
+      it("posts game stats immediately when reusing a thread with lazy game stats configured", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+        vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+        );
+        const getPlayerXuidsToGametagsSpy = vi.spyOn(services.haloService, "getPlayerXuidsToGametags");
+
+        await confirm();
+
+        expect(
+          createMessageSpy.mock.calls.some(
+            ([, payload]) =>
+              payload.components?.some(
+                (component) =>
+                  component.type === ComponentType.ActionRow &&
+                  component.components.some(
+                    (button) =>
+                      button.type === ComponentType.Button &&
+                      "custom_id" in button &&
+                      button.custom_id === "btn_stats_load_games",
+                  ),
+              ) === true,
+          ),
+        ).toBe(false);
+        expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledWith(Preconditions.checkExists(getMatchStats(ctfMatchId)), {
+          presentAtBeginningOnly: true,
+        });
+        expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledWith(
+          Preconditions.checkExists(getMatchStats(slayerMatchId)),
+          { presentAtBeginningOnly: true },
+        );
+      });
+
+      it("posts game stats immediately in announcement threads", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue({
+          ...textChannel,
+          type: ChannelType.GuildAnnouncement,
+        });
+        startThreadFromMessageSpy.mockResolvedValue({
+          id: "new-announcement-thread-id",
+          type: ChannelType.AnnouncementThread,
+        } as RESTPostAPIChannelThreadsResult);
+        const getPlayerXuidsToGametagsSpy = vi.spyOn(services.haloService, "getPlayerXuidsToGametags");
+
+        await confirm();
+
+        expect(
+          createMessageSpy.mock.calls.some(
+            ([, payload]) =>
+              payload.components?.some(
+                (component) =>
+                  component.type === ComponentType.ActionRow &&
+                  component.components.some(
+                    (button) =>
+                      button.type === ComponentType.Button &&
+                      "custom_id" in button &&
+                      button.custom_id === "btn_stats_load_games",
+                  ),
+              ) === true,
+          ),
+        ).toBe(false);
+        expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledWith(Preconditions.checkExists(getMatchStats(ctfMatchId)), {
+          presentAtBeginningOnly: true,
+        });
+      });
+
+      it("deletes the overview if thread creation fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        const threadError = new Error("Thread creation failed");
+        startThreadFromMessageSpy.mockRejectedValue(threadError);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteMessageSpy).toHaveBeenCalledWith(
+          "command-channel-id",
+          "overview-message-id",
+          "Removing manual series overview after thread creation failed",
+        );
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalled();
+      });
+
+      it("removes the manual overview and newly created thread when posting thread contents fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        const postError = new Error("Thread content post failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "partial-overview-message-id" })
+          .mockRejectedValueOnce(postError);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteChannelSpy).toHaveBeenCalledWith("new-thread-id", "Removing incomplete manual series thread");
+        expect(deleteMessageSpy).toHaveBeenCalledWith(
+          "command-channel-id",
+          "partial-overview-message-id",
+          "Removing manual series overview after stats publication failed",
+        );
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", postError);
+      });
+
+      it("removes only this confirmation's messages when posting fails in a reused thread", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+        const postError = new Error("Thread content post failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-overview-in-thread" })
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-series-embed" })
+          .mockRejectedValueOnce(postError);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteChannelSpy).not.toHaveBeenCalled();
+        expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+          1,
+          "command-channel-id",
+          "manual-overview-in-thread",
+          "Removing incomplete manual series stats",
+        );
+        expect(deleteMessageSpy).toHaveBeenNthCalledWith(
+          2,
+          "command-channel-id",
+          "manual-series-embed",
+          "Removing incomplete manual series stats",
+        );
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", postError);
+      });
+
+      it("continues deleting tracked messages when one rollback deletion fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+        const postError = new Error("Thread content post failed");
+        const cleanupError = new Error("Message deletion failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-overview-in-thread" })
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-series-embed" })
+          .mockRejectedValueOnce(postError);
+        const deleteMessageSpy = vi
+          .spyOn(services.discordService, "deleteMessage")
+          .mockRejectedValueOnce(cleanupError)
+          .mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteMessageSpy).toHaveBeenCalledTimes(2);
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({
+            errors: [postError, cleanupError],
+          }),
+        );
+      });
+
+      it("maps the selected winner to its actual Halo team ID and stable roster IDs", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+        });
+        const queueConfig = aFakeNeatQueueConfigRow({ ChannelId: "queue-a" });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([queueConfig]);
+        const mapTeamIds = (match: NonNullable<ReturnType<typeof getMatchStats>>): typeof match => ({
+          ...match,
+          Teams: match.Teams.map((team) => ({ ...team, TeamId: team.TeamId + 2 })),
+          Players: match.Players.map((player) => ({
+            ...player,
+            LastTeamId: player.LastTeamId + 2,
+            PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
+              ...teamStats,
+              TeamId: teamStats.TeamId + 2,
+            })),
+          })),
+        });
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          mapTeamIds(Preconditions.checkExists(getMatchStats(ctfMatchId))),
+          mapTeamIds(Preconditions.checkExists(getMatchStats(slayerMatchId))),
+        ]);
+
+        await confirm();
+
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(expect.objectContaining({ winnerTeamIndex: 3 }));
+      });
+
+      it("assigns a substitute to the same series team after teams swap sides", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-substitute-after-swap",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-map-2",
+            team0PlayerIds: ["0400000000000000", "0800000000000000"],
+            team1PlayerIds: ["0100000000000000", "0200000000000000", "0900000000000000"],
+            team0Outcome: MatchOutcome.Loss.valueOf(),
+            team1Outcome: MatchOutcome.Win.valueOf(),
+          }),
+        ]);
+
+        await confirm();
+
+        const [persistInput] = Preconditions.checkExists(persistReconciledSeriesDataSpy.mock.calls[0]);
+        expect(persistInput.seriesTeamIdByXuid?.get("0900000000000000")).toBe(0);
+      });
+
+      it("propagates substitute identities across consecutive roster turnovers", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        const wrapPlayerIds = (match: MatchStats): MatchStats => ({
+          ...match,
+          Players: match.Players.map((player) => ({
+            ...player,
+            PlayerId: `xuid(${player.PlayerId})`,
+          })),
+        });
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-1",
+              startTime: "2026-10-03T10:00:00Z",
+              mapAssetId: "manual-map-1",
+              team0PlayerIds: ["0100000000000000", "0200000000000000"],
+              team1PlayerIds: ["0300000000000000", "0400000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-2",
+              startTime: "2026-10-03T10:15:00Z",
+              mapAssetId: "manual-map-2",
+              team0PlayerIds: ["0100000000000000", "0500000000000000"],
+              team1PlayerIds: ["0300000000000000", "0600000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
+          wrapPlayerIds(
+            aMatchWithSwappableRosters({
+              matchId: "manual-turnover-3",
+              startTime: "2026-10-03T10:30:00Z",
+              mapAssetId: "manual-map-3",
+              team0PlayerIds: ["0600000000000000", "0700000000000000"],
+              team1PlayerIds: ["0500000000000000", "0800000000000000"],
+              team0Outcome: MatchOutcome.Win.valueOf(),
+              team1Outcome: MatchOutcome.Loss.valueOf(),
+            }),
+          ),
+        ]);
+
+        await confirm();
+
+        const [persistInput] = Preconditions.checkExists(persistReconciledSeriesDataSpy.mock.calls[0]);
+        expect(persistInput.seriesTeamIdByXuid?.get("0500000000000000")).toBe(0);
+        expect(persistInput.seriesTeamIdByXuid?.get("0600000000000000")).toBe(1);
+      });
+
+      it("skips leaderboard persistence when the initial manual rosters cannot be resolved", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        const firstMatch = aMatchWithSwappableRosters({
+          matchId: "manual-unresolved-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0300000000000000", "0400000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        firstMatch.Players = firstMatch.Players.filter((player) => player.LastTeamId === 0);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          firstMatch,
+          aMatchWithSwappableRosters({
+            matchId: "manual-unresolved-follow-up",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-map-2",
+            team0PlayerIds: ["0100000000000000", "0500000000000000"],
+            team1PlayerIds: ["0300000000000000", "0600000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+        ]);
+        const warnSpy = vi.spyOn(services.logService, "warn");
+
+        await confirm();
+
+        expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
+        const [error, logContext] = Preconditions.checkExists(warnSpy.mock.lastCall);
+        expect(error).toBeInstanceOf(Error);
+        expect(logContext?.get("context")).toBe("Manual stats leaderboard persistence failed");
+      });
+
+      it("returns an error when no final result was selected", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          selectedSeriesOutcome: undefined,
+        });
+
+        await confirm();
+
+        expect(createMessageSpy).not.toHaveBeenCalled();
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({ message: "No final series result was selected. Please run /stats manual again." }),
+        );
       });
     });
   });

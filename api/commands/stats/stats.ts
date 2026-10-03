@@ -32,10 +32,6 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import {
-  buildPresentAtBeginningTeamRosters,
-  resolveMatchTeamIdToSeriesTeamId,
-} from "@guilty-spark/shared/halo/series-team-identity";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
@@ -56,6 +52,11 @@ import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
+import {
+  mapManualSeriesToStableTeams,
+  resolveManualSeriesTeamMappings,
+} from "../../services/halo/manual-series-team-mapping";
+import type { ManualSeriesTeamMappings } from "../../services/halo/manual-series-team-mapping";
 import {
   buildDiscordSeriesRenderDataFromMatches,
   extractDiscordSeriesMatchIdsFromEmbeds,
@@ -187,6 +188,7 @@ export enum InteractionButton {
   ManualPlayerSelect = "btn_stats_manual_player_select",
   ManualGamesSelect = "btn_stats_manual_games_select",
   ManualOutcomeSelect = "btn_stats_manual_outcome_select",
+  ManualConfirm = "btn_stats_manual_confirm",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -505,6 +507,13 @@ export class StatsCommand extends BaseCommand {
           values: [],
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualConfirm,
+        },
+      },
     ];
   }
 
@@ -696,6 +705,19 @@ export class StatsCommand extends BaseCommand {
               },
               jobToComplete: async () =>
                 this.handleManualOutcomeSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualConfirm.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Posting series stats...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualConfirmJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           default: {
@@ -1789,12 +1811,15 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
+    allowLoadGamesButton = true,
+    postedMessageIds?: string[],
+    teamMappings?: ManualSeriesTeamMappings,
   ): Promise<void> {
     const { discordService } = this.services;
 
     try {
-      await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale);
-      await this.postGameStatsOrButton(threadId, series, guildConfig, locale);
+      await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale, postedMessageIds, teamMappings);
+      await this.postGameStatsOrButton(threadId, series, guildConfig, locale, allowLoadGamesButton, postedMessageIds);
     } catch (error) {
       throw (
         toMissingPermissionsError(error, {
@@ -2102,6 +2127,8 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
+    postedMessageIds?: string[],
+    teamMappings?: ManualSeriesTeamMappings,
   ): Promise<void> {
     const { discordService, haloService } = this.services;
 
@@ -2111,18 +2138,21 @@ export class StatsCommand extends BaseCommand {
       guildConfig,
       locale,
     });
-    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
-    await discordService.createMessage(threadId, {
+    const teamStatsSeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
+    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(teamStatsSeries);
+    const seriesTeamsMessage = await discordService.createMessage(threadId, {
       embeds: [seriesTeamsEmbedOutput],
     });
+    postedMessageIds?.push(seriesTeamsMessage.id);
 
     const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
     const seriesPlayers = await haloService.getPlayerXuidsToGametags(series, { presentAtBeginningOnly: true });
-    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(teamStatsSeries, seriesPlayers, locale);
     for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
-      await discordService.createMessage(threadId, {
+      const seriesPlayersMessage = await discordService.createMessage(threadId, {
         embeds: [seriesPlayersEmbedOutput],
       });
+      postedMessageIds?.push(seriesPlayersMessage.id);
     }
   }
 
@@ -2131,11 +2161,13 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
+    allowLoadGamesButton = true,
+    postedMessageIds?: string[],
   ): Promise<void> {
     const { discordService, haloService } = this.services;
 
-    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
-      await discordService.createMessage(threadId, {
+    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY && allowLoadGamesButton) {
+      const loadGamesMessage = await discordService.createMessage(threadId, {
         components: [
           {
             type: ComponentType.ActionRow,
@@ -2153,13 +2185,15 @@ export class StatsCommand extends BaseCommand {
           },
         ],
       });
+      postedMessageIds?.push(loadGamesMessage.id);
     } else {
       for (const match of series) {
         const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
         const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
-        await discordService.createMessage(threadId, { embeds: [embed] });
+        const gameStatsMessage = await discordService.createMessage(threadId, { embeds: [embed] });
+        postedMessageIds?.push(gameStatsMessage.id);
       }
     }
   }
@@ -2217,6 +2251,7 @@ export class StatsCommand extends BaseCommand {
     queueNumber: number,
     series: MatchStats[],
     locale: string,
+    isManualSeries = false,
   ): Promise<void> {
     const { discordService, haloService, logService } = this.services;
 
@@ -2229,6 +2264,7 @@ export class StatsCommand extends BaseCommand {
         queueNumber,
         matches: series,
         locale,
+        isManualSeries,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({
@@ -2510,7 +2546,7 @@ export class StatsCommand extends BaseCommand {
       );
       const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
       await this.showManualSeriesPreview(interaction, {
-        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome },
+        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
         series,
         derivedSeriesOutcome,
       });
@@ -2552,24 +2588,15 @@ export class StatsCommand extends BaseCommand {
     return series;
   }
 
-  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
+  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome | null {
     const orderedSeries = [...series].sort((left, right) =>
       left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
     );
-    const [anchorMatch] = orderedSeries;
-    const anchorRosters = anchorMatch == null ? null : buildPresentAtBeginningTeamRosters(anchorMatch);
-    const canonicalSeries = orderedSeries.map((match) => {
-      const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
-      const teams = [...match.Teams].sort(
-        (left, right) =>
-          (matchTeamIdToSeriesTeamId?.get(left.TeamId) ?? left.TeamId) -
-          (matchTeamIdToSeriesTeamId?.get(right.TeamId) ?? right.TeamId),
-      );
-
-      return { ...match, Teams: teams };
-    });
-
-    return this.deriveFixSeriesOutcome(canonicalSeries);
+    const mappings = resolveManualSeriesTeamMappings(orderedSeries);
+    if (mappings == null) {
+      return null;
+    }
+    return this.deriveFixSeriesOutcome(mapManualSeriesToStableTeams(orderedSeries, mappings));
   }
 
   private async showManualSeriesPreview(
@@ -2578,27 +2605,31 @@ export class StatsCommand extends BaseCommand {
       metadata,
       series,
       derivedSeriesOutcome,
-    }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome },
+    }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome | null },
   ): Promise<void> {
-    const { discordService, haloService } = this.services;
+    const { discordService } = this.services;
     const teams = Preconditions.checkExists(metadata.teams, "Expected manual series teams");
-    const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
-    const seriesEmbed = await new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
-      guildId: metadata.guildId,
-      channelId: metadata.channelId,
-      pagesUrl: this.env.PAGES_URL,
-      locale: interaction.guild_locale ?? interaction.locale,
-      queue: metadata.queueNumber,
-      series,
-      finalTeams: teams,
-      substitutions: [],
-      hideTeamsDescription: false,
-    });
+    const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome ?? undefined;
+    const derivedResultLabel =
+      derivedSeriesOutcome == null
+        ? "Could not determine automatically"
+        : this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams);
+    const selectedResultLabel =
+      selectedSeriesOutcome == null
+        ? "Select a final result"
+        : this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams);
+    const teamMappings = resolveManualSeriesTeamMappings(series);
+    const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
+    const seriesEmbed = await this.createManualSeriesEmbed(
+      metadata,
+      displaySeries,
+      interaction.guild_locale ?? interaction.locale,
+    );
 
     const message = await discordService.updateDeferredReply(interaction.token, {
       embeds: [
         this.createStatusEmbed(
-          `Preview generated. Adjust the final result if needed.\nDerived result: ${this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams)}\nFinal result: ${this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams)}`,
+          `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${derivedResultLabel}\nFinal result: ${selectedResultLabel}`,
         ),
         ...seriesEmbed.embeds,
       ],
@@ -2615,11 +2646,312 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
-        this.createFixCancelActionRow(),
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.ManualConfirm,
+              label: "Confirm",
+              style: ButtonStyle.Success,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.FixCancel,
+              label: "Cancel",
+              style: ButtonStyle.Secondary,
+            },
+          ],
+        },
       ],
     });
 
     await this.setManualMetadata(message.id, { ...metadata, selectedSeriesOutcome });
+  }
+
+  private async createManualSeriesEmbed(
+    metadata: ManualFlowMetadata,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<SeriesOverviewEmbedOutput> {
+    const { discordService, haloService } = this.services;
+    return new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
+      guildId: metadata.guildId,
+      channelId: metadata.channelId,
+      pagesUrl: this.env.PAGES_URL,
+      locale,
+      queue: metadata.queueNumber,
+      series,
+      finalTeams: Preconditions.checkExists(metadata.teams, "Expected manual series teams"),
+      substitutions: [],
+      hideTeamsDescription: false,
+    });
+  }
+
+  private async handleManualConfirmJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService, haloService } = this.services;
+
+    try {
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      if (metadata.selectedSeriesOutcome == null) {
+        throw new EndUserError("No final series result was selected. Please run /stats manual again.");
+      }
+
+      const locale = interaction.guild_locale ?? interaction.locale;
+      const [guildConfig, series, queueConfig] = await Promise.all([
+        databaseService.getGuildConfig(metadata.guildId),
+        this.getManualSeriesMatches(metadata.selectedMatchIds ?? []),
+        this.findManualQueueConfig(metadata),
+      ]);
+      const teamMappings = resolveManualSeriesTeamMappings(series);
+      const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
+
+      await discordService.cacheDiscordSeriesMatchIds(
+        metadata.guildId,
+        metadata.queueNumber,
+        series.map((match) => match.MatchId),
+      );
+
+      const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
+      const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
+      overviewEmbed.fields ??= [];
+      overviewEmbed.fields.push({
+        name: "Final series result",
+        value: this.getFixSeriesOutcomeLabel(metadata.selectedSeriesOutcome, Preconditions.checkExists(metadata.teams)),
+        inline: false,
+      });
+      overviewEmbed.fields.push({
+        name: "Created manually by",
+        value: `<@${discordService.getDiscordUserId(interaction)}> on ${discordService.getTimestamp(new Date().toISOString())}`,
+        inline: false,
+      });
+
+      const publication = await this.postManualSeriesOverview({
+        postChannelId: this.isThreadChannel((await discordService.getChannel(metadata.channelId)).type)
+          ? metadata.channelId
+          : (queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId),
+        seriesEmbed,
+        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(displaySeries, locale, true)})`,
+      });
+      try {
+        await this.postSeriesStatsToThread(
+          publication.threadId,
+          series,
+          guildConfig,
+          locale,
+          publication.allowLoadGamesButton,
+          publication.messageIds,
+          teamMappings ?? undefined,
+        );
+      } catch (error) {
+        await this.rollbackManualSeriesPublication(publication, error);
+      }
+
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale, true);
+      if (queueConfig != null) {
+        await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
+      }
+
+      await discordService.updateDeferredReply(interaction.token, {
+        embeds: [this.createStatusEmbed(`Series stats were posted in <#${publication.threadId}>.`)],
+        components: [],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async findManualQueueConfig(metadata: ManualFlowMetadata): Promise<NeatQueueConfigRow | undefined> {
+    if (metadata.queueChannelId == null) {
+      return undefined;
+    }
+
+    const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+    return configuredQueues.find((queue) => queue.ChannelId === metadata.queueChannelId);
+  }
+
+  /**
+   * Manual series have no NeatQueue message to thread from, so the overview is posted and threaded from directly,
+   * unless the post channel is already a thread.
+   */
+  private async postManualSeriesOverview({
+    postChannelId,
+    seriesEmbed,
+    threadName,
+  }: {
+    postChannelId: string;
+    seriesEmbed: SeriesOverviewEmbedOutput;
+    threadName: string;
+  }): Promise<{
+    threadId: string;
+    allowLoadGamesButton: boolean;
+    messageIds: string[];
+    overviewChannelId: string;
+    overviewMessageId?: string | undefined;
+    createdThread: boolean;
+  }> {
+    const { discordService } = this.services;
+    const content = { embeds: seriesEmbed.embeds, components: seriesEmbed.components };
+    const postChannel = await discordService.getChannel(postChannelId);
+    if (this.isThreadChannel(postChannel.type)) {
+      const overviewMessage = await discordService.createMessage(postChannelId, content);
+      return {
+        threadId: postChannelId,
+        allowLoadGamesButton: false,
+        messageIds: [overviewMessage.id],
+        overviewChannelId: postChannelId,
+        createdThread: false,
+      };
+    }
+
+    let overviewMessage: APIMessage | undefined;
+    try {
+      overviewMessage = await discordService.createMessage(postChannelId, content);
+      const thread = await discordService.startThreadFromMessage(postChannelId, overviewMessage.id, threadName);
+      return {
+        threadId: thread.id,
+        allowLoadGamesButton: thread.type === ChannelType.PublicThread,
+        messageIds: [],
+        overviewChannelId: postChannelId,
+        overviewMessageId: overviewMessage.id,
+        createdThread: true,
+      };
+    } catch (error) {
+      if (overviewMessage != null) {
+        try {
+          await discordService.deleteMessage(
+            postChannelId,
+            overviewMessage.id,
+            "Removing manual series overview after thread creation failed",
+          );
+        } catch (cleanupError) {
+          throw new AggregateError(
+            [error, cleanupError],
+            "Failed to create a manual series thread and clean up its overview message",
+            { cause: cleanupError },
+          );
+        }
+      }
+
+      throw (
+        toMissingPermissionsError(error, {
+          action: "post the series stats",
+          permissions: [
+            discordService.permissionToString(PermissionFlagsBits.SendMessages),
+            discordService.permissionToString(PermissionFlagsBits.CreatePublicThreads),
+          ],
+        }) ?? error
+      );
+    }
+  }
+
+  private async rollbackManualSeriesPublication(
+    publication: {
+      threadId: string;
+      messageIds: string[];
+      overviewChannelId: string;
+      overviewMessageId?: string | undefined;
+      createdThread: boolean;
+    },
+    originalError: unknown,
+  ): Promise<never> {
+    const { discordService } = this.services;
+    const cleanupErrors: unknown[] = [];
+    let threadDeleted = false;
+
+    if (publication.createdThread) {
+      try {
+        await discordService.deleteChannel(publication.threadId, "Removing incomplete manual series thread");
+        threadDeleted = true;
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+
+    if ((!publication.createdThread || !threadDeleted) && publication.messageIds.length > 0) {
+      for (const messageId of publication.messageIds) {
+        try {
+          await discordService.deleteMessage(
+            publication.threadId,
+            messageId,
+            "Removing incomplete manual series stats",
+          );
+        } catch (error) {
+          cleanupErrors.push(error);
+        }
+      }
+    }
+
+    if (publication.overviewMessageId != null) {
+      try {
+        await discordService.deleteMessage(
+          publication.overviewChannelId,
+          publication.overviewMessageId,
+          "Removing manual series overview after stats publication failed",
+        );
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError(
+        [originalError, ...cleanupErrors],
+        "Failed to publish manual series stats and clean up the partial publication",
+        { cause: originalError },
+      );
+    }
+
+    throw originalError;
+  }
+
+  private async persistManualSeriesToLeaderboard(
+    metadata: ManualFlowMetadata,
+    queueConfig: NeatQueueConfigRow,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
+    try {
+      const mappings = Preconditions.checkExists(
+        resolveManualSeriesTeamMappings(series),
+        "Cannot resolve stable team identities from the manual series rosters",
+      );
+      await this.services.leaderboardService.persistReconciledSeriesData({
+        guildId: metadata.guildId,
+        channelId: queueConfig.ChannelId,
+        queueNumber: metadata.queueNumber,
+        neatQueueConfig: queueConfig,
+        series,
+        winnerTeamIndex: this.getManualWinnerTeamId(series, metadata.selectedSeriesOutcome),
+        seriesTeamIdByXuid: mappings.playerToSeriesTeamId,
+        seriesScore: this.services.haloService.getSeriesScore(mapManualSeriesToStableTeams(series, mappings), locale),
+        locale,
+      });
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["context", "Manual stats leaderboard persistence failed"],
+          ["guildId", metadata.guildId],
+          ["queue", metadata.queueNumber.toString()],
+        ]),
+      );
+    }
+  }
+
+  private getManualWinnerTeamId(series: MatchStats[], selectedSeriesOutcome: FixSeriesOutcome | undefined): number {
+    if (selectedSeriesOutcome === "TIE") {
+      return -1;
+    }
+
+    const [firstMatch] = [...series].sort((left, right) =>
+      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+    );
+    const sortedTeams = [...Preconditions.checkExists(firstMatch).Teams].sort(
+      (left, right) => left.TeamId - right.TeamId,
+    );
+    const winningTeam = sortedTeams[selectedSeriesOutcome === "TEAM_0" ? 0 : 1];
+    return Preconditions.checkExists(winningTeam, "Expected winning team in first match").TeamId;
   }
 
   private createFixCancelActionRow(): APIMessageTopLevelComponent {
@@ -3182,7 +3514,7 @@ export class StatsCommand extends BaseCommand {
 
   private getFixSeriesOutcomeOptions(
     teams: readonly { name: string }[],
-    selectedSeriesOutcome: FixSeriesOutcome,
+    selectedSeriesOutcome: FixSeriesOutcome | undefined,
   ): APISelectMenuOption[] {
     const firstTeamName = this.getFixSeriesOutcomeTeamName(teams, 0);
     const secondTeamName = this.getFixSeriesOutcomeTeamName(teams, 1);

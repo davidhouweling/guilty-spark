@@ -6,6 +6,7 @@ import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { mapManualSeriesToStableTeams, resolveManualSeriesTeamMappings } from "../halo/manual-series-team-mapping";
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError } from "../../base/end-user-error";
 import type { HaloService } from "../halo/halo";
@@ -20,6 +21,10 @@ export const DISCORD_SERIES_STATS_RESOLVED_CACHE_CONTROL_HEADER = `public, s-max
 
 export function getDiscordSeriesStatsCacheKey(guildId: string, queueNumber: number): string {
   return `stats:discord:series:${guildId}:${queueNumber.toString()}`;
+}
+
+export function getDiscordSeriesStatsMatchIdsKey(guildId: string, queueNumber: number): string {
+  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:match-ids`;
 }
 
 export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: number): APIEmbed | null {
@@ -150,6 +155,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   queueNumber,
   matches,
   locale,
+  isManualSeries,
 }: {
   discordService: DiscordService;
   logService: LogService;
@@ -158,6 +164,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   queueNumber: number;
   matches: MatchStats[];
   locale?: string;
+  isManualSeries?: boolean | undefined;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   if (matches.length === 0) {
     throw new Error("No Halo match details were found for discovered match IDs");
@@ -166,6 +173,9 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   const sortedMatches = [...matches].sort((left, right) =>
     left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
   );
+  const teamMappings = isManualSeries === true ? resolveManualSeriesTeamMappings(sortedMatches) : null;
+  const displayMatches =
+    teamMappings == null ? sortedMatches : mapManualSeriesToStableTeams(sortedMatches, teamMappings);
 
   const [playerXuidToGametagMap, resolvedLocale] = await Promise.all([
     haloService.getPlayerXuidsToGametags(sortedMatches, { presentAtBeginningOnly: true }),
@@ -173,13 +183,14 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   ]);
 
   const renderMatches = await Promise.all(
-    sortedMatches.map(async (match) => {
+    sortedMatches.map(async (match, index) => {
       const [gameTypeAndMap, mapThumbnailUrl] = await Promise.all([
         haloService.getGameTypeAndMap(match.MatchInfo),
         haloService.getMapThumbnailUrl(match.MatchInfo.MapVariant.AssetId, match.MatchInfo.MapVariant.VersionId),
       ]);
       const { gameType, gameMap } = splitGameTypeAndMap(gameTypeAndMap);
-      const { gameScore, gameSubScore } = haloService.getMatchScore(match, resolvedLocale, sortedMatches);
+      const displayMatch = Preconditions.checkExists(displayMatches[index], "Expected mapped series match");
+      const { gameScore, gameSubScore } = haloService.getMatchScore(displayMatch, resolvedLocale, displayMatches);
 
       const playerXuidToGametag: Record<string, string> = {};
       for (const player of match.Players) {
@@ -205,11 +216,12 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         endTime: new Date(match.MatchInfo.EndTime).toISOString(),
         playerXuidToGametag,
         rawMatch: match,
+        ...(teamMappings == null ? {} : { seriesMatch: displayMatch }),
       };
     }),
   );
 
-  const lastMatch = Preconditions.checkExists(sortedMatches[sortedMatches.length - 1]);
+  const lastMatch = Preconditions.checkExists(displayMatches[displayMatches.length - 1]);
   const teams = lastMatch.Teams.map((team) => ({
     name: getTeamName(team.TeamId),
     players: getTeamPlayersFromMatch(lastMatch, team.TeamId).map((player) => {
@@ -227,7 +239,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
-    seriesScore: haloService.getSeriesScore(sortedMatches, resolvedLocale),
+    seriesScore: haloService.getSeriesScore(displayMatches, resolvedLocale),
     teams,
     matches: renderMatches,
   };
