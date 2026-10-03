@@ -9,7 +9,10 @@ import {
   allocateManualQueueNumber,
   deriveManualSeriesTeams,
   findGuildMemberIdForGamertag,
+  formatManualSeriesScore,
   getManualSeriesFinalMatch,
+  getOutcomeForManualSeriesScore,
+  parseManualSeriesGamesWon,
   toSeriesOverviewTeams,
 } from "../manual-series";
 
@@ -31,6 +34,37 @@ describe("allocateManualQueueNumber()", () => {
     expect(Number.isSafeInteger(queueNumber)).toBe(true);
     expect(queueNumber).toBeGreaterThanOrEqual(MANUAL_QUEUE_NUMBER_MIN);
     expect(queueNumber.toString()).toHaveLength(14);
+  });
+});
+
+describe("parseManualSeriesGamesWon()", () => {
+  it.each([
+    ["0", 0],
+    [" 3 ", 3],
+    ["99", 99],
+  ])("parses %s as %d", (raw, expected) => {
+    expect(parseManualSeriesGamesWon(raw)).toBe(expected);
+  });
+
+  it.each(["", "-1", "100", "1.5", "abc"])("rejects %s", (raw) => {
+    expect(parseManualSeriesGamesWon(raw)).toBeUndefined();
+  });
+});
+
+describe("formatManualSeriesScore()", () => {
+  it("formats the score with and without team emojis", () => {
+    expect(formatManualSeriesScore({ team0: 3, team1: 1 }, "en-US", true)).toBe("🦅 3:1 🐍");
+    expect(formatManualSeriesScore({ team0: 3, team1: 1 }, "en-US", false)).toBe("3:1");
+  });
+});
+
+describe("getOutcomeForManualSeriesScore()", () => {
+  it.each([
+    [{ team0: 3, team1: 1 }, "TEAM_0"],
+    [{ team0: 1, team1: 3 }, "TEAM_1"],
+    [{ team0: 2, team1: 2 }, "TIE"],
+  ])("returns the outcome for %o", (score, expected) => {
+    expect(getOutcomeForManualSeriesScore(score)).toBe(expected);
   });
 });
 
