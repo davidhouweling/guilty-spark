@@ -12,6 +12,6 @@ export interface DiscordSeriesStatsLookupResult {
 }
 
 export interface DiscordSeriesStatsService {
-  getStats(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsResult>;
-  getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult>;
+  getStats(guildId: string, queueNumber: string, seriesId?: string): Promise<DiscordSeriesStatsResult>;
+  getLookup(guildId: string, queueNumber: string, seriesId?: string): Promise<DiscordSeriesStatsLookupResult>;
 }

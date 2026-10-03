@@ -1524,13 +1524,15 @@ describe("StatsCommand", () => {
             }),
           ],
         });
-        expect(getLastManualMetadata()).toEqual({
+        const metadata = getLastManualMetadata();
+        expect(metadata).toMatchObject({
           guildId: "fake-guild-id",
           channelId: applicationCommandInteractionStatsFix.channel.id,
           queueNumber: 42,
           queueChannelId: null,
           queuePage: 0,
         });
+        expect(typeof metadata["seriesId"]).toBe("string");
         expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
       });
 
@@ -1880,6 +1882,7 @@ describe("StatsCommand", () => {
         queueChannelId: null,
         selectedPlayerId: "invoker-id",
         selectedMatchIds: [ctfMatchId, slayerMatchId],
+        seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
         teams: [
           { name: "Eagle", playerIds: ["discord-1"] },
           { name: "Cobra", playerIds: ["discord-4"] },
@@ -1913,9 +1916,10 @@ describe("StatsCommand", () => {
           .spyOn(services.discordService, "createMessage")
           .mockResolvedValueOnce({ ...apiMessage, id: "overview-message-id" })
           .mockResolvedValue(apiMessage);
-        startThreadFromMessageSpy = vi
-          .spyOn(services.discordService, "startThreadFromMessage")
-          .mockResolvedValue({ id: "new-thread-id" } as RESTPostAPIChannelThreadsResult);
+        startThreadFromMessageSpy = vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
+          id: "new-thread-id",
+          type: ChannelType.PublicThread,
+        } as RESTPostAPIChannelThreadsResult);
         cacheResolvedDiscordSeriesStatsSpy = vi
           .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
           .mockResolvedValue();
@@ -1946,7 +1950,14 @@ describe("StatsCommand", () => {
         );
         expect(createMessageSpy).toHaveBeenCalledWith("new-thread-id", expect.anything());
         expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
-          expect.objectContaining({ guildId: "fake-guild-id", queueNumber: 20261003050709 }),
+          expect.objectContaining({
+            guildId: "fake-guild-id",
+            queueNumber: 20261003050709,
+            seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
+          }),
+        );
+        expect(JSON.stringify(overviewPayload.components)).toContain(
+          "http://localhost:4321/stats/discord/fake-guild-id/20261003050709?seriesId=d9408885-89bc-4bb3-a7b8-248e7304a846",
         );
         expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
         expect(updateDeferredReplySpy).toHaveBeenCalledWith("fake-token", {
@@ -2041,6 +2052,40 @@ describe("StatsCommand", () => {
         );
       });
 
+      it("posts game stats immediately in announcement threads", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue({
+          ...textChannel,
+          type: ChannelType.GuildAnnouncement,
+        });
+        startThreadFromMessageSpy.mockResolvedValue({
+          id: "new-announcement-thread-id",
+          type: ChannelType.AnnouncementThread,
+        } as RESTPostAPIChannelThreadsResult);
+        const getPlayerXuidsToGametagsSpy = vi.spyOn(services.haloService, "getPlayerXuidsToGametags");
+
+        await confirm();
+
+        expect(
+          createMessageSpy.mock.calls.some(
+            ([, payload]) =>
+              payload.components?.some(
+                (component) =>
+                  component.type === ComponentType.ActionRow &&
+                  component.components.some(
+                    (button) =>
+                      button.type === ComponentType.Button &&
+                      "custom_id" in button &&
+                      button.custom_id === "btn_stats_load_games",
+                  ),
+              ) === true,
+          ),
+        ).toBe(false);
+        expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledWith(Preconditions.checkExists(getMatchStats(ctfMatchId)), {
+          presentAtBeginningOnly: true,
+        });
+      });
+
       it("deletes the overview if thread creation fails", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
         const threadError = new Error("Thread creation failed");
@@ -2122,6 +2167,53 @@ describe("StatsCommand", () => {
 
         const [persistInput] = Preconditions.checkExists(persistReconciledSeriesDataSpy.mock.calls[0]);
         expect(persistInput.seriesTeamIdByXuid?.get("0900000000000000")).toBe(0);
+      });
+
+      it("propagates substitute identities across consecutive roster turnovers", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-turnover-1",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0300000000000000", "0400000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-turnover-2",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-map-2",
+            team0PlayerIds: ["0100000000000000", "0500000000000000"],
+            team1PlayerIds: ["0300000000000000", "0600000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-turnover-3",
+            startTime: "2026-10-03T10:30:00Z",
+            mapAssetId: "manual-map-3",
+            team0PlayerIds: ["0600000000000000", "0700000000000000"],
+            team1PlayerIds: ["0500000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+        ]);
+
+        await confirm();
+
+        const [persistInput] = Preconditions.checkExists(persistReconciledSeriesDataSpy.mock.calls[0]);
+        expect(persistInput.seriesTeamIdByXuid?.get("0500000000000000")).toBe(0);
+        expect(persistInput.seriesTeamIdByXuid?.get("0600000000000000")).toBe(1);
       });
 
       it("returns an error when no final result was selected", async () => {

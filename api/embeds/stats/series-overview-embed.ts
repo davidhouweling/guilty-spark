@@ -39,6 +39,7 @@ export class SeriesOverviewEmbed {
     guildId,
     channelId,
     messageId,
+    seriesId,
     pagesUrl,
     locale,
     queue,
@@ -50,6 +51,7 @@ export class SeriesOverviewEmbed {
     guildId: string;
     channelId: string;
     messageId?: string | undefined;
+    seriesId?: string | undefined;
     pagesUrl?: string;
     locale: string;
     queue: number;
@@ -102,7 +104,9 @@ export class SeriesOverviewEmbed {
     const endTime = this.discordService.getTimestamp(
       Preconditions.checkExists(seriesMatches[seriesMatches.length - 1]?.MatchInfo.EndTime),
     );
-    const internalStatsLink = pagesUrl != null ? `${pagesUrl}/stats/discord/${guildId}/${queue.toString()}` : null;
+    const seriesIdQuery = seriesId == null ? "" : `?seriesId=${encodeURIComponent(seriesId)}`;
+    const internalStatsLink =
+      pagesUrl != null ? `${pagesUrl}/stats/discord/${guildId}/${queue.toString()}${seriesIdQuery}` : null;
 
     const embeds: APIEmbed[] = [];
     const dataRows = tableData.slice(1); // All rows except titles

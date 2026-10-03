@@ -7,6 +7,7 @@ import type {
   DiscordSeriesStatsResolved,
   DiscordSeriesStatsResponse,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { EmbedColors } from "../../../embeds/colors";
@@ -93,6 +94,40 @@ describe("/api/stats/discord/:guildId/:queueNumber", () => {
   beforeEach(() => {
     env = aFakeEnvWith();
     router = createApiRouter();
+  });
+
+  it("keeps same-queue manual stats caches distinct by series id", async () => {
+    const services = installFakeServicesWith({ env });
+    const getSeriesStatsLookupSpy = vi.spyOn(services.discordService, "getSeriesStatsLookup");
+    const seriesIds = ["d9408885-89bc-4bb3-a7b8-248e7304a846", "bb8e2677-67ef-453e-a6a7-60c0945bf7ee"];
+    const matchIds = ["match-one", "match-two"];
+    getSeriesStatsLookupSpy.mockImplementation(async (_guildId, queueNumber, seriesId) =>
+      Promise.resolve({
+        status: "lookup-resolved",
+        guildId: "123456789012345678",
+        queueNumber,
+        matchIds: [
+          seriesId === seriesIds[0] ? Preconditions.checkExists(matchIds[0]) : Preconditions.checkExists(matchIds[1]),
+        ],
+      }),
+    );
+
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    statsRoutesRegisterHandler(router, localInstallServices);
+
+    for (const [index, seriesId] of seriesIds.entries()) {
+      const res = (await router.fetch(
+        new Request(`http://localhost/api/stats/discord/123456789012345678/7777/lookup?seriesId=${seriesId}`),
+        env,
+      )) as Response;
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        status: "resolved",
+        matchIds: [Preconditions.checkExists(matchIds[index])],
+      });
+      expect(getSeriesStatsLookupSpy).toHaveBeenNthCalledWith(1 + index, "123456789012345678", 7777, seriesId);
+    }
   });
 
   it("returns resolved payload when a blue overview embed with match ids exists", async () => {

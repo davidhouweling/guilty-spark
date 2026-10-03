@@ -117,6 +117,7 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   guildId: string;
   channelId: string;
   queueNumber: number;
+  seriesId?: string | undefined;
   queueChannelId: string | null;
   queuePage?: number | undefined;
   selectedPlayerId?: string | undefined;
@@ -1810,13 +1811,13 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
-    isNewThread = true,
+    allowLoadGamesButton = true,
   ): Promise<void> {
     const { discordService } = this.services;
 
     try {
       await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale);
-      await this.postGameStatsOrButton(threadId, series, guildConfig, locale, isNewThread);
+      await this.postGameStatsOrButton(threadId, series, guildConfig, locale, allowLoadGamesButton);
     } catch (error) {
       throw (
         toMissingPermissionsError(error, {
@@ -2240,6 +2241,7 @@ export class StatsCommand extends BaseCommand {
     queueNumber: number,
     series: MatchStats[],
     locale: string,
+    seriesId?: string,
   ): Promise<void> {
     const { discordService, haloService, logService } = this.services;
 
@@ -2257,6 +2259,7 @@ export class StatsCommand extends BaseCommand {
       await discordService.cacheResolvedDiscordSeriesStats({
         guildId,
         queueNumber,
+        seriesId,
         matchIds: renderData.matches.map((match) => match.matchId),
         renderData,
       });
@@ -2304,6 +2307,7 @@ export class StatsCommand extends BaseCommand {
         guildId,
         channelId: interaction.channel.id,
         queueNumber: queueNumber ?? allocateManualQueueNumber(),
+        seriesId: crypto.randomUUID(),
         queueChannelId: null,
         queuePage: 0,
       };
@@ -2667,6 +2671,7 @@ export class StatsCommand extends BaseCommand {
       pagesUrl: this.env.PAGES_URL,
       locale,
       queue: metadata.queueNumber,
+      seriesId: metadata.seriesId,
       series,
       finalTeams: Preconditions.checkExists(metadata.teams, "Expected manual series teams"),
       substitutions: [],
@@ -2704,13 +2709,13 @@ export class StatsCommand extends BaseCommand {
         inline: false,
       });
 
-      const { threadId, isNewThread } = await this.postManualSeriesOverview({
+      const { threadId, allowLoadGamesButton } = await this.postManualSeriesOverview({
         postChannelId: queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId,
         seriesEmbed,
         threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
       });
-      await this.postSeriesStatsToThread(threadId, series, guildConfig, locale, isNewThread);
-      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale);
+      await this.postSeriesStatsToThread(threadId, series, guildConfig, locale, allowLoadGamesButton);
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale, metadata.seriesId);
       if (queueConfig != null) {
         await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
       }
@@ -2745,20 +2750,20 @@ export class StatsCommand extends BaseCommand {
     postChannelId: string;
     seriesEmbed: SeriesOverviewEmbedOutput;
     threadName: string;
-  }): Promise<{ threadId: string; isNewThread: boolean }> {
+  }): Promise<{ threadId: string; allowLoadGamesButton: boolean }> {
     const { discordService } = this.services;
     const content = { embeds: seriesEmbed.embeds, components: seriesEmbed.components };
     const postChannel = await discordService.getChannel(postChannelId);
     if (this.isThreadChannel(postChannel.type)) {
       await discordService.createMessage(postChannelId, content);
-      return { threadId: postChannelId, isNewThread: false };
+      return { threadId: postChannelId, allowLoadGamesButton: false };
     }
 
     let overviewMessage: APIMessage | undefined;
     try {
       overviewMessage = await discordService.createMessage(postChannelId, content);
       const thread = await discordService.startThreadFromMessage(postChannelId, overviewMessage.id, threadName);
-      return { threadId: thread.id, isNewThread: true };
+      return { threadId: thread.id, allowLoadGamesButton: thread.type === ChannelType.PublicThread };
     } catch (error) {
       if (overviewMessage != null) {
         try {
@@ -2892,7 +2897,9 @@ export class StatsCommand extends BaseCommand {
         }
 
         const seriesTeamId = player.LastTeamId === firstTeamId ? firstTeamSeriesId : secondTeamSeriesId;
-        playerToSeriesTeamId.set(getPlayerXuid(player), seriesTeamId);
+        const xuid = getPlayerXuid(player);
+        playerToSeriesTeamId.set(xuid, seriesTeamId);
+        Preconditions.checkExists(anchorPlayersByTeam.get(seriesTeamId), "Expected resolved series roster").add(xuid);
       }
     }
 

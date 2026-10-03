@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { buildDiscordSeriesRenderDataFromMatches } from "../discord-series-stats";
+import { buildDiscordSeriesRenderDataFromMatches, getDiscordSeriesStatsCacheKey } from "../discord-series-stats";
 import { aFakeDiscordServiceWith } from "../fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
@@ -30,5 +30,13 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
 
     expect(getMatchScoreSpy).toHaveBeenCalledWith(match, Locale.German, [match]);
     expect(getSeriesScoreSpy).toHaveBeenCalledWith([match], Locale.German);
+  });
+});
+
+describe("getDiscordSeriesStatsCacheKey()", () => {
+  it("separates manual series sharing the same queue number", () => {
+    expect(getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-one")).not.toBe(
+      getDiscordSeriesStatsCacheKey("guild-1", 7777, "series-two"),
+    );
   });
 });

@@ -10,6 +10,7 @@ interface DiscordSeriesStatsPresenterDependencies {
   readonly discordSeriesStatsService: DiscordSeriesStatsService;
   readonly guildId: string;
   readonly queueNumber: string;
+  readonly seriesId?: string | undefined;
 }
 
 export class DiscordSeriesStatsPresenter {
@@ -17,18 +18,26 @@ export class DiscordSeriesStatsPresenter {
   private readonly discordSeriesStatsService: DiscordSeriesStatsService;
   private readonly guildId: string;
   private readonly queueNumber: string;
+  private readonly seriesId?: string | undefined;
   private isDisposed = false;
   private requestNumber = 0;
 
-  constructor({ store, discordSeriesStatsService, guildId, queueNumber }: DiscordSeriesStatsPresenterDependencies) {
+  constructor({
+    store,
+    discordSeriesStatsService,
+    guildId,
+    queueNumber,
+    seriesId,
+  }: DiscordSeriesStatsPresenterDependencies) {
     this.store = store;
     this.discordSeriesStatsService = discordSeriesStatsService;
     this.guildId = guildId;
     this.queueNumber = queueNumber;
+    this.seriesId = seriesId;
   }
 
   private async fetchStats(): Promise<DiscordSeriesStats> {
-    const response = await this.discordSeriesStatsService.getStats(this.guildId, this.queueNumber);
+    const response = await this.discordSeriesStatsService.getStats(this.guildId, this.queueNumber, this.seriesId);
     return response.data;
   }
 

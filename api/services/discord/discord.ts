@@ -147,8 +147,8 @@ const SEARCH_INDEXING_MESSAGE =
   "Discord is still indexing recent messages for search. Please try again in a few seconds.";
 const SEARCH_RATE_LIMIT_MESSAGE = "Discord is rate limiting message search. Please try again in a few seconds.";
 
-function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number): string {
-  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber)}:lookup`;
+function getDiscordSeriesStatsLookupCacheKey(guildId: string, queueNumber: number, seriesId?: string): string {
+  return `${getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId)}:lookup`;
 }
 
 function getActiveQueueLookupCacheKey(guildId: string, channelId: string): string {
@@ -416,16 +416,26 @@ export class DiscordService {
   async getSeriesStatsLookup(
     guildId: string,
     queueNumber: number,
+    seriesId?: string,
   ): Promise<DiscordSeriesStats | DiscordSeriesLookupResult | DiscordSeriesStatsForbidden> {
     try {
-      const cached = await this.getCachedDiscordSeriesStats(guildId, queueNumber);
+      const cached = await this.getCachedDiscordSeriesStats(guildId, queueNumber, seriesId);
       if (cached != null) {
         return cached;
       }
 
-      const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber);
+      const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber, seriesId);
       if (cachedLookup != null) {
         return cachedLookup;
+      }
+
+      if (seriesId != null) {
+        return {
+          status: "not-found",
+          guildId,
+          queueNumber,
+          reason: "No matching manual series stats were found",
+        };
       }
 
       const lookupResult = await this.findDiscordSeriesLookupResult(guildId, queueNumber);
@@ -451,13 +461,15 @@ export class DiscordService {
   async getSeriesStats({
     guildId,
     queueNumber,
+    seriesId,
     resolveRenderData,
   }: {
     guildId: string;
     queueNumber: number;
+    seriesId?: string | undefined;
     resolveRenderData: (matchIds: string[]) => Promise<DiscordSeriesStatsResolved["renderData"]>;
   }): Promise<DiscordSeriesStats | DiscordSeriesStatsForbidden> {
-    const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber);
+    const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber, seriesId);
 
     if (lookupOrCached.status === "pending-index") {
       return lookupOrCached;
@@ -487,6 +499,7 @@ export class DiscordService {
     await this.cacheResolvedDiscordSeriesStats({
       guildId,
       queueNumber,
+      seriesId,
       matchIds: lookupOrCached.matchIds,
       renderData,
     });
@@ -494,8 +507,12 @@ export class DiscordService {
     return resolvedResponse;
   }
 
-  private async getCachedDiscordSeriesStats(guildId: string, queueNumber: number): Promise<DiscordSeriesStats | null> {
-    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber);
+  private async getCachedDiscordSeriesStats(
+    guildId: string,
+    queueNumber: number,
+    seriesId?: string,
+  ): Promise<DiscordSeriesStats | null> {
+    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId);
     const cached = await this.env.APP_DATA.get<DiscordSeriesStats>(cacheKey, { type: "json" });
     if (cached == null || typeof cached !== "object") {
       return null;
@@ -614,8 +631,9 @@ export class DiscordService {
   private async getCachedDiscordSeriesLookupResult(
     guildId: string,
     queueNumber: number,
+    seriesId?: string,
   ): Promise<DiscordSeriesLookupResult | null> {
-    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber);
+    const lookupCacheKey = getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber, seriesId);
     const cached = await this.env.APP_DATA.get<DiscordSeriesLookupResult>(lookupCacheKey, { type: "json" });
     if (cached == null || typeof cached !== "object") {
       return null;
@@ -655,15 +673,17 @@ export class DiscordService {
   async cacheResolvedDiscordSeriesStats({
     guildId,
     queueNumber,
+    seriesId,
     matchIds,
     renderData,
   }: {
     guildId: string;
     queueNumber: number;
+    seriesId?: string | undefined;
     matchIds: string[];
     renderData: DiscordSeriesStatsResolved["renderData"];
   }): Promise<void> {
-    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber);
+    const cacheKey = getDiscordSeriesStatsCacheKey(guildId, queueNumber, seriesId);
     const resolvedResponse: DiscordSeriesStatsResolved = {
       status: "resolved",
       guildId,

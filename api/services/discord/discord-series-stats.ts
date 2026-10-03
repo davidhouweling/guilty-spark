@@ -18,8 +18,9 @@ export const DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS = 60 * 60 * 24;
 export const DISCORD_SERIES_STATS_RESOLVED_STALE_WHILE_REVALIDATE_SECONDS = 60 * 5;
 export const DISCORD_SERIES_STATS_RESOLVED_CACHE_CONTROL_HEADER = `public, s-maxage=${DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS.toString()}, stale-while-revalidate=${DISCORD_SERIES_STATS_RESOLVED_STALE_WHILE_REVALIDATE_SECONDS.toString()}`;
 
-export function getDiscordSeriesStatsCacheKey(guildId: string, queueNumber: number): string {
-  return `stats:discord:series:${guildId}:${queueNumber.toString()}`;
+export function getDiscordSeriesStatsCacheKey(guildId: string, queueNumber: number, seriesId?: string): string {
+  const seriesKey = seriesId == null ? queueNumber.toString() : `${queueNumber.toString()}:${seriesId}`;
+  return `stats:discord:series:${guildId}:${seriesKey}`;
 }
 
 export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: number): APIEmbed | null {

@@ -59,14 +59,16 @@ export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService 
     this.apiHost = apiHost;
   }
 
-  async getStats(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsResult> {
-    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}`);
+  async getStats(guildId: string, queueNumber: string, seriesId?: string): Promise<DiscordSeriesStatsResult> {
+    const seriesIdQuery = seriesId == null ? "" : `?seriesId=${encodeURIComponent(seriesId)}`;
+    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}${seriesIdQuery}`);
 
     return parseDiscordSeriesStatsResponse(response);
   }
 
-  async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
-    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup`);
+  async getLookup(guildId: string, queueNumber: string, seriesId?: string): Promise<DiscordSeriesStatsLookupResult> {
+    const seriesIdQuery = seriesId == null ? "" : `?seriesId=${encodeURIComponent(seriesId)}`;
+    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup${seriesIdQuery}`);
     await discardResponseBody(response);
 
     return parseDiscordSeriesStatsLookupResponse(response);
