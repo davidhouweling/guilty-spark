@@ -187,6 +187,7 @@ export enum InteractionButton {
   ManualPlayerSelect = "btn_stats_manual_player_select",
   ManualGamesSelect = "btn_stats_manual_games_select",
   ManualOutcomeSelect = "btn_stats_manual_outcome_select",
+  ManualConfirm = "btn_stats_manual_confirm",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -505,6 +506,13 @@ export class StatsCommand extends BaseCommand {
           values: [],
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualConfirm,
+        },
+      },
     ];
   }
 
@@ -696,6 +704,19 @@ export class StatsCommand extends BaseCommand {
               },
               jobToComplete: async () =>
                 this.handleManualOutcomeSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualConfirm.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Posting series stats...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualConfirmJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
           default: {
@@ -2580,25 +2601,19 @@ export class StatsCommand extends BaseCommand {
       derivedSeriesOutcome,
     }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome },
   ): Promise<void> {
-    const { discordService, haloService } = this.services;
+    const { discordService } = this.services;
     const teams = Preconditions.checkExists(metadata.teams, "Expected manual series teams");
     const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
-    const seriesEmbed = await new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
-      guildId: metadata.guildId,
-      channelId: metadata.channelId,
-      pagesUrl: this.env.PAGES_URL,
-      locale: interaction.guild_locale ?? interaction.locale,
-      queue: metadata.queueNumber,
+    const seriesEmbed = await this.createManualSeriesEmbed(
+      metadata,
       series,
-      finalTeams: teams,
-      substitutions: [],
-      hideTeamsDescription: false,
-    });
+      interaction.guild_locale ?? interaction.locale,
+    );
 
     const message = await discordService.updateDeferredReply(interaction.token, {
       embeds: [
         this.createStatusEmbed(
-          `Preview generated. Adjust the final result if needed.\nDerived result: ${this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams)}\nFinal result: ${this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams)}`,
+          `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams)}\nFinal result: ${this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams)}`,
         ),
         ...seriesEmbed.embeds,
       ],
@@ -2615,11 +2630,167 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
-        this.createFixCancelActionRow(),
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.ManualConfirm,
+              label: "Confirm",
+              style: ButtonStyle.Success,
+            },
+            {
+              type: ComponentType.Button,
+              custom_id: InteractionButton.FixCancel,
+              label: "Cancel",
+              style: ButtonStyle.Secondary,
+            },
+          ],
+        },
       ],
     });
 
     await this.setManualMetadata(message.id, { ...metadata, selectedSeriesOutcome });
+  }
+
+  private async createManualSeriesEmbed(
+    metadata: ManualFlowMetadata,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<SeriesOverviewEmbedOutput> {
+    const { discordService, haloService } = this.services;
+    return new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
+      guildId: metadata.guildId,
+      channelId: metadata.channelId,
+      pagesUrl: this.env.PAGES_URL,
+      locale,
+      queue: metadata.queueNumber,
+      series,
+      finalTeams: Preconditions.checkExists(metadata.teams, "Expected manual series teams"),
+      substitutions: [],
+      hideTeamsDescription: false,
+    });
+  }
+
+  private async handleManualConfirmJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService, haloService } = this.services;
+
+    try {
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      if (metadata.selectedSeriesOutcome == null) {
+        throw new EndUserError("No final series result was selected. Please run /stats manual again.");
+      }
+
+      const locale = interaction.guild_locale ?? interaction.locale;
+      const [guildConfig, series, queueConfig] = await Promise.all([
+        databaseService.getGuildConfig(metadata.guildId),
+        this.getManualSeriesMatches(metadata.selectedMatchIds ?? []),
+        this.findManualQueueConfig(metadata),
+      ]);
+
+      const seriesEmbed = await this.createManualSeriesEmbed(metadata, series, locale);
+      const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
+      overviewEmbed.fields ??= [];
+      overviewEmbed.fields.push({
+        name: "Created manually by",
+        value: `<@${discordService.getDiscordUserId(interaction)}> on ${discordService.getTimestamp(new Date().toISOString())}`,
+        inline: false,
+      });
+
+      const threadId = await this.postManualSeriesOverview({
+        postChannelId: queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId,
+        seriesEmbed,
+        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+      });
+      await this.postSeriesStatsToThread(threadId, series, guildConfig, locale);
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale);
+      if (queueConfig != null) {
+        await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
+      }
+
+      await discordService.updateDeferredReply(interaction.token, {
+        embeds: [this.createStatusEmbed(`Series stats were posted in <#${threadId}>.`)],
+        components: [],
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async findManualQueueConfig(metadata: ManualFlowMetadata): Promise<NeatQueueConfigRow | undefined> {
+    if (metadata.queueChannelId == null) {
+      return undefined;
+    }
+
+    const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+    return configuredQueues.find((queue) => queue.ChannelId === metadata.queueChannelId);
+  }
+
+  /**
+   * Manual series have no NeatQueue message to thread from, so the overview is posted and threaded from directly,
+   * unless the post channel is already a thread.
+   */
+  private async postManualSeriesOverview({
+    postChannelId,
+    seriesEmbed,
+    threadName,
+  }: {
+    postChannelId: string;
+    seriesEmbed: SeriesOverviewEmbedOutput;
+    threadName: string;
+  }): Promise<string> {
+    const { discordService } = this.services;
+    const content = { embeds: seriesEmbed.embeds, components: seriesEmbed.components };
+    const postChannel = await discordService.getChannel(postChannelId);
+    if (this.isThreadChannel(postChannel.type)) {
+      await discordService.createMessage(postChannelId, content);
+      return postChannelId;
+    }
+
+    try {
+      const overviewMessage = await discordService.createMessage(postChannelId, content);
+      const thread = await discordService.startThreadFromMessage(postChannelId, overviewMessage.id, threadName);
+      return thread.id;
+    } catch (error) {
+      throw (
+        toMissingPermissionsError(error, {
+          action: "post the series stats",
+          permissions: [
+            discordService.permissionToString(PermissionFlagsBits.SendMessages),
+            discordService.permissionToString(PermissionFlagsBits.CreatePublicThreads),
+          ],
+        }) ?? error
+      );
+    }
+  }
+
+  private async persistManualSeriesToLeaderboard(
+    metadata: ManualFlowMetadata,
+    queueConfig: NeatQueueConfigRow,
+    series: MatchStats[],
+    locale: string,
+  ): Promise<void> {
+    try {
+      await this.services.leaderboardService.persistReconciledSeriesData({
+        guildId: metadata.guildId,
+        channelId: queueConfig.ChannelId,
+        queueNumber: metadata.queueNumber,
+        neatQueueConfig: queueConfig,
+        series,
+        winnerTeamIndex:
+          metadata.selectedSeriesOutcome === "TEAM_0" ? 0 : metadata.selectedSeriesOutcome === "TEAM_1" ? 1 : -1,
+        locale,
+      });
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["context", "Manual stats leaderboard persistence failed"],
+          ["guildId", metadata.guildId],
+          ["queue", metadata.queueNumber.toString()],
+        ]),
+      );
+    }
   }
 
   private createFixCancelActionRow(): APIMessageTopLevelComponent {
