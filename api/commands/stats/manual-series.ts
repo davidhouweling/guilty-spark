@@ -4,13 +4,12 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 
 export const MANUAL_QUEUE_NUMBER_MIN = 1_000_000_000;
-const MANUAL_QUEUE_NUMBER_RANGE = 9_000_000_000;
 
 /**
- * Manual series without a queue number get a random 10-digit ID, well above real NeatQueue numbers.
+ * Manual series without a queue number use the UTC creation time as `YYYYMMDDHHmmss`, well above real NeatQueue numbers.
  */
-export function allocateManualQueueNumber(random: () => number = Math.random): number {
-  return MANUAL_QUEUE_NUMBER_MIN + Math.floor(random() * MANUAL_QUEUE_NUMBER_RANGE);
+export function allocateManualQueueNumber(now: Date = new Date()): number {
+  return Number(now.toISOString().replace(/\D/g, "").slice(0, 14));
 }
 
 export function deriveManualSeriesTeams(

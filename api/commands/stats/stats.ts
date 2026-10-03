@@ -22,6 +22,8 @@ import {
   MessageFlags,
   InteractionContextType,
   PermissionFlagsBits,
+  ButtonStyle,
+  SelectMenuDefaultValueType,
 } from "discord-api-types/v10";
 import { MatchType } from "halo-infinite-api";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
@@ -91,6 +93,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
+import { MANUAL_QUEUE_NUMBER_MIN, allocateManualQueueNumber } from "./manual-series";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -104,9 +107,19 @@ interface FixFlowMetadata extends Record<string, unknown> {
 
 type FixSeriesOutcome = "TEAM_0" | "TEAM_1" | "TIE";
 
+interface ManualFlowMetadata extends Record<string, unknown> {
+  guildId: string;
+  channelId: string;
+  queueNumber: number;
+  queueChannelId: string | null;
+  queuePage?: number | undefined;
+  selectedPlayerId?: string | undefined;
+}
+
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
 const DISCORD_SELECT_OPTION_LABEL_LIMIT = 100;
+const MANUAL_QUEUE_SELECT_PAGE_SIZE = 25;
 const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
@@ -159,6 +172,11 @@ export enum InteractionButton {
   FixOutcomeSelect = "btn_stats_fix_outcome_select",
   FixConfirm = "btn_stats_fix_confirm",
   FixCancel = "btn_stats_fix_cancel",
+  ManualQueueSelect = "btn_stats_manual_queue_select",
+  ManualQueuePreviousPage = "btn_stats_manual_queue_previous_page",
+  ManualQueueNextPage = "btn_stats_manual_queue_next_page",
+  ManualPlayerSelect = "btn_stats_manual_player_select",
+  ManualGamesSelect = "btn_stats_manual_games_select",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -232,6 +250,21 @@ export class StatsCommand extends BaseCommand {
               name: "queue_number",
               description: "The queue number to fix (optional if running from queue thread)",
               required: false,
+            },
+          ],
+        },
+        {
+          type: ApplicationCommandOptionType.Subcommand,
+          name: "manual",
+          description: "Manually create series stats when NeatQueue did not post a result",
+          options: [
+            {
+              type: ApplicationCommandOptionType.Integer,
+              name: "queue_number",
+              description: "The queue number, if the series came from a queue",
+              required: false,
+              min_value: 1,
+              max_value: MANUAL_QUEUE_NUMBER_MIN - 1,
             },
           ],
         },
@@ -415,6 +448,37 @@ export class StatsCommand extends BaseCommand {
           custom_id: InteractionButton.FixCancel,
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.ManualQueueSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualQueuePreviousPage,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualQueueNextPage,
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.UserSelect,
+          custom_id: InteractionButton.ManualPlayerSelect,
+          values: [],
+          resolved: { users: {} },
+        },
+      },
     ];
   }
 
@@ -442,6 +506,9 @@ export class StatsCommand extends BaseCommand {
           }
           case "fix": {
             return this.handleFixSubCommand(interaction, subcommand.mappedOptions);
+          }
+          case "manual": {
+            return this.handleManualSubCommand(interaction, subcommand.mappedOptions);
           }
           case "player": {
             return this.handlePlayerSubCommand(interaction, subcommand.mappedOptions);
@@ -537,6 +604,46 @@ export class StatsCommand extends BaseCommand {
                 type: InteractionResponseType.DeferredMessageUpdate,
               },
               jobToComplete: async () => this.handleFixCancelJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
+          case InteractionButton.ManualQueueSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Loading recent custom games...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualQueueSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualQueuePreviousPage.toString():
+          case InteractionButton.ManualQueueNextPage.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Loading queue selection...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualQueuePageJob(interaction as APIMessageComponentButtonInteraction),
+            };
+          }
+          case InteractionButton.ManualPlayerSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Fetching recent custom games...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           default: {
@@ -2090,6 +2197,258 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
+  private handleManualSubCommand(
+    interaction: APIApplicationCommandInteraction,
+    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
+  ): ExecuteResponse {
+    const queueNumber = options.get("queue_number");
+
+    return {
+      response: {
+        type: InteractionResponseType.DeferredChannelMessageWithSource,
+        data: { flags: MessageFlags.Ephemeral },
+      },
+      jobToComplete: async () =>
+        this.manualSubCommandJob(interaction, typeof queueNumber === "number" ? queueNumber : undefined),
+    };
+  }
+
+  private async manualSubCommandJob(
+    interaction: APIApplicationCommandInteraction,
+    queueNumber: number | undefined,
+  ): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const guildId = interaction.guild_id;
+      if (guildId == null) {
+        throw new EndUserError("This command can only be used inside a server.");
+      }
+
+      const metadata: ManualFlowMetadata = {
+        guildId,
+        channelId: interaction.channel.id,
+        queueNumber: queueNumber ?? allocateManualQueueNumber(),
+        queueChannelId: null,
+        queuePage: 0,
+      };
+
+      if (queueNumber != null) {
+        const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: guildId });
+        if (configuredQueues.length > 1) {
+          await this.showManualQueueSelect(interaction.token, metadata, configuredQueues);
+          return;
+        }
+
+        metadata.queueChannelId = configuredQueues[0]?.ChannelId ?? null;
+      }
+
+      await this.showManualGamesForPlayer(
+        interaction.token,
+        interaction.guild_locale ?? interaction.locale,
+        metadata,
+        discordService.getDiscordUserId(interaction),
+      );
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async showManualQueueSelect(
+    interactionToken: string,
+    metadata: ManualFlowMetadata,
+    configuredQueues: readonly NeatQueueConfigRow[],
+  ): Promise<void> {
+    const sortedQueues = [...configuredQueues].sort((left, right) => left.ChannelId.localeCompare(right.ChannelId));
+    const pageCount = Math.ceil(sortedQueues.length / MANUAL_QUEUE_SELECT_PAGE_SIZE);
+    const page = Math.min(metadata.queuePage ?? 0, pageCount - 1);
+    const pageStart = page * MANUAL_QUEUE_SELECT_PAGE_SIZE;
+    const queueChannelNames = await this.getQueueChannelNames(metadata.guildId, sortedQueues);
+    const queueNavigationRow: APIMessageTopLevelComponent | null =
+      pageCount > 1
+        ? {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.ManualQueuePreviousPage,
+                label: "Previous page",
+                style: ButtonStyle.Secondary,
+                disabled: page === 0,
+              },
+              {
+                type: ComponentType.Button,
+                custom_id: InteractionButton.ManualQueueNextPage,
+                label: "Next page",
+                style: ButtonStyle.Secondary,
+                disabled: page === pageCount - 1,
+              },
+            ],
+          }
+        : null;
+    const message = await this.services.discordService.updateDeferredReply(interactionToken, {
+      embeds: [
+        this.createStatusEmbed(
+          `Select which queue channel queue #${metadata.queueNumber.toString()} was from.${
+            pageCount > 1 ? ` (page ${(page + 1).toString()} of ${pageCount.toString()})` : ""
+          }`,
+        ),
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionButton.ManualQueueSelect,
+              min_values: 1,
+              max_values: 1,
+              options: sortedQueues.slice(pageStart, pageStart + MANUAL_QUEUE_SELECT_PAGE_SIZE).map((queue) => ({
+                label: this.getQueueOptionLabel(queue.ChannelId, queueChannelNames),
+                value: queue.ChannelId,
+              })),
+            },
+          ],
+        },
+        ...(queueNavigationRow == null ? [] : [queueNavigationRow]),
+        this.createFixCancelActionRow(),
+      ],
+    });
+
+    await this.setManualMetadata(message.id, { ...metadata, queuePage: page });
+  }
+
+  private async handleManualQueuePageJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+      if (configuredQueues.length < 2) {
+        throw new EndUserError("The configured queues have changed. Please run /stats manual again.");
+      }
+
+      const pageCount = Math.ceil(configuredQueues.length / MANUAL_QUEUE_SELECT_PAGE_SIZE);
+      const pageDelta = interaction.data.custom_id === InteractionButton.ManualQueueNextPage.toString() ? 1 : -1;
+      const queuePage = Math.max(0, Math.min((metadata.queuePage ?? 0) + pageDelta, pageCount - 1));
+
+      await this.showManualQueueSelect(interaction.token, { ...metadata, queuePage }, configuredQueues);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleManualQueueSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const queueChannelId = Preconditions.checkExists(interaction.data.values[0], "No queue selected");
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+      if (!configuredQueues.some((queue) => queue.ChannelId === queueChannelId)) {
+        throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
+      }
+
+      await this.showManualGamesForPlayer(
+        interaction.token,
+        interaction.guild_locale ?? interaction.locale,
+        { ...metadata, queueChannelId },
+        discordService.getDiscordUserId(interaction),
+      );
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleManualPlayerSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      const playerId = Preconditions.checkExists(interaction.data.values[0], "No player selected");
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+
+      await this.showManualGamesForPlayer(
+        interaction.token,
+        interaction.guild_locale ?? interaction.locale,
+        metadata,
+        playerId,
+      );
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  /**
+   * Lookup problems (unlinked player, no custom games) keep the player picker visible so another player can be tried.
+   */
+  private async showManualGamesForPlayer(
+    interactionToken: string,
+    locale: string,
+    metadata: ManualFlowMetadata,
+    playerId: string,
+  ): Promise<void> {
+    let gameOptions: APISelectMenuOption[] = [];
+    let status = `Select the custom games for this series from <@${playerId}>'s recent games, or pick a different player.`;
+    try {
+      gameOptions = this.toGameSelectOptions(await this.getRecentCustomGames(playerId, locale), new Set());
+    } catch (error) {
+      if (!(error instanceof EndUserError)) {
+        throw error;
+      }
+
+      status = `${error.endUserMessage} Pick a different player.`;
+    }
+
+    const gamesSelectRow: APIMessageTopLevelComponent = {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.StringSelect,
+          custom_id: InteractionButton.ManualGamesSelect,
+          min_values: 1,
+          max_values: Math.min(gameOptions.length, 25),
+          options: gameOptions,
+        },
+      ],
+    };
+    const message = await this.services.discordService.updateDeferredReply(interactionToken, {
+      embeds: [this.createStatusEmbed(status)],
+      components: [
+        ...(gameOptions.length > 0 ? [gamesSelectRow] : []),
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.UserSelect,
+              custom_id: InteractionButton.ManualPlayerSelect,
+              placeholder: "Load games from a different player",
+              min_values: 1,
+              max_values: 1,
+              default_values: [{ id: playerId, type: SelectMenuDefaultValueType.User }],
+            },
+          ],
+        },
+        this.createFixCancelActionRow(),
+      ],
+    });
+
+    await this.setManualMetadata(message.id, { ...metadata, selectedPlayerId: playerId });
+  }
+
+  private createFixCancelActionRow(): APIMessageTopLevelComponent {
+    return {
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.Button,
+          custom_id: InteractionButton.FixCancel,
+          label: "Cancel",
+          style: ButtonStyle.Secondary,
+        },
+      ],
+    };
+  }
+
   private handleFixSubCommand(
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
@@ -2989,6 +3348,19 @@ export class StatsCommand extends BaseCommand {
     return this.getInteractionMetadataWithRetry<FixFlowMetadata>(this.fixMetadataKey(messageId));
   }
 
+  private async setManualMetadata(messageId: string, metadata: ManualFlowMetadata): Promise<void> {
+    await this.services.discordService.setInteractionMetadata(this.manualMetadataKey(messageId), metadata);
+  }
+
+  private async getManualMetadataWithRetry(messageId: string): Promise<ManualFlowMetadata> {
+    const metadata = await this.getInteractionMetadataWithRetry<ManualFlowMetadata>(this.manualMetadataKey(messageId));
+    if (metadata == null) {
+      throw new EndUserError("Could not find manual stats state. Please run /stats manual again.");
+    }
+
+    return metadata;
+  }
+
   private async getInteractionMetadataWithRetry<T extends Record<string, unknown>>(key: string): Promise<T | null> {
     for (let attempt = 0; attempt <= FIX_METADATA_MAX_RETRIES; attempt += 1) {
       const metadata = await this.services.discordService.getInteractionMetadata<T>(key);
@@ -3015,6 +3387,10 @@ export class StatsCommand extends BaseCommand {
 
   private fixMetadataKey(messageId: string): string {
     return `statsFix:${messageId}`;
+  }
+
+  private manualMetadataKey(messageId: string): string {
+    return `statsManual:${messageId}`;
   }
 
   private async deleteMessagesInChunks(channelId: string, messageIds: string[], reason: string): Promise<void> {
