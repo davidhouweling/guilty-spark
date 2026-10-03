@@ -8,6 +8,7 @@ import type {
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APIModalSubmitInteraction,
   RESTPostAPIChannelThreadsResult,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
@@ -44,6 +45,7 @@ import {
   discordNeatQueueData,
   fakeBaseAPIApplicationCommandInteraction,
   fakeButtonClickInteraction,
+  modalSubmitInteraction,
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
@@ -1642,7 +1644,10 @@ describe("StatsCommand", () => {
           },
           {
             type: ComponentType.ActionRow,
-            components: [expect.objectContaining({ custom_id: "btn_stats_fix_cancel" })],
+            components: [
+              expect.objectContaining({ custom_id: "btn_stats_manual_set_queue_number", label: "Set queue number" }),
+              expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
+            ],
           },
         ]);
       });
@@ -2943,6 +2948,142 @@ describe("StatsCommand", () => {
           "fake-token",
           expect.objectContaining({ message: "No final series result was selected. Please run /stats manual again." }),
         );
+      });
+    });
+
+    describe("set queue number", () => {
+      const slayerMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const timestampMetadata = {
+        guildId: "fake-guild-id",
+        channelId: "command-channel-id",
+        queueNumber: 20261003050709,
+        queueChannelId: null,
+        selectedPlayerId: "invoker-id",
+      };
+      const previewMetadata = {
+        ...timestampMetadata,
+        selectedMatchIds: [ctfMatchId, slayerMatchId],
+        teams: [
+          { name: "Eagle", players: [{ xuid: "0100000000000000", gamertag: "gamertag01", discordId: "discord-1" }] },
+          { name: "Cobra", players: [{ xuid: "0400000000000000", gamertag: "gamertag04", discordId: "discord-4" }] },
+        ],
+        selectedSeriesOutcome: "TEAM_1",
+      };
+
+      function aQueueNumberModalSubmitWith(value: string): APIModalSubmitInteraction {
+        return {
+          ...modalSubmitInteraction,
+          data: {
+            custom_id: "btn_stats_manual_queue_number_modal",
+            components: [
+              {
+                type: ComponentType.ActionRow,
+                components: [{ type: ComponentType.TextInput, custom_id: "queue_number", value }],
+              },
+            ],
+          },
+          message: { ...Preconditions.checkExists(modalSubmitInteraction.message), id: "manual-flow-message-id" },
+        };
+      }
+
+      beforeEach(() => {
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          Preconditions.checkExists(getMatchStats(ctfMatchId)),
+          Preconditions.checkExists(getMatchStats(slayerMatchId)),
+        ]);
+      });
+
+      it("opens a modal asking for the queue number", () => {
+        const { response, jobToComplete } = statsCommand.execute({
+          ...fakeButtonClickInteraction,
+          data: { component_type: ComponentType.Button, custom_id: "btn_stats_manual_set_queue_number" },
+        });
+
+        expect(jobToComplete).toBeUndefined();
+        expect(response).toMatchObject({
+          type: InteractionResponseType.Modal,
+          data: {
+            custom_id: "btn_stats_manual_queue_number_modal",
+            components: [{ components: [expect.objectContaining({ custom_id: "queue_number" })] }],
+          },
+        });
+      });
+
+      it.each(["0", "abc", "1000000000", "12.5"])("rejects the invalid queue number %s", (value) => {
+        const { response, jobToComplete } = statsCommand.execute(aQueueNumberModalSubmitWith(value));
+
+        expect(jobToComplete).toBeUndefined();
+        expect(response).toMatchObject({
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: {
+            flags: MessageFlags.Ephemeral,
+            embeds: [expect.objectContaining({ title: "Invalid queue number" })],
+          },
+        });
+      });
+
+      it("returns to the preview with the new queue number and the only configured queue", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(previewMetadata);
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+
+        const { response, jobToComplete } = statsCommand.execute(aQueueNumberModalSubmitWith(" 42 "));
+        expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[1]?.title).toContain("Series stats for queue #42");
+        expect(payload.components?.[1]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            expect.objectContaining({ custom_id: "btn_stats_manual_confirm" }),
+            expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
+          ],
+        });
+        expect(getLastManualMetadata()).toMatchObject({ queueNumber: 42, queueChannelId: "queue-a" });
+      });
+
+      it("asks for the queue channel when several queues are configured, then returns to the preview", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(previewMetadata);
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-b" }),
+        ]);
+        vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([]);
+
+        const { jobToComplete } = statsCommand.execute(aQueueNumberModalSubmitWith("42"));
+        await jobToComplete?.();
+
+        const queueSelectPayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(JSON.stringify(queueSelectPayload.components)).toContain("btn_stats_manual_queue_select");
+        const queueSelectMetadata = getLastManualMetadata();
+        expect(queueSelectMetadata).toMatchObject({ queueNumber: 42, queueChannelId: null });
+
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(queueSelectMetadata);
+        const { jobToComplete: queueSelectJob } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_queue_select", ["queue-b"]),
+        );
+        await queueSelectJob?.();
+
+        const previewPayload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[1]?.[1]);
+        expect(previewPayload.embeds?.[1]?.title).toContain("Series stats for queue #42");
+        expect(getLastManualMetadata()).toMatchObject({ queueNumber: 42, queueChannelId: "queue-b" });
+      });
+
+      it("returns to the games screen when no games were chosen yet", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(timestampMetadata);
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([]);
+        mockLinkedPlayerWithRecentGames();
+
+        const { jobToComplete } = statsCommand.execute(aQueueNumberModalSubmitWith("42"));
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(JSON.stringify(payload.components)).toContain("btn_stats_manual_games_select");
+        expect(JSON.stringify(payload.components)).not.toContain("btn_stats_manual_set_queue_number");
+        expect(getLastManualMetadata()).toMatchObject({ queueNumber: 42, queueChannelId: null });
       });
     });
   });

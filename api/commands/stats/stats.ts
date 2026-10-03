@@ -1,5 +1,8 @@
 import type {
   APIApplicationCommandInteraction,
+  APIButtonComponentWithCustomId,
+  APIInteractionResponse,
+  APIModalSubmitInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIChannel,
   APIEmbed,
@@ -24,6 +27,7 @@ import {
   PermissionFlagsBits,
   ButtonStyle,
   SelectMenuDefaultValueType,
+  TextInputStyle,
 } from "discord-api-types/v10";
 import { MatchType } from "halo-infinite-api";
 import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
@@ -212,6 +216,8 @@ export enum InteractionButton {
   ManualGamesSelect = "btn_stats_manual_games_select",
   ManualOutcomeSelect = "btn_stats_manual_outcome_select",
   ManualConfirm = "btn_stats_manual_confirm",
+  ManualSetQueueNumber = "btn_stats_manual_set_queue_number",
+  ManualQueueNumberModal = "btn_stats_manual_queue_number_modal",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -537,6 +543,20 @@ export class StatsCommand extends BaseCommand {
           custom_id: InteractionButton.ManualConfirm,
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualSetQueueNumber,
+        },
+      },
+      {
+        type: InteractionType.ModalSubmit,
+        data: {
+          components: [],
+          custom_id: InteractionButton.ManualQueueNumberModal,
+        },
+      },
     ];
   }
 
@@ -743,13 +763,20 @@ export class StatsCommand extends BaseCommand {
                 this.handleManualConfirmJob(interaction as APIMessageComponentButtonInteraction),
             };
           }
+          case InteractionButton.ManualSetQueueNumber.toString(): {
+            return { response: this.createManualQueueNumberModal() };
+          }
           default: {
             throw new Error(`Unknown interaction: ${custom_id}`);
           }
         }
       }
       case InteractionType.ModalSubmit: {
-        throw new Error("Modals not supported");
+        if (interaction.data.custom_id === InteractionButton.ManualQueueNumberModal.toString()) {
+          return this.handleManualQueueNumberModal(interaction);
+        }
+
+        throw new Error(`Unknown modal: ${interaction.data.custom_id}`);
       }
       default: {
         throw new UnreachableError(type);
@@ -2467,10 +2494,119 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
       }
 
-      await this.showManualGamesForPlayer(
+      await this.showManualFlowStep(
         interaction.token,
         interaction.guild_locale ?? interaction.locale,
         { ...metadata, queueChannelId },
+        discordService.getDiscordUserId(interaction),
+      );
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  /**
+   * Returns to the preview when games were already chosen, otherwise to the games screen.
+   */
+  private async showManualFlowStep(
+    interactionToken: string,
+    locale: string,
+    metadata: ManualFlowMetadata,
+    fallbackPlayerId: string,
+  ): Promise<void> {
+    if (metadata.teams == null || metadata.selectedMatchIds == null) {
+      await this.showManualGamesForPlayer(
+        interactionToken,
+        locale,
+        metadata,
+        metadata.selectedPlayerId ?? fallbackPlayerId,
+      );
+      return;
+    }
+
+    const series = await this.getManualSeriesMatches(metadata.selectedMatchIds);
+    await this.showManualSeriesPreview(interactionToken, locale, {
+      metadata,
+      series,
+      derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
+    });
+  }
+
+  private createManualQueueNumberModal(): APIInteractionResponse {
+    return {
+      type: InteractionResponseType.Modal,
+      data: {
+        title: "Set queue number",
+        custom_id: InteractionButton.ManualQueueNumberModal,
+        components: [
+          {
+            type: ComponentType.ActionRow,
+            components: [
+              {
+                type: ComponentType.TextInput,
+                custom_id: "queue_number",
+                label: "Queue number",
+                style: TextInputStyle.Short,
+                min_length: 1,
+                max_length: 9,
+                placeholder: "e.g. 1234",
+                required: true,
+              },
+            ],
+          },
+        ],
+      },
+    };
+  }
+
+  private handleManualQueueNumberModal(interaction: APIModalSubmitInteraction): ExecuteResponse {
+    const rawQueueNumber = this.services.discordService.extractModalSubmitData(interaction).get("queue_number") ?? "";
+    const queueNumber = /^\d+$/.test(rawQueueNumber.trim()) ? Number(rawQueueNumber.trim()) : Number.NaN;
+    if (!Number.isInteger(queueNumber) || queueNumber < 1 || queueNumber >= MANUAL_QUEUE_NUMBER_MIN) {
+      const warning = new EndUserError("The queue number must be a whole number between 1 and 999,999,999.", {
+        title: "Invalid queue number",
+        errorType: EndUserErrorType.WARNING,
+      });
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: { embeds: [warning.discordEmbed], flags: MessageFlags.Ephemeral },
+        },
+      };
+    }
+
+    return {
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
+      jobToComplete: async () => this.handleManualQueueNumberSubmitJob(interaction, queueNumber),
+    };
+  }
+
+  private async handleManualQueueNumberSubmitJob(
+    interaction: APIModalSubmitInteraction,
+    queueNumber: number,
+  ): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const messageId = Preconditions.checkExists(interaction.message, "Expected modal to come from a message").id;
+      const metadata = await this.getManualMetadataWithRetry(messageId);
+      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+      const updatedMetadata: ManualFlowMetadata = {
+        ...metadata,
+        queueNumber,
+        queueChannelId: configuredQueues.length === 1 ? (configuredQueues[0]?.ChannelId ?? null) : null,
+        queuePage: 0,
+      };
+
+      if (configuredQueues.length > 1) {
+        await this.showManualQueueSelect(interaction.token, updatedMetadata, configuredQueues);
+        return;
+      }
+
+      await this.showManualFlowStep(
+        interaction.token,
+        interaction.guild_locale ?? interaction.locale,
+        updatedMetadata,
         discordService.getDiscordUserId(interaction),
       );
     } catch (error) {
@@ -2546,7 +2682,7 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
-        this.createFixCancelActionRow(),
+        this.createManualActionRow(metadata, []),
       ],
     });
 
@@ -2570,7 +2706,7 @@ export class StatsCommand extends BaseCommand {
 
       const teams = await this.resolveManualSeriesTeams(metadata.guildId, series);
       const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
-      await this.showManualSeriesPreview(interaction, {
+  await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
         metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
         series,
         derivedSeriesOutcome,
@@ -2590,7 +2726,7 @@ export class StatsCommand extends BaseCommand {
       const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
       const series = await this.getManualSeriesMatches(metadata.selectedMatchIds ?? []);
 
-      await this.showManualSeriesPreview(interaction, {
+      await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
         metadata: { ...metadata, selectedSeriesOutcome },
         series,
         derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
@@ -2693,7 +2829,8 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async showManualSeriesPreview(
-    interaction: APIMessageComponentSelectMenuInteraction,
+    interactionToken: string,
+    locale: string,
     {
       metadata,
       series,
@@ -2713,13 +2850,9 @@ export class StatsCommand extends BaseCommand {
         : this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams);
     const teamMappings = resolveManualSeriesTeamMappings(series);
     const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
-    const seriesEmbed = await this.createManualSeriesEmbed(
-      metadata,
-      displaySeries,
-      interaction.guild_locale ?? interaction.locale,
-    );
+    const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
 
-    const message = await discordService.updateDeferredReply(interaction.token, {
+    const message = await discordService.updateDeferredReply(interactionToken, {
       embeds: [
         this.createStatusEmbed(
           `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${derivedResultLabel}\nFinal result: ${selectedResultLabel}`,
@@ -2739,23 +2872,14 @@ export class StatsCommand extends BaseCommand {
             },
           ],
         },
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionButton.ManualConfirm,
-              label: "Confirm",
-              style: ButtonStyle.Success,
-            },
-            {
-              type: ComponentType.Button,
-              custom_id: InteractionButton.FixCancel,
-              label: "Cancel",
-              style: ButtonStyle.Secondary,
-            },
-          ],
-        },
+        this.createManualActionRow(metadata, [
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionButton.ManualConfirm,
+            label: "Confirm",
+            style: ButtonStyle.Success,
+          },
+        ]),
       ],
     });
 
@@ -3055,6 +3179,35 @@ export class StatsCommand extends BaseCommand {
     return {
       type: ComponentType.ActionRow,
       components: [
+        {
+          type: ComponentType.Button,
+          custom_id: InteractionButton.FixCancel,
+          label: "Cancel",
+          style: ButtonStyle.Secondary,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Series without a user-provided queue number (timestamp IDs) offer a button to set one.
+   */
+  private createManualActionRow(
+    metadata: ManualFlowMetadata,
+    leadingButtons: APIButtonComponentWithCustomId[],
+  ): APIMessageTopLevelComponent {
+    const setQueueNumberButton: APIButtonComponentWithCustomId = {
+      type: ComponentType.Button,
+      custom_id: InteractionButton.ManualSetQueueNumber,
+      label: "Set queue number",
+      style: ButtonStyle.Primary,
+    };
+
+    return {
+      type: ComponentType.ActionRow,
+      components: [
+        ...leadingButtons,
+        ...(metadata.queueNumber >= MANUAL_QUEUE_NUMBER_MIN ? [setQueueNumberButton] : []),
         {
           type: ComponentType.Button,
           custom_id: InteractionButton.FixCancel,
