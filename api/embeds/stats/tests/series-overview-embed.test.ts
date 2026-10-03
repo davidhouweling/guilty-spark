@@ -85,6 +85,21 @@ describe("SeriesOverviewEmbed", () => {
       expect(output.embeds[0]?.url).toBe("https://discord.com/channels/guild123/channel123/message123");
     });
 
+    it("lists unlinked gamertags after Discord mentions, escaping markdown", async () => {
+      const output = await seriesOverviewEmbed.getEmbed({
+        guildId: "guild123",
+        channelId: "channel123",
+        locale: "en-US",
+        queue: 1,
+        series: [sampleMatchStats],
+        finalTeams: [{ name: "Eagle", playerIds: ["user1"], unlinkedGamertags: ["Some_Player", "Other"] }],
+        substitutions: [],
+        hideTeamsDescription: false,
+      });
+
+      expect(output.embeds[0]?.description).toContain("**Eagle:** <@user1> Some\\_Player Other");
+    });
+
     it("omits the embed title link when no message id is provided", async () => {
       const output = await seriesOverviewEmbed.getEmbed({
         guildId: "guild123",
