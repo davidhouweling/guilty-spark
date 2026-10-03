@@ -26,6 +26,10 @@ export interface SeriesOverviewEmbedOutput {
   components: APIMessageTopLevelComponent[];
 }
 
+export interface SeriesOverviewTeam extends TeamMapping {
+  readonly unlinkedGamertags?: readonly string[] | undefined;
+}
+
 export class SeriesOverviewEmbed {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
@@ -54,7 +58,7 @@ export class SeriesOverviewEmbed {
     locale: string;
     queue: number;
     series: MatchStats[];
-    finalTeams: readonly TeamMapping[];
+    finalTeams: readonly SeriesOverviewTeam[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
   }): Promise<SeriesOverviewEmbedOutput> {
@@ -94,7 +98,13 @@ export class SeriesOverviewEmbed {
     }
 
     const teamsDescription = finalTeams
-      .map((team) => `**${team.name}:** ${team.playerIds.map((playerId) => `<@${playerId}>`).join(" ")}`)
+      .map((team) => {
+        const players = [
+          ...team.playerIds.map((playerId) => `<@${playerId}>`),
+          ...(team.unlinkedGamertags ?? []).map((gamertag) => gamertag.replaceAll(/[\\*_~`|]/g, "\\$&")),
+        ];
+        return `**${team.name}:** ${players.join(" ")}`;
+      })
       .join("\n");
     const startTime = this.discordService.getTimestamp(
       Preconditions.checkExists(seriesMatches[0]?.MatchInfo.StartTime),
