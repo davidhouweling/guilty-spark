@@ -24,6 +24,20 @@ describe("DiscordSeriesStatsPresenter.present", () => {
         })),
       })),
     };
+    const swappedRawMatch = {
+      ...rawMatch,
+      Teams: rawMatch.Teams.map((team) => ({
+        ...team,
+        Outcome: team.TeamId === 0 ? 1 : 2,
+      })),
+    };
+    const stableSwappedMatch = {
+      ...swappedRawMatch,
+      Teams: swappedRawMatch.Teams.map((team) => ({
+        ...team,
+        TeamId: team.TeamId === 0 ? 3 : 2,
+      })).sort((left, right) => left.TeamId - right.TeamId),
+    };
     const renderData: DiscordSeriesStatsPresenter["renderData"] = {
       title: "Series",
       subtitle: "Test",
@@ -49,6 +63,22 @@ describe("DiscordSeriesStatsPresenter.present", () => {
           rawMatch,
           seriesMatch,
         },
+        {
+          matchId: "swapped-match",
+          gameTypeAndMap: "Slayer: Streets",
+          gameVariantCategory: 9,
+          gameType: "Slayer",
+          gameMap: "Streets",
+          gameMapThumbnailUrl: "data:,",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:15:00.000Z",
+          endTime: "2026-01-01T00:25:00.000Z",
+          playerXuidToGametag: {},
+          rawMatch: swappedRawMatch,
+          seriesMatch: stableSwappedMatch,
+        },
       ],
     };
     const store = new DiscordSeriesStatsStore();
@@ -64,6 +94,7 @@ describe("DiscordSeriesStatsPresenter.present", () => {
 
     expect(viewModel.seriesStats?.teamData.map((team) => team.teamId)).toEqual([2, 3]);
     expect(viewModel.matchDetails[0]?.data).not.toBeNull();
+    expect(viewModel.matchSummaries[1]?.winningTeamColorHex).toBe(viewModel.seriesStats?.teamColors[0]?.hex);
   });
 
   it("orders kill matrix players correctly when some players have a games-played suffix", () => {

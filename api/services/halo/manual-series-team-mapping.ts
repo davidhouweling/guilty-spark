@@ -91,7 +91,12 @@ export function resolveManualSeriesTeamMappings(series: MatchStats[]): ManualSer
       }
 
       const seriesTeamId = player.LastTeamId === firstTeamId ? firstTeamSeriesId : secondTeamSeriesId;
-      playerToSeriesTeamId.set(getPlayerXuid(player), seriesTeamId);
+      const playerXuid = getPlayerXuid(player);
+      const previousSeriesTeamId = playerToSeriesTeamId.get(playerXuid);
+      if (previousSeriesTeamId != null && previousSeriesTeamId !== seriesTeamId) {
+        return null;
+      }
+      playerToSeriesTeamId.set(playerXuid, seriesTeamId);
       Preconditions.checkExists(anchorPlayersByTeam.get(seriesTeamId)).add(player.PlayerId);
     }
   }

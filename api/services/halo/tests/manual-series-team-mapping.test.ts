@@ -115,4 +115,29 @@ describe("resolveManualSeriesTeamMappings()", () => {
     expect(mappedMatches[1]?.Teams.map((team) => getTeamName(team.TeamId))).toEqual(["Hades", "Valkyrie"]);
     expect(Preconditions.checkExists(aggregateTeamCoreStats(mappedMatches).get(2)).Kills).toBeGreaterThan(0);
   });
+
+  it("returns null when a previously mapped player crosses to the opposing team", () => {
+    const matches = [
+      aMatchWithSwappableRosters({
+        matchId: "crossover-anchor",
+        startTime: "2026-10-03T10:00:00Z",
+        mapAssetId: "manual-map-1",
+        team0PlayerIds: ["0100000000000000", "0200000000000000"],
+        team1PlayerIds: ["0400000000000000", "0800000000000000"],
+        team0Outcome: MatchOutcome.Win.valueOf(),
+        team1Outcome: MatchOutcome.Loss.valueOf(),
+      }),
+      aMatchWithSwappableRosters({
+        matchId: "crossover-later",
+        startTime: "2026-10-03T10:15:00Z",
+        mapAssetId: "manual-map-2",
+        team0PlayerIds: ["0100000000000000", "0200000000000000", "0400000000000000"],
+        team1PlayerIds: ["0800000000000000", "0900000000000000"],
+        team0Outcome: MatchOutcome.Win.valueOf(),
+        team1Outcome: MatchOutcome.Loss.valueOf(),
+      }),
+    ];
+
+    expect(resolveManualSeriesTeamMappings(matches)).toBeNull();
+  });
 });

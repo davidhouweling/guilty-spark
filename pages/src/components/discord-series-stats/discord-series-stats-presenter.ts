@@ -193,7 +193,8 @@ export class DiscordSeriesStatsPresenter {
       gameScore: match.gameScore,
       gameSubScore: match.gameSubScore ?? null,
       gameMap: match.gameMap,
-      winningTeamColorHex: DiscordSeriesStatsPresenter.getWinningTeamColor(match.rawMatch, teamColors)?.hex ?? null,
+      winningTeamColorHex:
+        DiscordSeriesStatsPresenter.getWinningTeamColor(match.seriesMatch ?? match.rawMatch, teamColors)?.hex ?? null,
     }));
 
     const teams: DiscordSeriesTeamCard[] = this.renderData.teams.map((team, teamIndex) => {
