@@ -47,6 +47,11 @@ describe("getCommands", () => {
     expect(commandMap.get(InteractionButton.ManualQueueNextPage)).toBe(commandMap.get("stats"));
   });
 
+  it("registers manual games and outcome selects for component dispatch", () => {
+    expect(commandMap.get(InteractionButton.ManualGamesSelect)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualOutcomeSelect)).toBe(commandMap.get("stats"));
+  });
+
   it("all commands have required data property", () => {
     for (const command of commandMap.values()) {
       expect(command).toHaveProperty("data");
