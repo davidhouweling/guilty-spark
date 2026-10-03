@@ -3721,7 +3721,17 @@ export class StatsCommand extends BaseCommand {
       }
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
-      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale);
+      const isManualSeries =
+        metadata.queueData.queue >= MANUAL_QUEUE_NUMBER_MIN ||
+        metadata.queueData.message.author.id === this.env.DISCORD_APP_ID;
+      if (isManualSeries) {
+        await discordService.cacheDiscordSeriesMatchIds(
+          metadata.guildId,
+          metadata.queueData.queue,
+          series.map((match) => match.MatchId),
+        );
+      }
+      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueData.queue, series, locale, isManualSeries);
       if (neatQueueConfig != null && metadata.queueData.queue < MANUAL_QUEUE_NUMBER_MIN) {
         await this.persistFixedSeriesToLeaderboard(metadata, neatQueueConfig, series, locale);
       }

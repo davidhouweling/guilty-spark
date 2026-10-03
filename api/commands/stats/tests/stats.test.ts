@@ -3654,6 +3654,7 @@ describe("StatsCommand", () => {
     });
 
     it("skips leaderboard reconciliation for manual series without a queue number", async () => {
+      const cacheMatchIdsSpy = vi.spyOn(services.discordService, "cacheDiscordSeriesMatchIds").mockResolvedValue();
       vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
         guildId: "fake-guild-id",
         channelId: "fake-channel-id",
@@ -3687,6 +3688,9 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
+      expect(cacheMatchIdsSpy).toHaveBeenCalledWith("fake-guild-id", 20261003050709, [
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+      ]);
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
