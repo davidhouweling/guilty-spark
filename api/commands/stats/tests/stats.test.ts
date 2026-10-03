@@ -1931,6 +1931,66 @@ describe("StatsCommand", () => {
         expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: undefined });
       });
 
+      it("shows the preview and accepts an explicit outcome when the first game's initial roster is incomplete", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const firstMatch = aMatchWithSwappableRosters({
+          matchId: "manual-series-incomplete-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-series-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const secondMatch = aMatchWithSwappableRosters({
+          matchId: "manual-series-follow-up",
+          startTime: "2026-10-03T10:15:00Z",
+          mapAssetId: "manual-series-map-2",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const incompleteFirstMatch = {
+          ...firstMatch,
+          Players: firstMatch.Players.map((player) =>
+            player.LastTeamId === 1
+              ? { ...player, ParticipationInfo: { ...player.ParticipationInfo, PresentAtBeginning: false } }
+              : player,
+          ),
+        };
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([incompleteFirstMatch, secondMatch]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        expect(Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]).embeds?.[0]?.description).toContain(
+          "Derived result: Could not determine automatically",
+        );
+
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...baseMetadata,
+          selectedMatchIds: [ctfMatchId, slayerMatchId],
+          teams,
+        });
+        const { jobToComplete: selectOutcomeJob } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_outcome_select", ["TEAM_0"]),
+        );
+        await selectOutcomeJob?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TEAM_0" });
+        expect(
+          Preconditions.checkExists(updateDeferredReplySpy.mock.calls.at(-1)?.[1]).embeds?.[0]?.description,
+        ).toContain("Final result: Eagle wins");
+      });
+
       it("stores the adjusted outcome and marks it as the final result in the preview", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
           ...baseMetadata,
@@ -2059,6 +2119,55 @@ describe("StatsCommand", () => {
           embeds: [expect.objectContaining({ description: "Series stats were posted in <#new-thread-id>." })],
           components: [],
         });
+      });
+
+      it("publishes substitution-aware series scores and team totals", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        const anchorMatch = aMatchWithSwappableRosters({
+          matchId: "manual-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0400000000000000", "0800000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        const substituteMatch = aMatchWithSwappableRosters({
+          matchId: "manual-substitute",
+          startTime: "2026-10-03T10:15:00Z",
+          mapAssetId: "manual-map-2",
+          team0PlayerIds: ["0400000000000000", "0800000000000000"],
+          team1PlayerIds: ["0100000000000000", "0900000000000000"],
+          team0Outcome: MatchOutcome.Loss.valueOf(),
+          team1Outcome: MatchOutcome.Win.valueOf(),
+        });
+        const matches = [anchorMatch, substituteMatch].map((match, matchIndex) => ({
+          ...match,
+          Teams: match.Teams.map((team, teamIndex) => ({
+            ...team,
+            Stats: {
+              ...team.Stats,
+              CoreStats: {
+                ...team.Stats.CoreStats,
+                Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
+                Kills: matchIndex === 0 ? (teamIndex === 0 ? 10 : 20) : teamIndex === 0 ? 30 : 40,
+              },
+            },
+          })),
+        }));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(matches);
+
+        await confirm();
+
+        const [, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+        expect(overviewPayload.embeds?.[0]?.title).toContain("2:0");
+        expect(overviewPayload.embeds?.[0]?.fields?.[2]?.value).toContain("40:15");
+        const [, teamStatsPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[1]);
+        const eagleField = teamStatsPayload.embeds?.[0]?.fields?.find((field) => field.name === "Eagle");
+        expect(eagleField?.value).toContain("50");
       });
 
       it("does not publish the overview when persisting manual-series match ids fails", async () => {

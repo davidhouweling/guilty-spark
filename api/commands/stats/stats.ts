@@ -32,7 +32,6 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import { buildPresentAtBeginningTeamRosters } from "@guilty-spark/shared/halo/series-team-identity";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
@@ -53,6 +52,11 @@ import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
+import {
+  mapManualSeriesToStableTeams,
+  resolveManualSeriesTeamMappings,
+} from "../../services/halo/manual-series-team-mapping";
+import type { ManualSeriesTeamMappings } from "../../services/halo/manual-series-team-mapping";
 import {
   buildDiscordSeriesRenderDataFromMatches,
   extractDiscordSeriesMatchIdsFromEmbeds,
@@ -1810,11 +1814,12 @@ export class StatsCommand extends BaseCommand {
     locale: string,
     allowLoadGamesButton = true,
     postedMessageIds?: string[],
+    teamMappings?: ManualSeriesTeamMappings,
   ): Promise<void> {
     const { discordService } = this.services;
 
     try {
-      await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale, postedMessageIds);
+      await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale, postedMessageIds, teamMappings);
       await this.postGameStatsOrButton(threadId, series, guildConfig, locale, allowLoadGamesButton, postedMessageIds);
     } catch (error) {
       throw (
@@ -2124,6 +2129,7 @@ export class StatsCommand extends BaseCommand {
     guildConfig: GuildConfigRow,
     locale: string,
     postedMessageIds?: string[],
+    teamMappings?: ManualSeriesTeamMappings,
   ): Promise<void> {
     const { discordService, haloService } = this.services;
 
@@ -2133,7 +2139,8 @@ export class StatsCommand extends BaseCommand {
       guildConfig,
       locale,
     });
-    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(series);
+    const teamStatsSeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
+    const seriesTeamsEmbedOutput = await seriesTeamsEmbed.getSeriesEmbed(teamStatsSeries);
     const seriesTeamsMessage = await discordService.createMessage(threadId, {
       embeds: [seriesTeamsEmbedOutput],
     });
@@ -2258,6 +2265,7 @@ export class StatsCommand extends BaseCommand {
         queueNumber,
         matches: series,
         locale,
+        seriesId,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({
@@ -2587,25 +2595,11 @@ export class StatsCommand extends BaseCommand {
     const orderedSeries = [...series].sort((left, right) =>
       left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
     );
-    const mappings = this.getManualSeriesTeamMappings(orderedSeries);
+    const mappings = resolveManualSeriesTeamMappings(orderedSeries);
     if (mappings == null) {
       return null;
     }
-    const canonicalSeries = orderedSeries.map((match) => {
-      const matchTeamIdToSeriesTeamId = Preconditions.checkExists(
-        mappings.matchTeamIdToSeriesTeamId.get(match.MatchId),
-        "Expected resolved manual series team mapping",
-      );
-      const teams = [...match.Teams].sort(
-        (left, right) =>
-          Preconditions.checkExists(matchTeamIdToSeriesTeamId.get(left.TeamId)) -
-          Preconditions.checkExists(matchTeamIdToSeriesTeamId.get(right.TeamId)),
-      );
-
-      return { ...match, Teams: teams };
-    });
-
-    return this.deriveFixSeriesOutcome(canonicalSeries);
+    return this.deriveFixSeriesOutcome(mapManualSeriesToStableTeams(orderedSeries, mappings));
   }
 
   private async showManualSeriesPreview(
@@ -2711,6 +2705,8 @@ export class StatsCommand extends BaseCommand {
         this.getManualSeriesMatches(metadata.selectedMatchIds ?? []),
         this.findManualQueueConfig(metadata),
       ]);
+      const teamMappings = resolveManualSeriesTeamMappings(series);
+      const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
 
       if (metadata.seriesId != null) {
         await discordService.cacheDiscordSeriesMatchIds(
@@ -2721,7 +2717,7 @@ export class StatsCommand extends BaseCommand {
         );
       }
 
-      const seriesEmbed = await this.createManualSeriesEmbed(metadata, series, locale);
+      const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
       const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
       overviewEmbed.fields ??= [];
       overviewEmbed.fields.push({
@@ -2738,7 +2734,7 @@ export class StatsCommand extends BaseCommand {
       const publication = await this.postManualSeriesOverview({
         postChannelId: queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId,
         seriesEmbed,
-        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(displaySeries, locale, true)})`,
       });
       try {
         await this.postSeriesStatsToThread(
@@ -2748,6 +2744,7 @@ export class StatsCommand extends BaseCommand {
           locale,
           publication.allowLoadGamesButton,
           publication.messageIds,
+          teamMappings ?? undefined,
         );
       } catch (error) {
         await this.rollbackManualSeriesPublication(publication, error);
@@ -2919,7 +2916,7 @@ export class StatsCommand extends BaseCommand {
   ): Promise<void> {
     try {
       const mappings = Preconditions.checkExists(
-        this.getManualSeriesTeamMappings(series),
+        resolveManualSeriesTeamMappings(series),
         "Cannot resolve stable team identities from the manual series rosters",
       );
       await this.services.leaderboardService.persistReconciledSeriesData({
@@ -2957,101 +2954,6 @@ export class StatsCommand extends BaseCommand {
     );
     const winningTeam = sortedTeams[selectedSeriesOutcome === "TEAM_0" ? 0 : 1];
     return Preconditions.checkExists(winningTeam, "Expected winning team in first match").TeamId;
-  }
-
-  private getManualSeriesTeamMappings(series: MatchStats[]): {
-    playerToSeriesTeamId: ReadonlyMap<string, number>;
-    matchTeamIdToSeriesTeamId: ReadonlyMap<string, ReadonlyMap<number, number>>;
-  } | null {
-    const [firstMatch, ...remainingMatches] = [...series].sort((left, right) =>
-      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
-    );
-    if (firstMatch == null) {
-      throw new Error("Cannot resolve stable team identities without an initial manual series match");
-    }
-
-    const anchorRosters = buildPresentAtBeginningTeamRosters(firstMatch);
-    if (anchorRosters == null) {
-      throw new Error("Cannot resolve stable team identities from the initial manual series rosters");
-    }
-
-    const anchorPlayersByTeam = new Map<number, Set<string>>(
-      anchorRosters.map((roster) => [roster.matchTeamId, new Set(roster.xuids)]),
-    );
-    const playerToSeriesTeamId = new Map<string, number>();
-    const matchTeamIdToSeriesTeamId = new Map<string, ReadonlyMap<number, number>>();
-    const matches = [firstMatch, ...remainingMatches];
-    for (const [index, match] of matches.entries()) {
-      const playersByMatchTeam = new Map<number, Set<string>>();
-      for (const player of match.Players) {
-        if (player.PlayerType !== 1) {
-          continue;
-        }
-
-        const players = playersByMatchTeam.get(player.LastTeamId) ?? new Set<string>();
-        players.add(player.PlayerId);
-        playersByMatchTeam.set(player.LastTeamId, players);
-      }
-
-      const matchTeamIds = [...match.Teams].map((team) => team.TeamId).sort((left, right) => left - right);
-      const [firstTeamId, secondTeamId] = matchTeamIds;
-      const firstRoster = playersByMatchTeam.get(Preconditions.checkExists(firstTeamId)) ?? new Set<string>();
-      const secondRoster = playersByMatchTeam.get(Preconditions.checkExists(secondTeamId)) ?? new Set<string>();
-      const anchorTeamIds = anchorRosters.map((roster) => roster.matchTeamId);
-      const [anchorTeam0, anchorTeam1] = anchorTeamIds;
-      const firstAnchorPlayers = anchorPlayersByTeam.get(Preconditions.checkExists(anchorTeam0)) ?? new Set<string>();
-      const secondAnchorPlayers = anchorPlayersByTeam.get(Preconditions.checkExists(anchorTeam1)) ?? new Set<string>();
-      const sameSideOverlap =
-        this.getRosterOverlap(firstRoster, firstAnchorPlayers) +
-        this.getRosterOverlap(secondRoster, secondAnchorPlayers);
-      const swappedSideOverlap =
-        this.getRosterOverlap(firstRoster, secondAnchorPlayers) +
-        this.getRosterOverlap(secondRoster, firstAnchorPlayers);
-      if (index > 0 && sameSideOverlap === swappedSideOverlap) {
-        return null;
-      }
-      const firstTeamSeriesId =
-        index === 0 || sameSideOverlap > swappedSideOverlap
-          ? Preconditions.checkExists(anchorTeam0)
-          : Preconditions.checkExists(anchorTeam1);
-      const secondTeamSeriesId =
-        index === 0 || sameSideOverlap > swappedSideOverlap
-          ? Preconditions.checkExists(anchorTeam1)
-          : Preconditions.checkExists(anchorTeam0);
-      matchTeamIdToSeriesTeamId.set(
-        match.MatchId,
-        new Map([
-          [Preconditions.checkExists(firstTeamId), firstTeamSeriesId],
-          [Preconditions.checkExists(secondTeamId), secondTeamSeriesId],
-        ]),
-      );
-
-      for (const player of match.Players) {
-        if (player.PlayerType !== 1) {
-          continue;
-        }
-
-        const seriesTeamId = player.LastTeamId === firstTeamId ? firstTeamSeriesId : secondTeamSeriesId;
-        const xuid = getPlayerXuid(player);
-        playerToSeriesTeamId.set(xuid, seriesTeamId);
-        Preconditions.checkExists(anchorPlayersByTeam.get(seriesTeamId), "Expected resolved series roster").add(
-          player.PlayerId,
-        );
-      }
-    }
-
-    return { playerToSeriesTeamId, matchTeamIdToSeriesTeamId };
-  }
-
-  private getRosterOverlap(roster: ReadonlySet<string>, anchorRoster: ReadonlySet<string>): number {
-    let overlap = 0;
-    for (const playerId of roster) {
-      if (anchorRoster.has(playerId)) {
-        overlap += 1;
-      }
-    }
-
-    return overlap;
   }
 
   private createFixCancelActionRow(): APIMessageTopLevelComponent {

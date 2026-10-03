@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { MatchOutcome } from "halo-infinite-api";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import {
   buildDiscordSeriesRenderDataFromMatches,
@@ -10,7 +11,7 @@ import {
 import { aFakeDiscordServiceWith } from "../fakes/discord.fake";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
-import { getMatchStats } from "../../halo/fakes/data";
+import { getMatchStats, aMatchWithSwappableRosters } from "../../halo/fakes/data";
 import { guild } from "../fakes/data";
 
 describe("buildDiscordSeriesRenderDataFromMatches()", () => {
@@ -35,6 +36,57 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
 
     expect(getMatchScoreSpy).toHaveBeenCalledWith(match, Locale.German, [match]);
     expect(getSeriesScoreSpy).toHaveBeenCalledWith([match], Locale.German);
+  });
+
+  it("maps manual substitute scores and series outcomes on a cache rebuild", async () => {
+    const discordService = aFakeDiscordServiceWith();
+    const haloService = aFakeHaloServiceWith();
+    const anchorMatch = aMatchWithSwappableRosters({
+      matchId: "manual-anchor",
+      startTime: "2026-10-03T10:00:00Z",
+      mapAssetId: "manual-map-1",
+      team0PlayerIds: ["0100000000000000", "0200000000000000"],
+      team1PlayerIds: ["0400000000000000", "0800000000000000"],
+      team0Outcome: MatchOutcome.Win.valueOf(),
+      team1Outcome: MatchOutcome.Loss.valueOf(),
+    });
+    const substituteMatch = aMatchWithSwappableRosters({
+      matchId: "manual-substitute",
+      startTime: "2026-10-03T10:15:00Z",
+      mapAssetId: "manual-map-2",
+      team0PlayerIds: ["0400000000000000", "0800000000000000"],
+      team1PlayerIds: ["0100000000000000", "0900000000000000"],
+      team0Outcome: MatchOutcome.Loss.valueOf(),
+      team1Outcome: MatchOutcome.Win.valueOf(),
+    });
+    const matches = [anchorMatch, substituteMatch].map((match, matchIndex) => ({
+      ...match,
+      Teams: match.Teams.map((team, teamIndex) => ({
+        ...team,
+        Stats: {
+          ...team.Stats,
+          CoreStats: {
+            ...team.Stats.CoreStats,
+            Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
+          },
+        },
+      })),
+    }));
+
+    const renderData = await buildDiscordSeriesRenderDataFromMatches({
+      discordService,
+      logService: aFakeLogServiceWith(),
+      haloService,
+      guildId: "fake-guild-id",
+      queueNumber: 42,
+      matches,
+      locale: "en-US",
+      seriesId: "d9408885-89bc-4bb3-a7b8-248e7304a846",
+    });
+
+    expect(renderData.seriesScore).toBe("2:0");
+    expect(renderData.matches.map((match) => match.gameScore)).toEqual(["50:20", "40:15"]);
+    expect(renderData.matches[1]?.rawMatch).toMatchObject({ Teams: [{ TeamId: 0 }, { TeamId: 1 }] });
   });
 });
 
