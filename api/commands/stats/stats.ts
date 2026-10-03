@@ -32,6 +32,10 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import {
+  buildPresentAtBeginningTeamRosters,
+  resolveMatchTeamIdToSeriesTeamId,
+} from "@guilty-spark/shared/halo/series-team-identity";
 import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
@@ -2494,17 +2498,17 @@ export class StatsCommand extends BaseCommand {
 
       const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
       const series = await this.getManualSeriesMatches(selectedMatchIds);
+      if (series.some((match) => match.Teams.length !== 2)) {
+        throw new EndUserError("Manual series stats only support games between two teams.");
+      }
+
       const xuids = [...new Set(series.flatMap((match) => match.Players.map((player) => getPlayerXuid(player))))];
       const associations = await databaseService.getDiscordAssociationsByXboxId(xuids);
       const teams = deriveManualSeriesTeams(
         series,
         new Map(associations.map((association) => [association.XboxId, association.DiscordId])),
       );
-      if (teams.length !== 2) {
-        throw new EndUserError("Manual series stats only support games between two teams.");
-      }
-
-      const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
+      const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
       await this.showManualSeriesPreview(interaction, {
         metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome },
         series,
@@ -2528,7 +2532,7 @@ export class StatsCommand extends BaseCommand {
       await this.showManualSeriesPreview(interaction, {
         metadata: { ...metadata, selectedSeriesOutcome },
         series,
-        derivedSeriesOutcome: this.deriveFixSeriesOutcome(series),
+        derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
       });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
@@ -2546,6 +2550,26 @@ export class StatsCommand extends BaseCommand {
     }
 
     return series;
+  }
+
+  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
+    const orderedSeries = [...series].sort((left, right) =>
+      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+    );
+    const [anchorMatch] = orderedSeries;
+    const anchorRosters = anchorMatch == null ? null : buildPresentAtBeginningTeamRosters(anchorMatch);
+    const canonicalSeries = orderedSeries.map((match) => {
+      const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
+      const teams = [...match.Teams].sort(
+        (left, right) =>
+          (matchTeamIdToSeriesTeamId?.get(left.TeamId) ?? left.TeamId) -
+          (matchTeamIdToSeriesTeamId?.get(right.TeamId) ?? right.TeamId),
+      );
+
+      return { ...match, Teams: teams };
+    });
+
+    return this.deriveFixSeriesOutcome(canonicalSeries);
   }
 
   private async showManualSeriesPreview(

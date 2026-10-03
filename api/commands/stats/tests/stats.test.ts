@@ -25,6 +25,7 @@ import {
   MessageFlags,
   MessageType,
 } from "discord-api-types/v10";
+import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   LeaderboardMetric,
@@ -44,7 +45,12 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
-import { aFakeMatchHistoryEntryWith, getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
+import {
+  aFakeMatchHistoryEntryWith,
+  aMatchWithSwappableRosters,
+  getMatchStats,
+  getPlayerXuidsToGametags,
+} from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../../services/database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../../services/database/types/neat_queue_config";
@@ -1770,15 +1776,19 @@ describe("StatsCommand", () => {
         });
       });
 
-      it("rejects games that do not have exactly two teams", async () => {
+      it("rejects a series when a later selected game does not have exactly two teams", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
         const ctfMatch = Preconditions.checkExists(getMatchStats(ctfMatchId));
         vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          ctfMatch,
           { ...ctfMatch, Teams: ctfMatch.Teams.slice(0, 1) },
         ]);
 
         const { jobToComplete } = statsCommand.execute(
-          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [ctfMatchId]),
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
         );
         await jobToComplete?.();
 
@@ -1786,6 +1796,47 @@ describe("StatsCommand", () => {
           "fake-token",
           expect.objectContaining({ message: "Manual series stats only support games between two teams." }),
         );
+      });
+
+      it("derives the series outcome consistently when teams swap sides", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-swapped",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["0400000000000000", "0800000000000000"],
+            team1PlayerIds: ["0100000000000000", "0200000000000000"],
+            team0Outcome: MatchOutcome.Loss.valueOf(),
+            team1Outcome: MatchOutcome.Win.valueOf(),
+          }),
+        ]);
+        vi.spyOn(services.databaseService, "getDiscordAssociationsByXboxId").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-1", XboxId: "0100000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-2", XboxId: "0200000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-4", XboxId: "0400000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-8", XboxId: "0800000000000000" }),
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
       });
 
       it("stores the adjusted outcome and marks it as the final result in the preview", async () => {
