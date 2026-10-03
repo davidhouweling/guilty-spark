@@ -1481,6 +1481,15 @@ export class DiscordService {
     });
   }
 
+  async deleteChannel(channelId: string, reason: string): Promise<void> {
+    await this.fetch(Routes.channel(channelId), {
+      method: "DELETE",
+      headers: {
+        "X-Audit-Log-Reason": reason,
+      },
+    });
+  }
+
   async bulkDeleteMessages(channelId: string, messageIds: string[], reason: string): Promise<void> {
     if (messageIds.length < 2 && messageIds[0] != null) {
       return this.deleteMessage(channelId, messageIds[0], reason);

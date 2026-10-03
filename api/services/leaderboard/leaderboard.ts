@@ -1345,6 +1345,7 @@ export class LeaderboardService {
 
         const existing = playersByXuid.get(xuid);
         if (existing == null) {
+          const seriesTeamId = seriesTeamIdByXuid?.get(xuid) ?? teamStats.TeamId;
           playersByXuid.set(xuid, {
             GuildId: guildId,
             QueueNumber: queueNumber,
@@ -1352,12 +1353,12 @@ export class LeaderboardService {
             XboxXuid: xuid,
             DiscordUserId: xuidToDiscordId.get(xuid) ?? null,
             GamertagSnapshot: gamertagMap.get(xuid) ?? "Unknown",
-            TeamId: teamStats.TeamId,
+            TeamId: seriesTeamId,
             PresentAtBeginningCount: player.ParticipationInfo.PresentAtBeginning ? 1 : 0,
             SubstituteInCount: player.ParticipationInfo.PresentAtBeginning ? 0 : 1,
             SubstituteOutCount: 0,
             GamesPlayedCount: 1,
-            SeriesWon: (seriesTeamIdByXuid?.get(xuid) ?? teamStats.TeamId) === winnerTeamIndex ? 1 : 0,
+            SeriesWon: seriesTeamId === winnerTeamIndex ? 1 : 0,
             CreatedAt: nowEpoch,
           });
           continue;

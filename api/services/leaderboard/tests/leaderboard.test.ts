@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MatchOutcome } from "halo-infinite-api";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -22,7 +23,7 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage } from "../../discord/fakes/data";
 import { DiscordError } from "../../discord/discord-error";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
-import { getMatchStats } from "../../halo/fakes/data";
+import { aMatchWithSwappableRosters, getMatchStats } from "../../halo/fakes/data";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { NeatQueueMatchCompletedRequest } from "../../neatqueue/types";
 import { LeaderboardService } from "../leaderboard";
@@ -964,6 +965,56 @@ describe("LeaderboardService", () => {
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
     const playerRow = Preconditions.checkExists(payload.seriesPlayers.find((row) => row.XboxXuid === xuid));
     expect(playerRow.SeriesWon).toBe(1);
+  });
+
+  it("persists the stable series team for a substitute joining after teams swap sides", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const service = new LeaderboardService({
+      databaseService,
+      haloService,
+      logService: aFakeLogServiceWith(),
+    });
+    const anchorMatch = aMatchWithSwappableRosters({
+      matchId: "manual-anchor",
+      startTime: "2026-10-03T10:00:00Z",
+      mapAssetId: "manual-map-1",
+      team0PlayerIds: ["0100000000000000", "0200000000000000"],
+      team1PlayerIds: ["0400000000000000", "0800000000000000"],
+      team0Outcome: MatchOutcome.Win.valueOf(),
+      team1Outcome: MatchOutcome.Loss.valueOf(),
+    });
+    const swappedMatch = aMatchWithSwappableRosters({
+      matchId: "manual-swapped",
+      startTime: "2026-10-03T10:15:00Z",
+      mapAssetId: "manual-map-2",
+      team0PlayerIds: ["0400000000000000", "0800000000000000"],
+      team1PlayerIds: ["0100000000000000", "0200000000000000", "0900000000000000"],
+      team0Outcome: MatchOutcome.Loss.valueOf(),
+      team1Outcome: MatchOutcome.Win.valueOf(),
+    });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [anchorMatch, swappedMatch],
+      winnerTeamIndex: 0,
+      seriesTeamIdByXuid: new Map([["0900000000000000", 0]]),
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const substituteSeriesRow = Preconditions.checkExists(
+      payload.seriesPlayers.find((row) => row.XboxXuid === "0900000000000000"),
+    );
+    const substituteGameRow = Preconditions.checkExists(
+      payload.gamePlayers.find((row) => row.MatchId === "manual-swapped" && row.XboxXuid === "0900000000000000"),
+    );
+    expect(substituteSeriesRow.TeamId).toBe(0);
+    expect(substituteGameRow.TeamId).toBe(1);
   });
 
   it("persists average damage per life using total lives", async () => {

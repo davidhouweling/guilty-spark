@@ -1892,6 +1892,7 @@ describe("StatsCommand", () => {
       };
       let createMessageSpy: MockInstance<typeof services.discordService.createMessage>;
       let startThreadFromMessageSpy: MockInstance<typeof services.discordService.startThreadFromMessage>;
+      let deleteChannelSpy: MockInstance<typeof services.discordService.deleteChannel>;
       let cacheResolvedDiscordSeriesStatsSpy: MockInstance<
         typeof services.discordService.cacheResolvedDiscordSeriesStats
       >;
@@ -1922,6 +1923,7 @@ describe("StatsCommand", () => {
           id: "new-thread-id",
           type: ChannelType.PublicThread,
         } as RESTPostAPIChannelThreadsResult);
+        deleteChannelSpy = vi.spyOn(services.discordService, "deleteChannel").mockResolvedValue();
         cacheResolvedDiscordSeriesStatsSpy = vi
           .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
           .mockResolvedValue();
@@ -2124,6 +2126,48 @@ describe("StatsCommand", () => {
         expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalled();
       });
 
+      it("removes the manual overview and newly created thread when posting thread contents fails", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        const postError = new Error("Thread content post failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "partial-overview-message-id" })
+          .mockRejectedValueOnce(postError);
+        const deleteMessageSpy = vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteChannelSpy).toHaveBeenCalledWith("new-thread-id", "Removing incomplete manual series thread");
+        expect(deleteMessageSpy).toHaveBeenCalledWith(
+          "command-channel-id",
+          "partial-overview-message-id",
+          "Removing manual series overview after stats publication failed",
+        );
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", postError);
+      });
+
+      it("removes only this confirmation's messages when posting fails in a reused thread", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(confirmedMetadata);
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(threadChannel);
+        const postError = new Error("Thread content post failed");
+        createMessageSpy
+          .mockReset()
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-overview-in-thread" })
+          .mockResolvedValueOnce({ ...apiMessage, id: "manual-series-embed" })
+          .mockRejectedValueOnce(postError);
+        const bulkDeleteMessagesSpy = vi.spyOn(services.discordService, "bulkDeleteMessages").mockResolvedValue();
+
+        await confirm();
+
+        expect(deleteChannelSpy).not.toHaveBeenCalled();
+        expect(bulkDeleteMessagesSpy).toHaveBeenCalledWith(
+          "command-channel-id",
+          ["manual-overview-in-thread", "manual-series-embed"],
+          "Removing incomplete manual series stats",
+        );
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", postError);
+      });
+
       it("maps the selected winner to its actual Halo team ID and stable roster IDs", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
           ...confirmedMetadata,
@@ -2249,6 +2293,48 @@ describe("StatsCommand", () => {
         const [persistInput] = Preconditions.checkExists(persistReconciledSeriesDataSpy.mock.calls[0]);
         expect(persistInput.seriesTeamIdByXuid?.get("0500000000000000")).toBe(0);
         expect(persistInput.seriesTeamIdByXuid?.get("0600000000000000")).toBe(1);
+      });
+
+      it("skips leaderboard persistence when the initial manual rosters cannot be resolved", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...confirmedMetadata,
+          queueNumber: 42,
+          queueChannelId: "queue-a",
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        const firstMatch = aMatchWithSwappableRosters({
+          matchId: "manual-unresolved-anchor",
+          startTime: "2026-10-03T10:00:00Z",
+          mapAssetId: "manual-map-1",
+          team0PlayerIds: ["0100000000000000", "0200000000000000"],
+          team1PlayerIds: ["0300000000000000", "0400000000000000"],
+          team0Outcome: MatchOutcome.Win.valueOf(),
+          team1Outcome: MatchOutcome.Loss.valueOf(),
+        });
+        firstMatch.Players = firstMatch.Players.filter((player) => player.LastTeamId === 0);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          firstMatch,
+          aMatchWithSwappableRosters({
+            matchId: "manual-unresolved-follow-up",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-map-2",
+            team0PlayerIds: ["0100000000000000", "0500000000000000"],
+            team1PlayerIds: ["0300000000000000", "0600000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+        ]);
+        const warnSpy = vi.spyOn(services.logService, "warn");
+
+        await confirm();
+
+        expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
+        const [error, logContext] = Preconditions.checkExists(warnSpy.mock.lastCall);
+        expect(error).toBeInstanceOf(Error);
+        expect(logContext?.get("context")).toBe("Manual stats leaderboard persistence failed");
       });
 
       it("returns an error when no final result was selected", async () => {
