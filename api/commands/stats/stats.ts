@@ -31,6 +31,12 @@ import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import {
+  buildPresentAtBeginningTeamRosters,
+  resolveMatchTeamIdToSeriesTeamId,
+} from "@guilty-spark/shared/halo/series-team-identity";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,
@@ -93,7 +99,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
-import { MANUAL_QUEUE_NUMBER_MIN, allocateManualQueueNumber } from "./manual-series";
+import { MANUAL_QUEUE_NUMBER_MIN, allocateManualQueueNumber, deriveManualSeriesTeams } from "./manual-series";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -114,6 +120,9 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   queueChannelId: string | null;
   queuePage?: number | undefined;
   selectedPlayerId?: string | undefined;
+  selectedMatchIds?: string[] | undefined;
+  teams?: TeamMapping[] | undefined;
+  selectedSeriesOutcome?: FixSeriesOutcome | undefined;
 }
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
@@ -177,6 +186,7 @@ export enum InteractionButton {
   ManualQueueNextPage = "btn_stats_manual_queue_next_page",
   ManualPlayerSelect = "btn_stats_manual_player_select",
   ManualGamesSelect = "btn_stats_manual_games_select",
+  ManualOutcomeSelect = "btn_stats_manual_outcome_select",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -479,6 +489,22 @@ export class StatsCommand extends BaseCommand {
           resolved: { users: {} },
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.ManualGamesSelect,
+          values: [],
+        },
+      },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.StringSelect,
+          custom_id: InteractionButton.ManualOutcomeSelect,
+          values: [],
+        },
+      },
     ];
   }
 
@@ -644,6 +670,32 @@ export class StatsCommand extends BaseCommand {
               },
               jobToComplete: async () =>
                 this.handleManualPlayerSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualGamesSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Generating series preview...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualGamesSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
+            };
+          }
+          case InteractionButton.ManualOutcomeSelect.toString(): {
+            return {
+              response: {
+                type: InteractionResponseType.UpdateMessage,
+                data: {
+                  embeds: [this.createStatusEmbed("Updating series preview...")],
+                  components: [],
+                },
+              },
+              jobToComplete: async () =>
+                this.handleManualOutcomeSelectJob(interaction as APIMessageComponentSelectMenuInteraction),
             };
           }
           default: {
@@ -2435,6 +2487,141 @@ export class StatsCommand extends BaseCommand {
     await this.setManualMetadata(message.id, { ...metadata, selectedPlayerId: playerId });
   }
 
+  private async handleManualGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const selectedMatchIds = interaction.data.values;
+      if (selectedMatchIds.length === 0) {
+        throw new EndUserError("Select at least one game.");
+      }
+
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const series = await this.getManualSeriesMatches(selectedMatchIds);
+      if (series.some((match) => match.Teams.length !== 2)) {
+        throw new EndUserError("Manual series stats only support games between two teams.");
+      }
+
+      const xuids = [...new Set(series.flatMap((match) => match.Players.map((player) => getPlayerXuid(player))))];
+      const associations = await databaseService.getDiscordAssociationsByXboxId(xuids);
+      const teams = deriveManualSeriesTeams(
+        series,
+        new Map(associations.map((association) => [association.XboxId, association.DiscordId])),
+      );
+      const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
+      await this.showManualSeriesPreview(interaction, {
+        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome },
+        series,
+        derivedSeriesOutcome,
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async handleManualOutcomeSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      const selectedSeriesOutcome = this.parseFixSeriesOutcome(
+        Preconditions.checkExists(interaction.data.values[0], "No series outcome selected"),
+      );
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const series = await this.getManualSeriesMatches(metadata.selectedMatchIds ?? []);
+
+      await this.showManualSeriesPreview(interaction, {
+        metadata: { ...metadata, selectedSeriesOutcome },
+        series,
+        derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private async getManualSeriesMatches(matchIds: readonly string[]): Promise<MatchStats[]> {
+    if (matchIds.length === 0) {
+      throw new EndUserError("No games were selected. Please run /stats manual again.");
+    }
+
+    const series = await this.services.haloService.getMatchDetails([...matchIds]);
+    if (series.length === 0) {
+      throw new EndUserError("No match details found for the selected games.");
+    }
+
+    return series;
+  }
+
+  private deriveManualSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
+    const orderedSeries = [...series].sort((left, right) =>
+      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+    );
+    const [anchorMatch] = orderedSeries;
+    const anchorRosters = anchorMatch == null ? null : buildPresentAtBeginningTeamRosters(anchorMatch);
+    const canonicalSeries = orderedSeries.map((match) => {
+      const matchTeamIdToSeriesTeamId = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match);
+      const teams = [...match.Teams].sort(
+        (left, right) =>
+          (matchTeamIdToSeriesTeamId?.get(left.TeamId) ?? left.TeamId) -
+          (matchTeamIdToSeriesTeamId?.get(right.TeamId) ?? right.TeamId),
+      );
+
+      return { ...match, Teams: teams };
+    });
+
+    return this.deriveFixSeriesOutcome(canonicalSeries);
+  }
+
+  private async showManualSeriesPreview(
+    interaction: APIMessageComponentSelectMenuInteraction,
+    {
+      metadata,
+      series,
+      derivedSeriesOutcome,
+    }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome },
+  ): Promise<void> {
+    const { discordService, haloService } = this.services;
+    const teams = Preconditions.checkExists(metadata.teams, "Expected manual series teams");
+    const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome;
+    const seriesEmbed = await new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
+      guildId: metadata.guildId,
+      channelId: metadata.channelId,
+      pagesUrl: this.env.PAGES_URL,
+      locale: interaction.guild_locale ?? interaction.locale,
+      queue: metadata.queueNumber,
+      series,
+      finalTeams: teams,
+      substitutions: [],
+      hideTeamsDescription: false,
+    });
+
+    const message = await discordService.updateDeferredReply(interaction.token, {
+      embeds: [
+        this.createStatusEmbed(
+          `Preview generated. Adjust the final result if needed.\nDerived result: ${this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, teams)}\nFinal result: ${this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams)}`,
+        ),
+        ...seriesEmbed.embeds,
+      ],
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [
+            {
+              type: ComponentType.StringSelect,
+              custom_id: InteractionButton.ManualOutcomeSelect,
+              min_values: 1,
+              max_values: 1,
+              options: this.getFixSeriesOutcomeOptions(teams, selectedSeriesOutcome),
+            },
+          ],
+        },
+        this.createFixCancelActionRow(),
+      ],
+    });
+
+    await this.setManualMetadata(message.id, { ...metadata, selectedSeriesOutcome });
+  }
+
   private createFixCancelActionRow(): APIMessageTopLevelComponent {
     return {
       type: ComponentType.ActionRow,
@@ -2917,8 +3104,8 @@ export class StatsCommand extends BaseCommand {
       queueData: metadata.queueData,
       series,
     });
-    const derivedResultLabel = this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, metadata.queueData);
-    const selectedResultLabel = this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, metadata.queueData);
+    const derivedResultLabel = this.getFixSeriesOutcomeLabel(derivedSeriesOutcome, metadata.queueData.teams);
+    const selectedResultLabel = this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, metadata.queueData.teams);
 
     await discordService.updateDeferredReply(interaction.token, {
       embeds: [
@@ -2936,7 +3123,7 @@ export class StatsCommand extends BaseCommand {
               custom_id: InteractionButton.FixOutcomeSelect,
               min_values: 1,
               max_values: 1,
-              options: this.getFixSeriesOutcomeOptions(metadata.queueData, selectedSeriesOutcome),
+              options: this.getFixSeriesOutcomeOptions(metadata.queueData.teams, selectedSeriesOutcome),
             },
           ],
         },
@@ -2994,11 +3181,11 @@ export class StatsCommand extends BaseCommand {
   }
 
   private getFixSeriesOutcomeOptions(
-    queueData: Omit<QueueData, "timestamp">,
+    teams: readonly { name: string }[],
     selectedSeriesOutcome: FixSeriesOutcome,
   ): APISelectMenuOption[] {
-    const firstTeamName = this.getFixSeriesOutcomeTeamName(queueData, 0);
-    const secondTeamName = this.getFixSeriesOutcomeTeamName(queueData, 1);
+    const firstTeamName = this.getFixSeriesOutcomeTeamName(teams, 0);
+    const secondTeamName = this.getFixSeriesOutcomeTeamName(teams, 1);
 
     return [
       {
@@ -3019,13 +3206,13 @@ export class StatsCommand extends BaseCommand {
     ];
   }
 
-  private getFixSeriesOutcomeLabel(seriesOutcome: FixSeriesOutcome, queueData: Omit<QueueData, "timestamp">): string {
+  private getFixSeriesOutcomeLabel(seriesOutcome: FixSeriesOutcome, teams: readonly { name: string }[]): string {
     switch (seriesOutcome) {
       case "TEAM_0": {
-        return `${this.getFixSeriesOutcomeTeamName(queueData, 0)} wins`;
+        return `${this.getFixSeriesOutcomeTeamName(teams, 0)} wins`;
       }
       case "TEAM_1": {
-        return `${this.getFixSeriesOutcomeTeamName(queueData, 1)} wins`;
+        return `${this.getFixSeriesOutcomeTeamName(teams, 1)} wins`;
       }
       case "TIE": {
         return "Tie";
@@ -3036,8 +3223,8 @@ export class StatsCommand extends BaseCommand {
     }
   }
 
-  private getFixSeriesOutcomeTeamName(queueData: Omit<QueueData, "timestamp">, teamIndex: 0 | 1): string {
-    const teamName = Preconditions.checkExists(queueData.teams[teamIndex], "Expected queue team").name;
+  private getFixSeriesOutcomeTeamName(teams: readonly { name: string }[], teamIndex: 0 | 1): string {
+    const teamName = Preconditions.checkExists(teams[teamIndex], "Expected series team").name;
     return teamName.replaceAll(/[*_~`|]/g, "");
   }
 

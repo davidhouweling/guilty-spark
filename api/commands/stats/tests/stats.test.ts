@@ -25,6 +25,7 @@ import {
   MessageFlags,
   MessageType,
 } from "discord-api-types/v10";
+import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   LeaderboardMetric,
@@ -44,7 +45,12 @@ import {
   textChannel,
   threadChannel,
 } from "../../../services/discord/fakes/data";
-import { aFakeMatchHistoryEntryWith, getMatchStats, getPlayerXuidsToGametags } from "../../../services/halo/fakes/data";
+import {
+  aFakeMatchHistoryEntryWith,
+  aMatchWithSwappableRosters,
+  getMatchStats,
+  getPlayerXuidsToGametags,
+} from "../../../services/halo/fakes/data";
 import { StatsReturnType } from "../../../services/database/types/guild_config";
 import type { NeatQueueConfigRow } from "../../../services/database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../../services/database/types/neat_queue_config";
@@ -1704,6 +1710,152 @@ describe("StatsCommand", () => {
           "fake-token",
           expect.objectContaining({ message: "Could not find manual stats state. Please run /stats manual again." }),
         );
+      });
+    });
+
+    describe("games and outcome select", () => {
+      const slayerMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const baseMetadata = {
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        queueNumber: 42,
+        queueChannelId: null,
+        selectedPlayerId: "invoker-id",
+      };
+      const teams = [
+        { name: "Eagle", playerIds: ["discord-1"] },
+        { name: "Cobra", playerIds: ["discord-4"] },
+      ];
+
+      beforeEach(() => {
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          Preconditions.checkExists(getMatchStats(ctfMatchId)),
+          Preconditions.checkExists(getMatchStats(slayerMatchId)),
+        ]);
+        vi.spyOn(services.databaseService, "getDiscordAssociationsByXboxId").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-1", XboxId: "0100000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-4", XboxId: "0400000000000000" }),
+        ]);
+      });
+
+      it("derives teams from the selected games and shows a series preview with an outcome select", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+
+        const { response, jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        expect(response).toMatchObject({ type: InteractionResponseType.UpdateMessage });
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.title).toContain("Series stats for queue #42");
+        expect(overviewEmbed.url).toBeUndefined();
+        expect(overviewEmbed.description).toContain("**Eagle:** <@discord-1>");
+        expect(overviewEmbed.description).toContain("**Cobra:** <@discord-4>");
+        expect(payload.components?.[0]).toEqual({
+          type: ComponentType.ActionRow,
+          components: [
+            expect.objectContaining({
+              custom_id: "btn_stats_manual_outcome_select",
+              options: [
+                expect.objectContaining({ label: "Eagle wins", value: "TEAM_0" }),
+                expect.objectContaining({ label: "Cobra wins", value: "TEAM_1" }),
+                expect.objectContaining({ label: "Tie", value: "TIE" }),
+              ],
+            }),
+          ],
+        });
+        expect(getLastManualMetadata()).toMatchObject({
+          selectedMatchIds: [ctfMatchId, slayerMatchId],
+          teams,
+        });
+      });
+
+      it("rejects a series when a later selected game does not have exactly two teams", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const ctfMatch = Preconditions.checkExists(getMatchStats(ctfMatchId));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          ctfMatch,
+          { ...ctfMatch, Teams: ctfMatch.Teams.slice(0, 1) },
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({ message: "Manual series stats only support games between two teams." }),
+        );
+      });
+
+      it("derives the series outcome consistently when teams swap sides", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-anchor",
+            startTime: "2026-10-03T10:00:00Z",
+            mapAssetId: "manual-series-map-1",
+            team0PlayerIds: ["0100000000000000", "0200000000000000"],
+            team1PlayerIds: ["0400000000000000", "0800000000000000"],
+            team0Outcome: MatchOutcome.Win.valueOf(),
+            team1Outcome: MatchOutcome.Loss.valueOf(),
+          }),
+          aMatchWithSwappableRosters({
+            matchId: "manual-series-swapped",
+            startTime: "2026-10-03T10:15:00Z",
+            mapAssetId: "manual-series-map-2",
+            team0PlayerIds: ["0400000000000000", "0800000000000000"],
+            team1PlayerIds: ["0100000000000000", "0200000000000000"],
+            team0Outcome: MatchOutcome.Loss.valueOf(),
+            team1Outcome: MatchOutcome.Win.valueOf(),
+          }),
+        ]);
+        vi.spyOn(services.databaseService, "getDiscordAssociationsByXboxId").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-1", XboxId: "0100000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-2", XboxId: "0200000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-4", XboxId: "0400000000000000" }),
+          aFakeDiscordAssociationsRow({ DiscordId: "discord-8", XboxId: "0800000000000000" }),
+        ]);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
+      });
+
+      it("stores the adjusted outcome and marks it as the final result in the preview", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...baseMetadata,
+          selectedMatchIds: [ctfMatchId, slayerMatchId],
+          teams,
+          selectedSeriesOutcome: "TEAM_0",
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_outcome_select", ["TIE"]),
+        );
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Final result: Tie");
+        expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TIE", teams });
       });
     });
   });
