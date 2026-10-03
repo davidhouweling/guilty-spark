@@ -675,6 +675,7 @@ export class LeaderboardService {
     neatQueueConfig,
     series,
     winnerTeamIndex,
+    seriesTeamIdByXuid,
     locale,
   }: {
     guildId: string;
@@ -683,6 +684,7 @@ export class LeaderboardService {
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
     winnerTeamIndex: number;
+    seriesTeamIdByXuid?: ReadonlyMap<string, number> | undefined;
     locale: string;
   }): Promise<void> {
     await this.persistSeriesData({
@@ -697,6 +699,7 @@ export class LeaderboardService {
       },
       neatQueueConfig,
       series,
+      seriesTeamIdByXuid,
       locale,
       allowTie: true,
     });
@@ -706,12 +709,14 @@ export class LeaderboardService {
     request,
     neatQueueConfig,
     series,
+    seriesTeamIdByXuid,
     locale,
     allowTie = false,
   }: {
     request: NeatQueueMatchCompletedRequest;
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
+    seriesTeamIdByXuid?: ReadonlyMap<string, number> | undefined;
     locale: string;
     allowTie?: boolean;
   }): Promise<void> {
@@ -801,6 +806,7 @@ export class LeaderboardService {
         sortedSeries,
         gamertagMap,
         xuidToDiscordId,
+        seriesTeamIdByXuid,
       });
 
       this.logService.info(
@@ -1206,6 +1212,7 @@ export class LeaderboardService {
     sortedSeries,
     gamertagMap,
     xuidToDiscordId,
+    seriesTeamIdByXuid,
   }: {
     guildId: string;
     queueNumber: number;
@@ -1214,6 +1221,7 @@ export class LeaderboardService {
     sortedSeries: MatchStats[];
     gamertagMap: Map<string, string>;
     xuidToDiscordId: Map<string, string>;
+    seriesTeamIdByXuid?: ReadonlyMap<string, number> | undefined;
   }): Promise<{
     gamesRows: LeaderboardGamesRow[];
     gamePlayerRows: LeaderboardGamePlayersRow[];
@@ -1349,7 +1357,7 @@ export class LeaderboardService {
             SubstituteInCount: player.ParticipationInfo.PresentAtBeginning ? 0 : 1,
             SubstituteOutCount: 0,
             GamesPlayedCount: 1,
-            SeriesWon: teamStats.TeamId === winnerTeamIndex ? 1 : 0,
+            SeriesWon: (seriesTeamIdByXuid?.get(xuid) ?? teamStats.TeamId) === winnerTeamIndex ? 1 : 0,
             CreatedAt: nowEpoch,
           });
           continue;

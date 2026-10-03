@@ -1810,12 +1810,13 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
+    isNewThread = true,
   ): Promise<void> {
     const { discordService } = this.services;
 
     try {
       await this.postSeriesEmbedsToThread(threadId, series, guildConfig, locale);
-      await this.postGameStatsOrButton(threadId, series, guildConfig, locale);
+      await this.postGameStatsOrButton(threadId, series, guildConfig, locale, isNewThread);
     } catch (error) {
       throw (
         toMissingPermissionsError(error, {
@@ -2152,10 +2153,11 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     guildConfig: GuildConfigRow,
     locale: string,
+    allowLoadGamesButton = true,
   ): Promise<void> {
     const { discordService, haloService } = this.services;
 
-    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY) {
+    if (guildConfig.StatsReturn === StatsReturnType.SERIES_ONLY && allowLoadGamesButton) {
       await discordService.createMessage(threadId, {
         components: [
           {
@@ -2692,17 +2694,22 @@ export class StatsCommand extends BaseCommand {
       const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
       overviewEmbed.fields ??= [];
       overviewEmbed.fields.push({
+        name: "Final series result",
+        value: this.getFixSeriesOutcomeLabel(metadata.selectedSeriesOutcome, Preconditions.checkExists(metadata.teams)),
+        inline: false,
+      });
+      overviewEmbed.fields.push({
         name: "Created manually by",
         value: `<@${discordService.getDiscordUserId(interaction)}> on ${discordService.getTimestamp(new Date().toISOString())}`,
         inline: false,
       });
 
-      const threadId = await this.postManualSeriesOverview({
+      const { threadId, isNewThread } = await this.postManualSeriesOverview({
         postChannelId: queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId,
         seriesEmbed,
         threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
       });
-      await this.postSeriesStatsToThread(threadId, series, guildConfig, locale);
+      await this.postSeriesStatsToThread(threadId, series, guildConfig, locale, isNewThread);
       await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale);
       if (queueConfig != null) {
         await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
@@ -2738,20 +2745,37 @@ export class StatsCommand extends BaseCommand {
     postChannelId: string;
     seriesEmbed: SeriesOverviewEmbedOutput;
     threadName: string;
-  }): Promise<string> {
+  }): Promise<{ threadId: string; isNewThread: boolean }> {
     const { discordService } = this.services;
     const content = { embeds: seriesEmbed.embeds, components: seriesEmbed.components };
     const postChannel = await discordService.getChannel(postChannelId);
     if (this.isThreadChannel(postChannel.type)) {
       await discordService.createMessage(postChannelId, content);
-      return postChannelId;
+      return { threadId: postChannelId, isNewThread: false };
     }
 
+    let overviewMessage: APIMessage | undefined;
     try {
-      const overviewMessage = await discordService.createMessage(postChannelId, content);
+      overviewMessage = await discordService.createMessage(postChannelId, content);
       const thread = await discordService.startThreadFromMessage(postChannelId, overviewMessage.id, threadName);
-      return thread.id;
+      return { threadId: thread.id, isNewThread: true };
     } catch (error) {
+      if (overviewMessage != null) {
+        try {
+          await discordService.deleteMessage(
+            postChannelId,
+            overviewMessage.id,
+            "Removing manual series overview after thread creation failed",
+          );
+        } catch (cleanupError) {
+          throw new AggregateError(
+            [error, cleanupError],
+            "Failed to create a manual series thread and clean up its overview message",
+            { cause: cleanupError },
+          );
+        }
+      }
+
       throw (
         toMissingPermissionsError(error, {
           action: "post the series stats",
@@ -2771,14 +2795,15 @@ export class StatsCommand extends BaseCommand {
     locale: string,
   ): Promise<void> {
     try {
+      const seriesTeamIdByXuid = this.getManualSeriesTeamIdByXuid(series);
       await this.services.leaderboardService.persistReconciledSeriesData({
         guildId: metadata.guildId,
         channelId: queueConfig.ChannelId,
         queueNumber: metadata.queueNumber,
         neatQueueConfig: queueConfig,
         series,
-        winnerTeamIndex:
-          metadata.selectedSeriesOutcome === "TEAM_0" ? 0 : metadata.selectedSeriesOutcome === "TEAM_1" ? 1 : -1,
+        winnerTeamIndex: this.getManualWinnerTeamId(series, metadata.selectedSeriesOutcome),
+        seriesTeamIdByXuid,
         locale,
       });
     } catch (error) {
@@ -2791,6 +2816,98 @@ export class StatsCommand extends BaseCommand {
         ]),
       );
     }
+  }
+
+  private getManualWinnerTeamId(series: MatchStats[], selectedSeriesOutcome: FixSeriesOutcome | undefined): number {
+    if (selectedSeriesOutcome === "TIE") {
+      return -1;
+    }
+
+    const [firstMatch] = [...series].sort((left, right) =>
+      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+    );
+    const sortedTeams = [...Preconditions.checkExists(firstMatch).Teams].sort(
+      (left, right) => left.TeamId - right.TeamId,
+    );
+    const winningTeam = sortedTeams[selectedSeriesOutcome === "TEAM_0" ? 0 : 1];
+    return Preconditions.checkExists(winningTeam, "Expected winning team in first match").TeamId;
+  }
+
+  private getManualSeriesTeamIdByXuid(series: MatchStats[]): ReadonlyMap<string, number> {
+    const [firstMatch, ...remainingMatches] = [...series].sort((left, right) =>
+      left.MatchInfo.StartTime.localeCompare(right.MatchInfo.StartTime),
+    );
+    if (firstMatch == null) {
+      return new Map();
+    }
+
+    const anchorRosters = buildPresentAtBeginningTeamRosters(firstMatch);
+    if (anchorRosters == null) {
+      return new Map();
+    }
+
+    const anchorPlayersByTeam = new Map<number, Set<string>>(
+      anchorRosters.map((roster) => [roster.matchTeamId, new Set(roster.xuids)]),
+    );
+    const playerToSeriesTeamId = new Map<string, number>();
+    const matches = [firstMatch, ...remainingMatches];
+    for (const [index, match] of matches.entries()) {
+      const playersByMatchTeam = new Map<number, Set<string>>();
+      for (const player of match.Players) {
+        if (player.PlayerType !== 1) {
+          continue;
+        }
+
+        const players = playersByMatchTeam.get(player.LastTeamId) ?? new Set<string>();
+        players.add(player.PlayerId);
+        playersByMatchTeam.set(player.LastTeamId, players);
+      }
+
+      const matchTeamIds = [...match.Teams].map((team) => team.TeamId).sort((left, right) => left - right);
+      const [firstTeamId, secondTeamId] = matchTeamIds;
+      const firstRoster = playersByMatchTeam.get(Preconditions.checkExists(firstTeamId)) ?? new Set<string>();
+      const secondRoster = playersByMatchTeam.get(Preconditions.checkExists(secondTeamId)) ?? new Set<string>();
+      const anchorTeamIds = anchorRosters.map((roster) => roster.matchTeamId);
+      const [anchorTeam0, anchorTeam1] = anchorTeamIds;
+      const firstAnchorPlayers = anchorPlayersByTeam.get(Preconditions.checkExists(anchorTeam0)) ?? new Set<string>();
+      const secondAnchorPlayers = anchorPlayersByTeam.get(Preconditions.checkExists(anchorTeam1)) ?? new Set<string>();
+      const sameSideOverlap =
+        this.getRosterOverlap(firstRoster, firstAnchorPlayers) +
+        this.getRosterOverlap(secondRoster, secondAnchorPlayers);
+      const swappedSideOverlap =
+        this.getRosterOverlap(firstRoster, secondAnchorPlayers) +
+        this.getRosterOverlap(secondRoster, firstAnchorPlayers);
+      const firstTeamSeriesId =
+        index === 0 || sameSideOverlap >= swappedSideOverlap
+          ? Preconditions.checkExists(anchorTeam0)
+          : Preconditions.checkExists(anchorTeam1);
+      const secondTeamSeriesId =
+        index === 0 || sameSideOverlap >= swappedSideOverlap
+          ? Preconditions.checkExists(anchorTeam1)
+          : Preconditions.checkExists(anchorTeam0);
+
+      for (const player of match.Players) {
+        if (player.PlayerType !== 1) {
+          continue;
+        }
+
+        const seriesTeamId = player.LastTeamId === firstTeamId ? firstTeamSeriesId : secondTeamSeriesId;
+        playerToSeriesTeamId.set(getPlayerXuid(player), seriesTeamId);
+      }
+    }
+
+    return playerToSeriesTeamId;
+  }
+
+  private getRosterOverlap(roster: ReadonlySet<string>, anchorRoster: ReadonlySet<string>): number {
+    let overlap = 0;
+    for (const playerId of roster) {
+      if (anchorRoster.has(playerId)) {
+        overlap += 1;
+      }
+    }
+
+    return overlap;
   }
 
   private createFixCancelActionRow(): APIMessageTopLevelComponent {

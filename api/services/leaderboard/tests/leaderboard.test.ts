@@ -9,6 +9,7 @@ import {
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
 import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
   aFakeDatabaseServiceWith,
@@ -936,6 +937,33 @@ describe("LeaderboardService", () => {
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
     expect(payload.series.WinnerTeamIndex).toBe(-1);
     expect(payload.seriesPlayers.every((player) => player.SeriesWon === 0)).toBe(true);
+  });
+
+  it("uses stable series-team identity when assigning series wins", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const player = Preconditions.checkExists(match.Players[0]);
+    const playerTeamId = Preconditions.checkExists(player.PlayerTeamStats[0]).TeamId;
+    const xuid = getPlayerXuid(player);
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      winnerTeamIndex: playerTeamId + 1,
+      seriesTeamIdByXuid: new Map([[xuid, playerTeamId + 1]]),
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const playerRow = Preconditions.checkExists(payload.seriesPlayers.find((row) => row.XboxXuid === xuid));
+    expect(playerRow.SeriesWon).toBe(1);
   });
 
   it("persists average damage per life using total lives", async () => {
