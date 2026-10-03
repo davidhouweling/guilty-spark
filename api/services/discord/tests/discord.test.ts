@@ -705,6 +705,21 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("searchGuildMembers()", () => {
+    it("searches guild members by query with a small result limit", async () => {
+      const member = aGuildMemberWith();
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([member])));
+
+      const result = await discordService.searchGuildMembers("fake-guild-id", "Some Player");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/guilds\/fake-guild-id\/members\/search\?query=Some(%20|\+)Player&limit=10$/),
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual([member]);
+    });
+  });
+
   describe("getTeamsFromSeriesOverview()", () => {
     function anOverviewMessageWith(description: string): APIMessage {
       return {

@@ -31,8 +31,6 @@ import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import {
   LeaderboardMetric,
   LeaderboardMetricAggregation,
@@ -101,7 +99,16 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
-import { MANUAL_QUEUE_NUMBER_MIN, allocateManualQueueNumber, deriveManualSeriesTeams } from "./manual-series";
+import {
+  MANUAL_QUEUE_NUMBER_MIN,
+  allocateManualQueueNumber,
+  deriveManualSeriesTeams,
+  findGuildMemberIdForGamertag,
+  getManualSeriesFinalMatch,
+  getManualSeriesPlayerXuids,
+  toSeriesOverviewTeams,
+} from "./manual-series";
+import type { ManualSeriesTeam } from "./manual-series";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -123,7 +130,7 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   queuePage?: number | undefined;
   selectedPlayerId?: string | undefined;
   selectedMatchIds?: string[] | undefined;
-  teams?: TeamMapping[] | undefined;
+  teams?: ManualSeriesTeam[] | undefined;
   selectedSeriesOutcome?: FixSeriesOutcome | undefined;
 }
 
@@ -2525,7 +2532,7 @@ export class StatsCommand extends BaseCommand {
   }
 
   private async handleManualGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { databaseService, discordService } = this.services;
+    const { discordService } = this.services;
 
     try {
       const selectedMatchIds = interaction.data.values;
@@ -2539,12 +2546,7 @@ export class StatsCommand extends BaseCommand {
         throw new EndUserError("Manual series stats only support games between two teams.");
       }
 
-      const xuids = [...new Set(series.flatMap((match) => match.Players.map((player) => getPlayerXuid(player))))];
-      const associations = await databaseService.getDiscordAssociationsByXboxId(xuids);
-      const teams = deriveManualSeriesTeams(
-        series,
-        new Map(associations.map((association) => [association.XboxId, association.DiscordId])),
-      );
+      const teams = await this.resolveManualSeriesTeams(metadata.guildId, series);
       const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
       await this.showManualSeriesPreview(interaction, {
         metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
@@ -2574,6 +2576,62 @@ export class StatsCommand extends BaseCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  /**
+   * Best-effort mapping of the final game's players to Discord users: stored links first, then an exact guild member
+   * name match, otherwise the gamertag is shown as-is.
+   */
+  private async resolveManualSeriesTeams(guildId: string, series: MatchStats[]): Promise<ManualSeriesTeam[]> {
+    const { databaseService, haloService } = this.services;
+    const mappings = resolveManualSeriesTeamMappings(series);
+    const displaySeries = mappings == null ? series : mapManualSeriesToStableTeams(series, mappings);
+    const finalMatch = Preconditions.checkExists(getManualSeriesFinalMatch(displaySeries), "Expected a final match");
+    const xuids = getManualSeriesPlayerXuids(finalMatch);
+    const [associations, xuidToGamertag] = await Promise.all([
+      databaseService.getDiscordAssociationsByXboxId(xuids),
+      haloService.getPlayerXuidsToGametags(finalMatch),
+    ]);
+
+    const xuidToDiscordId = new Map(associations.map((association) => [association.XboxId, association.DiscordId]));
+    const assignedDiscordIds = new Set(xuidToDiscordId.values());
+    for (const xuid of xuids) {
+      const gamertag = xuidToGamertag.get(xuid);
+      if (xuidToDiscordId.has(xuid) || gamertag == null) {
+        continue;
+      }
+
+      const discordId = await this.findGuildMemberIdForGamertag(guildId, gamertag);
+      if (discordId != null && !assignedDiscordIds.has(discordId)) {
+        xuidToDiscordId.set(xuid, discordId);
+        assignedDiscordIds.add(discordId);
+      }
+    }
+
+    return deriveManualSeriesTeams(finalMatch, xuidToGamertag, xuidToDiscordId);
+  }
+
+  private async findGuildMemberIdForGamertag(guildId: string, gamertag: string): Promise<string | undefined> {
+    try {
+      const queries = [...new Set([gamertag, gamertag.replace(/\s/g, "")])];
+      for (const query of queries) {
+        const members = await this.services.discordService.searchGuildMembers(guildId, query);
+        const discordId = findGuildMemberIdForGamertag(gamertag, members);
+        if (discordId != null) {
+          return discordId;
+        }
+      }
+    } catch (error) {
+      this.services.logService.warn(
+        error,
+        new Map([
+          ["guildId", guildId],
+          ["reason", "Failed to search guild members for manual series gamertag"],
+        ]),
+      );
+    }
+
+    return undefined;
   }
 
   private async getManualSeriesMatches(matchIds: readonly string[]): Promise<MatchStats[]> {
@@ -2683,7 +2741,7 @@ export class StatsCommand extends BaseCommand {
       locale,
       queue: metadata.queueNumber,
       series,
-      finalTeams: Preconditions.checkExists(metadata.teams, "Expected manual series teams"),
+      finalTeams: toSeriesOverviewTeams(Preconditions.checkExists(metadata.teams, "Expected manual series teams")),
       substitutions: [],
       hideTeamsDescription: false,
     });
