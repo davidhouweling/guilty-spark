@@ -10,6 +10,62 @@ import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "../discord-series-stats-store";
 
 describe("DiscordSeriesStatsPresenter.present", () => {
+  it("uses stable-team matches for browser series aggregation and raw matches for game data", () => {
+    const rawMatch = aFakeMatchStatsWith({ MatchId: "raw-match" });
+    const seriesMatch = {
+      ...rawMatch,
+      Teams: rawMatch.Teams.map((team) => ({ ...team, TeamId: team.TeamId + 2 })),
+      Players: rawMatch.Players.map((player) => ({
+        ...player,
+        LastTeamId: player.LastTeamId + 2,
+        PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
+          ...teamStats,
+          TeamId: teamStats.TeamId + 2,
+        })),
+      })),
+    };
+    const renderData: DiscordSeriesStatsPresenter["renderData"] = {
+      title: "Series",
+      subtitle: "Test",
+      seriesScore: "1:0",
+      teams: [
+        { name: "Hades", players: [] },
+        { name: "Valkyrie", players: [] },
+      ],
+      matches: [
+        {
+          matchId: rawMatch.MatchId,
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 9,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "data:,",
+          duration: "10m 00s",
+          gameScore: "50:45",
+          gameSubScore: null,
+          startTime: "2026-01-01T00:00:00.000Z",
+          endTime: "2026-01-01T00:10:00.000Z",
+          playerXuidToGametag: {},
+          rawMatch,
+          seriesMatch,
+        },
+      ],
+    };
+    const store = new DiscordSeriesStatsStore();
+    const presenter = new DiscordSeriesStatsPresenter(
+      renderData,
+      new StatsController(),
+      store,
+      aFakeMatchAnalyticsServiceWith(),
+      new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+    );
+
+    const viewModel = presenter.present(store.getSnapshot());
+
+    expect(viewModel.seriesStats?.teamData.map((team) => team.teamId)).toEqual([2, 3]);
+    expect(viewModel.matchDetails[0]?.data).not.toBeNull();
+  });
+
   it("orders kill matrix players correctly when some players have a games-played suffix", () => {
     // Match A: all 4 players present
     const matchA = aFakeMatchStatsWith({ MatchId: "match-a" });

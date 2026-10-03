@@ -217,6 +217,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
         endTime: new Date(match.MatchInfo.EndTime).toISOString(),
         playerXuidToGametag,
         rawMatch: match,
+        ...(teamMappings == null ? {} : { seriesMatch: displayMatch }),
       };
     }),
   );

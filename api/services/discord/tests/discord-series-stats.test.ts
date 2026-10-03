@@ -63,6 +63,7 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
       ...match,
       Teams: match.Teams.map((team, teamIndex) => ({
         ...team,
+        TeamId: team.TeamId + 2,
         Stats: {
           ...team.Stats,
           CoreStats: {
@@ -70,6 +71,14 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
             Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
           },
         },
+      })),
+      Players: match.Players.map((player) => ({
+        ...player,
+        LastTeamId: player.LastTeamId + 2,
+        PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
+          ...teamStats,
+          TeamId: teamStats.TeamId + 2,
+        })),
       })),
     }));
 
@@ -86,7 +95,10 @@ describe("buildDiscordSeriesRenderDataFromMatches()", () => {
 
     expect(renderData.seriesScore).toBe("2:0");
     expect(renderData.matches.map((match) => match.gameScore)).toEqual(["50:20", "40:15"]);
-    expect(renderData.matches[1]?.rawMatch).toMatchObject({ Teams: [{ TeamId: 0 }, { TeamId: 1 }] });
+    expect(renderData.teams.map((team) => team.name)).toEqual(["Hades", "Valkyrie"]);
+    expect(renderData.matches[1]?.rawMatch).toMatchObject({ Teams: [{ TeamId: 2 }, { TeamId: 3 }] });
+    expect(renderData.matches[1]?.seriesMatch).toMatchObject({ Teams: [{ TeamId: 2 }, { TeamId: 3 }] });
+    expect(renderData.matches[1]?.rawMatch).not.toEqual(renderData.matches[1]?.seriesMatch);
   });
 });
 

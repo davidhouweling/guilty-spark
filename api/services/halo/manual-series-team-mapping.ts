@@ -112,9 +112,6 @@ export function mapManualSeriesToStableTeams(series: MatchStats[], mappings: Man
   if (stableTeamIds.length !== 2) {
     throw new Error("Expected exactly two stable manual series teams");
   }
-  const displayTeamIdByStableId = new Map(stableTeamIds.map((teamId, index) => [teamId, index]));
-  const mapToDisplayTeamId = (teamId: number): number =>
-    Preconditions.checkExists(displayTeamIdByStableId.get(teamId), "Expected stable manual series team ID");
 
   return series.map((match) => {
     const teamMapping = Preconditions.checkExists(
@@ -126,18 +123,14 @@ export function mapManualSeriesToStableTeams(series: MatchStats[], mappings: Man
       ...match,
       Teams: match.Teams.map((team) => ({
         ...team,
-        TeamId: mapToDisplayTeamId(
-          Preconditions.checkExists(teamMapping.get(team.TeamId), "Expected mapped manual team ID"),
-        ),
+        TeamId: Preconditions.checkExists(teamMapping.get(team.TeamId), "Expected mapped manual team ID"),
       })).sort((left, right) => left.TeamId - right.TeamId),
       Players: match.Players.map((player) => ({
         ...player,
-        LastTeamId: mapToDisplayTeamId(
-          Preconditions.checkExists(teamMapping.get(player.LastTeamId), "Expected mapped player team ID"),
-        ),
+        LastTeamId: Preconditions.checkExists(teamMapping.get(player.LastTeamId), "Expected mapped player team ID"),
         PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
           ...teamStats,
-          TeamId: mapToDisplayTeamId(teamMapping.get(teamStats.TeamId) ?? teamStats.TeamId),
+          TeamId: teamMapping.get(teamStats.TeamId) ?? teamStats.TeamId,
         })),
       })),
     };

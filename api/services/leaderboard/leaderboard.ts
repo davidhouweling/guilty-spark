@@ -676,6 +676,7 @@ export class LeaderboardService {
     series,
     winnerTeamIndex,
     seriesTeamIdByXuid,
+    seriesScore,
     locale,
   }: {
     guildId: string;
@@ -685,6 +686,7 @@ export class LeaderboardService {
     series: MatchStats[];
     winnerTeamIndex: number;
     seriesTeamIdByXuid?: ReadonlyMap<string, number> | undefined;
+    seriesScore?: string | undefined;
     locale: string;
   }): Promise<void> {
     await this.persistSeriesData({
@@ -700,6 +702,7 @@ export class LeaderboardService {
       neatQueueConfig,
       series,
       seriesTeamIdByXuid,
+      seriesScore,
       locale,
       allowTie: true,
     });
@@ -710,6 +713,7 @@ export class LeaderboardService {
     neatQueueConfig,
     series,
     seriesTeamIdByXuid,
+    seriesScore,
     locale,
     allowTie = false,
   }: {
@@ -717,6 +721,7 @@ export class LeaderboardService {
     neatQueueConfig: NeatQueueConfigRow;
     series: MatchStats[];
     seriesTeamIdByXuid?: ReadonlyMap<string, number> | undefined;
+    seriesScore?: string | undefined;
     locale: string;
     allowTie?: boolean;
   }): Promise<void> {
@@ -774,7 +779,7 @@ export class LeaderboardService {
         StartedAt: startedAt,
         CompletedAt: completedAt,
         WinnerTeamIndex: request.winning_team_index,
-        SeriesScore: this.haloService.getSeriesScore(sortedSeries, locale),
+        SeriesScore: seriesScore ?? this.haloService.getSeriesScore(sortedSeries, locale),
         Source: "neatqueue",
         CreatedAt: nowEpoch,
         UpdatedAt: nowEpoch,

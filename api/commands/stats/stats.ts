@@ -2148,7 +2148,7 @@ export class StatsCommand extends BaseCommand {
 
     const seriesPlayersEmbed = new SeriesPlayersEmbed({ discordService, haloService, guildConfig, locale });
     const seriesPlayers = await haloService.getPlayerXuidsToGametags(series, { presentAtBeginningOnly: true });
-    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(series, seriesPlayers, locale);
+    const seriesPlayersEmbedsOutput = await seriesPlayersEmbed.getSeriesEmbed(teamStatsSeries, seriesPlayers, locale);
     for (const seriesPlayersEmbedOutput of seriesPlayersEmbedsOutput) {
       const seriesPlayersMessage = await discordService.createMessage(threadId, {
         embeds: [seriesPlayersEmbedOutput],
@@ -2621,9 +2621,11 @@ export class StatsCommand extends BaseCommand {
       selectedSeriesOutcome == null
         ? "Select a final result"
         : this.getFixSeriesOutcomeLabel(selectedSeriesOutcome, teams);
+    const teamMappings = resolveManualSeriesTeamMappings(series);
+    const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
     const seriesEmbed = await this.createManualSeriesEmbed(
       metadata,
-      series,
+      displaySeries,
       interaction.guild_locale ?? interaction.locale,
     );
 
@@ -2927,6 +2929,7 @@ export class StatsCommand extends BaseCommand {
         series,
         winnerTeamIndex: this.getManualWinnerTeamId(series, metadata.selectedSeriesOutcome),
         seriesTeamIdByXuid: mappings.playerToSeriesTeamId,
+        seriesScore: this.services.haloService.getSeriesScore(mapManualSeriesToStableTeams(series, mappings), locale),
         locale,
       });
     } catch (error) {

@@ -932,11 +932,13 @@ describe("LeaderboardService", () => {
       neatQueueConfig: aFakeNeatQueueConfigRow(),
       series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
       winnerTeamIndex: -1,
+      seriesScore: "1:1",
       locale: "en-US",
     });
 
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
     expect(payload.series.WinnerTeamIndex).toBe(-1);
+    expect(payload.series.SeriesScore).toBe("1:1");
     expect(payload.seriesPlayers.every((player) => player.SeriesWon === 0)).toBe(true);
   });
 

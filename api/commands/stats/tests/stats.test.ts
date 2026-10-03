@@ -1851,7 +1851,7 @@ describe("StatsCommand", () => {
 
       it("derives the default outcome after a substitute joins the team that swapped sides", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
-        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        const matches = [
           aMatchWithSwappableRosters({
             matchId: "manual-series-anchor",
             startTime: "2026-10-03T10:00:00Z",
@@ -1870,7 +1870,20 @@ describe("StatsCommand", () => {
             team0Outcome: MatchOutcome.Loss.valueOf(),
             team1Outcome: MatchOutcome.Win.valueOf(),
           }),
-        ]);
+        ].map((match, matchIndex) => ({
+          ...match,
+          Teams: match.Teams.map((team, teamIndex) => ({
+            ...team,
+            Stats: {
+              ...team.Stats,
+              CoreStats: {
+                ...team.Stats.CoreStats,
+                Score: matchIndex === 0 ? (teamIndex === 0 ? 50 : 20) : teamIndex === 0 ? 15 : 40,
+              },
+            },
+          })),
+        }));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue(matches);
 
         const { jobToComplete } = statsCommand.execute(
           aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
@@ -1882,6 +1895,8 @@ describe("StatsCommand", () => {
 
         const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
         expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
+        expect(payload.embeds?.[1]?.title).toContain("2:0");
+        expect(payload.embeds?.[1]?.fields?.[2]?.value).toContain("40:15");
         expect(getLastManualMetadata()).toMatchObject({ selectedSeriesOutcome: "TEAM_0" });
       });
 
@@ -2124,8 +2139,21 @@ describe("StatsCommand", () => {
       it("publishes substitution-aware series scores and team totals", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
           ...confirmedMetadata,
+          queueChannelId: "queue-a",
           selectedSeriesOutcome: "TEAM_0",
         });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+          new Map([
+            ["0100000000000000", "Player A"],
+            ["0200000000000000", "Player B"],
+            ["0400000000000000", "Player C"],
+            ["0800000000000000", "Player D"],
+            ["0900000000000000", "Substitute"],
+          ]),
+        );
         const anchorMatch = aMatchWithSwappableRosters({
           matchId: "manual-anchor",
           startTime: "2026-10-03T10:00:00Z",
@@ -2168,6 +2196,11 @@ describe("StatsCommand", () => {
         const [, teamStatsPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[1]);
         const eagleField = teamStatsPayload.embeds?.[0]?.fields?.find((field) => field.name === "Eagle");
         expect(eagleField?.value).toContain("50");
+        const eaglePlayerEmbed = createMessageSpy.mock.calls
+          .map(([, payload]) => payload.embeds?.[0])
+          .find((embed) => embed?.title === "Accumulated Series Stats by Players for Eagle");
+        expect(eaglePlayerEmbed?.fields?.some((field) => field.name.startsWith("Substitute"))).toBe(true);
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(expect.objectContaining({ seriesScore: "2:0" }));
       });
 
       it("does not publish the overview when persisting manual-series match ids fails", async () => {
