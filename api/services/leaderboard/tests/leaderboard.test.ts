@@ -1065,6 +1065,28 @@ describe("LeaderboardService", () => {
     expect(substituteGameRow.TeamId).toBe(1);
   });
 
+  it("persists a provided series score instead of the computed one", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      winnerTeamIndex: 0,
+      locale: "en-US",
+      seriesScore: "3:1",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    expect(payload.series.SeriesScore).toBe("3:1");
+  });
+
   it("persists average damage per life using total lives", async () => {
     const databaseService = aFakeDatabaseServiceWith();
     const haloService = aFakeHaloServiceWith({ databaseService });

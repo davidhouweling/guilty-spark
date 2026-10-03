@@ -93,3 +93,26 @@ export function findGuildMemberIdForGamertag(gamertag: string, members: readonly
 
   return matchingIds.size === 1 ? [...matchingIds][0] : undefined;
 }
+
+export interface ManualSeriesScore {
+  readonly team0: number;
+  readonly team1: number;
+}
+
+export function parseManualSeriesGamesWon(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  return /^\d{1,2}$/.test(trimmed) ? Number(trimmed) : undefined;
+}
+
+export function formatManualSeriesScore(score: ManualSeriesScore, locale: string, includeEmojis: boolean): string {
+  const value = `${score.team0.toLocaleString(locale)}:${score.team1.toLocaleString(locale)}`;
+  return includeEmojis ? `🦅 ${value} 🐍` : value;
+}
+
+export function getOutcomeForManualSeriesScore(score: ManualSeriesScore): "TEAM_0" | "TEAM_1" | "TIE" {
+  if (score.team0 === score.team1) {
+    return "TIE";
+  }
+
+  return score.team0 > score.team1 ? "TEAM_0" : "TEAM_1";
+}

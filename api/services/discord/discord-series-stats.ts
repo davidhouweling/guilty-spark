@@ -174,6 +174,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   matches,
   locale,
   isManualSeries,
+  seriesScore,
 }: {
   discordService: DiscordService;
   logService: LogService;
@@ -183,6 +184,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   matches: MatchStats[];
   locale?: string;
   isManualSeries?: boolean | undefined;
+  seriesScore?: string | undefined;
 }): Promise<DiscordSeriesStatsResolved["renderData"]> {
   if (matches.length === 0) {
     throw new Error("No Halo match details were found for discovered match IDs");
@@ -257,7 +259,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,
     subtitle,
-    seriesScore: haloService.getSeriesScore(displayMatches, resolvedLocale),
+    seriesScore: seriesScore ?? haloService.getSeriesScore(displayMatches, resolvedLocale),
     teams,
     matches: renderMatches,
   };
