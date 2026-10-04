@@ -789,6 +789,7 @@ export class NeatQueueService {
       }
       const seriesContext: SeriesStartedPayload = {
         type: "started",
+        queue: { guildId: request.guild, queueNumber: request.match_number },
         title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
@@ -1557,7 +1558,11 @@ export class NeatQueueService {
       ]),
     );
     try {
-      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended", matchIds: seriesMatchIds });
+      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, {
+        type: "ended",
+        queue: { guildId: neatQueueConfig.GuildId, queueNumber: request.match_number },
+        matchIds: seriesMatchIds,
+      });
     } catch (error: unknown) {
       this.logService.warn(
         "Failed to nudge individual trackers for match completion",

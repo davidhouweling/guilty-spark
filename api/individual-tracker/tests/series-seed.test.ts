@@ -61,6 +61,7 @@ describe("resolveSeriesSeed()", () => {
 
     expect(getStatusSpy).toHaveBeenCalledWith("guild-1", 5);
     expect(seed).toEqual({
+      queue: { guildId: "guild-1", queueNumber: 5 },
       title: "Test Server",
       subtitle: "Queue #5",
       guildIconUrl: "https://cdn.example.com/icon.webp",

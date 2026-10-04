@@ -3,6 +3,7 @@ import { defineContract } from "../../base";
 import { trackerStateSchema } from "../../individual-tracker/tracker";
 import { trackerSeriesTeamSchema } from "../../individual-tracker/view";
 import { liveTrackerMapSchema } from "../live-tracker/maps";
+import { seriesQueueIdentitySchema } from "./nudge";
 
 // hasActiveSeries is optional here because old persisted DO state may predate the field.
 // trackerStateSchema marks it required (suitable for fresh API responses).
@@ -12,6 +13,7 @@ export const individualTrackerStateSchema = trackerStateSchema.extend({
 export type IndividualTrackerDoState = z.infer<typeof individualTrackerStateSchema>;
 
 export const individualTrackerSeriesSeedSchema = z.object({
+  queue: seriesQueueIdentitySchema.optional(),
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable(),

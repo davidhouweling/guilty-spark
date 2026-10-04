@@ -4425,6 +4425,74 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
+    it("keeps the active series running when the ended event is for a different queue", async () => {
+      const previousQueue = { guildId: "guild-1", queueNumber: 1 };
+      const activeQueue = { guildId: "guild-1", queueNumber: 2 };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          completedSeries: [
+            anActiveSeries({ queue: previousQueue, subtitle: "Queue #1", matchIds: ["match-1"], isActive: false }),
+          ],
+          activeSeries: anActiveSeries({ queue: activeQueue, subtitle: "Queue #2", matchIds: ["match-3"] }),
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "ended", queue: previousQueue, matchIds: ["match-1", "match-2"] }),
+        }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({ subtitle: "Queue #2", isActive: true, matchIds: ["match-3"] });
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ subtitle: "Queue #1", matchIds: ["match-1", "match-2"] }),
+      ]);
+    });
+
+    it("retires the active series when the ended event is for its queue", async () => {
+      const queue = { guildId: "guild-1", queueNumber: 2 };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: anActiveSeries({ queue, subtitle: "Queue #2", matchIds: ["match-1"] }),
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "ended", queue, matchIds: ["match-1", "match-2"] }),
+        }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ queue, isActive: false, matchIds: ["match-1", "match-2"] }),
+      ]);
+    });
+
+    it("records the queue identity when a series starts via nudge", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({
+            type: "started",
+            queue: { guildId: "guild-1", queueNumber: 7 },
+            title: "Dog Crew",
+            subtitle: "Queue #7",
+            guildIconUrl: null,
+            teams: [],
+          }),
+        }),
+      );
+
+      expect(lastPersistedState(storagePutSpy).activeSeries?.queue).toEqual({ guildId: "guild-1", queueNumber: 7 });
+    });
+
     it("retires active series metadata when nudging with ended event", async () => {
       const persistedSeriesGroupOverrides = [
         { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },

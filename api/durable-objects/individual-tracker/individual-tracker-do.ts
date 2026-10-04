@@ -36,7 +36,11 @@ import {
   individualTrackerNudgeContract,
   nudgePayloadSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
-import type { SeriesSubstitutedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesEndedPayload,
+  SeriesQueueIdentity,
+  SeriesSubstitutedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
   buildMatchScore,
@@ -398,6 +402,10 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
 
 function isParseableTimestamp(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
+}
+
+function isSameQueue(left: SeriesQueueIdentity, right: SeriesQueueIdentity): boolean {
+  return left.guildId === right.guildId && left.queueNumber === right.queueNumber;
 }
 
 interface SeriesGrouping {
@@ -1351,6 +1359,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     trackerState.activeSeries = {
+      ...(seriesSeed.queue != null ? { queue: seriesSeed.queue } : {}),
       title: seriesSeed.title,
       subtitle: seriesSeed.subtitle,
       guildIconUrl: seriesSeed.guildIconUrl,
@@ -2269,10 +2278,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       case "ended": {
         const hadActiveSeries = trackerState.activeSeries != null;
-        if (trackerState.activeSeries != null && payload.matchIds != null && payload.matchIds.length > 0) {
-          trackerState.activeSeries.matchIds = [...payload.matchIds];
-        }
-        this.retireActiveSeries(trackerState);
+        this.applyEndedNudge(trackerState, payload);
         this.logService.info(
           "IndividualTracker: series ended via nudge",
           new Map([
@@ -2368,6 +2374,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             ? payload.startedAt
             : new Date().toISOString();
         trackerState.activeSeries = {
+          ...(payload.queue != null ? { queue: payload.queue } : {}),
           title: payload.title,
           subtitle: payload.subtitle,
           guildIconUrl: payload.guildIconUrl,
@@ -2712,6 +2719,26 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       ...series,
       teams: updatedTeams,
     };
+  }
+
+  private applyEndedNudge(state: IndividualTrackerInternalState, payload: SeriesEndedPayload): void {
+    const { activeSeries } = state;
+    // Series without a recorded queue (legacy state, manual series) can't be disambiguated.
+    const endsActiveSeries =
+      activeSeries != null &&
+      (payload.queue == null || activeSeries.queue == null || isSameQueue(activeSeries.queue, payload.queue));
+    const endedSeries = endsActiveSeries
+      ? activeSeries
+      : (state.completedSeries ?? []).findLast(
+          (series) => series.queue != null && payload.queue != null && isSameQueue(series.queue, payload.queue),
+        );
+
+    if (endedSeries != null && payload.matchIds != null && payload.matchIds.length > 0) {
+      endedSeries.matchIds = [...payload.matchIds];
+    }
+    if (endsActiveSeries) {
+      this.retireActiveSeries(state);
+    }
   }
 
   private retireActiveSeries(state: IndividualTrackerInternalState): void {

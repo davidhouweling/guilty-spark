@@ -11,7 +11,10 @@ import { ChannelType, ComponentType, Locale } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesEndedPayload,
+  SeriesStartedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
@@ -2462,6 +2465,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
+          queue: { guildId: teamsCreatedRequest.guild, queueNumber: teamsCreatedRequest.match_number },
           title: "Test Server",
           plannedMaps,
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
@@ -2935,6 +2939,15 @@ describe("NeatQueueService", () => {
     });
 
     describe("MATCH_COMPLETED nudge", () => {
+      const anEndedPayload = (
+        request: NeatQueueMatchCompletedRequest,
+        matchIds: string[] = [],
+      ): SeriesEndedPayload => ({
+        type: "ended",
+        queue: { guildId: neatQueueConfig.GuildId, queueNumber: request.match_number },
+        matchIds,
+      });
+
       it("nudges all player XUIDs with null payload on match completion", async () => {
         const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
         const playersAssociationData = {
@@ -2964,7 +2977,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toHaveLength(2);
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
-        expect(payload).toEqual({ type: "ended", matchIds: [] });
+        expect(payload).toEqual(anEndedPayload(matchCompletedRequest));
       });
 
       it("nudges trackers with the resolved series match ids even when posting series data fails", async () => {
@@ -2995,7 +3008,7 @@ describe("NeatQueueService", () => {
         const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
         await expect(jobToComplete?.()).rejects.toThrow("discord unavailable");
 
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended", matchIds: [match.MatchId] });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest, [match.MatchId]));
       });
 
       it("nudges with empty array when no players have XUIDs", async () => {
@@ -3014,7 +3027,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended", matchIds: [] });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest));
       });
 
       it("falls back to active linked Xbox identities when completion association xboxId is missing", async () => {
@@ -3076,7 +3089,7 @@ describe("NeatQueueService", () => {
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
         expect(xuids).toContain("xuid_linked_01");
         expect(xuids).toContain("xuid_linked_02");
-        expect(payload).toEqual({ type: "ended", matchIds: [] });
+        expect(payload).toEqual(anEndedPayload(matchCompletedRequest));
       });
 
       it("continues match completion cleanup when one fallback linked identity lookup fails", async () => {
@@ -3129,7 +3142,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended", matchIds: [] });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], anEndedPayload(matchCompletedRequest));
         expect(haloUpdateDiscordAssociationsSpy).toHaveBeenCalledOnce();
         expect(appDataDeleteSpy).toHaveBeenCalledOnce();
         expect(logWarnSpy).toHaveBeenCalledWith(
