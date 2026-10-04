@@ -1940,6 +1940,80 @@ describe("StatsCommand", () => {
         ]);
       });
 
+      it("rejects an ambiguous match found across spaced and compact guild searches", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+          new Map([
+            ["0100000000000000", "gamertag01"],
+            ["0200000000000000", "Some Player"],
+            ["0500000000000000", "gamertag05"],
+            ["0900000000000000", "gamertag09"],
+            ["0400000000000000", "gamertag04"],
+            ["0800000000000000", "gamertag08"],
+            ["1100000000000000", "gamertag11"],
+            ["1200000000000000", "gamertag12"],
+          ]),
+        );
+        searchGuildMembersSpy.mockImplementation(async (_guildId, query) => {
+          if (query === "Some Player") {
+            return Promise.resolve([
+              aGuildMemberWith({
+                nick: "Some Player",
+                user: { ...aGuildMemberWith().user, id: "discord-2", username: "another-player", global_name: null },
+              }),
+            ]);
+          }
+          if (query === "SomePlayer") {
+            return Promise.resolve([
+              aGuildMemberWith({
+                user: { ...aGuildMemberWith().user, id: "discord-3", username: "someplayer", global_name: null },
+              }),
+            ]);
+          }
+          return Promise.resolve([]);
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(searchGuildMembersSpy).toHaveBeenCalledWith("fake-guild-id", "Some Player");
+        expect(searchGuildMembersSpy).toHaveBeenCalledWith("fake-guild-id", "SomePlayer");
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("Some Player");
+        expect(overviewEmbed.description).not.toContain("<@discord-2>");
+        expect(overviewEmbed.description).not.toContain("<@discord-3>");
+      });
+
+      it("logs guild search failures and keeps the player as an unlinked gamertag", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const searchError = new Error("Guild member search failed");
+        searchGuildMembersSpy.mockRejectedValue(searchError);
+        const warnSpy = vi.spyOn(services.logService, "warn");
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const [loggedError, logContext] = Preconditions.checkExists(warnSpy.mock.lastCall);
+        expect(loggedError).toBe(searchError);
+        expect(logContext?.get("reason")).toBe("Failed to search guild members for manual series gamertag");
+        expect(logContext?.get("guildId")).toBe("fake-guild-id");
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("gamertag02");
+        expect(overviewEmbed.description).not.toContain("<@discord-2>");
+      });
+
       it("derives teams from the selected games and shows a series preview with an outcome select", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
 

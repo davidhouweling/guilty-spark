@@ -2636,13 +2636,10 @@ export class StatsCommand extends BaseCommand {
   private async findGuildMemberIdForGamertag(guildId: string, gamertag: string): Promise<string | undefined> {
     try {
       const queries = [...new Set([gamertag, gamertag.replace(/\s/g, "")])];
-      for (const query of queries) {
-        const members = await this.services.discordService.searchGuildMembers(guildId, query);
-        const discordId = findGuildMemberIdForGamertag(gamertag, members);
-        if (discordId != null) {
-          return discordId;
-        }
-      }
+      const searchResults = await Promise.all(
+        queries.map(async (query) => this.services.discordService.searchGuildMembers(guildId, query)),
+      );
+      return findGuildMemberIdForGamertag(gamertag, searchResults.flat());
     } catch (error) {
       this.services.logService.warn(
         error,
