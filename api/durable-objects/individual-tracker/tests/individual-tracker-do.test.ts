@@ -45,6 +45,8 @@ import type {
   IndividualTrackerStartSeriesRequest,
   ActiveSeries,
   ActiveSeriesContext,
+  IndividualTrackerMatchSummary,
+  SeriesTeam,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -797,7 +799,7 @@ describe("IndividualTrackerDO", () => {
       expect(series?.score).toBe("0:1");
     });
 
-    it("filters series matches by expected team sizes when series teams are known", async () => {
+    it("keeps series matches played before a roster substitution", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
@@ -811,16 +813,16 @@ describe("IndividualTrackerDO", () => {
                 id: 0,
                 name: "Alpha",
                 players: [
-                  { discordId: null, discordName: "A1", gamertag: "A1", xboxId: null },
-                  { discordId: null, discordName: "A2", gamertag: "A2", xboxId: null },
+                  { discordId: null, discordName: "A1", gamertag: "A1", xboxId: "a" },
+                  { discordId: null, discordName: "Sub", gamertag: "Sub", xboxId: "e" },
                 ],
               },
               {
                 id: 1,
                 name: "Beta",
                 players: [
-                  { discordId: null, discordName: "B1", gamertag: "B1", xboxId: null },
-                  { discordId: null, discordName: "B2", gamertag: "B2", xboxId: null },
+                  { discordId: null, discordName: "B1", gamertag: "B1", xboxId: "c" },
+                  { discordId: null, discordName: "B2", gamertag: "B2", xboxId: "d" },
                 ],
               },
             ],
@@ -846,10 +848,10 @@ describe("IndividualTrackerDO", () => {
               mapAssetId: "map-b",
               mapVersionId: "ver-b",
               gameVariantCategory: 7,
-              outcome: "Loss",
+              outcome: "Win",
               isMatchmaking: false,
-              teamRosterSignature: "0:a,b,e|1:c,d,f",
-              teamOutcomes: [3, 2],
+              teamRosterSignature: "0:a,e|1:c,d",
+              teamOutcomes: [2, 3],
             }),
           },
         }),
@@ -860,8 +862,74 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.series).toHaveLength(1);
       const series = body.state?.series[0];
-      expect(series?.matchIds).toEqual(["m1"]);
-      expect(series?.score).toBe("1:0");
+      expect(series?.matchIds).toEqual(["m1", "m2"]);
+      expect(series?.score).toBe("2:0");
+    });
+
+    it("groups a completed series' matches into one series even when a substitution changed the roster", async () => {
+      const seriesTeams: SeriesTeam[] = [
+        {
+          id: 0,
+          name: "Alpha",
+          players: [
+            { discordId: null, discordName: "A1", gamertag: "A1", xboxId: "a" },
+            { discordId: null, discordName: "Sub", gamertag: "Sub", xboxId: "e" },
+          ],
+        },
+        {
+          id: 1,
+          name: "Beta",
+          players: [
+            { discordId: null, discordName: "B1", gamertag: "B1", xboxId: "c" },
+            { discordId: null, discordName: "B2", gamertag: "B2", xboxId: "d" },
+          ],
+        },
+      ];
+      const aSummary = (
+        matchId: string,
+        startTime: string,
+        teamRosterSignature: string,
+      ): IndividualTrackerMatchSummary =>
+        aFakeIndividualTrackerMatchSummaryWith({
+          matchId,
+          startTime,
+          isMatchmaking: false,
+          teamRosterSignature,
+          teamOutcomes: [2, 3],
+        });
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          completedSeries: [
+            {
+              title: "Dog Crew",
+              subtitle: "Queue #1",
+              guildIconUrl: null,
+              teams: seriesTeams,
+              matchIds: ["m1", "m2", "m3", "m4"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+          discoveredMatches: {
+            m1: aSummary("m1", "2024-11-26T11:00:00.000Z", "0:a,b|1:c,d"),
+            m2: aSummary("m2", "2024-11-26T11:15:00.000Z", "0:a,b|1:c,d"),
+            m3: aSummary("m3", "2024-11-26T11:30:00.000Z", "0:a,e|1:c,d"),
+            m4: aSummary("m4", "2024-11-26T11:45:00.000Z", "0:a,e|1:c,d"),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series).toHaveLength(1);
+      expect(body.state?.series[0]).toMatchObject({
+        title: "Dog Crew",
+        subtitle: "Queue #1",
+        matchIds: ["m1", "m2", "m3", "m4"],
+      });
     });
 
     it("orders matches chronologically and groups time-adjacent matches regardless of discovery order", async () => {
@@ -2568,6 +2636,52 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries?.matchIds).toEqual([]);
+    });
+
+    it("attaches a discovered match to the active series when a series player has no linked Xbox identity", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: "unlinked", discordName: "Unlinked", gamertag: null, xboxId: null },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual(["match-new"]);
     });
 
     it("attaches a discovered match to the active series when the same two rosters swap sides", async () => {

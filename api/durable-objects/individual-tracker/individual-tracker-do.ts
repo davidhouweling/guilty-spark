@@ -228,6 +228,7 @@ function resolveActualToSeriesTeamId(
   const seriesTeamRosters: SeriesTeamRoster[] = Array.from(expectedRosters.entries()).map(([teamId, expected]) => ({
     seriesTeamId: teamId,
     xuids: expected.knownXuids,
+    unidentifiedPlayerCount: expected.playerCount - expected.knownXuids.size,
   }));
   const matchTeamRosters: MatchTeamRoster[] = Array.from(actualRosters.entries()).map(([matchTeamId, xuids]) => ({
     matchTeamId,
@@ -308,19 +309,6 @@ function getCanonicalTeamOutcomes(
     });
 }
 
-function getSeriesSummariesForSeriesList(
-  groupSummaries: readonly IndividualTrackerMatchSummary[],
-  teams: readonly SeriesTeam[] | undefined,
-): readonly IndividualTrackerMatchSummary[] {
-  const expectedRosters = getExpectedSeriesTeamRosters(teams);
-  const summariesWithExpectedTeams =
-    expectedRosters == null
-      ? groupSummaries
-      : groupSummaries.filter((summary) => matchesExpectedSeriesRoster(summary, expectedRosters));
-
-  return summariesWithExpectedTeams;
-}
-
 function isEligibleForActiveSeries(
   summary: IndividualTrackerMatchSummary,
   matchDurationSeconds: number,
@@ -361,6 +349,31 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
 
 function isParseableTimestamp(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
+}
+
+interface SeriesGrouping {
+  readonly matchIds: readonly string[];
+  readonly seriesContext: ActiveSeries | undefined;
+}
+
+// Series contexts own their match membership (vetted against the roster at the time each match was
+// attached). Re-deriving it from roster auto-groupings or the latest roster would split or drop
+// matches played before a substitution.
+function buildSeriesGroupings(
+  state: IndividualTrackerInternalState,
+  visibleMatchIds: ReadonlySet<string>,
+  autoGroupings: readonly string[][],
+): SeriesGrouping[] {
+  const contextGroupings = [
+    ...(state.activeSeries != null ? [state.activeSeries] : []),
+    ...(state.completedSeries ?? []).filter((series) => series.matchIds.some((id) => visibleMatchIds.has(id))),
+  ].map((seriesContext): SeriesGrouping => ({ matchIds: seriesContext.matchIds, seriesContext }));
+  const claimedMatchIds = new Set(contextGroupings.flatMap((grouping) => grouping.matchIds));
+  const unclaimedAutoGroupings = autoGroupings
+    .filter((matchIds) => !matchIds.some((id) => claimedMatchIds.has(id)))
+    .map((matchIds): SeriesGrouping => ({ matchIds, seriesContext: undefined }));
+
+  return [...contextGroupings, ...unclaimedAutoGroupings];
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
@@ -2688,36 +2701,18 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
-    const activeSeriesMatchIds = state.activeSeries?.matchIds ?? [];
-    const activeSeriesMatchIdSet = new Set(activeSeriesMatchIds);
-    const groupings =
-      state.activeSeries != null
-        ? [activeSeriesMatchIds, ...autoGroupings.filter((g) => !g.some((id) => activeSeriesMatchIdSet.has(id)))]
-        : autoGroupings;
+    const groupings = buildSeriesGroupings(state, new Set(summariesById.keys()), autoGroupings);
 
-    const allSeriesContexts: ActiveSeries[] = [
-      ...(state.activeSeries != null ? [state.activeSeries] : []),
-      ...(state.completedSeries ?? []),
-    ];
     const seriesGroupOverridesByKey = new Map<string, IndividualTrackerSeriesGroupOverride>();
     for (const override of state.seriesGroupOverrides ?? []) {
       seriesGroupOverridesByKey.set(buildSeriesGroupKey(override.matchIds), override);
     }
 
-    const series = groupings.map((matchIds, index): IndividualTrackerSeriesGroup => {
-      const groupSummaries = matchIds
-        .map((matchId) => summariesById.get(matchId))
-        .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
-
+    const series = groupings.map(({ matchIds, seriesContext }): IndividualTrackerSeriesGroup => {
       const matchIdSet = new Set(matchIds);
-      const isActiveSeriesSlot = state.activeSeries != null && index === 0;
-      const seriesContext = isActiveSeriesSlot
-        ? state.activeSeries
-        : allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
+      const seriesSummariesForSeriesList = summaries.filter((summary) => matchIdSet.has(summary.matchId));
       const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
       const teams = seriesContext?.teams;
-
-      const seriesSummariesForSeriesList = getSeriesSummariesForSeriesList(groupSummaries, teams);
 
       const teamWins = computeSeriesTeamWins(
         seriesSummariesForSeriesList.map((summary) => ({
