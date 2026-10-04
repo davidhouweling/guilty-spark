@@ -1174,7 +1174,7 @@ export class DiscordService {
   async searchGuildMembers(guildId: string, query: string): Promise<RESTGetAPIGuildMembersSearchResult> {
     return this.fetch<RESTGetAPIGuildMembersSearchResult>(Routes.guildMembersSearch(guildId), {
       method: "GET",
-      queryParameters: { query, limit: 10 },
+      queryParameters: { query, limit: 1000 },
     });
   }
 
