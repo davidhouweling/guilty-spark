@@ -32,6 +32,7 @@ export type SeriesMapsUpdatedPayload = z.infer<typeof seriesMapsUpdatedPayloadSc
 // Event: Series ended (clear active series)
 export const seriesEndedPayloadSchema = z.object({
   type: z.literal("ended"),
+  matchIds: z.array(z.string()).optional(),
 });
 export type SeriesEndedPayload = z.infer<typeof seriesEndedPayloadSchema>;
 

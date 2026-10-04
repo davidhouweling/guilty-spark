@@ -2964,7 +2964,38 @@ describe("NeatQueueService", () => {
         expect(xuids).toHaveLength(2);
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
-        expect(payload).toEqual({ type: "ended" });
+        expect(payload).toEqual({ type: "ended", matchIds: [] });
+      });
+
+      it("nudges trackers with the resolved series match ids even when posting series data fails", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+        const liveTrackerState = aFakeLiveTrackerStateWith({ status: "active", matchIds: [match.MatchId] });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({ state: liveTrackerState });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({ success: true, state: liveTrackerState });
+        vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+          seriesId: { guildId: "fake-guild-id", queueNumber: 1 },
+          teams: [],
+          seriesScore: "0:0",
+          matchIds: [match.MatchId],
+          discoveredMatches: {},
+          rawMatches: [match],
+          playersAssociationData: {},
+          substitutions: [],
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        });
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+        vi.spyOn(discordService, "getGuildPreferredLocale").mockRejectedValue(new Error("discord unavailable"));
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await expect(jobToComplete?.()).rejects.toThrow("discord unavailable");
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended", matchIds: [match.MatchId] });
       });
 
       it("nudges with empty array when no players have XUIDs", async () => {
@@ -2983,7 +3014,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended" });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended", matchIds: [] });
       });
 
       it("falls back to active linked Xbox identities when completion association xboxId is missing", async () => {
@@ -3045,7 +3076,7 @@ describe("NeatQueueService", () => {
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
         expect(xuids).toContain("xuid_linked_01");
         expect(xuids).toContain("xuid_linked_02");
-        expect(payload).toEqual({ type: "ended" });
+        expect(payload).toEqual({ type: "ended", matchIds: [] });
       });
 
       it("continues match completion cleanup when one fallback linked identity lookup fails", async () => {
@@ -3098,7 +3129,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended" });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended", matchIds: [] });
         expect(haloUpdateDiscordAssociationsSpy).toHaveBeenCalledOnce();
         expect(appDataDeleteSpy).toHaveBeenCalledOnce();
         expect(logWarnSpy).toHaveBeenCalledWith(

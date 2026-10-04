@@ -1433,6 +1433,41 @@ export class NeatQueueService {
       await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
     }
 
+    try {
+      await this.postResolvedSeriesData({ request, neatQueueConfig, series, timeline, errorOccurred, seriesSource });
+    } finally {
+      await this.runMatchCompletedCleanup(
+        request,
+        neatQueueConfig,
+        series.map((match) => match.MatchId),
+      );
+    }
+
+    this.logService.info(
+      "Completed NeatQueue MATCH_COMPLETED background job",
+      new Map([
+        ["guildId", request.guild],
+        ["channelId", request.channel],
+        ["queueNumber", request.match_number.toString()],
+      ]),
+    );
+  }
+
+  private async postResolvedSeriesData({
+    request,
+    neatQueueConfig,
+    series,
+    timeline,
+    errorOccurred,
+    seriesSource,
+  }: {
+    request: NeatQueueMatchCompletedRequest;
+    neatQueueConfig: NeatQueueConfigRow;
+    series: MatchStats[];
+    timeline: NeatQueueTimelineEvent[];
+    errorOccurred: boolean;
+    seriesSource: string;
+  }): Promise<void> {
     if (!errorOccurred && series.length > 0) {
       this.logService.info(
         "Resolved series data for MATCH_COMPLETED",
@@ -1478,7 +1513,13 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
 
+  private async runMatchCompletedCleanup(
+    request: NeatQueueMatchCompletedRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    seriesMatchIds: string[],
+  ): Promise<void> {
     const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
     const allPlayerXuids = await this.extractXuidsWithFallback(completedQueueState.playersAssociationData);
 
@@ -1492,27 +1533,19 @@ export class NeatQueueService {
     );
 
     await Promise.all([
-      this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids),
+      this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids, seriesMatchIds),
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
-
-    this.logService.info(
-      "Completed NeatQueue MATCH_COMPLETED background job",
-      new Map([
-        ["guildId", request.guild],
-        ["channelId", request.channel],
-        ["queueNumber", request.match_number.toString()],
-      ]),
-    );
   }
 
   private async nudgeIndividualTrackersForMatchCompletion(
     request: NeatQueueMatchCompletedRequest,
     neatQueueConfig: NeatQueueConfigRow,
     allPlayerXuids: string[],
+    seriesMatchIds: string[],
   ): Promise<void> {
     this.logService.debug(
       "nudgeIndividualTrackersForMatchCompletion: resolved player xuids for series end nudge",
@@ -1520,10 +1553,11 @@ export class NeatQueueService {
         ["guildId", neatQueueConfig.GuildId],
         ["queueNumber", request.match_number.toString()],
         ["resolvedXuidCount", allPlayerXuids.length.toString()],
+        ["seriesMatchCount", seriesMatchIds.length.toString()],
       ]),
     );
     try {
-      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended" });
+      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended", matchIds: seriesMatchIds });
     } catch (error: unknown) {
       this.logService.warn(
         "Failed to nudge individual trackers for match completion",

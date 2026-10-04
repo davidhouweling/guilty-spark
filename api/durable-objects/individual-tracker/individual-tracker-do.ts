@@ -240,6 +240,53 @@ function resolveActualToSeriesTeamId(
   return resolution == null ? null : new Map(resolution.map((entry) => [entry.matchTeamId, entry.seriesTeamId]));
 }
 
+function countOverlap(left: ReadonlySet<string>, right: ReadonlySet<string> | undefined): number {
+  return Array.from(left).filter((xuid) => right?.has(xuid) === true).length;
+}
+
+// Matches played before a substitution can't resolve exactly against the latest roster, so orient
+// them by whichever side pairing shares more known players.
+function resolveActualToSeriesTeamIdByOverlap(
+  expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
+  actualRosters: ReadonlyMap<number, ReadonlySet<string>>,
+): ReadonlyMap<number, number> | null {
+  const seriesTeamIds = Array.from(expectedRosters.keys()).sort((left, right) => left - right);
+  const matchTeamIds = Array.from(actualRosters.keys()).sort((left, right) => left - right);
+  const [seriesTeamA, seriesTeamB] = seriesTeamIds;
+  const [matchTeamA, matchTeamB] = matchTeamIds;
+  if (
+    seriesTeamIds.length !== 2 ||
+    matchTeamIds.length !== 2 ||
+    seriesTeamA == null ||
+    seriesTeamB == null ||
+    matchTeamA == null ||
+    matchTeamB == null
+  ) {
+    return null;
+  }
+
+  const knownXuidsA = Preconditions.checkExists(expectedRosters.get(seriesTeamA)).knownXuids;
+  const knownXuidsB = Preconditions.checkExists(expectedRosters.get(seriesTeamB)).knownXuids;
+  const sameSideOverlap =
+    countOverlap(knownXuidsA, actualRosters.get(matchTeamA)) + countOverlap(knownXuidsB, actualRosters.get(matchTeamB));
+  const swappedSideOverlap =
+    countOverlap(knownXuidsA, actualRosters.get(matchTeamB)) + countOverlap(knownXuidsB, actualRosters.get(matchTeamA));
+
+  if (sameSideOverlap === swappedSideOverlap) {
+    return null;
+  }
+
+  return sameSideOverlap > swappedSideOverlap
+    ? new Map([
+        [matchTeamA, seriesTeamA],
+        [matchTeamB, seriesTeamB],
+      ])
+    : new Map([
+        [matchTeamA, seriesTeamB],
+        [matchTeamB, seriesTeamA],
+      ]);
+}
+
 // Matches a discovered match against the current NeatQueue series roster by team identity.
 // Falls back to a count-only comparison for any team with no resolved player identities (e.g. no
 // linked Xbox accounts), since there is nothing to compare identities against.
@@ -290,7 +337,9 @@ function getCanonicalTeamOutcomes(
     return rawOutcomes;
   }
 
-  const matchTeamIdToSeriesTeamId = resolveActualToSeriesTeamId(expectedRosters, actualRosters);
+  const matchTeamIdToSeriesTeamId =
+    resolveActualToSeriesTeamId(expectedRosters, actualRosters) ??
+    resolveActualToSeriesTeamIdByOverlap(expectedRosters, actualRosters);
   if (matchTeamIdToSeriesTeamId == null) {
     return rawOutcomes;
   }
@@ -647,7 +696,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const matchesToProcess = this.getMatchesToProcessBeforeMarker(allMatches, markerFound, markerFoundAtIndex);
     const matchesToProcessInTimeOrder = [...matchesToProcess].reverse();
     const knownIds = new Set(trackerState.matchIds);
-    const existingActiveSeriesMatchIds = new Set(trackerState.activeSeries?.matchIds ?? []);
+    // A completed series' late-discovered final game must not also be attached to the next series.
+    const seriesClaimedMatchIds = new Set([
+      ...(trackerState.activeSeries?.matchIds ?? []),
+      ...(trackerState.completedSeries ?? []).flatMap((series) => series.matchIds),
+    ]);
 
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
@@ -703,14 +756,18 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (durationSeconds >= MINIMUM_COMPLETE_MATCH_DURATION_SECONDS) {
         trackerState.selectedMatchIds.push(matchId);
       }
-      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+      if (trackerState.activeSeries != null && !seriesClaimedMatchIds.has(matchId)) {
         const isSeriesEligible = isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries);
         if (isSeriesEligible) {
           trackerState.activeSeries.matchIds.push(matchId);
-          existingActiveSeriesMatchIds.add(matchId);
+          seriesClaimedMatchIds.add(matchId);
         } else if (isMatchmakingMatch) {
           if (shouldEndSeriesForUnrelatedMatchmakingMatch(trackerState.activeSeries)) {
-            this.clearSeriesState(trackerState);
+            if (trackerState.activeSeries.matchIds.length > 0) {
+              this.retireActiveSeries(trackerState);
+            } else {
+              delete trackerState.activeSeries;
+            }
             this.logService.info(
               "IndividualTracker: series ended after matchmaking match was discovered",
               new Map([
@@ -781,7 +838,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         }
       }
 
-      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+      if (trackerState.activeSeries != null && !seriesClaimedMatchIds.has(matchId)) {
         const durationSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
         // NaN/negative durations (e.g. missing or malformed timestamps) must not silently bypass
         // isEligibleForActiveSeries's minimum-duration guard (`NaN < minimum` is false).
@@ -791,7 +848,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries)
         ) {
           trackerState.activeSeries.matchIds.push(matchId);
-          existingActiveSeriesMatchIds.add(matchId);
+          seriesClaimedMatchIds.add(matchId);
           viewChanged = true;
           this.logService.info(
             "IndividualTracker: retroactively attached backfilled match to active series",
@@ -2061,7 +2118,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const teams = await this.buildManualSeriesTeams(trackerState, body.teams);
 
-    this.clearSeriesState(trackerState);
+    this.retireActiveSeries(trackerState);
     trackerState.activeSeries = {
       title: body.titleOverride ?? getDefaultSeriesGroupTitle(),
       subtitle: body.subtitleOverride,
@@ -2212,6 +2269,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       case "ended": {
         const hadActiveSeries = trackerState.activeSeries != null;
+        if (trackerState.activeSeries != null && payload.matchIds != null && payload.matchIds.length > 0) {
+          trackerState.activeSeries.matchIds = [...payload.matchIds];
+        }
         this.retireActiveSeries(trackerState);
         this.logService.info(
           "IndividualTracker: series ended via nudge",
@@ -2234,7 +2294,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackedGamertag === payload.playerIn.gamertag;
 
         if (isTrackedPlayerOut) {
-          this.clearSeriesState(trackerState);
+          this.retireActiveSeries(trackerState);
           this.logService.info(
             "IndividualTracker: series retired (tracked player subbed out via nudge)",
             new Map([
@@ -2660,11 +2720,6 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
     state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
     delete state.activeSeries;
-  }
-
-  private clearSeriesState(state: IndividualTrackerInternalState): void {
-    delete state.activeSeries;
-    delete state.completedSeries;
   }
 
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
