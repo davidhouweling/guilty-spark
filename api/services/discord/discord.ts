@@ -19,6 +19,7 @@ import type {
   RESTError,
   RESTGetAPIGuildMemberResult,
   RESTGetAPIGuildMessagesSearchQuery,
+  RESTGetAPIGuildMembersSearchResult,
   RESTGetAPIGuildMessagesSearchResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
@@ -1167,6 +1168,13 @@ export class DiscordService {
     return this.fetch<RESTGetAPIGuildMessagesSearchResult>(Routes.guildMessagesSearch(guildId), {
       method: "GET",
       queryParameters,
+    });
+  }
+
+  async searchGuildMembers(guildId: string, query: string): Promise<RESTGetAPIGuildMembersSearchResult> {
+    return this.fetch<RESTGetAPIGuildMembersSearchResult>(Routes.guildMembersSearch(guildId), {
+      method: "GET",
+      queryParameters: { query, limit: 1000 },
     });
   }
 

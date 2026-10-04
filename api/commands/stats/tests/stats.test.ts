@@ -38,6 +38,7 @@ import { StatsCommand } from "../stats";
 import type { Services } from "../../../services/install";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import {
+  aGuildMemberWith,
   apiMessage,
   channelThreadsResult,
   discordNeatQueueData,
@@ -1880,9 +1881,10 @@ describe("StatsCommand", () => {
         selectedPlayerId: "invoker-id",
       };
       const teams = [
-        { name: "Eagle", playerIds: ["discord-1"] },
-        { name: "Cobra", playerIds: ["discord-4"] },
+        { name: "Eagle", players: [{ xuid: "0100000000000000", gamertag: "gamertag01", discordId: "discord-1" }] },
+        { name: "Cobra", players: [{ xuid: "0400000000000000", gamertag: "gamertag04", discordId: "discord-4" }] },
       ];
+      let searchGuildMembersSpy: MockInstance<typeof services.discordService.searchGuildMembers>;
 
       beforeEach(() => {
         vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
@@ -1893,6 +1895,165 @@ describe("StatsCommand", () => {
           aFakeDiscordAssociationsRow({ DiscordId: "discord-1", XboxId: "0100000000000000" }),
           aFakeDiscordAssociationsRow({ DiscordId: "discord-4", XboxId: "0400000000000000" }),
         ]);
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+          new Map(
+            ["01", "02", "05", "09", "04", "08", "11", "12"].map((id) => [`${id}00000000000000`, `gamertag${id}`]),
+          ),
+        );
+        searchGuildMembersSpy = vi
+          .spyOn(services.discordService, "searchGuildMembers")
+          .mockImplementation(async (_guildId, query) =>
+            Promise.resolve(
+              query === "gamertag02"
+                ? [aGuildMemberWith({ user: { ...aGuildMemberWith().user, id: "discord-2", username: "gamertag02" } })]
+                : [],
+            ),
+          );
+      });
+
+      it("maps final-game players to Discord users via links and guild member names, showing gamertags otherwise", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(searchGuildMembersSpy).not.toHaveBeenCalledWith("fake-guild-id", "gamertag01");
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("**Eagle:** <@discord-1> <@discord-2> gamertag05 gamertag09");
+        expect(overviewEmbed.description).toContain("**Cobra:** <@discord-4> gamertag08 gamertag11 gamertag12");
+        const metadataTeams = getLastManualMetadata()["teams"];
+        expect(metadataTeams).toEqual([
+          expect.objectContaining({
+            name: "Eagle",
+            players: expect.arrayContaining([
+              { xuid: "0200000000000000", gamertag: "gamertag02", discordId: "discord-2" },
+              { xuid: "0500000000000000", gamertag: "gamertag05", discordId: null },
+            ]) as unknown,
+          }),
+          expect.objectContaining({ name: "Cobra" }),
+        ]);
+      });
+
+      it("rejects an ambiguous match found across spaced and compact guild searches", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(
+          new Map([
+            ["0100000000000000", "gamertag01"],
+            ["0200000000000000", "Some Player"],
+            ["0500000000000000", "gamertag05"],
+            ["0900000000000000", "gamertag09"],
+            ["0400000000000000", "gamertag04"],
+            ["0800000000000000", "gamertag08"],
+            ["1100000000000000", "gamertag11"],
+            ["1200000000000000", "gamertag12"],
+          ]),
+        );
+        searchGuildMembersSpy.mockImplementation(async (_guildId, query) => {
+          if (query === "Some Player") {
+            return Promise.resolve([
+              aGuildMemberWith({
+                nick: "Some Player",
+                user: { ...aGuildMemberWith().user, id: "discord-2", username: "another-player", global_name: null },
+              }),
+            ]);
+          }
+          if (query === "SomePlayer") {
+            return Promise.resolve([
+              aGuildMemberWith({
+                user: { ...aGuildMemberWith().user, id: "discord-3", username: "someplayer", global_name: null },
+              }),
+            ]);
+          }
+          return Promise.resolve([]);
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        expect(searchGuildMembersSpy).toHaveBeenCalledWith("fake-guild-id", "Some Player");
+        expect(searchGuildMembersSpy).toHaveBeenCalledWith("fake-guild-id", "SomePlayer");
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("Some Player");
+        expect(overviewEmbed.description).not.toContain("<@discord-2>");
+        expect(overviewEmbed.description).not.toContain("<@discord-3>");
+      });
+
+      it("does not assign one guild member to multiple final-game gamertags", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const ctfMatch = Preconditions.checkExists(getMatchStats(ctfMatchId));
+        const slayerMatch = Preconditions.checkExists(getMatchStats(slayerMatchId));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          ctfMatch,
+          { ...slayerMatch, Players: [...slayerMatch.Players].reverse() },
+        ]);
+        searchGuildMembersSpy.mockImplementation(async (_guildId, query) => {
+          const members = await Promise.resolve(
+            query === "gamertag02" || query === "gamertag05"
+              ? [
+                  aGuildMemberWith({
+                    nick: "gamertag05",
+                    user: {
+                      ...aGuildMemberWith().user,
+                      id: "discord-collision",
+                      username: "gamertag02",
+                      global_name: null,
+                    },
+                  }),
+                ]
+              : [],
+          );
+          return members;
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("gamertag02");
+        expect(overviewEmbed.description).toContain("gamertag05");
+        expect(overviewEmbed.description).not.toContain("<@discord-collision>");
+      });
+
+      it("logs guild search failures and keeps the player as an unlinked gamertag", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const searchError = new Error("Guild member search failed");
+        searchGuildMembersSpy.mockRejectedValue(searchError);
+        const warnSpy = vi.spyOn(services.logService, "warn");
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const [loggedError, logContext] = Preconditions.checkExists(warnSpy.mock.lastCall);
+        expect(loggedError).toBe(searchError);
+        expect(logContext?.get("reason")).toBe("Failed to search guild members for manual series gamertag");
+        expect(logContext?.get("guildId")).toBe("fake-guild-id");
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("gamertag02");
+        expect(overviewEmbed.description).not.toContain("<@discord-2>");
       });
 
       it("derives teams from the selected games and shows a series preview with an outcome select", async () => {
@@ -1929,7 +2090,6 @@ describe("StatsCommand", () => {
         });
         expect(getLastManualMetadata()).toMatchObject({
           selectedMatchIds: [ctfMatchId, slayerMatchId],
-          teams,
         });
         expect(payload.components?.[1]).toEqual({
           type: ComponentType.ActionRow,
@@ -2001,6 +2161,8 @@ describe("StatsCommand", () => {
 
         const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
         expect(payload.embeds?.[0]?.description).toContain("Derived result: Eagle wins");
+        expect(payload.embeds?.[1]?.description).toContain("**Eagle:** <@discord-1> <@discord-2>");
+        expect(payload.embeds?.[1]?.description).toContain("**Cobra:** <@discord-4> <@discord-8>");
       });
 
       it("derives the default outcome after a substitute joins the team that swapped sides", async () => {
@@ -2195,8 +2357,8 @@ describe("StatsCommand", () => {
         selectedPlayerId: "invoker-id",
         selectedMatchIds: [ctfMatchId, slayerMatchId],
         teams: [
-          { name: "Eagle", playerIds: ["discord-1"] },
-          { name: "Cobra", playerIds: ["discord-4"] },
+          { name: "Eagle", players: [{ xuid: "0100000000000000", gamertag: "gamertag01", discordId: "discord-1" }] },
+          { name: "Cobra", players: [{ xuid: "0400000000000000", gamertag: "gamertag04", discordId: "discord-4" }] },
         ],
         selectedSeriesOutcome: "TEAM_1",
       };
