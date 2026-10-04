@@ -3994,6 +3994,65 @@ describe("StatsCommand", () => {
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
+    it("does not infer a queue config from a timestamp-numbered manual overview channel", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "overview-channel-id",
+        sourceKind: "series-overview",
+        isManualSeries: true,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 20261003050709,
+          message: {
+            ...discordNeatQueueData.message,
+            channel_id: "overview-channel-id",
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                title: "Series stats for queue #20261003050709 (🦅 2:1 🐍)",
+                fields: [{ name: "Created manually by", value: "<@user-id>" }],
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({
+          ChannelId: "unrelated-queue-channel-id",
+          ResultsChannelId: "overview-channel-id",
+          PostSeriesChannelId: "unrelated-post-channel-id",
+          PostSeriesMode: NeatQueuePostSeriesDisplayMode.CHANNEL,
+        }),
+      ]);
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
+        id: "new-thread-id",
+      } as RESTPostAPIChannelThreadsResult);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      const [overviewChannelId] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+      expect(overviewChannelId).toBe("overview-channel-id");
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
     it("prefers the NeatQueue channel over a shared results channel", async () => {
       const interaction: APIMessageComponentButtonInteraction = {
         ...fakeButtonClickInteraction,

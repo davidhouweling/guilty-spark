@@ -3715,12 +3715,21 @@ export class StatsCommand extends BaseCommand {
       }
       amendedOverviewEmbed.fields.push(amendedField);
 
-      const neatQueueConfig = await this.tryResolveNeatQueueConfigForResultsChannel(
-        metadata.guildId,
-        metadata.channelId,
-        metadata.sourceKind ?? "neatqueue-result",
-        metadata.queueData.message,
-      );
+      const isManualSeries = metadata.isManualSeries ?? metadata.queueData.queue >= MANUAL_QUEUE_NUMBER_MIN;
+      const linkedQueueSource =
+        metadata.sourceKind === "series-overview"
+          ? this.getLinkedQueueSourceFromOverview(metadata.queueData.message, metadata.guildId)
+          : undefined;
+      const hasKnownManualQueueChannel = linkedQueueSource != null && linkedQueueSource.messageId == null;
+      const neatQueueConfig =
+        isManualSeries && metadata.queueData.queue >= MANUAL_QUEUE_NUMBER_MIN && !hasKnownManualQueueChannel
+          ? undefined
+          : await this.tryResolveNeatQueueConfigForResultsChannel(
+              metadata.guildId,
+              metadata.channelId,
+              metadata.sourceKind ?? "neatqueue-result",
+              metadata.queueData.message,
+            );
       const existingLocation =
         (await discordService.findExistingSeriesStatsThreadLocation(metadata.guildId, metadata.queueData.queue)) ??
         this.getNeatQueueResultThreadLocation(metadata.queueData.message);
@@ -3774,7 +3783,6 @@ export class StatsCommand extends BaseCommand {
       }
       await this.postSeriesEmbedsToThread(destinationThreadId, series, guildConfig, locale);
       await this.postGameStatsOrButton(destinationThreadId, series, guildConfig, locale);
-      const isManualSeries = metadata.isManualSeries ?? metadata.queueData.queue >= MANUAL_QUEUE_NUMBER_MIN;
       if (isManualSeries) {
         await discordService.cacheDiscordSeriesMatchIds(
           metadata.guildId,
