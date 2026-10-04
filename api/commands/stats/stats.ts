@@ -2229,10 +2229,17 @@ export class StatsCommand extends BaseCommand {
   }): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this.services;
     const seriesOverview = new SeriesOverviewEmbed({ discordService, haloService });
+    const isNeatQueueResult = queueData.message.author.id === NEAT_QUEUE_BOT_USER_ID;
+    const linkedSource = this.getLinkedQueueSourceFromOverview(queueData.message, guildId);
+    const sourceUrl =
+      linkedSource != null &&
+      (linkedSource.channelId !== queueData.message.channel_id || linkedSource.messageId !== queueData.message.id)
+        ? linkedSource.url
+        : undefined;
     const seriesEmbed = await seriesOverview.getEmbed({
       guildId,
       channelId,
-      messageId: queueData.message.id,
+      ...(isNeatQueueResult ? { messageId: queueData.message.id } : { sourceUrl }),
       pagesUrl: this.env.PAGES_URL,
       locale,
       queue: queueData.queue,
@@ -2689,11 +2696,15 @@ export class StatsCommand extends BaseCommand {
     metadata: ManualFlowMetadata,
     series: MatchStats[],
     locale: string,
+    queueChannelId?: string,
   ): Promise<SeriesOverviewEmbedOutput> {
     const { discordService, haloService } = this.services;
     return new SeriesOverviewEmbed({ discordService, haloService }).getEmbed({
       guildId: metadata.guildId,
       channelId: metadata.channelId,
+      ...(queueChannelId == null
+        ? {}
+        : { sourceUrl: `https://discord.com/channels/${metadata.guildId}/${queueChannelId}` }),
       pagesUrl: this.env.PAGES_URL,
       locale,
       queue: metadata.queueNumber,
@@ -2728,7 +2739,7 @@ export class StatsCommand extends BaseCommand {
         series.map((match) => match.MatchId),
       );
 
-      const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
+      const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale, queueConfig?.ChannelId);
       const overviewEmbed = Preconditions.checkExists(seriesEmbed.embeds[0]);
       overviewEmbed.fields ??= [];
       overviewEmbed.fields.push({
@@ -3931,14 +3942,19 @@ export class StatsCommand extends BaseCommand {
     sourceMessage: APIMessage,
   ): Promise<NeatQueueConfigRow> {
     const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
-    const linkedResults =
-      sourceKind === "series-overview" ? this.getLinkedResultsFromOverview(sourceMessage, guildId) : undefined;
+    const linkedSource =
+      sourceKind === "series-overview" ? this.getLinkedQueueSourceFromOverview(sourceMessage, guildId) : undefined;
     const isSelfLink =
-      linkedResults?.channelId === sourceMessage.channel_id && linkedResults.messageId === sourceMessage.id;
-    if (linkedResults != null && !isSelfLink) {
+      linkedSource?.channelId === sourceMessage.channel_id && linkedSource.messageId === sourceMessage.id;
+    if (linkedSource != null && !isSelfLink && linkedSource.messageId == null) {
+      const linkedQueueMatches = this.findNeatQueueConfigs(configuredQueues, linkedSource.channelId, "ChannelId");
+      if (linkedQueueMatches.length === 1) {
+        return Preconditions.checkExists(linkedQueueMatches[0]);
+      }
+    } else if (linkedSource != null && !isSelfLink) {
       const linkedResultsMatches = this.findNeatQueueConfigs(
         configuredQueues,
-        linkedResults.channelId,
+        linkedSource.channelId,
         "ResultsChannelId",
       );
       if (linkedResultsMatches.length === 1) {
@@ -3979,14 +3995,19 @@ export class StatsCommand extends BaseCommand {
     return configuredQueues.filter((queue) => queue[channelRole] === channelId);
   }
 
-  private getLinkedResultsFromOverview(
+  private getLinkedQueueSourceFromOverview(
     message: APIMessage,
     guildId: string,
-  ): { channelId: string; messageId: string } | undefined {
+  ): { channelId: string; messageId?: string | undefined; url: string } | undefined {
     for (const embed of message.embeds) {
-      const match = /^https:\/\/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)$/.exec(embed.url ?? "");
-      if (match?.[1] === guildId && match[2] != null && match[3] != null) {
-        return { channelId: match[2], messageId: match[3] };
+      const { url } = embed;
+      const match = /^https:\/\/discord\.com\/channels\/(\d+)\/(\d+)(?:\/(\d+))?$/.exec(url ?? "");
+      if (match?.[1] === guildId && match[2] != null) {
+        return {
+          channelId: match[2],
+          ...(match[3] == null ? {} : { messageId: match[3] }),
+          url: Preconditions.checkExists(url),
+        };
       }
     }
     return undefined;
