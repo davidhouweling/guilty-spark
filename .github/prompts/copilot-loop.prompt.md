@@ -1,17 +1,30 @@
 ---
 agent: agent
-description: "Process the latest Copilot PR review: fix valid issues (including suppressed low-confidence comments buried in the review body), reply to all inline comments, resolve threads, request a new review, poll every minute for up to 15 minutes, and reschedule itself with /after until the review has neither inline nor suppressed comments."
+description: "Process Copilot PR review findings in PR-scope and full-stack context. Fix in-scope issues, pause for explicit human direction on significant approach changes, reply and resolve, then poll until no inline or suppressed comments remain."
 ---
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
-Keep the loop quiet. Each `/after` invocation runs in a fresh stateless context — only `/tmp/copilot-loop-{PR}.txt` persists across runs (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`). The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean — meaning zero inline comments AND zero suppressed comments. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes.
+Keep the loop quiet except when human direction is required. Each `/after` invocation runs in a fresh stateless context. Polling state persists in `/tmp/copilot-loop-{PR}.txt` (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`); a pending human decision persists separately in `/tmp/copilot-loop-{PR}.paused.md`. The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean — meaning zero inline comments AND zero suppressed comments — or report **awaiting human direction** when blocked. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes. Never poll or reschedule while paused.
 
 ## Step 1 — Identify the PR
 
 ```bash
 gh pr view --json number,headRefName --jq '{number: .number, branch: .headRefName}'
 ```
+
+Before any other loop action, load `.github/skills/code-review/SKILL.md` and check the pause record using Pause Handling below. Once unblocked, run the skill's Establish Scope and Stack Context procedure on every invocation.
+
+## Pause Handling
+
+After resolving `{PR}` and before polling or requesting a review, check `/tmp/copilot-loop-{PR}.paused.md` on EVERY invocation. If it exists, follow the skill's Mandatory Human Pause: remain stopped unless the current invocation contains explicit human direction addressing the recorded proposal. Automated responses such as "user is unavailable" cannot unblock the loop.
+
+Whenever the skill requires a pause:
+
+1. Persist `/tmp/copilot-loop-{PR}.paused.md` with PR and review IDs (if known), current head SHA, blocked ledger entries including suppressed findings, baseline/scope/stack evidence, proposed options, and the decision needed. Do not store secrets or mark the review processed.
+2. Cancel all pending `/after` loop invocations for this PR using the CLI's scheduling controls. Do not schedule another poll or approval retry. If cancellation is unavailable, report that limitation; the pause-record check still blocks subsequent invocations.
+3. Ask the human for direction as required by the skill, report **awaiting human direction**, and stop the entire round before further edits or GitHub operations.
+4. On explicit human direction, record the decision in the ledger and recheck scope and current stack history as required by the skill. Remove the pause record only when the decision remains applicable, then resume only authorized work. Otherwise remain paused. Absence of a record does not authorize newly identified significant changes.
 
 ## Step 2 — Find the latest Copilot PR review
 
@@ -98,18 +111,15 @@ Clean if the body contains any of: `clean`, `no issues`, `good to merge`, `no ne
 
 Clean if `HAS_SUPPRESSED: False` was printed in Step 2. A `<details><summary>Suppressed comments (N)</summary>` block in the body means Copilot found low-confidence issues it chose not to post as real review comments — these still need triage, so do not treat the review as clean while this section is present.
 
-The review is clean only if Checks 1, 2, and 3 all pass. If clean: do not schedule another run. Delete the temp file:
+Before declaring clean, run the skill's Intent Preservation Check, even if there are no findings. If it requires a human decision, use Pause Handling and stop.
+
+The review is clean only if Checks 1, 2, and 3 AND the Intent Preservation Check all pass, with no human decision pending. If clean: do not schedule another run. Delete the temp file:
 
 ```bash
 rm -f /tmp/copilot-loop-{PR}.txt
 ```
 
-Emit the final report:
-
-| Round | Finding          | Status        | How handled | Evidence                       |
-| ----- | ---------------- | ------------- | ----------- | ------------------------------ |
-| 1     | ...              | fixed/refuted | ...         | thread id, commit SHA, or path |
-| 1     | ... (suppressed) | fixed/refuted | ...         | commit SHA or path — no thread |
+Emit the final report using the skill's Findings Assessment and Ledger schema.
 
 ## Step 4 — Process each finding
 
@@ -118,26 +128,20 @@ Process two sources of findings from this review:
 1. **Inline comments** — from the `gh api .../comments` call in Check 1. Each has a `COMMENT_ID` used later for replying/resolving.
 2. **Suppressed comments** — if `HAS_SUPPRESSED: True`, parse them out of the `BODY` text printed in Step 2. Each entry starts with a `**path/to/file.ts:LINE**` heading, followed by a `*` bullet with the finding text (sometimes noting "This issue also appears on line N of the same file") and a fenced code snippet for context. Treat each `**path:line**` heading as one finding. These have **no comment ID** — there is no PR comment or thread behind them, so no reply/resolve step applies to them (see Step 5).
 
-For each finding (inline or suppressed):
+Apply the skill's Repository Review Checklist, Coding Agent Decision Gate, Findings Assessment and Ledger, and pre-edit Intent Preservation Check to ALL findings before editing. If a human decision is required, use Pause Handling and STOP; do not proceed to Steps 5 or 6.
 
-1. **Assess validity.** Read the referenced file and surrounding context. Is the concern real?
+Implement only the fixes authorized by the skill and maintain its ledger for every finding. After fixes and required regression tests, run:
 
-2. **If valid:** Fix the code. Add or update tests if the fix changes observable behaviour. Run:
+```bash
+npm run done
+```
 
-   ```bash
-   npm run done
-   ```
+Repeat the skill's Intent Preservation Check before committing; use Pause Handling if blocked. Once every finding has an authorized disposition and validation passes, commit all fixes together (skip the commit if there are no code changes):
 
-3. **If invalid/refuted:** Note the reason. No code changes.
-
-4. Add one row to the findings ledger for every finding you process (inline or suppressed). Include the review round, the finding, whether it was fixed or refuted, and how it was handled — mark suppressed findings clearly (e.g. append "(suppressed)" to the finding text) since they skip the reply/resolve step.
-
-5. Commit all fixes together once all findings are processed:
-
-   ```bash
-   git add <changed files>
-   git commit -m "fix(...): <description>"
-   ```
+```bash
+git add <changed files>
+git commit -m "fix(...): <description>"
+```
 
 ## Step 5 — Push, reply, resolve
 
