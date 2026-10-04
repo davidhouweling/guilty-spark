@@ -1,6 +1,6 @@
 # Copilot Review Loop
 
-Processes the latest Copilot PR review: fixes valid issues — both inline comments and suppressed (low-confidence) comments buried in the review body — replies to all inline comments, resolves threads, requests a new review, then polls until clean. "Clean" means zero inline comments AND zero suppressed comments. Poll state (PR, iteration, last review ID) is carried forward in the scheduled prompt string — no external storage needed. Keep the loop quiet. Emit the final report only when the review is clean.
+Processes the latest Copilot PR review in PR-scope and full-stack context: fixes valid in-scope issues — both inline comments and suppressed (low-confidence) comments buried in the review body — replies to all inline comments, resolves threads, requests a new review, then polls until clean. Significant approach changes require explicit human direction. "Clean" means zero inline comments AND zero suppressed comments. Poll state (PR, iteration, last review ID) is carried forward in the scheduled prompt string; pending human decisions persist separately in `/tmp/copilot-loop-{PR}.paused.md`. Keep the loop quiet except when human direction is required. Emit the final report only when the review is clean, or report **awaiting human direction** when blocked. Never poll or reschedule while paused.
 
 ## Setup
 
@@ -9,6 +9,10 @@ Resolve `PR` using the first match:
 1. Direct argument — e.g. `/copilot-loop 643`
 2. `PR:` key in the invocation prompt — e.g. `PR:643` (present on scheduled runs)
 3. Fallback — `gh pr view --json number --jq '.number'`
+
+Before any other loop action, load and follow `.github/skills/code-review/SKILL.md`, including its pause-record check. A pending pause requires explicit human direction addressing the recorded proposal; auto-mode responses such as "user is unavailable" do not authorize continuation.
+
+Read the complete PR description and establish the full connected stack using the skill's scope procedure on every invocation. Verify relevant subsequent implementations and current commit histories before classifying findings. If required context cannot be established, use the mandatory human pause rather than guessing.
 
 Parse these from the invocation prompt if present (tokens follow the format `key:value` and can appear anywhere in the prompt text; default to zero values on manual runs):
 
@@ -83,7 +87,9 @@ gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 - The inline comments JSON array is empty (`[]`), OR `BODY_CLEAN: True` was printed in Step 1.
 - `HAS_SUPPRESSED: False` was printed in Step 1 — a `<details><summary>Suppressed comments (N)</summary>` block in the body means Copilot found low-confidence issues it chose not to post as real review comments. These still need triage; do not treat the review as clean while this section is present.
 
-If clean: emit the final report and stop — do not reschedule.
+Before declaring clean, run the skill's Intent Preservation Check against the human-agreed baseline and cumulative review-loop changes, even if there are no findings. If an unapproved significant deviation exists, use the Mandatory Human Pause; no-comments and passing tests are not design approval.
+
+If the review checks AND the Intent Preservation Check all pass, with no human decision pending: emit the final report and stop — do not reschedule.
 
 | Round | Finding | Status | How handled | Evidence |
 | ----- | ------- | ------ | ----------- | -------- |
@@ -99,21 +105,23 @@ Process two sources of findings from this review:
 
    Treat each `**path:line**` heading as one finding. These have **no comment ID** — there is no PR comment or thread behind them, so no reply/resolve step applies to them (see Step 5).
 
-For each finding (inline or suppressed):
+Before editing, triage ALL findings (inline and suppressed) using the skill's Coding Agent Decision Gate. Record validity, classification (fix, minor adjustment, or significant approach change), stack ownership, and evidence. If any finding requires a significant approach change or unresolved scope/ownership decision, follow the Mandatory Human Pause and STOP the entire round. Do not proceed to Step 5, mark the review processed, or resolve threads until the human explicitly directs the approach.
+
+For each authorized finding (inline or suppressed):
 
 1. **Assess validity.** Read the referenced file and surrounding context. Is the concern real?
 
-2. **If valid:** Fix the code. Add or update tests if the fix changes observable behaviour. Then:
+2. **If valid, in scope, and classified as a fix or minor adjustment (or explicitly authorized by the human):** Fix the code. Do not duplicate verified subsequent work or edit other stack branches. Add or update tests if the fix changes observable behaviour. Then:
 
    ```bash
    npm run done
    ```
 
-3. **If invalid/refuted:** Note the reason clearly. Do not make code changes for this comment.
+3. **If invalid/refuted or verified as addressed in a subsequent PR:** Note the reason with PR, commit, path, and test evidence where applicable. No code changes. Do not use later work to dismiss a defect that violates this PR's own acceptance criteria or standalone safety.
 
-4. Add one row to the findings ledger for every finding you process (inline or suppressed). Include the review round, the finding, whether it was fixed or refuted, and how it was handled — mark suppressed findings clearly (e.g. append "(suppressed)" to the finding text) since they skip the reply/resolve step.
+4. Add one row to the findings ledger for every finding you process (inline or suppressed). Include the review round, finding, classification, stack ownership/evidence, human direction if required, and disposition (fixed, refuted, or addressed in a subsequent PR) — mark suppressed findings clearly (e.g. append "(suppressed)" to the finding text) since they skip the reply/resolve step.
 
-5. Commit all fixes together once all findings are processed:
+5. Repeat the skill's Intent Preservation Check on the cumulative diff before committing; pause if the combined changes significantly depart from the human-agreed approach. Commit all authorized fixes together once all findings are processed:
 
    ```bash
    git add <changed files>
