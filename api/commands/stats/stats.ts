@@ -3692,6 +3692,13 @@ export class StatsCommand extends BaseCommand {
       const createdManuallyByField = metadata.queueData.message.embeds
         .flatMap((embed) => embed.fields ?? [])
         .find((field) => field.name === "Created manually by");
+      if (metadata.isManualSeries === true) {
+        amendedOverviewEmbed.fields.push({
+          name: "Final series result",
+          value: this.getFixSeriesOutcomeLabel(metadata.selectedSeriesOutcome, metadata.queueData.teams),
+          inline: false,
+        });
+      }
       if (metadata.isManualSeries === true && createdManuallyByField != null) {
         amendedOverviewEmbed.fields.push(createdManuallyByField);
       }
@@ -3924,35 +3931,44 @@ export class StatsCommand extends BaseCommand {
     sourceMessage: APIMessage,
   ): Promise<NeatQueueConfigRow> {
     const configuredQueues = await this.services.databaseService.findNeatQueueConfig({ GuildId: guildId });
-    const linkedResultsChannelId =
-      sourceKind === "series-overview" ? this.getLinkedResultsChannelIdFromOverview(sourceMessage, guildId) : undefined;
-    if (linkedResultsChannelId != null) {
+    const linkedResults =
+      sourceKind === "series-overview" ? this.getLinkedResultsFromOverview(sourceMessage, guildId) : undefined;
+    const isSelfLink =
+      linkedResults?.channelId === sourceMessage.channel_id && linkedResults.messageId === sourceMessage.id;
+    if (linkedResults != null && !isSelfLink) {
       const linkedResultsMatches = this.findNeatQueueConfigs(
         configuredQueues,
-        linkedResultsChannelId,
+        linkedResults.channelId,
         "ResultsChannelId",
       );
       if (linkedResultsMatches.length === 1) {
-        const linkedResultsConfig = Preconditions.checkExists(linkedResultsMatches[0]);
-        return linkedResultsConfig;
+        return Preconditions.checkExists(linkedResultsMatches[0]);
       }
     }
 
+    return this.resolveNeatQueueConfigForChannelRole(configuredQueues, resultsChannelId, sourceKind);
+  }
+
+  private resolveNeatQueueConfigForChannelRole(
+    configuredQueues: NeatQueueConfigRow[],
+    channelId: string,
+    sourceKind: FixSeriesSourceKind,
+  ): NeatQueueConfigRow {
     const channelRoles: ("PostSeriesChannelId" | "ResultsChannelId" | "ChannelId")[] =
       sourceKind === "series-overview"
         ? ["PostSeriesChannelId", "ResultsChannelId", "ChannelId"]
         : ["ChannelId", "ResultsChannelId", "PostSeriesChannelId"];
     for (const channelRole of channelRoles) {
-      const matches = this.findNeatQueueConfigs(configuredQueues, resultsChannelId, channelRole);
+      const matches = this.findNeatQueueConfigs(configuredQueues, channelId, channelRole);
       if (matches.length === 1) {
         return Preconditions.checkExists(matches[0]);
       }
       if (matches.length > 1) {
-        throw new Error(`Expected exactly one NeatQueue config for ${channelRole} ${resultsChannelId}`);
+        throw new Error(`Expected exactly one NeatQueue config for ${channelRole} ${channelId}`);
       }
     }
 
-    throw new Error(`Could not find a NeatQueue config for channel ${resultsChannelId}`);
+    throw new Error(`Could not find a NeatQueue config for channel ${channelId}`);
   }
 
   private findNeatQueueConfigs(
@@ -3963,11 +3979,14 @@ export class StatsCommand extends BaseCommand {
     return configuredQueues.filter((queue) => queue[channelRole] === channelId);
   }
 
-  private getLinkedResultsChannelIdFromOverview(message: APIMessage, guildId: string): string | undefined {
+  private getLinkedResultsFromOverview(
+    message: APIMessage,
+    guildId: string,
+  ): { channelId: string; messageId: string } | undefined {
     for (const embed of message.embeds) {
       const match = /^https:\/\/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)$/.exec(embed.url ?? "");
-      if (match?.[1] === guildId && match[2] != null) {
-        return match[2];
+      if (match?.[1] === guildId && match[2] != null && match[3] != null) {
+        return { channelId: match[2], messageId: match[3] };
       }
     }
     return undefined;

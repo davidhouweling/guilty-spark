@@ -3824,7 +3824,7 @@ describe("StatsCommand", () => {
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
-        selectedSeriesOutcome: "TEAM_0",
+        selectedSeriesOutcome: "TIE",
       });
       vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
         Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
@@ -3855,10 +3855,74 @@ describe("StatsCommand", () => {
       await jobToComplete?.();
 
       expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ channelId: "queue-b", queueNumber: 42, winnerTeamIndex: 0 }),
+        expect.objectContaining({ channelId: "queue-b", queueNumber: 42, winnerTeamIndex: -1 }),
       );
       const amendedOverview = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1].embeds?.[0]);
+      expect(amendedOverview.fields).toContainEqual(
+        expect.objectContaining({ name: "Final series result", value: "Tie" }),
+      );
       expect(amendedOverview.fields).toContainEqual(expect.objectContaining({ name: "Created manually by" }));
+    });
+
+    it("ignores an overview self-link when resolving its queue config", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "post-channel-id",
+        sourceKind: "series-overview",
+        isManualSeries: false,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 42,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "overview-message-id",
+            channel_id: "post-channel-id",
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                url: "https://discord.com/channels/fake-guild-id/post-channel-id/overview-message-id",
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-a", ResultsChannelId: "post-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-b", PostSeriesChannelId: "post-channel-id" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "queue-b", queueNumber: 42 }),
+      );
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
     it("prefers the NeatQueue channel over a shared results channel", async () => {
