@@ -2617,6 +2617,8 @@ export class StatsCommand extends BaseCommand {
 
     const xuidToDiscordId = new Map(associations.map((association) => [association.XboxId, association.DiscordId]));
     const assignedDiscordIds = new Set(xuidToDiscordId.values());
+    const fallbackCandidates = new Map<string, string>();
+    const candidateXuidsByDiscordId = new Map<string, Set<string>>();
     for (const xuid of xuids) {
       const gamertag = xuidToGamertag.get(xuid);
       if (xuidToDiscordId.has(xuid) || gamertag == null) {
@@ -2624,10 +2626,23 @@ export class StatsCommand extends BaseCommand {
       }
 
       const discordId = await this.findGuildMemberIdForGamertag(guildId, gamertag);
-      if (discordId != null && !assignedDiscordIds.has(discordId)) {
-        xuidToDiscordId.set(xuid, discordId);
-        assignedDiscordIds.add(discordId);
+      if (discordId == null) {
+        continue;
       }
+
+      fallbackCandidates.set(xuid, discordId);
+      const candidateXuids = candidateXuidsByDiscordId.get(discordId) ?? new Set<string>();
+      candidateXuids.add(xuid);
+      candidateXuidsByDiscordId.set(discordId, candidateXuids);
+    }
+
+    for (const [xuid, discordId] of fallbackCandidates) {
+      if (candidateXuidsByDiscordId.get(discordId)?.size !== 1 || assignedDiscordIds.has(discordId)) {
+        continue;
+      }
+
+      xuidToDiscordId.set(xuid, discordId);
+      assignedDiscordIds.add(discordId);
     }
 
     return deriveManualSeriesTeams(finalMatch, xuidToGamertag, xuidToDiscordId);

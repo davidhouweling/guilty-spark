@@ -1990,6 +1990,48 @@ describe("StatsCommand", () => {
         expect(overviewEmbed.description).not.toContain("<@discord-3>");
       });
 
+      it("does not assign one guild member to multiple final-game gamertags", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
+        const ctfMatch = Preconditions.checkExists(getMatchStats(ctfMatchId));
+        const slayerMatch = Preconditions.checkExists(getMatchStats(slayerMatchId));
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          ctfMatch,
+          { ...slayerMatch, Players: [...slayerMatch.Players].reverse() },
+        ]);
+        searchGuildMembersSpy.mockImplementation(async (_guildId, query) => {
+          const members = await Promise.resolve(
+            query === "gamertag02" || query === "gamertag05"
+              ? [
+                  aGuildMemberWith({
+                    nick: "gamertag05",
+                    user: {
+                      ...aGuildMemberWith().user,
+                      id: "discord-collision",
+                      username: "gamertag02",
+                      global_name: null,
+                    },
+                  }),
+                ]
+              : [],
+          );
+          return members;
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_games_select", [
+            ctfMatchId,
+            slayerMatchId,
+          ]),
+        );
+        await jobToComplete?.();
+
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        const overviewEmbed = Preconditions.checkExists(payload.embeds?.[1]);
+        expect(overviewEmbed.description).toContain("gamertag02");
+        expect(overviewEmbed.description).toContain("gamertag05");
+        expect(overviewEmbed.description).not.toContain("<@discord-collision>");
+      });
+
       it("logs guild search failures and keeps the player as an unlinked gamertag", async () => {
         vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(baseMetadata);
         const searchError = new Error("Guild member search failed");
