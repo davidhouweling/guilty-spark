@@ -2706,7 +2706,7 @@ export class StatsCommand extends BaseCommand {
 
       const teams = await this.resolveManualSeriesTeams(metadata.guildId, series);
       const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
-  await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
+      await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
         metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
         series,
         derivedSeriesOutcome,
