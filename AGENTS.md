@@ -2,6 +2,8 @@
 
 Guidance for all AI agents working in this repository. Read this file in full before writing any code.
 
+For code review and review-finding triage, also load `.github/skills/code-review/SKILL.md` for the review checklist, decision gates, and evidence requirements.
+
 ## Repository Overview
 
 Guilty Spark is a Discord bot + web platform for Halo Infinite NeatQueue league tracking. TypeScript monorepo with three npm workspaces:
@@ -85,7 +87,7 @@ export const settingsContract = defineContract(z.object({ settings: streamerView
 - Disposable runtime collaborators (stores, presenters, controllers, subscriptions) must be mount-scoped inside the returned component (for example via `useMemo`/`useEffect` in that component), never factory-scoped singletons.
 - Consumers should instantiate factory-returned components once per mount boundary (typically with `useMemo(() => createX(config), [configDeps])`) and render the returned component.
 - Tests must avoid shared factory-created state across test cases. Instantiate returned components per test (or in `beforeEach`) instead of sharing one component instance at `describe` scope.
-- For migrations and reviews, treat these as required checks: factory API shape, remount safety, and focused regression coverage for lifecycle-sensitive paths.
+- For migrations, validate factory API shape, remount safety, and focused regression coverage for lifecycle-sensitive paths.
 
 **Presenter/Store Pattern** (all stateful components):
 
@@ -269,9 +271,8 @@ Prefer typed fake instances plus `vi.spyOn` over ad hoc test doubles. Avoid `as 
 - Pages component tests: `@testing-library/react` — `render`/`screen`/`userEvent`; mock icons/providers
 - Proxy client tests: `vi.spyOn(globalThis, "fetch")`
 
-**Post-review hardening expectations**:
+**Implementation hardening expectations**:
 
-- If a code review uncovers a regression risk, add a focused regression test in the same PR before merge.
 - For list/detail mapping, prefer stable identifiers over positional assumptions (for example, team IDs over array order).
 - For memoized components (`React.memo`), comparators must include all render-affecting props.
 - Normalize display-boundary values in presenter/create layers (for example, treat empty subtitle values as absent) instead of encoding that logic in view rendering.

@@ -31,9 +31,19 @@ If the description or relevant stack context is missing, inaccessible, ambiguous
 - When proposing a significant approach change, label it as requiring a human decision, describe the tradeoff and affected stack members, and do not present it as an automatically applicable fix. Apply this to suppressed findings as well as inline comments.
 - Stay read-only: do not implement changes, resolve threads, or authorize a different design on behalf of the initiator.
 
+## Repository Review Checklist
+
+Read `AGENTS.md` in full and apply its architecture, implementation, testing, and security rules to the touched behavior. It remains the source of truth for those rules; this checklist identifies review priorities rather than duplicating them.
+
+- For create-entry changes and migrations, verify factory API shape, remount safety, and focused regression coverage for lifecycle-sensitive paths against Create Entry Point Guardrails.
+- For stateful Pages features, verify Store/Presenter/Component responsibilities, display-ready presenter output, specific view props, and shared type ownership against the Pages architecture guidance.
+- For list/detail mapping, memoization, and display values, check the Implementation hardening expectations: stable identifiers, all render-affecting comparator props, and presenter/create-layer normalization.
+- For API and shared changes, check injected dependencies, shared contracts and package entrypoints, error propagation, and security boundaries against the corresponding repository guidance.
+- Assess regression coverage using the Testing conventions and layer-specific patterns. If a code review uncovers a regression risk, the coding agent must add a focused regression test in the same PR before merge. A read-only reviewer identifies missing coverage without modifying tests.
+
 ## Coding Agent Decision Gate
 
-Before making any fixes, independently triage ALL inline and suppressed findings for the round. Do not treat reviewer suggestions, severity, or the loop invocation as design approval. Record validity, stack ownership, evidence, and one classification for each finding:
+Before making any fixes, independently triage ALL inline and suppressed findings for the round. Read each referenced file and surrounding behavior to establish validity. Do not treat reviewer suggestions, severity, or the loop invocation as design approval. Record validity, stack ownership, evidence, and one classification for each finding:
 
 - **Fix**: restores behavior already required by the PR description or agreed contracts without changing the intended approach.
 - **Minor adjustment**: a localized improvement preserving scope, architecture, public behavior, and stack responsibilities.
@@ -42,6 +52,22 @@ Before making any fixes, independently triage ALL inline and suppressed findings
 Preserving the visible outcome is not enough to make a change minor. Introducing a new identity model, durable storage dependency, coordination mechanism, recovery protocol, or cross-layer data model can change the approach even when described as reliability hardening. A valid bug does not automatically authorize the reviewer's proposed mechanism: compare a scope-preserving correction with the proposed redesign and ask the human when the latter is needed. These are impact indicators, not a blanket ban on such fixes.
 
 Only valid, in-scope fixes and minor adjustments may proceed automatically. Refute invalid findings with evidence. Record verified later work as addressed in the named subsequent PR rather than changing this PR; if ownership requires moving work or the current PR still needs a fix, ask the human to decide. Re-establish scope and current stack history each round and after human direction before editing.
+
+For authorized fixes that change observable behavior, add or update focused tests using the repository's existing test patterns. Do not change code for refuted findings or concerns verified as addressed in subsequent work. The invoking workflow owns execution of quality gates, commits, and GitHub operations.
+
+## Findings Assessment and Ledger
+
+Maintain one ledger row for every finding, including refuted and suppressed findings. Use the same assessment and evidence standard for both sources; mark suppressed findings explicitly because they have no comment or thread ID.
+
+Record the round, finding, validity, classification, stack ownership, disposition, handling, human direction when required, and evidence. Dispositions are **fixed**, **refuted**, **addressed in subsequent PR**, or **awaiting human direction**. Link fixes to their commit and regression test; refutations to the behavior or contract disproving the concern; subsequent work to the verified PR, commit, path, and test. A later fix does not refute a current PR's own acceptance criteria or standalone safety requirements.
+
+Use this schema for the final report, with the baseline and cumulative intent assessment noted alongside it:
+
+| Round | Finding / Validity             | Classification                                       | Stack Owner | Disposition                                                             | Handling / Human Direction | Evidence                                 |
+| ----- | ------------------------------ | ---------------------------------------------------- | ----------- | ----------------------------------------------------------------------- | -------------------------- | ---------------------------------------- |
+| 1     | ... (suppressed if applicable) | fix / minor adjustment / significant approach change | PR ...      | fixed / refuted / addressed in subsequent PR / awaiting human direction | ...                        | PR, thread ID if any, commit, path, test |
+
+Keep pending findings pending: do not label them fixed or refuted to make a round appear complete. The invoking workflow owns ledger storage and reconstruction across runs; report any missing evidence instead of inventing it.
 
 ## Intent Preservation Check
 
@@ -55,10 +81,9 @@ Record the baseline evidence, cumulative deviations, and any explicit human auth
 
 If ANY finding or cumulative deviation requires a significant approach change or an unresolved scope/ownership decision, pause the entire round before further edits, commits, pushes, replies, thread resolution, review requests, or further polling. This pause overrides quiet-mode and clean-review reporting instructions.
 
-1. Persist a pause record at `/tmp/copilot-loop-{PR}.paused.md` containing PR and review IDs, current head SHA, findings (including suppressed ones), classification, scope/stack evidence, proposed options, and the decision needed. Do not store secrets. This record is separate from polling state and survives stateless invocations on the same machine.
-2. Cancel all pending loop schedules for this PR using the host's scheduling controls. Do not schedule an approval retry, spawn another agent to decide, or continue unrelated findings in this round. If cancellation is unavailable, report that limitation; every subsequent invocation must check the pause record before doing anything else.
-3. Explain the proposed deviation, why it matters, stack impact, and alternatives to the human initiator. Ask for explicit direction and stop with status **awaiting human direction**, not clean, fixed, or refuted.
-4. An automatic response such as "user is unavailable", auto-mode approval, timeout, silence, generic continuation, or a new scheduled invocation is NOT permission. Keep the pause record and remain stopped. Only an explicit human decision addressing the proposal permits resumption.
-5. On explicit human direction, record that decision in the findings ledger, recheck current scope and stack state, then remove the pause record and resume only the authorized work. If new changes invalidate the decision, pause again. Do not mark the review processed or resolve its threads while it remains blocked.
+1. Record the blocked findings, classification, scope/stack evidence, current revision, proposed options, and the decision needed in the ledger. Explain the deviation, why it matters, stack impact, and alternatives to the human initiator.
+2. Ask for explicit direction and stop with status **awaiting human direction**, not clean, fixed, or refuted. Do not delegate the decision or continue unrelated findings in this round. Use the invoking workflow's pause handling when running an automated loop; standalone triage stops in the current conversation.
+3. An automatic response such as "user is unavailable", auto-mode approval, timeout, silence, generic continuation, or a new scheduled invocation is NOT permission. Remain stopped. Only an explicit human decision addressing the proposal permits resumption.
+4. On explicit human direction, record that decision in the findings ledger, recheck current scope and stack state, then resume only the authorized work. If new changes invalidate the decision, pause again. Do not mark the review processed or resolve its threads while it remains blocked.
 
-At the start of EVERY loop invocation, after resolving the PR number and before polling or requesting a review, check for this pause record. Its presence blocks the loop unless the current invocation contains explicit human direction resolving the recorded decision. Absence of the record is not approval for newly identified significant changes.
+Loop entry points own pause persistence, schedule cancellation, and resume checks. Those mechanics must preserve this human-decision requirement across stateless runs. Read-only reviewers report significant approach changes as requiring a human decision without implementing changes or managing loop state.

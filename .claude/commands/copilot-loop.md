@@ -10,9 +10,8 @@ Resolve `PR` using the first match:
 2. `PR:` key in the invocation prompt — e.g. `PR:643` (present on scheduled runs)
 3. Fallback — `gh pr view --json number --jq '.number'`
 
-Before any other loop action, load and follow `.github/skills/code-review/SKILL.md`, including its pause-record check. A pending pause requires explicit human direction addressing the recorded proposal; auto-mode responses such as "user is unavailable" do not authorize continuation.
+Before any other loop action, load `.github/skills/code-review/SKILL.md` and check the pause record using Pause Handling below. Once unblocked, run the skill's Establish Scope and Stack Context procedure on every invocation.
 
-Read the complete PR description and establish the full connected stack using the skill's scope procedure on every invocation. Verify relevant subsequent implementations and current commit histories before classifying findings. If required context cannot be established, use the mandatory human pause rather than guessing.
 
 Parse these from the invocation prompt if present (tokens follow the format `key:value` and can appear anywhere in the prompt text; default to zero values on manual runs):
 
@@ -26,6 +25,17 @@ manage_schedule(action: 'list')
 // for each matching schedule:
 manage_schedule(action: 'stop', id: <matching id>)
 ```
+
+## Pause Handling
+
+After resolving `{PR}` and before polling or requesting a review, check `/tmp/copilot-loop-{PR}.paused.md` on EVERY invocation. If it exists, follow the skill's Mandatory Human Pause: remain stopped unless the current invocation contains explicit human direction addressing the recorded proposal. Automated responses such as "user is unavailable" cannot unblock the loop.
+
+Whenever the skill requires a pause:
+
+1. Persist `/tmp/copilot-loop-{PR}.paused.md` with PR and review IDs (if known), current head SHA, blocked ledger entries including suppressed findings, baseline/scope/stack evidence, proposed options, and the decision needed. Do not store secrets or mark the review processed.
+2. Cancel all pending loop schedules for this PR using the Setup `manage_schedule` list/stop procedure. Do not schedule another poll or approval retry. If cancellation is unavailable, report that limitation; the pause-record check still blocks subsequent invocations.
+3. Ask the human for direction as required by the skill, report **awaiting human direction**, and stop the entire round before further edits or GitHub operations.
+4. On explicit human direction, record the decision in the ledger and recheck scope and current stack history as required by the skill. Remove the pause record only when the decision remains applicable, then resume only authorized work. Otherwise remain paused. Absence of a record does not authorize newly identified significant changes.
 
 ## Step 1 — Find the latest Copilot PR review
 
@@ -87,14 +97,11 @@ gh api "repos/{owner}/{repo}/pulls/{PR}/reviews/{REVIEW_ID}/comments"
 - The inline comments JSON array is empty (`[]`), OR `BODY_CLEAN: True` was printed in Step 1.
 - `HAS_SUPPRESSED: False` was printed in Step 1 — a `<details><summary>Suppressed comments (N)</summary>` block in the body means Copilot found low-confidence issues it chose not to post as real review comments. These still need triage; do not treat the review as clean while this section is present.
 
-Before declaring clean, run the skill's Intent Preservation Check against the human-agreed baseline and cumulative review-loop changes, even if there are no findings. If an unapproved significant deviation exists, use the Mandatory Human Pause; no-comments and passing tests are not design approval.
+Before declaring clean, run the skill's Intent Preservation Check, even if there are no findings. If it requires a human decision, use Pause Handling and stop.
 
 If the review checks AND the Intent Preservation Check all pass, with no human decision pending: emit the final report and stop — do not reschedule.
 
-| Round | Finding | Status | How handled | Evidence |
-| ----- | ------- | ------ | ----------- | -------- |
-| 1 | ... | fixed/refuted | ... | thread id, commit SHA, or path |
-| 1 | ... (suppressed) | fixed/refuted | ... | commit SHA or path — no thread, suppressed comments have no comment ID |
+Use the skill's Findings Assessment and Ledger schema for the final report.
 
 ## Step 4 — Process each finding
 
@@ -105,28 +112,20 @@ Process two sources of findings from this review:
 
    Treat each `**path:line**` heading as one finding. These have **no comment ID** — there is no PR comment or thread behind them, so no reply/resolve step applies to them (see Step 5).
 
-Before editing, triage ALL findings (inline and suppressed) using the skill's Coding Agent Decision Gate. Record validity, classification (fix, minor adjustment, or significant approach change), stack ownership, and evidence. If any finding requires a significant approach change or unresolved scope/ownership decision, follow the Mandatory Human Pause and STOP the entire round. Do not proceed to Step 5, mark the review processed, or resolve threads until the human explicitly directs the approach.
+Apply the skill's Repository Review Checklist, Coding Agent Decision Gate, Findings Assessment and Ledger, and pre-edit Intent Preservation Check to ALL findings before editing. If a human decision is required, use Pause Handling and STOP; do not proceed to Step 5.
 
-For each authorized finding (inline or suppressed):
+Implement only the fixes authorized by the skill and maintain its ledger for every finding. After fixes and required regression tests, run:
 
-1. **Assess validity.** Read the referenced file and surrounding context. Is the concern real?
+```bash
+npm run done
+```
 
-2. **If valid, in scope, and classified as a fix or minor adjustment (or explicitly authorized by the human):** Fix the code. Do not duplicate verified subsequent work or edit other stack branches. Add or update tests if the fix changes observable behaviour. Then:
+Repeat the skill's Intent Preservation Check before committing; use Pause Handling if blocked. Once every finding has an authorized disposition and validation passes, commit all fixes together (skip the commit if there are no code changes):
 
-   ```bash
-   npm run done
-   ```
-
-3. **If invalid/refuted or verified as addressed in a subsequent PR:** Note the reason with PR, commit, path, and test evidence where applicable. No code changes. Do not use later work to dismiss a defect that violates this PR's own acceptance criteria or standalone safety.
-
-4. Add one row to the findings ledger for every finding you process (inline or suppressed). Include the review round, finding, classification, stack ownership/evidence, human direction if required, and disposition (fixed, refuted, or addressed in a subsequent PR) — mark suppressed findings clearly (e.g. append "(suppressed)" to the finding text) since they skip the reply/resolve step.
-
-5. Repeat the skill's Intent Preservation Check on the cumulative diff before committing; pause if the combined changes significantly depart from the human-agreed approach. Commit all authorized fixes together once all findings are processed:
-
-   ```bash
-   git add <changed files>
-   git commit -m "fix(...): <description>"
-   ```
+```bash
+git add <changed files>
+git commit -m "fix(...): <description>"
+```
 
 ## Step 5 — Push, reply, resolve, request
 
