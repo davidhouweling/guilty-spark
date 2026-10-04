@@ -1105,6 +1105,8 @@ describe("StatsCommand", () => {
         "statsFix:fix-flow-message-id",
         expect.objectContaining({
           channelId: "parent-id",
+          isManualSeries: false,
+          sourceKind: "neatqueue-result",
         }),
       );
       const storedMetadata = Preconditions.checkExists(setInteractionMetadataSpy.mock.calls[0]?.[1]) as {
@@ -1123,6 +1125,9 @@ describe("StatsCommand", () => {
       vi.spyOn(services.discordService, "findQueueNumberForThread").mockResolvedValue(777);
       const notFoundError = new EndUserError("No queue found within the last 100 messages of <#parent-id>.");
       vi.spyOn(services.discordService, "getTeamsFromQueueResult").mockRejectedValue(notFoundError);
+      const findSeriesOverviewMessageSpy = vi
+        .spyOn(services.discordService, "findSeriesOverviewMessage")
+        .mockResolvedValue(undefined);
 
       const threadInteraction: APIApplicationCommandInteraction = {
         ...applicationCommandInteractionStatsFix,
@@ -1132,7 +1137,157 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(threadInteraction);
       await jobToComplete?.();
 
+      expect(findSeriesOverviewMessageSpy).toHaveBeenCalledWith("fake-guild-id", 777);
       expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith("fake-token", notFoundError);
+    });
+
+    describe("when the series has no NeatQueue result", () => {
+      const manualQueueNumber = 20261003050709;
+      const overviewMessage: APIMessage = { ...apiMessage, id: "overview-message-id", channel_id: "post-channel-id" };
+      let setInteractionMetadataSpy: MockInstance<typeof services.discordService.setInteractionMetadata>;
+      let getTeamsFromSeriesOverviewSpy: MockInstance<typeof services.discordService.getTeamsFromSeriesOverview>;
+      let getTeamsFromQueueResultSpy: MockInstance<typeof services.discordService.getTeamsFromQueueResult>;
+
+      function mockFixSubcommandWith(queueNumber: number): void {
+        vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+          name: "fix",
+          mappedOptions: new Map([["queue_number", queueNumber]]),
+          options: [],
+        });
+      }
+
+      const queuePlayerInteraction: APIApplicationCommandInteraction = {
+        ...applicationCommandInteractionStatsFix,
+        member: {
+          ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member),
+          user: {
+            ...Preconditions.checkExists(applicationCommandInteractionStatsFix.member?.user),
+            id: "000000000000000001",
+          },
+        },
+      };
+
+      beforeEach(() => {
+        getTeamsFromSeriesOverviewSpy = vi
+          .spyOn(services.discordService, "getTeamsFromSeriesOverview")
+          .mockResolvedValue({ ...discordNeatQueueData, message: overviewMessage, queue: manualQueueNumber });
+        getTeamsFromQueueResultSpy = vi.spyOn(services.discordService, "getTeamsFromQueueResult");
+        vi.spyOn(services.discordService, "computeMemberPermissions").mockResolvedValue(0n);
+        vi.spyOn(services.databaseService, "getDiscordAssociations").mockResolvedValue([
+          aFakeDiscordAssociationsRow({ DiscordId: "000000000000000001", XboxId: "xuid-1" }),
+        ]);
+        vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([
+          { xuid: "xuid-1", gamertag: "player-one" },
+        ]);
+        updateDeferredReplySpy.mockResolvedValue({ ...apiMessage, id: "fix-flow-message-id" });
+        setInteractionMetadataSpy = vi.spyOn(services.discordService, "setInteractionMetadata").mockResolvedValue();
+      });
+
+      it("loads a manual series from its Guilty Spark overview", async () => {
+        mockFixSubcommandWith(manualQueueNumber);
+        const findSeriesOverviewMessageSpy = vi
+          .spyOn(services.discordService, "findSeriesOverviewMessage")
+          .mockResolvedValue(overviewMessage);
+
+        const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+        await jobToComplete?.();
+
+        expect(getTeamsFromQueueResultSpy).not.toHaveBeenCalled();
+        expect(findSeriesOverviewMessageSpy).toHaveBeenCalledWith("fake-guild-id", manualQueueNumber);
+        expect(getTeamsFromSeriesOverviewSpy).toHaveBeenCalledWith("fake-guild-id", overviewMessage, manualQueueNumber);
+        expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+          "statsFix:fix-flow-message-id",
+          expect.objectContaining({
+            channelId: "post-channel-id",
+            isManualSeries: true,
+            sourceKind: "series-overview",
+          }),
+        );
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      });
+
+      it("returns an error when a manual series overview cannot be found", async () => {
+        mockFixSubcommandWith(manualQueueNumber);
+        vi.spyOn(services.discordService, "findSeriesOverviewMessage").mockResolvedValue(undefined);
+
+        const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).toHaveBeenCalledWith(
+          "fake-token",
+          expect.objectContaining({
+            message: `Could not find series stats for queue #${manualQueueNumber.toString()}.`,
+          }),
+        );
+      });
+
+      it("falls back to the series overview when the NeatQueue result cannot be found", async () => {
+        mockFixSubcommandWith(42);
+        getTeamsFromQueueResultSpy.mockRejectedValue(new EndUserError("No queue found"));
+        vi.spyOn(services.discordService, "findSeriesOverviewMessage").mockResolvedValue(overviewMessage);
+
+        const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+        await jobToComplete?.();
+
+        expect(getTeamsFromSeriesOverviewSpy).toHaveBeenCalledWith("fake-guild-id", overviewMessage, 42);
+        expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+          "statsFix:fix-flow-message-id",
+          expect.objectContaining({ isManualSeries: false, sourceKind: "series-overview" }),
+        );
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      });
+
+      it("recognizes manually created series with a regular queue number", async () => {
+        mockFixSubcommandWith(42);
+        const manualOverviewMessage: APIMessage = {
+          ...overviewMessage,
+          embeds: [
+            {
+              type: EmbedType.Rich,
+              color: 0x3498db,
+              title: "Series stats for queue #42 (🦅 2:1 🐍)",
+              fields: [{ name: "Created manually by", value: "<@user-id>" }],
+            },
+          ],
+        };
+        getTeamsFromQueueResultSpy.mockRejectedValue(new EndUserError("No queue found"));
+        vi.spyOn(services.discordService, "findSeriesOverviewMessage").mockResolvedValue(manualOverviewMessage);
+
+        const { jobToComplete } = statsCommand.execute(queuePlayerInteraction);
+        await jobToComplete?.();
+
+        expect(setInteractionMetadataSpy).toHaveBeenCalledWith(
+          "statsFix:fix-flow-message-id",
+          expect.objectContaining({ isManualSeries: true, sourceKind: "series-overview" }),
+        );
+      });
+
+      it("loads the series from the overview a thread was started from", async () => {
+        vi.spyOn(services.discordService, "extractSubcommand").mockReturnValue({
+          name: "fix",
+          mappedOptions: new Map(),
+          options: [],
+        });
+        vi.spyOn(services.discordService, "findQueueNumberForThread").mockResolvedValue(undefined);
+        const starterOverview: APIMessage = {
+          ...overviewMessage,
+          author: { ...overviewMessage.author, id: env.DISCORD_APP_ID },
+          embeds: [
+            {
+              type: EmbedType.Rich,
+              color: 0x3498db,
+              title: `Series stats for queue #${manualQueueNumber.toString()} (🦅 2:1 🐍)`,
+            },
+          ],
+        };
+        vi.spyOn(services.discordService, "getMessage").mockResolvedValue(starterOverview);
+
+        const { jobToComplete } = statsCommand.execute({ ...queuePlayerInteraction, channel: threadChannel });
+        await jobToComplete?.();
+
+        expect(getTeamsFromSeriesOverviewSpy).toHaveBeenCalledWith("fake-guild-id", starterOverview, manualQueueNumber);
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+      });
     });
 
     it("returns an actionable error when the thread's queue number cannot be determined", async () => {
@@ -2099,6 +2254,7 @@ describe("StatsCommand", () => {
         const [overviewChannelId, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
         expect(overviewChannelId).toBe("command-channel-id");
         expect(overviewPayload.embeds?.[0]?.title).toContain("Series stats for queue #20261003050709");
+        expect(overviewPayload.embeds?.[0]?.url).toBeUndefined();
         expect(overviewPayload.embeds?.[0]?.fields).toContainEqual(
           expect.objectContaining({ name: "Final series result", value: "Cobra wins" }),
         );
@@ -2187,6 +2343,7 @@ describe("StatsCommand", () => {
 
         const [, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
         expect(overviewPayload.embeds?.[0]?.title).toContain("2:0");
+        expect(overviewPayload.embeds?.[0]?.url).toBe("https://discord.com/channels/fake-guild-id/queue-a");
         expect(overviewPayload.embeds?.[0]?.fields?.[2]?.value).toContain("40:15");
         const [, teamStatsPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[1]);
         const eagleField = teamStatsPayload.embeds?.[0]?.fields?.find((field) => field.name === "Eagle");
@@ -3533,7 +3690,370 @@ describe("StatsCommand", () => {
       });
     });
 
-    it("skips leaderboard reconciliation when several queues share the results channel", async () => {
+    it("skips leaderboard reconciliation for manual series without a queue number", async () => {
+      const cacheMatchIdsSpy = vi.spyOn(services.discordService, "cacheDiscordSeriesMatchIds").mockResolvedValue();
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "fake-channel-id",
+        isManualSeries: true,
+        sourceKind: "series-overview",
+        queueData: { ...discordNeatQueueData, queue: 20261003050709 },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ ChannelId: "fake-channel-id" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi.spyOn(services.leaderboardService, "persistReconciledSeriesData");
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
+      expect(cacheMatchIdsSpy).toHaveBeenCalledWith("fake-guild-id", 20261003050709, [
+        "d81554d7-ddfe-44da-a6cb-000000000ctf",
+      ]);
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("keeps a normal overview fallback classified as a NeatQueue series", async () => {
+      const cacheMatchIdsSpy = vi.spyOn(services.discordService, "cacheDiscordSeriesMatchIds").mockResolvedValue();
+      const cacheResolvedSeriesSpy = vi
+        .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
+        .mockResolvedValue();
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "123456789012345678",
+        channelId: "post-channel-id",
+        sourceKind: "series-overview",
+        isManualSeries: false,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 42,
+          message: {
+            ...discordNeatQueueData.message,
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            channel_id: "post-channel-id",
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                url: "https://discord.com/channels/123456789012345678/222222222222222222/333333333333333333",
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({
+          ChannelId: "queue-channel-id",
+          ResultsChannelId: "222222222222222222",
+          PostSeriesChannelId: "post-channel-id",
+        }),
+        aFakeNeatQueueConfigRow({ ChannelId: "other-queue-channel-id", ResultsChannelId: "222222222222222222" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      const amendedOverview = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1].embeds?.[0]);
+      expect(amendedOverview.url).toBe(
+        "https://discord.com/channels/123456789012345678/222222222222222222/333333333333333333",
+      );
+      expect(cacheMatchIdsSpy).not.toHaveBeenCalled();
+      const cachedRenderData = Preconditions.checkExists(cacheResolvedSeriesSpy.mock.calls[0]?.[0]).renderData;
+      expect(cachedRenderData.matches[0]).not.toHaveProperty("seriesMatch");
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "queue-channel-id", queueNumber: 42 }),
+      );
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("prefers the overview's post-channel config over a results-channel collision", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "post-channel-id",
+        sourceKind: "series-overview",
+        isManualSeries: true,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 42,
+          message: {
+            ...discordNeatQueueData.message,
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+                fields: [{ name: "Created manually by", value: "<@user-id>" }],
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TIE",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-a", ResultsChannelId: "post-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-b", PostSeriesChannelId: "post-channel-id" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "queue-b", queueNumber: 42, winnerTeamIndex: -1 }),
+      );
+      const amendedOverview = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1].embeds?.[0]);
+      expect(amendedOverview.fields).toContainEqual(
+        expect.objectContaining({ name: "Final series result", value: "Tie" }),
+      );
+      expect(amendedOverview.fields).toContainEqual(expect.objectContaining({ name: "Created manually by" }));
+    });
+
+    it("ignores an overview self-link when resolving its queue config", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "123456789012345678",
+        channelId: "111111111111111111",
+        sourceKind: "series-overview",
+        isManualSeries: false,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 42,
+          message: {
+            ...discordNeatQueueData.message,
+            id: "overview-message-id",
+            channel_id: "111111111111111111",
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                url: "https://discord.com/channels/123456789012345678/111111111111111111/overview-message-id",
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-a", ResultsChannelId: "111111111111111111" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-b", PostSeriesChannelId: "111111111111111111" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      const amendedOverview = Preconditions.checkExists(createMessageSpy.mock.calls[0]?.[1].embeds?.[0]);
+      expect(amendedOverview.url).toBeUndefined();
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "queue-b", queueNumber: 42 }),
+      );
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("resolves a manually selected queue from its overview channel link", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "123456789012345678",
+        channelId: "invoking-thread-id",
+        sourceKind: "series-overview",
+        isManualSeries: true,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 42,
+          message: {
+            ...discordNeatQueueData.message,
+            channel_id: "invoking-thread-id",
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                url: "https://discord.com/channels/123456789012345678/222222222222222222",
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+                fields: [{ name: "Created manually by", value: "<@user-id>" }],
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({ ChannelId: "222222222222222222", ResultsChannelId: "results-a" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-b", ResultsChannelId: "results-b" }),
+      ]);
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
+        threadId: "existing-thread-id",
+      });
+      vi.spyOn(services.discordService, "findBotMessagesInThread").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "findSeriesErrorMessagesInChannel").mockResolvedValue([]);
+      vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "222222222222222222", queueNumber: 42 }),
+      );
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not infer a queue config from a timestamp-numbered manual overview channel", async () => {
+      vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+        guildId: "fake-guild-id",
+        channelId: "overview-channel-id",
+        sourceKind: "series-overview",
+        isManualSeries: true,
+        queueData: {
+          ...discordNeatQueueData,
+          queue: 20261003050709,
+          message: {
+            ...discordNeatQueueData.message,
+            channel_id: "overview-channel-id",
+            author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                title: "Series stats for queue #20261003050709 (🦅 2:1 🐍)",
+                fields: [{ name: "Created manually by", value: "<@user-id>" }],
+              },
+            ],
+          },
+        },
+        selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
+        selectedSeriesOutcome: "TEAM_1",
+      });
+      vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
+      ]);
+      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+        aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+      );
+      vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+        aFakeNeatQueueConfigRow({
+          ChannelId: "unrelated-queue-channel-id",
+          ResultsChannelId: "overview-channel-id",
+          PostSeriesChannelId: "unrelated-post-channel-id",
+          PostSeriesMode: NeatQueuePostSeriesDisplayMode.CHANNEL,
+        }),
+      ]);
+      vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
+      const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
+      vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
+        id: "new-thread-id",
+      } as RESTPostAPIChannelThreadsResult);
+      vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+
+      const { jobToComplete } = statsCommand.execute({
+        ...fakeButtonClickInteraction,
+        data: { component_type: ComponentType.Button, custom_id: "btn_stats_fix_confirm" },
+        message: { ...fakeButtonClickInteraction.message, id: "fix-flow-message-id" },
+      });
+      await jobToComplete?.();
+
+      const [overviewChannelId] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+      expect(overviewChannelId).toBe("overview-channel-id");
+      expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("prefers the NeatQueue channel over a shared results channel", async () => {
       const interaction: APIMessageComponentButtonInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -3560,11 +4080,13 @@ describe("StatsCommand", () => {
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
-        aFakeNeatQueueConfigRow({ ChannelId: "queue-a", ResultsChannelId: "fake-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "fake-channel-id", ResultsChannelId: "other-results-channel-id" }),
         aFakeNeatQueueConfigRow({ ChannelId: "queue-b", ResultsChannelId: "fake-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-c", ResultsChannelId: "fake-channel-id" }),
       ]);
-      const persistReconciledSeriesDataSpy = vi.spyOn(services.leaderboardService, "persistReconciledSeriesData");
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
@@ -3575,10 +4097,9 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(interaction);
       await jobToComplete?.();
 
-      expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
-      expect(
-        logWarnSpy.mock.calls.some(([, extra]) => extra?.get("context") === "Stats fix queue config resolution failed"),
-      ).toBe(true);
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "fake-channel-id", queueNumber: 777 }),
+      );
     });
 
     it("reuses and cleans up the NeatQueue result thread when no series overview exists", async () => {

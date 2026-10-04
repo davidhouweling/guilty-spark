@@ -751,6 +751,23 @@ describe("NeatQueueService", () => {
         expect(jobToComplete).toBeInstanceOf(Function);
       });
 
+      it("persists team mentions in the series overview", async () => {
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+        await jobToComplete?.();
+
+        const overviewEmbed = discordServiceCreateMessageSpy.mock.calls
+          .flatMap(([, messageData]) => messageData.embeds ?? [])
+          .find((embed) => embed.title?.startsWith("Series stats for queue #") === true);
+        const description = Preconditions.checkExists(
+          overviewEmbed?.description,
+          "Expected a team description in the series overview",
+        );
+        expect(description).toContain("**Eagle:** <@discord_user_01>\n**Cobra:** <@discord_user_02>");
+      });
+
       it("handles no winning team event", async () => {
         const noWinningTeamData: NeatQueueMatchCompletedRequest = {
           ...getFakeNeatQueueData("matchCompleted"),

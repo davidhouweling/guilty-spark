@@ -6,6 +6,7 @@ import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { TeamMapping } from "@guilty-spark/shared/live-tracker/series-types";
 import { mapManualSeriesToStableTeams, resolveManualSeriesTeamMappings } from "../halo/manual-series-team-mapping";
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError } from "../../base/end-user-error";
@@ -45,6 +46,23 @@ export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: 
   }
 
   return null;
+}
+
+export function extractTeamsFromSeriesOverviewEmbed(embed: APIEmbed): TeamMapping[] {
+  const teams: TeamMapping[] = [];
+  for (const line of (embed.description ?? "").split("\n")) {
+    const match = /^\*\*(.+?):\*\*(.*)$/.exec(line);
+    if (match?.[1] == null) {
+      continue;
+    }
+
+    const playerIds = Array.from((match[2] ?? "").matchAll(/<@!?(\d+)>/g), (mention) =>
+      Preconditions.checkExists(mention[1]),
+    );
+    teams.push({ name: match[1], playerIds });
+  }
+
+  return teams;
 }
 
 export function extractQueueNumberFromSeriesOverviewEmbed(message: APIMessage): number | undefined {

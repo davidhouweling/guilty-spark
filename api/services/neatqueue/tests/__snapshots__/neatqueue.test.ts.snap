@@ -24,7 +24,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -713,7 +716,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -1062,7 +1068,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
           "fields": [
             {
               "inline": true,
@@ -1407,7 +1416,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -2096,7 +2108,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -2445,7 +2460,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
           "fields": [
             {
               "inline": true,
@@ -2790,7 +2808,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -3479,7 +3500,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
           "fields": [
             {
               "inline": true,
@@ -3764,7 +3788,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
     "embeds": [
       {
         "color": 3447003,
-        "description": "-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
+        "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732617393:f> | End time: <t:1732619016:f>",
         "fields": [
           {
             "inline": true,
@@ -3856,7 +3883,10 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
       "embeds": [
         {
           "color": 3447003,
-          "description": "-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
+          "description": "**Eagle:** <@discord_user_01>
+**Cobra:** <@discord_user_02>
+
+-# Start time: <t:1732614155:f> | End time: <t:1732618052:f>",
           "fields": [
             {
               "inline": true,

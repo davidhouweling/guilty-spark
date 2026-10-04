@@ -2464,10 +2464,13 @@ export class NeatQueueService {
   }
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
-    return request.teams.map((team) => ({
-      name: team[0]?.team_name ?? "",
-      playerIds: team.map((player) => player.id),
-    }));
+    return request.teams.map((team, teamIndex) => {
+      const teamName = team[0]?.team_name?.trim();
+      return {
+        name: teamName == null || teamName === "" ? getTeamName(teamIndex) : teamName,
+        playerIds: team.map((player) => player.id),
+      };
+    });
   }
 
   private getSubstitutionsFromTimeline(
@@ -2615,7 +2618,7 @@ export class NeatQueueService {
       series,
       finalTeams,
       substitutions,
-      hideTeamsDescription: true,
+      hideTeamsDescription: false,
     });
   }
 
