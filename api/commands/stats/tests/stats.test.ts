@@ -3738,7 +3738,7 @@ describe("StatsCommand", () => {
         .mockResolvedValue();
       vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
         guildId: "fake-guild-id",
-        channelId: "results-channel-id",
+        channelId: "post-channel-id",
         sourceKind: "series-overview",
         isManualSeries: false,
         queueData: {
@@ -3747,6 +3747,15 @@ describe("StatsCommand", () => {
           message: {
             ...discordNeatQueueData.message,
             author: { ...discordNeatQueueData.message.author, id: env.DISCORD_APP_ID },
+            channel_id: "post-channel-id",
+            embeds: [
+              {
+                type: EmbedType.Rich,
+                color: 0x3498db,
+                url: "https://discord.com/channels/fake-guild-id/shared-results-channel/source-message-id",
+                title: "Series stats for queue #42 (🦅 2:1 🐍)",
+              },
+            ],
           },
         },
         selectedMatchIds: ["d81554d7-ddfe-44da-a6cb-000000000ctf"],
@@ -3759,9 +3768,16 @@ describe("StatsCommand", () => {
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
-        aFakeNeatQueueConfigRow({ ChannelId: "queue-channel-id", ResultsChannelId: "results-channel-id" }),
+        aFakeNeatQueueConfigRow({
+          ChannelId: "queue-channel-id",
+          ResultsChannelId: "shared-results-channel",
+          PostSeriesChannelId: "post-channel-id",
+        }),
+        aFakeNeatQueueConfigRow({ ChannelId: "other-queue-channel-id", ResultsChannelId: "shared-results-channel" }),
       ]);
-      vi.spyOn(services.leaderboardService, "persistReconciledSeriesData").mockResolvedValue();
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue({
         threadId: "existing-thread-id",
       });
@@ -3780,6 +3796,9 @@ describe("StatsCommand", () => {
       expect(cacheMatchIdsSpy).not.toHaveBeenCalled();
       const cachedRenderData = Preconditions.checkExists(cacheResolvedSeriesSpy.mock.calls[0]?.[0]).renderData;
       expect(cachedRenderData.matches[0]).not.toHaveProperty("seriesMatch");
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "queue-channel-id", queueNumber: 42 }),
+      );
       expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
     });
 
@@ -3842,7 +3861,7 @@ describe("StatsCommand", () => {
       expect(amendedOverview.fields).toContainEqual(expect.objectContaining({ name: "Created manually by" }));
     });
 
-    it("skips leaderboard reconciliation when several queues share the results channel", async () => {
+    it("prefers the NeatQueue channel over a shared results channel", async () => {
       const interaction: APIMessageComponentButtonInteraction = {
         ...fakeButtonClickInteraction,
         data: {
@@ -3869,11 +3888,13 @@ describe("StatsCommand", () => {
         aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
       );
       vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
-        aFakeNeatQueueConfigRow({ ChannelId: "queue-a", ResultsChannelId: "fake-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "fake-channel-id", ResultsChannelId: "other-results-channel-id" }),
         aFakeNeatQueueConfigRow({ ChannelId: "queue-b", ResultsChannelId: "fake-channel-id" }),
+        aFakeNeatQueueConfigRow({ ChannelId: "queue-c", ResultsChannelId: "fake-channel-id" }),
       ]);
-      const persistReconciledSeriesDataSpy = vi.spyOn(services.leaderboardService, "persistReconciledSeriesData");
-      const logWarnSpy = vi.spyOn(services.logService, "warn");
+      const persistReconciledSeriesDataSpy = vi
+        .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+        .mockResolvedValue();
       vi.spyOn(services.discordService, "findExistingSeriesStatsThreadLocation").mockResolvedValue(undefined);
       vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       vi.spyOn(services.discordService, "startThreadFromMessage").mockResolvedValue({
@@ -3884,10 +3905,9 @@ describe("StatsCommand", () => {
       const { jobToComplete } = statsCommand.execute(interaction);
       await jobToComplete?.();
 
-      expect(persistReconciledSeriesDataSpy).not.toHaveBeenCalled();
-      expect(
-        logWarnSpy.mock.calls.some(([, extra]) => extra?.get("context") === "Stats fix queue config resolution failed"),
-      ).toBe(true);
+      expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "fake-channel-id", queueNumber: 777 }),
+      );
     });
 
     it("reuses and cleans up the NeatQueue result thread when no series overview exists", async () => {

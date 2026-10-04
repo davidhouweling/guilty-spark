@@ -3927,12 +3927,13 @@ export class StatsCommand extends BaseCommand {
     const linkedResultsChannelId =
       sourceKind === "series-overview" ? this.getLinkedResultsChannelIdFromOverview(sourceMessage, guildId) : undefined;
     if (linkedResultsChannelId != null) {
-      const linkedResultsConfig = this.findUniqueNeatQueueConfig(
+      const linkedResultsMatches = this.findNeatQueueConfigs(
         configuredQueues,
         linkedResultsChannelId,
         "ResultsChannelId",
       );
-      if (linkedResultsConfig != null) {
+      if (linkedResultsMatches.length === 1) {
+        const linkedResultsConfig = Preconditions.checkExists(linkedResultsMatches[0]);
         return linkedResultsConfig;
       }
     }
@@ -3940,27 +3941,26 @@ export class StatsCommand extends BaseCommand {
     const channelRoles: ("PostSeriesChannelId" | "ResultsChannelId" | "ChannelId")[] =
       sourceKind === "series-overview"
         ? ["PostSeriesChannelId", "ResultsChannelId", "ChannelId"]
-        : ["ResultsChannelId", "ChannelId", "PostSeriesChannelId"];
+        : ["ChannelId", "ResultsChannelId", "PostSeriesChannelId"];
     for (const channelRole of channelRoles) {
-      const queueConfig = this.findUniqueNeatQueueConfig(configuredQueues, resultsChannelId, channelRole);
-      if (queueConfig != null) {
-        return queueConfig;
+      const matches = this.findNeatQueueConfigs(configuredQueues, resultsChannelId, channelRole);
+      if (matches.length === 1) {
+        return Preconditions.checkExists(matches[0]);
+      }
+      if (matches.length > 1) {
+        throw new Error(`Expected exactly one NeatQueue config for ${channelRole} ${resultsChannelId}`);
       }
     }
 
     throw new Error(`Could not find a NeatQueue config for channel ${resultsChannelId}`);
   }
 
-  private findUniqueNeatQueueConfig(
+  private findNeatQueueConfigs(
     configuredQueues: NeatQueueConfigRow[],
     channelId: string,
     channelRole: "PostSeriesChannelId" | "ResultsChannelId" | "ChannelId",
-  ): NeatQueueConfigRow | undefined {
-    const matches = configuredQueues.filter((queue) => queue[channelRole] === channelId);
-    if (matches.length > 1) {
-      throw new Error(`Expected at most one NeatQueue config for ${channelRole} ${channelId}`);
-    }
-    return matches[0];
+  ): NeatQueueConfigRow[] {
+    return configuredQueues.filter((queue) => queue[channelRole] === channelId);
   }
 
   private getLinkedResultsChannelIdFromOverview(message: APIMessage, guildId: string): string | undefined {
