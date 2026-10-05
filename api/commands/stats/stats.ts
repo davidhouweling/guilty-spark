@@ -7,7 +7,6 @@ import type {
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
-  APISelectMenuOption,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
 import {
@@ -26,7 +25,6 @@ import {
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { computeSeriesTeamWins } from "@guilty-spark/shared/halo/series-score";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
@@ -1913,86 +1911,6 @@ export class StatsCommand extends StatsManualEntryCommand {
         },
       ],
     });
-  }
-
-  private deriveFixSeriesOutcome(series: MatchStats[]): FixSeriesOutcome {
-    const entries = series.map((match) => ({
-      startTime: match.MatchInfo.StartTime,
-      mapAssetId: match.MatchInfo.MapVariant.AssetId,
-      mapVersionId: match.MatchInfo.MapVariant.VersionId,
-      gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      teamOutcomes: match.Teams.map((team) => team.Outcome),
-    }));
-    const winsByTeam = computeSeriesTeamWins(entries);
-    const team0Wins = winsByTeam[0] ?? 0;
-    const team1Wins = winsByTeam[1] ?? 0;
-
-    if (team0Wins === team1Wins) {
-      return "TIE";
-    }
-
-    return team0Wins > team1Wins ? "TEAM_0" : "TEAM_1";
-  }
-
-  private parseFixSeriesOutcome(value: string): FixSeriesOutcome {
-    switch (value) {
-      case "TEAM_0":
-      case "TEAM_1":
-      case "TIE": {
-        return value;
-      }
-      default: {
-        throw new EndUserError("Invalid series outcome selection. Please run /stats fix again.");
-      }
-    }
-  }
-
-  private getFixSeriesOutcomeOptions(
-    teams: readonly { name: string }[],
-    selectedSeriesOutcome: FixSeriesOutcome | undefined,
-  ): APISelectMenuOption[] {
-    const firstTeamName = this.getFixSeriesOutcomeTeamName(teams, 0);
-    const secondTeamName = this.getFixSeriesOutcomeTeamName(teams, 1);
-
-    return [
-      {
-        label: `${firstTeamName} wins`.slice(0, 100),
-        value: "TEAM_0",
-        default: selectedSeriesOutcome === "TEAM_0",
-      },
-      {
-        label: `${secondTeamName} wins`.slice(0, 100),
-        value: "TEAM_1",
-        default: selectedSeriesOutcome === "TEAM_1",
-      },
-      {
-        label: "Tie",
-        value: "TIE",
-        default: selectedSeriesOutcome === "TIE",
-      },
-    ];
-  }
-
-  private getFixSeriesOutcomeLabel(seriesOutcome: FixSeriesOutcome, teams: readonly { name: string }[]): string {
-    switch (seriesOutcome) {
-      case "TEAM_0": {
-        return `${this.getFixSeriesOutcomeTeamName(teams, 0)} wins`;
-      }
-      case "TEAM_1": {
-        return `${this.getFixSeriesOutcomeTeamName(teams, 1)} wins`;
-      }
-      case "TIE": {
-        return "Tie";
-      }
-      default: {
-        throw new UnreachableError(seriesOutcome);
-      }
-    }
-  }
-
-  private getFixSeriesOutcomeTeamName(teams: readonly { name: string }[], teamIndex: 0 | 1): string {
-    const teamName = Preconditions.checkExists(teams[teamIndex], "Expected series team").name;
-    return teamName.replaceAll(/[*_~`|]/g, "");
   }
 
   private async handleFixConfirmationJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
