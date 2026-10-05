@@ -3,18 +3,21 @@ import { ChannelType, EmbedType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { EndUserError } from "../../base/end-user-error";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
-import { StatsMatchCommand } from "./stats-match-command";
+import { createMatchEmbed } from "./stats-match-command";
+import type { StatsHandlerContext } from "./stats-handler-context";
 
-export abstract class StatsGamesCommand extends StatsMatchCommand {
-  protected async retryJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const { discordService } = this.services;
+export class StatsGamesHandler {
+  constructor(private readonly context: StatsHandlerContext) {}
+
+  async retryJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { discordService } = this.context.services;
     try {
       const endUserError = this.findEndUserError(interaction.message.embeds);
       if (endUserError == null) {
         throw new Error("No end user error found in the message embeds");
       }
 
-      await this.services.neatQueueService.handleRetry({
+      await this.context.services.neatQueueService.handleRetry({
         errorEmbed: endUserError,
         guildId: Preconditions.checkExists(interaction.guild_id),
         interaction,
@@ -38,9 +41,9 @@ export abstract class StatsGamesCommand extends StatsMatchCommand {
     return undefined;
   }
 
-  protected async loadGamesJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
-    const { env } = this;
-    const { databaseService, discordService, haloService } = this.services;
+  async loadGamesJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
+    const { env } = this.context;
+    const { databaseService, discordService, haloService } = this.context.services;
 
     try {
       const locale = interaction.guild_locale ?? interaction.locale;
@@ -65,13 +68,13 @@ export abstract class StatsGamesCommand extends StatsMatchCommand {
 
       let statsOverviewEmbeds: APIEmbed[] = [];
 
-      if (parentMessage.author.id === this.env.DISCORD_APP_ID) {
+      if (parentMessage.author.id === env.DISCORD_APP_ID) {
         statsOverviewEmbeds = parentMessage.embeds;
       } else if (parentMessage.author.id === NEAT_QUEUE_BOT_USER_ID) {
-        const threadMessages = await this.services.discordService.getMessages(channel.id);
+        const threadMessages = await discordService.getMessages(channel.id);
         const guiltySparkMessages = threadMessages.filter((message) => {
           const [firstEmbed] = message.embeds;
-          if (message.author.id !== this.env.DISCORD_APP_ID || firstEmbed?.type !== EmbedType.Rich) {
+          if (message.author.id !== env.DISCORD_APP_ID || firstEmbed?.type !== EmbedType.Rich) {
             return false;
           }
           return (
@@ -117,7 +120,7 @@ export abstract class StatsGamesCommand extends StatsMatchCommand {
 
       for (const match of matches) {
         const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
-        const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
+        const matchEmbed = createMatchEmbed(this.context, guildConfig, match, locale);
         const embed = await matchEmbed.getEmbed(match, players);
 
         await discordService.createMessage(channel.id, {
@@ -125,11 +128,7 @@ export abstract class StatsGamesCommand extends StatsMatchCommand {
         });
       }
 
-      await this.services.discordService.deleteMessage(
-        channel.id,
-        interaction.message.id,
-        "Removing load games buttons",
-      );
+      await discordService.deleteMessage(channel.id, interaction.message.id, "Removing load games buttons");
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
