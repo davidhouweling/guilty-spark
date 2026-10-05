@@ -11,7 +11,10 @@ import { ChannelType, ComponentType, Locale } from "discord-api-types/v10";
 import { sub } from "date-fns";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { SeriesStartedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesEndedPayload,
+  SeriesStartedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { SeriesPlayer, SeriesTeam } from "../../../durable-objects/individual-tracker/types";
 import { NeatQueueService } from "../neatqueue";
 import type { DatabaseService } from "../../database/database";
@@ -2462,6 +2465,7 @@ describe("NeatQueueService", () => {
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
         expect(payload).toMatchObject({
+          queue: { guildId: teamsCreatedRequest.guild, queueNumber: teamsCreatedRequest.match_number },
           title: "Test Server",
           plannedMaps,
           subtitle: `Queue #${teamsCreatedRequest.match_number.toString()}`,
@@ -2935,6 +2939,15 @@ describe("NeatQueueService", () => {
     });
 
     describe("MATCH_COMPLETED nudge", () => {
+      const anEndedPayload = (
+        request: NeatQueueMatchCompletedRequest,
+        matchIds: string[] = [],
+      ): SeriesEndedPayload => ({
+        type: "ended",
+        queue: { guildId: neatQueueConfig.GuildId, queueNumber: request.match_number },
+        matchIds,
+      });
+
       it("nudges all player XUIDs with null payload on match completion", async () => {
         const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
         const playersAssociationData = {
@@ -2964,7 +2977,61 @@ describe("NeatQueueService", () => {
         expect(xuids).toHaveLength(2);
         expect(xuids).toContain("xuid_discord_user_01");
         expect(xuids).toContain("xuid_discord_user_02");
-        expect(payload).toEqual({ type: "ended" });
+        expect(payload).toEqual(anEndedPayload(matchCompletedRequest));
+      });
+
+      it("nudges trackers with the resolved series match ids even when posting series data fails", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        const cleanupError = new Error("timeline cleanup failed");
+        vi.spyOn(env.APP_DATA, "delete").mockRejectedValue(cleanupError);
+        const cleanupWarningSpy = vi.spyOn(logService, "warn");
+        const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+        const liveTrackerState = aFakeLiveTrackerStateWith({ status: "active", matchIds: [match.MatchId] });
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({ state: liveTrackerState });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({ success: true, state: liveTrackerState });
+        vi.spyOn(liveTrackerService, "getSeriesData").mockResolvedValue({
+          seriesId: { guildId: "fake-guild-id", queueNumber: 1 },
+          teams: [],
+          seriesScore: "0:0",
+          matchIds: [match.MatchId],
+          discoveredMatches: {},
+          rawMatches: [match],
+          playersAssociationData: {},
+          substitutions: [],
+          startTime: new Date().toISOString(),
+          lastUpdateTime: new Date().toISOString(),
+        });
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getUsers").mockResolvedValue([guildMember]);
+        vi.spyOn(discordService, "getGuildPreferredLocale").mockRejectedValue(new Error("discord unavailable"));
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await expect(jobToComplete?.()).rejects.toThrow("discord unavailable");
+
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest, [match.MatchId]));
+        expect(cleanupWarningSpy).toHaveBeenCalledWith(cleanupError, expect.any(Map));
+      });
+
+      it("runs cleanup when series resolution and error posting both fail", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        const appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const resolutionError = new Error("series resolution failed");
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockRejectedValue(resolutionError);
+        const errorPostingError = new Error("error posting failed");
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getTimestamp").mockImplementation(() => {
+          throw errorPostingError;
+        });
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await expect(jobToComplete?.()).rejects.toThrow("error posting failed");
+
+        expect(appDataDeleteSpy).toHaveBeenCalled();
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest));
       });
 
       it("nudges with empty array when no players have XUIDs", async () => {
@@ -2983,7 +3050,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], { type: "ended" });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest));
       });
 
       it("falls back to active linked Xbox identities when completion association xboxId is missing", async () => {
@@ -3045,7 +3112,7 @@ describe("NeatQueueService", () => {
         const [xuids, payload] = nudgeTrackersSpy.mock.calls[0] as [string[], { type: "ended" }];
         expect(xuids).toContain("xuid_linked_01");
         expect(xuids).toContain("xuid_linked_02");
-        expect(payload).toEqual({ type: "ended" });
+        expect(payload).toEqual(anEndedPayload(matchCompletedRequest));
       });
 
       it("continues match completion cleanup when one fallback linked identity lookup fails", async () => {
@@ -3098,7 +3165,7 @@ describe("NeatQueueService", () => {
         await jobToComplete?.();
 
         expect(nudgeTrackersSpy).toHaveBeenCalledOnce();
-        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], { type: "ended" });
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith(["xuid_linked_02"], anEndedPayload(matchCompletedRequest));
         expect(haloUpdateDiscordAssociationsSpy).toHaveBeenCalledOnce();
         expect(appDataDeleteSpy).toHaveBeenCalledOnce();
         expect(logWarnSpy).toHaveBeenCalledWith(

@@ -10,9 +10,16 @@ export type SeriesPlayer = z.infer<typeof seriesPlayerSchema>;
 export const seriesTeamSchema = trackerSeriesTeamSchema;
 export type SeriesTeam = z.infer<typeof seriesTeamSchema>;
 
+export const seriesQueueIdentitySchema = z.object({
+  guildId: z.string(),
+  queueNumber: z.number().int(),
+});
+export type SeriesQueueIdentity = z.infer<typeof seriesQueueIdentitySchema>;
+
 // Event: Series started (set new context)
 export const seriesStartedPayloadSchema = z.object({
   type: z.literal("started"),
+  queue: seriesQueueIdentitySchema.optional(),
   title: z.string(),
   subtitle: z.string(),
   guildIconUrl: z.string().nullable(),
@@ -32,6 +39,8 @@ export type SeriesMapsUpdatedPayload = z.infer<typeof seriesMapsUpdatedPayloadSc
 // Event: Series ended (clear active series)
 export const seriesEndedPayloadSchema = z.object({
   type: z.literal("ended"),
+  queue: seriesQueueIdentitySchema.optional(),
+  matchIds: z.array(z.string()).optional(),
 });
 export type SeriesEndedPayload = z.infer<typeof seriesEndedPayloadSchema>;
 

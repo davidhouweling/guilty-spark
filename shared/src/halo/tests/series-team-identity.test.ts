@@ -121,6 +121,48 @@ describe("resolveSeriesTeamMapping", () => {
     expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
   });
 
+  it("fills each unidentified series slot with one unexpected match player", () => {
+    const expectedRosters = [
+      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1"]), unidentifiedPlayerCount: 1 }),
+      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+    const matchRosters = [
+      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["b1", "b2"]) }),
+      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["a1", "x1"]) }),
+    ];
+
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toEqual([
+      { seriesTeamId: 0, matchTeamId: 1, addedXuids: ["x1"], removedXuids: [] },
+      { seriesTeamId: 1, matchTeamId: 0, addedXuids: [], removedXuids: [] },
+    ]);
+  });
+
+  it("rejects the match when unexpected players exceed the unidentified count", () => {
+    const expectedRosters = [
+      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1"]), unidentifiedPlayerCount: 1 }),
+      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+    const matchRosters = [
+      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1", "x1", "x2"]) }),
+      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
+  });
+
+  it("rejects a match that leaves an unidentified series slot unfilled", () => {
+    const expectedRosters = [
+      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1"]), unidentifiedPlayerCount: 1 }),
+      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+    const matchRosters = [
+      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1"]) }),
+      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
+  });
+
   it("returns null when the number of teams is not exactly two on either side", () => {
     expect(resolveSeriesTeamMapping([aSeriesTeamRoster()], [aMatchTeamRoster(), aMatchTeamRoster()])).toBeNull();
     expect(resolveSeriesTeamMapping([aSeriesTeamRoster(), aSeriesTeamRoster()], [aMatchTeamRoster()])).toBeNull();

@@ -36,7 +36,11 @@ import {
   individualTrackerNudgeContract,
   nudgePayloadSchema,
 } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
-import type { SeriesSubstitutedPayload } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
+import type {
+  SeriesEndedPayload,
+  SeriesQueueIdentity,
+  SeriesSubstitutedPayload,
+} from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import {
   analyzeMatchGroupings,
   buildMatchScore,
@@ -228,6 +232,7 @@ function resolveActualToSeriesTeamId(
   const seriesTeamRosters: SeriesTeamRoster[] = Array.from(expectedRosters.entries()).map(([teamId, expected]) => ({
     seriesTeamId: teamId,
     xuids: expected.knownXuids,
+    unidentifiedPlayerCount: expected.playerCount - expected.knownXuids.size,
   }));
   const matchTeamRosters: MatchTeamRoster[] = Array.from(actualRosters.entries()).map(([matchTeamId, xuids]) => ({
     matchTeamId,
@@ -237,6 +242,53 @@ function resolveActualToSeriesTeamId(
   const resolution = resolveSeriesTeamMapping(seriesTeamRosters, matchTeamRosters);
 
   return resolution == null ? null : new Map(resolution.map((entry) => [entry.matchTeamId, entry.seriesTeamId]));
+}
+
+function countOverlap(left: ReadonlySet<string>, right: ReadonlySet<string> | undefined): number {
+  return Array.from(left).filter((xuid) => right?.has(xuid) === true).length;
+}
+
+// Matches played before a substitution can't resolve exactly against the latest roster, so orient
+// them by whichever side pairing shares more known players.
+function resolveActualToSeriesTeamIdByOverlap(
+  expectedRosters: ReadonlyMap<number, ExpectedSeriesTeamRoster>,
+  actualRosters: ReadonlyMap<number, ReadonlySet<string>>,
+): ReadonlyMap<number, number> | null {
+  const seriesTeamIds = Array.from(expectedRosters.keys()).sort((left, right) => left - right);
+  const matchTeamIds = Array.from(actualRosters.keys()).sort((left, right) => left - right);
+  const [seriesTeamA, seriesTeamB] = seriesTeamIds;
+  const [matchTeamA, matchTeamB] = matchTeamIds;
+  if (
+    seriesTeamIds.length !== 2 ||
+    matchTeamIds.length !== 2 ||
+    seriesTeamA == null ||
+    seriesTeamB == null ||
+    matchTeamA == null ||
+    matchTeamB == null
+  ) {
+    return null;
+  }
+
+  const knownXuidsA = Preconditions.checkExists(expectedRosters.get(seriesTeamA)).knownXuids;
+  const knownXuidsB = Preconditions.checkExists(expectedRosters.get(seriesTeamB)).knownXuids;
+  const sameSideOverlap =
+    countOverlap(knownXuidsA, actualRosters.get(matchTeamA)) + countOverlap(knownXuidsB, actualRosters.get(matchTeamB));
+  const swappedSideOverlap =
+    countOverlap(knownXuidsA, actualRosters.get(matchTeamB)) + countOverlap(knownXuidsB, actualRosters.get(matchTeamA));
+
+  if (sameSideOverlap === swappedSideOverlap) {
+    return null;
+  }
+
+  return sameSideOverlap > swappedSideOverlap
+    ? new Map([
+        [matchTeamA, seriesTeamA],
+        [matchTeamB, seriesTeamB],
+      ])
+    : new Map([
+        [matchTeamA, seriesTeamB],
+        [matchTeamB, seriesTeamA],
+      ]);
 }
 
 // Matches a discovered match against the current NeatQueue series roster by team identity.
@@ -289,7 +341,9 @@ function getCanonicalTeamOutcomes(
     return rawOutcomes;
   }
 
-  const matchTeamIdToSeriesTeamId = resolveActualToSeriesTeamId(expectedRosters, actualRosters);
+  const matchTeamIdToSeriesTeamId =
+    resolveActualToSeriesTeamId(expectedRosters, actualRosters) ??
+    resolveActualToSeriesTeamIdByOverlap(expectedRosters, actualRosters);
   if (matchTeamIdToSeriesTeamId == null) {
     return rawOutcomes;
   }
@@ -306,19 +360,6 @@ function getCanonicalTeamOutcomes(
       const matchTeamId = seriesTeamIdToMatchTeamId.get(seriesTeamId);
       return matchTeamId != null ? (rawOutcomeByMatchTeamId.get(matchTeamId) ?? 0) : 0;
     });
-}
-
-function getSeriesSummariesForSeriesList(
-  groupSummaries: readonly IndividualTrackerMatchSummary[],
-  teams: readonly SeriesTeam[] | undefined,
-): readonly IndividualTrackerMatchSummary[] {
-  const expectedRosters = getExpectedSeriesTeamRosters(teams);
-  const summariesWithExpectedTeams =
-    expectedRosters == null
-      ? groupSummaries
-      : groupSummaries.filter((summary) => matchesExpectedSeriesRoster(summary, expectedRosters));
-
-  return summariesWithExpectedTeams;
 }
 
 function isEligibleForActiveSeries(
@@ -361,6 +402,63 @@ function shouldEndSeriesForUnrelatedMatchmakingMatch(activeSeries: ActiveSeries)
 
 function isParseableTimestamp(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
+}
+
+function isSameQueue(left: SeriesQueueIdentity, right: SeriesQueueIdentity): boolean {
+  return left.guildId === right.guildId && left.queueNumber === right.queueNumber;
+}
+
+interface SeriesGrouping {
+  readonly matchIds: readonly string[];
+  readonly seriesContext: ActiveSeries | undefined;
+}
+
+// Series contexts own their match membership (vetted against the roster at the time each match was
+// attached). Re-deriving it from roster auto-groupings or the latest roster would split or drop
+// matches played before a substitution.
+function buildSeriesGroupings(
+  state: IndividualTrackerInternalState,
+  visibleMatchIds: ReadonlySet<string>,
+  autoGroupings: readonly string[][],
+): SeriesGrouping[] {
+  const seriesContexts = [
+    ...(state.activeSeries != null ? [state.activeSeries] : []),
+    ...(state.completedSeries ?? []).slice().reverse(),
+  ];
+  const contextGroupings: SeriesGrouping[] = [];
+  const claimedMatchIds = new Set<string>();
+  for (const seriesContext of seriesContexts) {
+    const matchIds = seriesContext.matchIds.filter(
+      (matchId) => visibleMatchIds.has(matchId) && !claimedMatchIds.has(matchId),
+    );
+    if (seriesContext !== state.activeSeries && matchIds.length === 0) {
+      continue;
+    }
+    for (const matchId of matchIds) {
+      claimedMatchIds.add(matchId);
+    }
+    contextGroupings.push({ matchIds, seriesContext });
+  }
+
+  const unclaimedAutoGroupings: SeriesGrouping[] = [];
+  for (const matchIds of autoGroupings) {
+    let unclaimedSegment: string[] = [];
+    for (const matchId of matchIds) {
+      if (claimedMatchIds.has(matchId)) {
+        if (unclaimedSegment.length >= 2) {
+          unclaimedAutoGroupings.push({ matchIds: unclaimedSegment, seriesContext: undefined });
+        }
+        unclaimedSegment = [];
+        continue;
+      }
+      unclaimedSegment.push(matchId);
+    }
+    if (unclaimedSegment.length >= 2) {
+      unclaimedAutoGroupings.push({ matchIds: unclaimedSegment, seriesContext: undefined });
+    }
+  }
+
+  return [...contextGroupings, ...unclaimedAutoGroupings];
 }
 
 function normalizeRankTier(rankTier: string | null | undefined): string | null {
@@ -634,7 +732,11 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     const matchesToProcess = this.getMatchesToProcessBeforeMarker(allMatches, markerFound, markerFoundAtIndex);
     const matchesToProcessInTimeOrder = [...matchesToProcess].reverse();
     const knownIds = new Set(trackerState.matchIds);
-    const existingActiveSeriesMatchIds = new Set(trackerState.activeSeries?.matchIds ?? []);
+    // A completed series' late-discovered final game must not also be attached to the next series.
+    const seriesClaimedMatchIds = new Set([
+      ...(trackerState.activeSeries?.matchIds ?? []),
+      ...(trackerState.completedSeries ?? []).flatMap((series) => series.matchIds),
+    ]);
 
     let skippedAlreadyKnown = 0;
     let skippedBeforeStart = 0;
@@ -690,14 +792,18 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       if (durationSeconds >= MINIMUM_COMPLETE_MATCH_DURATION_SECONDS) {
         trackerState.selectedMatchIds.push(matchId);
       }
-      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+      if (trackerState.activeSeries != null && !seriesClaimedMatchIds.has(matchId)) {
         const isSeriesEligible = isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries);
         if (isSeriesEligible) {
           trackerState.activeSeries.matchIds.push(matchId);
-          existingActiveSeriesMatchIds.add(matchId);
+          seriesClaimedMatchIds.add(matchId);
         } else if (isMatchmakingMatch) {
           if (shouldEndSeriesForUnrelatedMatchmakingMatch(trackerState.activeSeries)) {
-            this.clearSeriesState(trackerState);
+            if (trackerState.activeSeries.matchIds.length > 0) {
+              this.retireActiveSeries(trackerState);
+            } else {
+              delete trackerState.activeSeries;
+            }
             this.logService.info(
               "IndividualTracker: series ended after matchmaking match was discovered",
               new Map([
@@ -768,7 +874,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
         }
       }
 
-      if (trackerState.activeSeries != null && !existingActiveSeriesMatchIds.has(matchId)) {
+      if (trackerState.activeSeries != null && !seriesClaimedMatchIds.has(matchId)) {
         const durationSeconds = differenceInSeconds(new Date(summary.endTime), new Date(summary.startTime));
         // NaN/negative durations (e.g. missing or malformed timestamps) must not silently bypass
         // isEligibleForActiveSeries's minimum-duration guard (`NaN < minimum` is false).
@@ -778,7 +884,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           isEligibleForActiveSeries(summary, durationSeconds, trackerState.activeSeries)
         ) {
           trackerState.activeSeries.matchIds.push(matchId);
-          existingActiveSeriesMatchIds.add(matchId);
+          seriesClaimedMatchIds.add(matchId);
           viewChanged = true;
           this.logService.info(
             "IndividualTracker: retroactively attached backfilled match to active series",
@@ -1281,6 +1387,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     }
 
     trackerState.activeSeries = {
+      ...(seriesSeed.queue != null ? { queue: seriesSeed.queue } : {}),
       title: seriesSeed.title,
       subtitle: seriesSeed.subtitle,
       guildIconUrl: seriesSeed.guildIconUrl,
@@ -2048,7 +2155,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
 
     const teams = await this.buildManualSeriesTeams(trackerState, body.teams);
 
-    this.clearSeriesState(trackerState);
+    this.retireActiveSeries(trackerState);
     trackerState.activeSeries = {
       title: body.titleOverride ?? getDefaultSeriesGroupTitle(),
       subtitle: body.subtitleOverride,
@@ -2199,7 +2306,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       }
       case "ended": {
         const hadActiveSeries = trackerState.activeSeries != null;
-        this.retireActiveSeries(trackerState);
+        this.applyEndedNudge(trackerState, payload);
         this.logService.info(
           "IndividualTracker: series ended via nudge",
           new Map([
@@ -2221,7 +2328,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
           trackedGamertag === payload.playerIn.gamertag;
 
         if (isTrackedPlayerOut) {
-          this.clearSeriesState(trackerState);
+          this.retireActiveSeries(trackerState);
           this.logService.info(
             "IndividualTracker: series retired (tracked player subbed out via nudge)",
             new Map([
@@ -2295,6 +2402,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
             ? payload.startedAt
             : new Date().toISOString();
         trackerState.activeSeries = {
+          ...(payload.queue != null ? { queue: payload.queue } : {}),
           title: payload.title,
           subtitle: payload.subtitle,
           guildIconUrl: payload.guildIconUrl,
@@ -2641,17 +2749,34 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     };
   }
 
+  private applyEndedNudge(state: IndividualTrackerInternalState, payload: SeriesEndedPayload): void {
+    const { activeSeries } = state;
+    // Series without a recorded queue (legacy state, manual series) can't be disambiguated.
+    const endsActiveSeries =
+      activeSeries != null &&
+      (payload.queue == null || activeSeries.queue == null || isSameQueue(activeSeries.queue, payload.queue));
+    const endedSeries = endsActiveSeries
+      ? activeSeries
+      : (state.completedSeries ?? []).findLast(
+          (series) => series.queue != null && payload.queue != null && isSameQueue(series.queue, payload.queue),
+        );
+
+    if (endedSeries != null && payload.matchIds != null && payload.matchIds.length > 0) {
+      endedSeries.matchIds = [...payload.matchIds];
+    }
+    if (endsActiveSeries) {
+      this.retireActiveSeries(state);
+    }
+  }
+
   private retireActiveSeries(state: IndividualTrackerInternalState): void {
     if (state.activeSeries == null) {
       return;
     }
-    state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
+    if (state.activeSeries.matchIds.length > 0) {
+      state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
+    }
     delete state.activeSeries;
-  }
-
-  private clearSeriesState(state: IndividualTrackerInternalState): void {
-    delete state.activeSeries;
-    delete state.completedSeries;
   }
 
   private sanitizeState(state: IndividualTrackerInternalState): IndividualTrackerDoState {
@@ -2688,36 +2813,18 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       })),
     );
 
-    const activeSeriesMatchIds = state.activeSeries?.matchIds ?? [];
-    const activeSeriesMatchIdSet = new Set(activeSeriesMatchIds);
-    const groupings =
-      state.activeSeries != null
-        ? [activeSeriesMatchIds, ...autoGroupings.filter((g) => !g.some((id) => activeSeriesMatchIdSet.has(id)))]
-        : autoGroupings;
+    const groupings = buildSeriesGroupings(state, new Set(summariesById.keys()), autoGroupings);
 
-    const allSeriesContexts: ActiveSeries[] = [
-      ...(state.activeSeries != null ? [state.activeSeries] : []),
-      ...(state.completedSeries ?? []),
-    ];
     const seriesGroupOverridesByKey = new Map<string, IndividualTrackerSeriesGroupOverride>();
     for (const override of state.seriesGroupOverrides ?? []) {
       seriesGroupOverridesByKey.set(buildSeriesGroupKey(override.matchIds), override);
     }
 
-    const series = groupings.map((matchIds, index): IndividualTrackerSeriesGroup => {
-      const groupSummaries = matchIds
-        .map((matchId) => summariesById.get(matchId))
-        .filter((summary): summary is IndividualTrackerMatchSummary => summary != null);
-
+    const series = groupings.map(({ matchIds, seriesContext }): IndividualTrackerSeriesGroup => {
       const matchIdSet = new Set(matchIds);
-      const isActiveSeriesSlot = state.activeSeries != null && index === 0;
-      const seriesContext = isActiveSeriesSlot
-        ? state.activeSeries
-        : allSeriesContexts.find((ctx) => ctx.matchIds.some((id) => matchIdSet.has(id)));
+      const seriesSummariesForSeriesList = summaries.filter((summary) => matchIdSet.has(summary.matchId));
       const seriesGroupOverride = seriesGroupOverridesByKey.get(buildSeriesGroupKey(matchIds));
       const teams = seriesContext?.teams;
-
-      const seriesSummariesForSeriesList = getSeriesSummariesForSeriesList(groupSummaries, teams);
 
       const teamWins = computeSeriesTeamWins(
         seriesSummariesForSeriesList.map((summary) => ({
