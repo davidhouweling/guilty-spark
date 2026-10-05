@@ -5175,6 +5175,36 @@ describe("IndividualTrackerDO", () => {
       );
     });
 
+    it("preserves unclaimed auto-group matches after a completed context claims part of the group", async () => {
+      const ids = ["match-claimed", "match-unclaimed-1", "match-unclaimed-2"];
+      const completedSeries: ActiveSeries = {
+        title: "Completed Queue",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        matchIds: ["match-claimed"],
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: false,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { series: { title: string; matchIds: string[] }[] } }>();
+
+      expect(body.state.series).toHaveLength(2);
+      expect(body.state.series).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: "Completed Queue", matchIds: ["match-claimed"] }),
+          expect.objectContaining({ matchIds: ["match-unclaimed-1", "match-unclaimed-2"] }),
+        ]),
+      );
+    });
+
     it("uses computed default subtitle when activeSeries subtitle is null", async () => {
       const ids = ["match-sub-1", "match-sub-2"];
       const activeSeries: ActiveSeries = {

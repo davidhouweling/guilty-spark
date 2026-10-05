@@ -34,7 +34,7 @@ function resolvePairing(pairs: readonly [SeriesTeamRoster, MatchTeamRoster][]): 
   for (const [expected, matched] of pairs) {
     const removedXuids = Array.from(expected.xuids).filter((xuid) => !matched.xuids.has(xuid));
     const addedXuids = Array.from(matched.xuids).filter((xuid) => !expected.xuids.has(xuid));
-    if (removedXuids.length > 0 || addedXuids.length > (expected.unidentifiedPlayerCount ?? 0)) {
+    if (removedXuids.length > 0 || addedXuids.length !== (expected.unidentifiedPlayerCount ?? 0)) {
       return null;
     }
 
@@ -55,7 +55,7 @@ function resolvePairing(pairs: readonly [SeriesTeamRoster, MatchTeamRoster][]): 
  * of the two possible pairings (same side, or swapped sides) has equal rosters. Returns null when
  * any player differs: substitutions are accepted only after their NeatQueue event updates the
  * series baseline roster. Unidentified series players may be filled by any otherwise-unexpected
- * match player, up to `unidentifiedPlayerCount` per team.
+ * match player, exactly one per unidentified roster slot.
  */
 export function resolveSeriesTeamMapping(
   expectedRosters: readonly SeriesTeamRoster[],

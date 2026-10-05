@@ -440,9 +440,23 @@ function buildSeriesGroupings(
     contextGroupings.push({ matchIds, seriesContext });
   }
 
-  const unclaimedAutoGroupings = autoGroupings
-    .filter((matchIds) => !matchIds.some((id) => claimedMatchIds.has(id)))
-    .map((matchIds): SeriesGrouping => ({ matchIds, seriesContext: undefined }));
+  const unclaimedAutoGroupings: SeriesGrouping[] = [];
+  for (const matchIds of autoGroupings) {
+    let unclaimedSegment: string[] = [];
+    for (const matchId of matchIds) {
+      if (claimedMatchIds.has(matchId)) {
+        if (unclaimedSegment.length >= 2) {
+          unclaimedAutoGroupings.push({ matchIds: unclaimedSegment, seriesContext: undefined });
+        }
+        unclaimedSegment = [];
+        continue;
+      }
+      unclaimedSegment.push(matchId);
+    }
+    if (unclaimedSegment.length >= 2) {
+      unclaimedAutoGroupings.push({ matchIds: unclaimedSegment, seriesContext: undefined });
+    }
+  }
 
   return [...contextGroupings, ...unclaimedAutoGroupings];
 }

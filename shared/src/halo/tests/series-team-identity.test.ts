@@ -121,7 +121,7 @@ describe("resolveSeriesTeamMapping", () => {
     expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
   });
 
-  it("fills unidentified series players with unexpected match players up to the unidentified count", () => {
+  it("fills each unidentified series slot with one unexpected match player", () => {
     const expectedRosters = [
       aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1"]), unidentifiedPlayerCount: 1 }),
       aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
@@ -144,6 +144,19 @@ describe("resolveSeriesTeamMapping", () => {
     ];
     const matchRosters = [
       aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1", "x1", "x2"]) }),
+      aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+
+    expect(resolveSeriesTeamMapping(expectedRosters, matchRosters)).toBeNull();
+  });
+
+  it("rejects a match that leaves an unidentified series slot unfilled", () => {
+    const expectedRosters = [
+      aSeriesTeamRoster({ seriesTeamId: 0, xuids: new Set(["a1"]), unidentifiedPlayerCount: 1 }),
+      aSeriesTeamRoster({ seriesTeamId: 1, xuids: new Set(["b1", "b2"]) }),
+    ];
+    const matchRosters = [
+      aMatchTeamRoster({ matchTeamId: 0, xuids: new Set(["a1"]) }),
       aMatchTeamRoster({ matchTeamId: 1, xuids: new Set(["b1", "b2"]) }),
     ];
 
