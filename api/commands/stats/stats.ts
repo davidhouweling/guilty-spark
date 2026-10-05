@@ -49,7 +49,7 @@ import {
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
   getPlayerCompareControlIdBase,
 } from "../../embeds/stats/player-compare-embed";
-import { StatsManualPreviewCommand } from "./stats-manual-preview-command";
+import { StatsManualGamesCommand } from "./stats-manual-games-command";
 import { InteractionButton } from "./stats-interaction-button";
 import type {
   FixFlowMetadata,
@@ -58,14 +58,7 @@ import type {
   FixSeriesSourceKind,
   ManualFlowMetadata,
 } from "./stats-flow-types";
-import {
-  MANUAL_QUEUE_NUMBER_MIN,
-  deriveManualSeriesTeams,
-  findGuildMemberIdForGamertag,
-  getManualSeriesFinalMatch,
-  getManualSeriesPlayerXuids,
-} from "./manual-series";
-import type { ManualSeriesTeam } from "./manual-series";
+import { MANUAL_QUEUE_NUMBER_MIN } from "./manual-series";
 
 function isManualSeriesOverview(message: APIMessage): boolean {
   return message.embeds.some((embed) => embed.fields?.some((field) => field.name === "Created manually by") === true);
@@ -95,7 +88,7 @@ function isCompareStatsUserCommand(
   );
 }
 
-export class StatsCommand extends StatsManualPreviewCommand {
+export class StatsCommand extends StatsManualGamesCommand {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -782,101 +775,6 @@ export class StatsCommand extends StatsManualPreviewCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-  }
-
-  private async handleManualGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { discordService } = this.services;
-
-    try {
-      const selectedMatchIds = interaction.data.values;
-      if (selectedMatchIds.length === 0) {
-        throw new EndUserError("Select at least one game.");
-      }
-
-      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
-      const series = await this.getManualSeriesMatches(selectedMatchIds);
-      if (series.some((match) => match.Teams.length !== 2)) {
-        throw new EndUserError("Manual series stats only support games between two teams.");
-      }
-
-      const teams = await this.resolveManualSeriesTeams(metadata.guildId, series);
-      const derivedSeriesOutcome = this.deriveManualSeriesOutcome(series);
-      await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
-        metadata: { ...metadata, selectedMatchIds, teams, selectedSeriesOutcome: derivedSeriesOutcome ?? undefined },
-        series,
-        derivedSeriesOutcome,
-      });
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
-  /**
-   * Best-effort mapping of the final game's players to Discord users: stored links first, then an exact guild member
-   * name match, otherwise the gamertag is shown as-is.
-   */
-  private async resolveManualSeriesTeams(guildId: string, series: MatchStats[]): Promise<ManualSeriesTeam[]> {
-    const { databaseService, haloService } = this.services;
-    const mappings = resolveManualSeriesTeamMappings(series);
-    const displaySeries = mappings == null ? series : mapManualSeriesToStableTeams(series, mappings);
-    const finalMatch = Preconditions.checkExists(getManualSeriesFinalMatch(displaySeries), "Expected a final match");
-    const xuids = getManualSeriesPlayerXuids(finalMatch);
-    const [associations, xuidToGamertag] = await Promise.all([
-      databaseService.getDiscordAssociationsByXboxId(xuids),
-      haloService.getPlayerXuidsToGametags(finalMatch),
-    ]);
-
-    const xuidToDiscordId = new Map(associations.map((association) => [association.XboxId, association.DiscordId]));
-    const assignedDiscordIds = new Set(xuidToDiscordId.values());
-    const fallbackCandidates = new Map<string, string>();
-    const candidateXuidsByDiscordId = new Map<string, Set<string>>();
-    for (const xuid of xuids) {
-      const gamertag = xuidToGamertag.get(xuid);
-      if (xuidToDiscordId.has(xuid) || gamertag == null) {
-        continue;
-      }
-
-      const discordId = await this.findGuildMemberIdForGamertag(guildId, gamertag);
-      if (discordId == null) {
-        continue;
-      }
-
-      fallbackCandidates.set(xuid, discordId);
-      const candidateXuids = candidateXuidsByDiscordId.get(discordId) ?? new Set<string>();
-      candidateXuids.add(xuid);
-      candidateXuidsByDiscordId.set(discordId, candidateXuids);
-    }
-
-    for (const [xuid, discordId] of fallbackCandidates) {
-      if (candidateXuidsByDiscordId.get(discordId)?.size !== 1 || assignedDiscordIds.has(discordId)) {
-        continue;
-      }
-
-      xuidToDiscordId.set(xuid, discordId);
-      assignedDiscordIds.add(discordId);
-    }
-
-    return deriveManualSeriesTeams(finalMatch, xuidToGamertag, xuidToDiscordId);
-  }
-
-  private async findGuildMemberIdForGamertag(guildId: string, gamertag: string): Promise<string | undefined> {
-    try {
-      const queries = [...new Set([gamertag, gamertag.replace(/\s/g, "")])];
-      const searchResults = await Promise.all(
-        queries.map(async (query) => this.services.discordService.searchGuildMembers(guildId, query)),
-      );
-      return findGuildMemberIdForGamertag(gamertag, searchResults.flat());
-    } catch (error) {
-      this.services.logService.warn(
-        error,
-        new Map([
-          ["guildId", guildId],
-          ["reason", "Failed to search guild members for manual series gamertag"],
-        ]),
-      );
-    }
-
-    return undefined;
   }
 
   private async handleManualConfirmJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
