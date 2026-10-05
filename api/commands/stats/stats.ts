@@ -1,11 +1,9 @@
 import type {
   APIApplicationCommandInteraction,
-  APIButtonComponentWithCustomId,
   APIInteractionResponse,
   APIModalInteractionResponseCallbackData,
   APIModalSubmitInteraction,
   APIApplicationCommandInteractionDataBasicOption,
-  APIEmbed,
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
@@ -47,7 +45,6 @@ import {
 } from "../../services/discord/discord-series-stats";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config";
-import { EmbedColors } from "../../embeds/colors";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { toMissingPermissionsError } from "../../base/missing-permissions-error";
 import {
@@ -61,8 +58,15 @@ import {
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
   getPlayerCompareControlIdBase,
 } from "../../embeds/stats/player-compare-embed";
-import { StatsGameSelectionCommand } from "./stats-game-selection-command";
+import { StatsInteractionFlowCommand } from "./stats-interaction-flow-command";
 import { InteractionButton } from "./stats-interaction-button";
+import type {
+  FixFlowMetadata,
+  FixSeriesOutcome,
+  FixSeriesSource,
+  FixSeriesSourceKind,
+  ManualFlowMetadata,
+} from "./stats-flow-types";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
   allocateManualQueueNumber,
@@ -77,48 +81,10 @@ import {
 } from "./manual-series";
 import type { ManualSeriesScore, ManualSeriesTeam } from "./manual-series";
 
-interface FixFlowMetadata extends Record<string, unknown> {
-  guildId: string;
-  channelId: string;
-  sourceKind?: FixSeriesSourceKind | undefined;
-  isManualSeries?: boolean | undefined;
-  // timestamp is a Date at fetch time but becomes a string after the JSON round-trip through KV, so it's omitted here
-  queueData: Omit<QueueData, "timestamp">;
-  selectedPlayerId?: string;
-  selectedMatchIds?: string[];
-  selectedSeriesOutcome?: FixSeriesOutcome;
-}
-
-type FixSeriesSourceKind = "neatqueue-result" | "series-overview";
-
-interface FixSeriesSource {
-  queueData: QueueData;
-  channelId: string;
-  sourceKind: FixSeriesSourceKind;
-  isManualSeries: boolean;
-}
-
-type FixSeriesOutcome = "TEAM_0" | "TEAM_1" | "TIE";
-
 function isManualSeriesOverview(message: APIMessage): boolean {
   return message.embeds.some((embed) => embed.fields?.some((field) => field.name === "Created manually by") === true);
 }
 
-interface ManualFlowMetadata extends Record<string, unknown> {
-  guildId: string;
-  channelId: string;
-  queueNumber: number;
-  queueChannelId: string | null;
-  queuePage?: number | undefined;
-  selectedPlayerId?: string | undefined;
-  selectedMatchIds?: string[] | undefined;
-  teams?: ManualSeriesTeam[] | undefined;
-  selectedSeriesOutcome?: FixSeriesOutcome | undefined;
-  seriesScore?: ManualSeriesScore | undefined;
-}
-
-const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
-const FIX_METADATA_MAX_RETRIES = 3;
 const MANUAL_QUEUE_SELECT_PAGE_SIZE = 25;
 function isPlayerStatsUserCommand(
   interaction: BaseInteraction,
@@ -144,7 +110,7 @@ function isCompareStatsUserCommand(
   );
 }
 
-export class StatsCommand extends StatsGameSelectionCommand {
+export class StatsCommand extends StatsInteractionFlowCommand {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -1671,49 +1637,6 @@ export class StatsCommand extends StatsGameSelectionCommand {
     return Preconditions.checkExists(winningTeam, "Expected winning team in first match").TeamId;
   }
 
-  private createFixCancelActionRow(): APIMessageTopLevelComponent {
-    return {
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.Button,
-          custom_id: InteractionButton.FixCancel,
-          label: "Cancel",
-          style: ButtonStyle.Secondary,
-        },
-      ],
-    };
-  }
-
-  /**
-   * Series without a user-provided queue number (timestamp IDs) offer a button to set one.
-   */
-  private createManualActionRow(
-    metadata: ManualFlowMetadata,
-    leadingButtons: APIButtonComponentWithCustomId[],
-  ): APIMessageTopLevelComponent {
-    const setQueueNumberButton: APIButtonComponentWithCustomId = {
-      type: ComponentType.Button,
-      custom_id: InteractionButton.ManualSetQueueNumber,
-      label: "Set queue number",
-      style: ButtonStyle.Primary,
-    };
-
-    return {
-      type: ComponentType.ActionRow,
-      components: [
-        ...leadingButtons,
-        ...(metadata.queueNumber >= MANUAL_QUEUE_NUMBER_MIN ? [setQueueNumberButton] : []),
-        {
-          type: ComponentType.Button,
-          custom_id: InteractionButton.FixCancel,
-          label: "Cancel",
-          style: ButtonStyle.Secondary,
-        },
-      ],
-    };
-  }
-
   private handleFixSubCommand(
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
@@ -2674,74 +2597,6 @@ export class StatsCommand extends StatsGameSelectionCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-  }
-
-  private createStatusEmbed(description: string): APIEmbed {
-    return {
-      color: EmbedColors.NEUTRAL,
-      description,
-    };
-  }
-
-  private isThreadChannel(channelType: ChannelType): boolean {
-    return (
-      channelType === ChannelType.PublicThread ||
-      channelType === ChannelType.PrivateThread ||
-      channelType === ChannelType.AnnouncementThread
-    );
-  }
-
-  private async setFixMetadata(messageId: string, metadata: FixFlowMetadata): Promise<void> {
-    await this.services.discordService.setInteractionMetadata(this.fixMetadataKey(messageId), metadata);
-  }
-
-  private async getFixMetadataWithRetry(messageId: string): Promise<FixFlowMetadata | null> {
-    return this.getInteractionMetadataWithRetry<FixFlowMetadata>(this.fixMetadataKey(messageId));
-  }
-
-  private async setManualMetadata(messageId: string, metadata: ManualFlowMetadata): Promise<void> {
-    await this.services.discordService.setInteractionMetadata(this.manualMetadataKey(messageId), metadata);
-  }
-
-  private async getManualMetadataWithRetry(messageId: string): Promise<ManualFlowMetadata> {
-    const metadata = await this.getInteractionMetadataWithRetry<ManualFlowMetadata>(this.manualMetadataKey(messageId));
-    if (metadata == null) {
-      throw new EndUserError("Could not find manual stats state. Please run /stats manual again.");
-    }
-
-    return metadata;
-  }
-
-  private async getInteractionMetadataWithRetry<T extends Record<string, unknown>>(key: string): Promise<T | null> {
-    for (let attempt = 0; attempt <= FIX_METADATA_MAX_RETRIES; attempt += 1) {
-      const metadata = await this.services.discordService.getInteractionMetadata<T>(key);
-      if (metadata != null) {
-        return metadata;
-      }
-
-      if (attempt === FIX_METADATA_MAX_RETRIES) {
-        break;
-      }
-
-      const delayMilliseconds = FIX_METADATA_RETRY_BASE_DELAY_MS * (attempt + 1);
-      await this.wait(delayMilliseconds);
-    }
-
-    return null;
-  }
-
-  private async wait(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(resolve, milliseconds);
-    });
-  }
-
-  private fixMetadataKey(messageId: string): string {
-    return `statsFix:${messageId}`;
-  }
-
-  private manualMetadataKey(messageId: string): string {
-    return `statsManual:${messageId}`;
   }
 
   private async deleteMessagesInChunks(channelId: string, messageIds: string[], reason: string): Promise<void> {
