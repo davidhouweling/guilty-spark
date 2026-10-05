@@ -23,13 +23,9 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { LeaderboardWindow } from "@guilty-spark/shared/halo/leaderboard";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
-import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
 import type { ExistingSeriesStatsThreadLocation, QueueData } from "../../services/discord/discord";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
-import {
-  extractDiscordSeriesMatchIdsFromEmbeds,
-  extractQueueNumberFromSeriesOverviewEmbed,
-} from "../../services/discord/discord-series-stats";
+import { extractDiscordSeriesMatchIdsFromEmbeds } from "../../services/discord/discord-series-stats";
 import type { NeatQueueConfigRow } from "../../services/database/types/neat_queue_config";
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
@@ -46,6 +42,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import { StatsManualConfirmCommand } from "./stats-manual-confirm-command";
 import { InteractionButton } from "./stats-interaction-button";
+import { getFixQueueData, getQueueDataFromThreadStarterMessage } from "./stats-fix-source";
 import type {
   FixFlowMetadata,
   FixSeriesOutcome,
@@ -54,10 +51,6 @@ import type {
   ManualFlowMetadata,
 } from "./stats-flow-types";
 import { MANUAL_QUEUE_NUMBER_MIN } from "./manual-series";
-
-function isManualSeriesOverview(message: APIMessage): boolean {
-  return message.embeds.some((embed) => embed.fields?.some((field) => field.name === "Created manually by") === true);
-}
 
 function isPlayerStatsUserCommand(
   interaction: BaseInteraction,
@@ -818,7 +811,7 @@ export class StatsCommand extends StatsManualConfirmCommand {
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
-      const fixSource = await this.getFixQueueData(guildId, channelId, queueNumber);
+      const fixSource = await getFixQueueData(this.services.discordService, guildId, channelId, queueNumber);
 
       await this.fixCommandStartFlow(interaction, fixSource);
     } catch (error) {
@@ -829,55 +822,6 @@ export class StatsCommand extends StatsManualConfirmCommand {
   /**
    * Manual series (and series whose NeatQueue result is gone) are rebuilt from the Guilty Spark overview instead.
    */
-  private async getFixQueueData(guildId: string, channelId: string, queueNumber: number): Promise<FixSeriesSource> {
-    if (queueNumber >= MANUAL_QUEUE_NUMBER_MIN) {
-      const fromOverview = await this.getQueueDataFromSeriesOverview(guildId, queueNumber);
-      if (fromOverview == null) {
-        throw new EndUserError(`Could not find series stats for queue #${queueNumber.toString()}.`);
-      }
-
-      return fromOverview;
-    }
-
-    try {
-      return {
-        queueData: await this.services.discordService.getTeamsFromQueueResult(guildId, channelId, queueNumber),
-        channelId,
-        sourceKind: "neatqueue-result",
-        isManualSeries: false,
-      };
-    } catch (error) {
-      if (!(error instanceof EndUserError)) {
-        throw error;
-      }
-
-      const fromOverview = await this.getQueueDataFromSeriesOverview(guildId, queueNumber);
-      if (fromOverview == null) {
-        throw error;
-      }
-
-      return fromOverview;
-    }
-  }
-
-  private async getQueueDataFromSeriesOverview(
-    guildId: string,
-    queueNumber: number,
-  ): Promise<FixSeriesSource | undefined> {
-    const { discordService } = this.services;
-    const overviewMessage = await discordService.findSeriesOverviewMessage(guildId, queueNumber);
-    if (overviewMessage == null) {
-      return undefined;
-    }
-
-    return {
-      queueData: await discordService.getTeamsFromSeriesOverview(guildId, overviewMessage, queueNumber),
-      channelId: overviewMessage.channel_id,
-      sourceKind: "series-overview",
-      isManualSeries: queueNumber >= MANUAL_QUEUE_NUMBER_MIN || isManualSeriesOverview(overviewMessage),
-    };
-  }
-
   private async fixSubCommandInThreadJob(interaction: APIApplicationCommandInteraction): Promise<void> {
     const { discordService } = this.services;
 
@@ -893,59 +837,19 @@ export class StatsCommand extends StatsManualConfirmCommand {
       const queueNumber = await discordService.findQueueNumberForThread(guildId, threadId);
       const fixSource =
         queueNumber != null
-          ? await this.getFixQueueData(guildId, channelId, queueNumber)
-          : await this.getQueueDataFromThreadStarterMessage(guildId, channelId, threadId);
+          ? await getFixQueueData(this.services.discordService, guildId, channelId, queueNumber)
+          : await getQueueDataFromThreadStarterMessage(
+              this.services.discordService,
+              this.env.DISCORD_APP_ID,
+              guildId,
+              channelId,
+              threadId,
+            );
 
       await this.fixCommandStartFlow(interaction, fixSource);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-  }
-
-  /**
-   * Threads started from a message share its ID, so a thread can be traced back to the NeatQueue result or
-   * Guilty Spark series overview it hangs off.
-   */
-  private async getQueueDataFromThreadStarterMessage(
-    guildId: string,
-    channelId: string,
-    threadId: string,
-  ): Promise<FixSeriesSource> {
-    const { discordService } = this.services;
-    const notFoundError = new EndUserError(
-      "Could not determine which queue this thread's stats are for. Try running /stats fix queue_number:<queue> from the parent channel instead.",
-    );
-
-    let starterMessage: APIMessage;
-    try {
-      starterMessage = await discordService.getMessage(channelId, threadId);
-    } catch {
-      throw notFoundError;
-    }
-
-    if (starterMessage.author.id === NEAT_QUEUE_BOT_USER_ID) {
-      return {
-        queueData: await discordService.getTeamsFromMessage(guildId, starterMessage),
-        channelId,
-        sourceKind: "neatqueue-result",
-        isManualSeries: false,
-      };
-    }
-
-    const overviewQueueNumber =
-      starterMessage.author.id === this.env.DISCORD_APP_ID
-        ? extractQueueNumberFromSeriesOverviewEmbed(starterMessage)
-        : undefined;
-    if (overviewQueueNumber == null) {
-      throw notFoundError;
-    }
-
-    return {
-      queueData: await discordService.getTeamsFromSeriesOverview(guildId, starterMessage, overviewQueueNumber),
-      channelId,
-      sourceKind: "series-overview",
-      isManualSeries: overviewQueueNumber >= MANUAL_QUEUE_NUMBER_MIN || isManualSeriesOverview(starterMessage),
-    };
   }
 
   private async fixCommandStartFlow(
