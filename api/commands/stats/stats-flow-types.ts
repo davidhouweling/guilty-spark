@@ -22,9 +22,9 @@ export interface FixFlowMetadata extends Record<string, unknown> {
   sourceKind?: FixSeriesSourceKind | undefined;
   isManualSeries?: boolean | undefined;
   queueData: Omit<QueueData, "timestamp">;
-  selectedPlayerId?: string;
-  selectedMatchIds?: string[];
-  selectedSeriesOutcome?: FixSeriesOutcome;
+  selectedPlayerId?: string | undefined;
+  selectedMatchIds?: string[] | undefined;
+  selectedSeriesOutcome?: FixSeriesOutcome | undefined;
 }
 
 export type FixSeriesSourceKind = "neatqueue-result" | "series-overview";
