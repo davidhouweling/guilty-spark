@@ -2,6 +2,7 @@ import type {
   APIApplicationCommandInteraction,
   APIButtonComponentWithCustomId,
   APIInteractionResponse,
+  APIModalInteractionResponseCallbackData,
   APIModalSubmitInteraction,
   APIApplicationCommandInteractionDataBasicOption,
   APIChannel,
@@ -108,11 +109,14 @@ import {
   allocateManualQueueNumber,
   deriveManualSeriesTeams,
   findGuildMemberIdForGamertag,
+  formatManualSeriesScore,
   getManualSeriesFinalMatch,
   getManualSeriesPlayerXuids,
+  getOutcomeForManualSeriesScore,
+  parseManualSeriesGamesWon,
   toSeriesOverviewTeams,
 } from "./manual-series";
-import type { ManualSeriesTeam } from "./manual-series";
+import type { ManualSeriesScore, ManualSeriesTeam } from "./manual-series";
 
 interface FixFlowMetadata extends Record<string, unknown> {
   guildId: string;
@@ -151,6 +155,7 @@ interface ManualFlowMetadata extends Record<string, unknown> {
   selectedMatchIds?: string[] | undefined;
   teams?: ManualSeriesTeam[] | undefined;
   selectedSeriesOutcome?: FixSeriesOutcome | undefined;
+  seriesScore?: ManualSeriesScore | undefined;
 }
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
@@ -218,6 +223,8 @@ export enum InteractionButton {
   ManualConfirm = "btn_stats_manual_confirm",
   ManualSetQueueNumber = "btn_stats_manual_set_queue_number",
   ManualQueueNumberModal = "btn_stats_manual_queue_number_modal",
+  ManualAdjustScore = "btn_stats_manual_adjust_score",
+  ManualScoreModal = "btn_stats_manual_score_modal",
 }
 
 export class StatsCommand extends BaseCommand {
@@ -557,6 +564,20 @@ export class StatsCommand extends BaseCommand {
           custom_id: InteractionButton.ManualQueueNumberModal,
         },
       },
+      {
+        type: InteractionType.MessageComponent,
+        data: {
+          component_type: ComponentType.Button,
+          custom_id: InteractionButton.ManualAdjustScore,
+        },
+      },
+      {
+        type: InteractionType.ModalSubmit,
+        data: {
+          components: [],
+          custom_id: InteractionButton.ManualScoreModal,
+        },
+      },
     ];
   }
 
@@ -766,6 +787,9 @@ export class StatsCommand extends BaseCommand {
           case InteractionButton.ManualSetQueueNumber.toString(): {
             return { response: this.createManualQueueNumberModal() };
           }
+          case InteractionButton.ManualAdjustScore.toString(): {
+            return { response: this.createManualScoreModal() };
+          }
           default: {
             throw new Error(`Unknown interaction: ${custom_id}`);
           }
@@ -774,6 +798,10 @@ export class StatsCommand extends BaseCommand {
       case InteractionType.ModalSubmit: {
         if (interaction.data.custom_id === InteractionButton.ManualQueueNumberModal.toString()) {
           return this.handleManualQueueNumberModal(interaction);
+        }
+
+        if (interaction.data.custom_id === InteractionButton.ManualScoreModal.toString()) {
+          return this.handleManualScoreModal(interaction);
         }
 
         throw new Error(`Unknown modal: ${interaction.data.custom_id}`);
@@ -2309,6 +2337,7 @@ export class StatsCommand extends BaseCommand {
     series: MatchStats[],
     locale: string,
     isManualSeries = false,
+    seriesScore?: string,
   ): Promise<void> {
     const { discordService, haloService, logService } = this.services;
 
@@ -2322,6 +2351,7 @@ export class StatsCommand extends BaseCommand {
         matches: series,
         locale,
         isManualSeries,
+        seriesScore,
       });
 
       await discordService.cacheResolvedDiscordSeriesStats({
@@ -2725,15 +2755,106 @@ export class StatsCommand extends BaseCommand {
       );
       const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
       const series = await this.getManualSeriesMatches(metadata.selectedMatchIds ?? []);
+      const seriesScore =
+        metadata.seriesScore != null && getOutcomeForManualSeriesScore(metadata.seriesScore) === selectedSeriesOutcome
+          ? metadata.seriesScore
+          : undefined;
 
       await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
-        metadata: { ...metadata, selectedSeriesOutcome },
+        metadata: { ...metadata, selectedSeriesOutcome, seriesScore },
         series,
         derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
       });
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
+  }
+
+  private createManualScoreModal(): APIInteractionResponse {
+    const gamesWonInput = (
+      customId: string,
+      label: string,
+    ): APIModalInteractionResponseCallbackData["components"][number] => ({
+      type: ComponentType.ActionRow,
+      components: [
+        {
+          type: ComponentType.TextInput,
+          custom_id: customId,
+          label,
+          style: TextInputStyle.Short,
+          min_length: 1,
+          max_length: 2,
+          placeholder: "e.g. 3",
+          required: true,
+        },
+      ],
+    });
+
+    return {
+      type: InteractionResponseType.Modal,
+      data: {
+        title: "Adjust final score",
+        custom_id: InteractionButton.ManualScoreModal,
+        components: [
+          gamesWonInput("team0_wins", "🦅 Eagle games won"),
+          gamesWonInput("team1_wins", "🐍 Cobra games won"),
+        ],
+      },
+    };
+  }
+
+  private handleManualScoreModal(interaction: APIModalSubmitInteraction): ExecuteResponse {
+    const values = this.services.discordService.extractModalSubmitData(interaction);
+    const team0 = parseManualSeriesGamesWon(values.get("team0_wins") ?? "");
+    const team1 = parseManualSeriesGamesWon(values.get("team1_wins") ?? "");
+    if (team0 == null || team1 == null) {
+      const warning = new EndUserError("Each team's games won must be a whole number between 0 and 99.", {
+        title: "Invalid score",
+        errorType: EndUserErrorType.WARNING,
+      });
+      return {
+        response: {
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: { embeds: [warning.discordEmbed], flags: MessageFlags.Ephemeral },
+        },
+      };
+    }
+
+    return {
+      response: { type: InteractionResponseType.DeferredMessageUpdate },
+      jobToComplete: async () => this.handleManualScoreSubmitJob(interaction, { team0, team1 }),
+    };
+  }
+
+  private async handleManualScoreSubmitJob(
+    interaction: APIModalSubmitInteraction,
+    seriesScore: ManualSeriesScore,
+  ): Promise<void> {
+    const { discordService } = this.services;
+
+    try {
+      const messageId = Preconditions.checkExists(interaction.message, "Expected modal to come from a message").id;
+      const metadata = await this.getManualMetadataWithRetry(messageId);
+      const series = await this.getManualSeriesMatches(metadata.selectedMatchIds ?? []);
+
+      await this.showManualSeriesPreview(interaction.token, interaction.guild_locale ?? interaction.locale, {
+        metadata: { ...metadata, seriesScore, selectedSeriesOutcome: getOutcomeForManualSeriesScore(seriesScore) },
+        series,
+        derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
+      });
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  private getManualSeriesScoreOverride(
+    metadata: ManualFlowMetadata,
+    locale: string,
+    includeEmojis: boolean,
+  ): string | undefined {
+    return metadata.seriesScore == null
+      ? undefined
+      : formatManualSeriesScore(metadata.seriesScore, locale, includeEmojis);
   }
 
   /**
@@ -2837,7 +2958,7 @@ export class StatsCommand extends BaseCommand {
       derivedSeriesOutcome,
     }: { metadata: ManualFlowMetadata; series: MatchStats[]; derivedSeriesOutcome: FixSeriesOutcome | null },
   ): Promise<void> {
-    const { discordService } = this.services;
+    const { discordService, haloService } = this.services;
     const teams = Preconditions.checkExists(metadata.teams, "Expected manual series teams");
     const selectedSeriesOutcome = metadata.selectedSeriesOutcome ?? derivedSeriesOutcome ?? undefined;
     const derivedResultLabel =
@@ -2851,11 +2972,13 @@ export class StatsCommand extends BaseCommand {
     const teamMappings = resolveManualSeriesTeamMappings(series);
     const displaySeries = teamMappings == null ? series : mapManualSeriesToStableTeams(series, teamMappings);
     const seriesEmbed = await this.createManualSeriesEmbed(metadata, displaySeries, locale);
+    const derivedScore = haloService.getSeriesScore(displaySeries, locale, true);
+    const finalScore = this.getManualSeriesScoreOverride(metadata, locale, true) ?? derivedScore;
 
     const message = await discordService.updateDeferredReply(interactionToken, {
       embeds: [
         this.createStatusEmbed(
-          `Preview generated. Adjust the final result if needed, then confirm to post the series stats.\nDerived result: ${derivedResultLabel}\nFinal result: ${selectedResultLabel}`,
+          `Preview generated. Adjust the final result or score if needed, then confirm to post the series stats.\nDerived result: ${derivedResultLabel} (${derivedScore})\nFinal result: ${selectedResultLabel} (${finalScore})`,
         ),
         ...seriesEmbed.embeds,
       ],
@@ -2878,6 +3001,12 @@ export class StatsCommand extends BaseCommand {
             custom_id: InteractionButton.ManualConfirm,
             label: "Confirm",
             style: ButtonStyle.Success,
+          },
+          {
+            type: ComponentType.Button,
+            custom_id: InteractionButton.ManualAdjustScore,
+            label: "Adjust score",
+            style: ButtonStyle.Primary,
           },
         ]),
       ],
@@ -2906,6 +3035,7 @@ export class StatsCommand extends BaseCommand {
       finalTeams: toSeriesOverviewTeams(Preconditions.checkExists(metadata.teams, "Expected manual series teams")),
       substitutions: [],
       hideTeamsDescription: false,
+      seriesScore: this.getManualSeriesScoreOverride(metadata, locale, true),
     });
   }
 
@@ -2952,7 +3082,7 @@ export class StatsCommand extends BaseCommand {
           ? metadata.channelId
           : (queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId),
         seriesEmbed,
-        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${haloService.getSeriesScore(displaySeries, locale, true)})`,
+        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${this.getManualSeriesScoreOverride(metadata, locale, true) ?? haloService.getSeriesScore(displaySeries, locale, true)})`,
       });
       try {
         await this.postSeriesStatsToThread(
@@ -2968,7 +3098,14 @@ export class StatsCommand extends BaseCommand {
         await this.rollbackManualSeriesPublication(publication, error);
       }
 
-      await this.cacheDiscordSeriesStats(metadata.guildId, metadata.queueNumber, series, locale, true);
+      await this.cacheDiscordSeriesStats(
+        metadata.guildId,
+        metadata.queueNumber,
+        series,
+        locale,
+        true,
+        this.getManualSeriesScoreOverride(metadata, locale, false),
+      );
       if (queueConfig != null) {
         await this.persistManualSeriesToLeaderboard(metadata, queueConfig, series, locale);
       }
@@ -3145,7 +3282,9 @@ export class StatsCommand extends BaseCommand {
         series,
         winnerTeamIndex: this.getManualWinnerTeamId(series, metadata.selectedSeriesOutcome),
         seriesTeamIdByXuid: mappings.playerToSeriesTeamId,
-        seriesScore: this.services.haloService.getSeriesScore(mapManualSeriesToStableTeams(series, mappings), locale),
+        seriesScore:
+          this.getManualSeriesScoreOverride(metadata, locale, false) ??
+          this.services.haloService.getSeriesScore(mapManualSeriesToStableTeams(series, mappings), locale),
         locale,
       });
     } catch (error) {

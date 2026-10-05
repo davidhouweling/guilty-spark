@@ -53,6 +53,8 @@ describe("getCommands", () => {
     expect(commandMap.get(InteractionButton.ManualConfirm)).toBe(commandMap.get("stats"));
     expect(commandMap.get(InteractionButton.ManualSetQueueNumber)).toBe(commandMap.get("stats"));
     expect(commandMap.get(InteractionButton.ManualQueueNumberModal)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualAdjustScore)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualScoreModal)).toBe(commandMap.get("stats"));
   });
 
   it("all commands have required data property", () => {

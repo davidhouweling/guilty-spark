@@ -2100,6 +2100,7 @@ describe("StatsCommand", () => {
           type: ComponentType.ActionRow,
           components: [
             expect.objectContaining({ custom_id: "btn_stats_manual_confirm" }),
+            expect.objectContaining({ custom_id: "btn_stats_manual_adjust_score" }),
             expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
           ],
         });
@@ -3039,6 +3040,7 @@ describe("StatsCommand", () => {
           type: ComponentType.ActionRow,
           components: [
             expect.objectContaining({ custom_id: "btn_stats_manual_confirm" }),
+            expect.objectContaining({ custom_id: "btn_stats_manual_adjust_score" }),
             expect.objectContaining({ custom_id: "btn_stats_fix_cancel" }),
           ],
         });
@@ -3084,6 +3086,183 @@ describe("StatsCommand", () => {
         expect(JSON.stringify(payload.components)).toContain("btn_stats_manual_games_select");
         expect(JSON.stringify(payload.components)).not.toContain("btn_stats_manual_set_queue_number");
         expect(getLastManualMetadata()).toMatchObject({ queueNumber: 42, queueChannelId: null });
+      });
+    });
+
+    describe("adjust score", () => {
+      const slayerMatchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const previewMetadata = {
+        guildId: "fake-guild-id",
+        channelId: "command-channel-id",
+        queueNumber: 42,
+        queueChannelId: null,
+        selectedPlayerId: "invoker-id",
+        selectedMatchIds: [ctfMatchId, slayerMatchId],
+        teams: [
+          { name: "Eagle", players: [{ xuid: "0100000000000000", gamertag: "gamertag01", discordId: "discord-1" }] },
+          { name: "Cobra", players: [{ xuid: "0400000000000000", gamertag: "gamertag04", discordId: "discord-4" }] },
+        ],
+        selectedSeriesOutcome: "TEAM_1",
+      };
+
+      function aScoreModalSubmitWith(team0Wins: string, team1Wins: string): APIModalSubmitInteraction {
+        return {
+          ...modalSubmitInteraction,
+          data: {
+            custom_id: "btn_stats_manual_score_modal",
+            components: [
+              {
+                type: ComponentType.ActionRow,
+                components: [{ type: ComponentType.TextInput, custom_id: "team0_wins", value: team0Wins }],
+              },
+              {
+                type: ComponentType.ActionRow,
+                components: [{ type: ComponentType.TextInput, custom_id: "team1_wins", value: team1Wins }],
+              },
+            ],
+          },
+          message: { ...Preconditions.checkExists(modalSubmitInteraction.message), id: "manual-flow-message-id" },
+        };
+      }
+
+      beforeEach(() => {
+        vi.spyOn(services.haloService, "getMatchDetails").mockResolvedValue([
+          Preconditions.checkExists(getMatchStats(ctfMatchId)),
+          Preconditions.checkExists(getMatchStats(slayerMatchId)),
+        ]);
+      });
+
+      it("opens a modal asking for each team's games won", () => {
+        const { response } = statsCommand.execute({
+          ...fakeButtonClickInteraction,
+          data: { component_type: ComponentType.Button, custom_id: "btn_stats_manual_adjust_score" },
+        });
+
+        expect(response).toMatchObject({
+          type: InteractionResponseType.Modal,
+          data: {
+            custom_id: "btn_stats_manual_score_modal",
+            components: [
+              { components: [expect.objectContaining({ custom_id: "team0_wins" })] },
+              { components: [expect.objectContaining({ custom_id: "team1_wins" })] },
+            ],
+          },
+        });
+      });
+
+      it.each([
+        ["-1", "2"],
+        ["abc", "2"],
+        ["3", "100"],
+      ])("rejects the invalid score %s:%s", (team0Wins, team1Wins) => {
+        const { response, jobToComplete } = statsCommand.execute(aScoreModalSubmitWith(team0Wins, team1Wins));
+
+        expect(jobToComplete).toBeUndefined();
+        expect(response).toMatchObject({
+          type: InteractionResponseType.ChannelMessageWithSource,
+          data: { flags: MessageFlags.Ephemeral, embeds: [expect.objectContaining({ title: "Invalid score" })] },
+        });
+      });
+
+      it("shows the adjusted score in the preview and sets the matching final result", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue(previewMetadata);
+
+        const { response, jobToComplete } = statsCommand.execute(aScoreModalSubmitWith("3", " 1"));
+        expect(response).toEqual({ type: InteractionResponseType.DeferredMessageUpdate });
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const payload = Preconditions.checkExists(updateDeferredReplySpy.mock.calls[0]?.[1]);
+        expect(payload.embeds?.[0]?.description).toContain("Final result: Eagle wins (🦅 3:1 🐍)");
+        expect(payload.embeds?.[1]?.title).toBe("Series stats for queue #42 (🦅 3:1 🐍)");
+        expect(getLastManualMetadata()).toMatchObject({
+          seriesScore: { team0: 3, team1: 1 },
+          selectedSeriesOutcome: "TEAM_0",
+        });
+      });
+
+      it("keeps the adjusted score when the selected result still matches it", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...previewMetadata,
+          seriesScore: { team0: 3, team1: 1 },
+          selectedSeriesOutcome: "TEAM_0",
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_outcome_select", ["TEAM_0"]),
+        );
+        await jobToComplete?.();
+
+        expect(getLastManualMetadata()).toMatchObject({ seriesScore: { team0: 3, team1: 1 } });
+      });
+
+      it("clears the adjusted score when a conflicting result is selected", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...previewMetadata,
+          seriesScore: { team0: 3, team1: 1 },
+          selectedSeriesOutcome: "TEAM_0",
+        });
+
+        const { jobToComplete } = statsCommand.execute(
+          aManualSelectInteractionWith(ComponentType.StringSelect, "btn_stats_manual_outcome_select", ["TEAM_1"]),
+        );
+        await jobToComplete?.();
+
+        const metadata = getLastManualMetadata();
+        expect(metadata["seriesScore"]).toBeUndefined();
+        expect(metadata["selectedSeriesOutcome"]).toBe("TEAM_1");
+      });
+
+      it("uses the adjusted score when posting, caching and persisting the series", async () => {
+        vi.spyOn(services.discordService, "getInteractionMetadata").mockResolvedValue({
+          ...previewMetadata,
+          queueChannelId: "queue-a",
+          seriesScore: { team0: 3, team1: 1 },
+          selectedSeriesOutcome: "TEAM_0",
+        });
+        vi.spyOn(services.databaseService, "findNeatQueueConfig").mockResolvedValue([
+          aFakeNeatQueueConfigRow({ ChannelId: "queue-a" }),
+        ]);
+        vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
+          aFakeGuildConfigRow({ StatsReturn: StatsReturnType.SERIES_ONLY }),
+        );
+        vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(getPlayerXuidsToGametags());
+        vi.spyOn(services.discordService, "getChannel").mockResolvedValue(textChannel);
+        const createMessageSpy = vi
+          .spyOn(services.discordService, "createMessage")
+          .mockResolvedValueOnce({ ...apiMessage, id: "overview-message-id" })
+          .mockResolvedValue(apiMessage);
+        const startThreadFromMessageSpy = vi
+          .spyOn(services.discordService, "startThreadFromMessage")
+          .mockResolvedValue({ id: "new-thread-id" } as RESTPostAPIChannelThreadsResult);
+        const cacheResolvedDiscordSeriesStatsSpy = vi
+          .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
+          .mockResolvedValue();
+        const persistReconciledSeriesDataSpy = vi
+          .spyOn(services.leaderboardService, "persistReconciledSeriesData")
+          .mockResolvedValue();
+
+        const { jobToComplete } = statsCommand.execute({
+          ...fakeButtonClickInteraction,
+          data: { component_type: ComponentType.Button, custom_id: "btn_stats_manual_confirm" },
+          message: { ...fakeButtonClickInteraction.message, id: "manual-flow-message-id" },
+        });
+        await jobToComplete?.();
+
+        expect(updateDeferredReplyWithErrorSpy).not.toHaveBeenCalled();
+        const [, overviewPayload] = Preconditions.checkExists(createMessageSpy.mock.calls[0]);
+        expect(overviewPayload.embeds?.[0]?.title).toBe("Series stats for queue #42 (🦅 3:1 🐍)");
+        expect(startThreadFromMessageSpy).toHaveBeenCalledWith(
+          expect.any(String),
+          "overview-message-id",
+          "Queue #42 series stats (🦅 3:1 🐍)",
+        );
+        expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ renderData: expect.objectContaining({ seriesScore: "3:1" }) as unknown }),
+        );
+        expect(persistReconciledSeriesDataSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ seriesScore: "3:1", winnerTeamIndex: 0 }),
+        );
       });
     });
   });

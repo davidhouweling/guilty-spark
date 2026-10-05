@@ -51,6 +51,7 @@ export class SeriesOverviewEmbed {
     finalTeams,
     substitutions,
     hideTeamsDescription,
+    seriesScore,
   }: {
     guildId: string;
     channelId: string;
@@ -63,6 +64,7 @@ export class SeriesOverviewEmbed {
     finalTeams: readonly SeriesOverviewTeam[];
     substitutions: SeriesOverviewEmbedSubstitution[];
     hideTeamsDescription: boolean;
+    seriesScore?: string | undefined;
   }): Promise<SeriesOverviewEmbedOutput> {
     const titles = ["Game", "Duration", `Score${finalTeams.length === 2 ? " (🦅:🐍)" : ""}`];
     const tableData = [titles];
@@ -161,7 +163,7 @@ export class SeriesOverviewEmbed {
       };
 
       if (isFirstEmbed) {
-        embed.title = `Series stats for queue #${queue.toString()} (${this.haloService.getSeriesScore(series, locale, true)})`;
+        embed.title = `Series stats for queue #${queue.toString()} (${seriesScore ?? this.haloService.getSeriesScore(series, locale, true)})`;
         embed.description = `${!hideTeamsDescription ? `${teamsDescription}\n\n` : ""}-# Start time: ${startTime} | End time: ${endTime}`;
         if (sourceUrl != null) {
           embed.url = sourceUrl;
