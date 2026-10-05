@@ -43,7 +43,6 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
-import { BaseCommand } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
 import type {
   ExistingSeriesStatsThreadLocation,
@@ -104,6 +103,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
+import { StatsCommandBase } from "./stats-command-base";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
   allocateManualQueueNumber,
@@ -160,26 +160,13 @@ interface ManualFlowMetadata extends Record<string, unknown> {
 
 const FIX_METADATA_RETRY_BASE_DELAY_MS = 150;
 const FIX_METADATA_MAX_RETRIES = 3;
-const DISCORD_SELECT_OPTION_LABEL_LIMIT = 100;
 const MANUAL_QUEUE_SELECT_PAGE_SIZE = 25;
-const PLAYER_WINDOW_VALUES = new Set<string>(Object.values(LeaderboardWindow));
 const PLAYER_AGGREGATION_VALUES = new Map<string, LeaderboardMetricAggregation>(
   Object.values(LeaderboardMetricAggregation).map((aggregation) => [aggregation, aggregation]),
 );
-const PLAYER_STATS_VISIBILITY_VALUES = new Set(["public", "private"]);
-
-type PlayerStatsVisibility = "public" | "private";
-
-function isLeaderboardWindow(value: string): value is LeaderboardWindow {
-  return PLAYER_WINDOW_VALUES.has(value);
-}
 
 function parsePlayerStatsAggregation(value: string): LeaderboardMetricAggregation | null {
   return PLAYER_AGGREGATION_VALUES.get(value) ?? null;
-}
-
-function isPlayerStatsVisibility(value: string): value is PlayerStatsVisibility {
-  return PLAYER_STATS_VISIBILITY_VALUES.has(value);
 }
 
 function isPlayerStatsUserCommand(
@@ -227,7 +214,7 @@ export enum InteractionButton {
   ManualScoreModal = "btn_stats_manual_score_modal",
 }
 
-export class StatsCommand extends BaseCommand {
+export class StatsCommand extends StatsCommandBase {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -836,20 +823,6 @@ export class StatsCommand extends BaseCommand {
     };
   }
 
-  private isPlayerStatsPrivate(
-    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-  ): boolean {
-    const visibility = options.get("visible");
-    if (visibility == null) {
-      return true;
-    }
-    if (typeof visibility !== "string" || !isPlayerStatsVisibility(visibility)) {
-      throw new EndUserError("The selected player stats visibility is invalid.");
-    }
-
-    return visibility === "private";
-  }
-
   private async playerStatsSubCommandJob(
     interaction: APIApplicationCommandInteraction | APIUserApplicationCommandGuildInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
@@ -920,14 +893,6 @@ export class StatsCommand extends BaseCommand {
     return this.services.discordService.getDiscordUserId(interaction);
   }
 
-  private parsePlayerWindow(value: string): LeaderboardWindow {
-    if (isLeaderboardWindow(value)) {
-      return value;
-    }
-
-    throw new EndUserError("The selected leaderboard window is invalid.");
-  }
-
   private handlePlayerStatsSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
     if (!this.isPlayerStatsCommandInvoker(interaction)) {
       const warning = new EndUserError("Only the person who called the command can use this stats embed.", {
@@ -959,19 +924,6 @@ export class StatsCommand extends BaseCommand {
         throw new Error(`Unexpected player stats control: ${interaction.data.custom_id}`);
       }
     }
-  }
-
-  private isPlayerStatsCommandInvoker(interaction: APIMessageComponentSelectMenuInteraction): boolean {
-    // Discord's deprecated `interaction` field is still populated on older messages where
-    // `interaction_metadata` may be absent, so fall back to it to avoid locking the invoker out.
-    const commandInvokerId =
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
-      interaction.message.interaction_metadata?.user.id ?? interaction.message.interaction?.user.id;
-    if (commandInvokerId == null) {
-      return false;
-    }
-
-    return this.services.discordService.getDiscordUserId(interaction) === commandInvokerId;
   }
 
   private handlePlayerStatsQueueSelect(interaction: APIMessageComponentSelectMenuInteraction): ExecuteResponse {
@@ -1061,26 +1013,6 @@ export class StatsCommand extends BaseCommand {
         await this.executePlayerStatsStateInteraction(interaction, () => resolvedState);
       },
     };
-  }
-
-  /**
-   * Progress feedback is best-effort: a failure here must not stop the real update from landing.
-   */
-  private async showLoadingState(
-    interaction: APIMessageComponentSelectMenuInteraction,
-    loadingResponse: { embeds: APIEmbed[]; components: APIMessageTopLevelComponent[] },
-  ): Promise<void> {
-    try {
-      await this.services.discordService.updateDeferredReply(interaction.token, loadingResponse);
-    } catch (error) {
-      this.services.logService.warn(
-        error,
-        new Map([
-          ["customId", interaction.data.custom_id],
-          ["reason", "Failed to render stats loading state"],
-        ]),
-      );
-    }
   }
 
   private tryResolvePlayerStatsPendingState(
@@ -1297,58 +1229,6 @@ export class StatsCommand extends BaseCommand {
     }
 
     return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, maxPlayedQueueOptions)];
-  }
-
-  /**
-   * One guild-channels request covers every configured queue, so the selector avoids a per-queue
-   * channel fetch. Unresolved channels keep the raw-id label rather than failing the response.
-   */
-  private async getQueueChannelNames(
-    guildId: string,
-    configuredQueues: readonly NeatQueueConfigRow[],
-  ): Promise<Map<string, string>> {
-    const queueChannelNames = new Map<string, string>();
-    if (configuredQueues.length === 0) {
-      return queueChannelNames;
-    }
-
-    try {
-      const channels = await this.services.discordService.getGuildChannels(guildId);
-      const namesByChannelId = new Map(channels.map((channel) => [channel.id, channel.name]));
-
-      for (const queue of configuredQueues) {
-        const name = namesByChannelId.get(queue.ChannelId);
-        if (name != null && name !== "") {
-          queueChannelNames.set(queue.ChannelId, `#${name}`.slice(0, DISCORD_SELECT_OPTION_LABEL_LIMIT));
-        }
-      }
-    } catch (error) {
-      this.services.logService.warn(
-        error,
-        new Map([
-          ["guildId", guildId],
-          ["reason", "Failed to resolve queue channel names"],
-        ]),
-      );
-    }
-
-    return queueChannelNames;
-  }
-
-  private getQueueOptionLabel(queueChannelId: string, queueChannelNames: ReadonlyMap<string, string>): string {
-    return queueChannelNames.get(queueChannelId) ?? `Queue ${queueChannelId}`;
-  }
-
-  private getPlayerStatsQueueLabel(
-    queueChannelId: string | null,
-    queueOptions: readonly PlayerStatsQueueOption[],
-  ): string {
-    if (queueChannelId == null) {
-      return "all configured queues";
-    }
-
-    const queueOption = queueOptions.find((option) => option.value === queueChannelId);
-    return queueOption?.label ?? `<#${queueChannelId}>`;
   }
 
   private handleCompareSubCommand(
