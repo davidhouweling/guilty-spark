@@ -3947,6 +3947,9 @@ describe("StatsCommand", () => {
         channelId: "fake-channel-id",
         queueData: {
           ...discordNeatQueueData,
+          teams: discordNeatQueueData.teams.map((team, index) =>
+            index === 0 ? { ...team, unlinkedGamertags: ["unlinked-one unlinked-two"] } : team,
+          ),
           message: {
             ...discordNeatQueueData.message,
             id: "queue-neatqueue-message-id",
@@ -4034,6 +4037,7 @@ describe("StatsCommand", () => {
       );
       const editMessagePayload = Preconditions.checkExists(editMessageSpy.mock.calls[0]?.[2]);
       const firstEmbed = Preconditions.checkExists(editMessagePayload.embeds?.[0]);
+      expect(firstEmbed.description).toContain("unlinked-one unlinked-two");
       const amendedByField = firstEmbed.fields?.find((field) => field.name === "Amended by");
       expect(amendedByField).toBeDefined();
       expect(Preconditions.checkExists(amendedByField).value.length).toBeGreaterThan(0);

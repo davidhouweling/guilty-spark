@@ -743,7 +743,9 @@ describe("DiscordService", () => {
         .mockImplementation(async (_guildId, userId) =>
           Promise.resolve(aGuildMemberWith({ user: { ...aGuildMemberWith().user, id: userId } })),
         );
-      const message = anOverviewMessageWith("**Eagle:** <@111> <@222>\n**Cobra:** <@333>\n\n-# Start time: x");
+      const message = anOverviewMessageWith(
+        "**Eagle:** <@111> <@222> gamertag05 gamertag09\n**Cobra:** <@333> unlinked-player\n\n-# Start time: x",
+      );
 
       const result = await discordService.getTeamsFromSeriesOverview("fake-guild-id", message, 20261003050709);
 
@@ -754,6 +756,10 @@ describe("DiscordService", () => {
       expect(result.teams.map((team) => [team.name, team.players.map((player) => player.user.id)])).toEqual([
         ["Eagle", ["111", "222"]],
         ["Cobra", ["333"]],
+      ]);
+      expect(result.teams.map((team) => team.unlinkedGamertags)).toEqual([
+        ["gamertag05 gamertag09"],
+        ["unlinked-player"],
       ]);
     });
 
