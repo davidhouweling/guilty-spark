@@ -83,6 +83,7 @@ export interface QueueData {
   teams: {
     name: string;
     players: APIGuildMember[];
+    unlinkedGamertags?: string[] | undefined;
   }[];
 }
 
@@ -781,6 +782,7 @@ export class DiscordService {
       teams: teams.map((team) => ({
         name: team.name,
         players: team.playerIds.map((playerId) => Preconditions.checkExists(members.get(playerId))),
+        unlinkedGamertags: [...team.unlinkedGamertags],
       })),
     };
   }

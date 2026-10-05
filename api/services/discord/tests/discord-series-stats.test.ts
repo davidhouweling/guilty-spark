@@ -16,14 +16,15 @@ import { getMatchStats, aMatchWithSwappableRosters } from "../../halo/fakes/data
 import { guild } from "../fakes/data";
 
 describe("extractTeamsFromSeriesOverviewEmbed()", () => {
-  it("parses each bold team line into a team name and mentioned player ids", () => {
+  it("parses team mentions and preserves unlinked gamertags", () => {
     const teams = extractTeamsFromSeriesOverviewEmbed({
-      description: "**Eagle:** <@111> <@!222>\n**Cobra:** <@333>\n\n-# Start time: <t:1:f> | End time: <t:2:f>",
+      description:
+        "**Eagle:** <@111> <@!222> gamertag05 gamertag09\n**Cobra:** <@333>\n\n-# Start time: <t:1:f> | End time: <t:2:f>",
     });
 
     expect(teams).toEqual([
-      { name: "Eagle", playerIds: ["111", "222"] },
-      { name: "Cobra", playerIds: ["333"] },
+      { name: "Eagle", playerIds: ["111", "222"], unlinkedGamertags: ["gamertag05 gamertag09"] },
+      { name: "Cobra", playerIds: ["333"], unlinkedGamertags: [] },
     ]);
   });
 

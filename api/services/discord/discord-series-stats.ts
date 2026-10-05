@@ -48,18 +48,31 @@ export function getDiscordSeriesOverviewEmbed(message: APIMessage, queueNumber: 
   return null;
 }
 
-export function extractTeamsFromSeriesOverviewEmbed(embed: APIEmbed): TeamMapping[] {
-  const teams: TeamMapping[] = [];
+interface SeriesOverviewTeamMapping extends TeamMapping {
+  readonly unlinkedGamertags: readonly string[];
+}
+
+export function extractTeamsFromSeriesOverviewEmbed(embed: APIEmbed): SeriesOverviewTeamMapping[] {
+  const teams: SeriesOverviewTeamMapping[] = [];
   for (const line of (embed.description ?? "").split("\n")) {
     const match = /^\*\*(.+?):\*\*(.*)$/.exec(line);
     if (match?.[1] == null) {
       continue;
     }
 
-    const playerIds = Array.from((match[2] ?? "").matchAll(/<@!?(\d+)>/g), (mention) =>
+    const playerText = match[2] ?? "";
+    const playerIds = Array.from(playerText.matchAll(/<@!?(\d+)>/g), (mention) =>
       Preconditions.checkExists(mention[1]),
     );
-    teams.push({ name: match[1], playerIds });
+    const unlinkedGamertagText = playerText
+      .replaceAll(/<@!?\d+>/g, "")
+      .replaceAll(/\\([\\*_~`|])/g, "$1")
+      .trim();
+    teams.push({
+      name: match[1],
+      playerIds,
+      unlinkedGamertags: unlinkedGamertagText === "" ? [] : [unlinkedGamertagText],
+    });
   }
 
   return teams;

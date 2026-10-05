@@ -2309,6 +2309,7 @@ export class StatsCommand extends BaseCommand {
       finalTeams: queueData.teams.map((team) => ({
         name: team.name,
         playerIds: team.players.map(({ user: { id } }) => id),
+        unlinkedGamertags: team.unlinkedGamertags,
       })),
       substitutions: [],
       hideTeamsDescription: false,
