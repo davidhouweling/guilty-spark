@@ -650,55 +650,6 @@ export class StatsCommand extends StatsFixGamesCommand {
     }
   }
 
-  private async handleManualQueueSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { databaseService, discordService } = this.services;
-
-    try {
-      const queueChannelId = Preconditions.checkExists(interaction.data.values[0], "No queue selected");
-      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
-      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
-      if (!configuredQueues.some((queue) => queue.ChannelId === queueChannelId)) {
-        throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
-      }
-
-      await this.showManualFlowStep(
-        interaction.token,
-        interaction.guild_locale ?? interaction.locale,
-        { ...metadata, queueChannelId },
-        discordService.getDiscordUserId(interaction),
-      );
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
-  /**
-   * Returns to the preview when games were already chosen, otherwise to the games screen.
-   */
-  private async showManualFlowStep(
-    interactionToken: string,
-    locale: string,
-    metadata: ManualFlowMetadata,
-    fallbackPlayerId: string,
-  ): Promise<void> {
-    if (metadata.teams == null || metadata.selectedMatchIds == null) {
-      await this.showManualGamesForPlayer(
-        interactionToken,
-        locale,
-        metadata,
-        metadata.selectedPlayerId ?? fallbackPlayerId,
-      );
-      return;
-    }
-
-    const series = await this.getManualSeriesMatches(metadata.selectedMatchIds);
-    await this.showManualSeriesPreview(interactionToken, locale, {
-      metadata,
-      series,
-      derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
-    });
-  }
-
   private handleManualQueueNumberModal(interaction: APIModalSubmitInteraction): ExecuteResponse {
     const rawQueueNumber = this.services.discordService.extractModalSubmitData(interaction).get("queue_number") ?? "";
     const queueNumber = /^\d+$/.test(rawQueueNumber.trim()) ? Number(rawQueueNumber.trim()) : Number.NaN;
@@ -749,38 +700,6 @@ export class StatsCommand extends StatsFixGamesCommand {
         updatedMetadata,
         discordService.getDiscordUserId(interaction),
       );
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
-  private async handleFixOutcomeSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { discordService, haloService } = this.services;
-
-    try {
-      const [selectedSeriesOutcomeRaw] = interaction.data.values;
-      if (selectedSeriesOutcomeRaw == null) {
-        throw new EndUserError("No series outcome selected. Please run /stats fix again.");
-      }
-      const selectedSeriesOutcome = this.parseFixSeriesOutcome(selectedSeriesOutcomeRaw);
-      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
-      if (metadata == null) {
-        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
-      }
-
-      const selectedMatchIds = metadata.selectedMatchIds ?? [];
-      if (selectedMatchIds.length === 0) {
-        throw new EndUserError("No games were selected. Please run /stats fix again.");
-      }
-
-      const series = await haloService.getMatchDetails(selectedMatchIds);
-      if (series.length === 0) {
-        throw new EndUserError("No match details found for the selected games.");
-      }
-
-      const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
-      await this.setFixMetadata(interaction.message.id, { ...metadata, selectedSeriesOutcome });
-      await this.updateFixOutcomePreview(interaction, metadata, series, derivedSeriesOutcome, selectedSeriesOutcome);
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }

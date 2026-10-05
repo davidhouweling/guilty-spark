@@ -33,6 +33,52 @@ import type { FixSeriesOutcome, ManualFlowMetadata } from "./stats-flow-types";
 import { StatsManualEntryCommand } from "./stats-manual-entry-command";
 
 export abstract class StatsManualPreviewCommand extends StatsManualEntryCommand {
+  protected async handleManualQueueSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { databaseService, discordService } = this.services;
+
+    try {
+      const queueChannelId = Preconditions.checkExists(interaction.data.values[0], "No queue selected");
+      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
+      const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: metadata.guildId });
+      if (!configuredQueues.some((queue) => queue.ChannelId === queueChannelId)) {
+        throw new EndUserError("The selected channel is not a configured NeatQueue channel.");
+      }
+
+      await this.showManualFlowStep(
+        interaction.token,
+        interaction.guild_locale ?? interaction.locale,
+        { ...metadata, queueChannelId },
+        discordService.getDiscordUserId(interaction),
+      );
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
+
+  protected async showManualFlowStep(
+    interactionToken: string,
+    locale: string,
+    metadata: ManualFlowMetadata,
+    fallbackPlayerId: string,
+  ): Promise<void> {
+    if (metadata.teams == null || metadata.selectedMatchIds == null) {
+      await this.showManualGamesForPlayer(
+        interactionToken,
+        locale,
+        metadata,
+        metadata.selectedPlayerId ?? fallbackPlayerId,
+      );
+      return;
+    }
+
+    const series = await this.getManualSeriesMatches(metadata.selectedMatchIds);
+    await this.showManualSeriesPreview(interactionToken, locale, {
+      metadata,
+      series,
+      derivedSeriesOutcome: this.deriveManualSeriesOutcome(series),
+    });
+  }
+
   protected async handleManualOutcomeSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     const { discordService } = this.services;
     try {

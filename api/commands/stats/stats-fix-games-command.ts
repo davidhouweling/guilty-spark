@@ -221,4 +221,36 @@ export abstract class StatsFixGamesCommand extends StatsFixEntryCommand {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
   }
+
+  protected async handleFixOutcomeSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
+    const { discordService, haloService } = this.services;
+
+    try {
+      const [selectedSeriesOutcomeRaw] = interaction.data.values;
+      if (selectedSeriesOutcomeRaw == null) {
+        throw new EndUserError("No series outcome selected. Please run /stats fix again.");
+      }
+      const selectedSeriesOutcome = this.parseFixSeriesOutcome(selectedSeriesOutcomeRaw);
+      const metadata = await this.getFixMetadataWithRetry(interaction.message.id);
+      if (metadata == null) {
+        throw new EndUserError("Could not find fix-flow state. Please run /stats fix again.");
+      }
+
+      const selectedMatchIds = metadata.selectedMatchIds ?? [];
+      if (selectedMatchIds.length === 0) {
+        throw new EndUserError("No games were selected. Please run /stats fix again.");
+      }
+
+      const series = await haloService.getMatchDetails(selectedMatchIds);
+      if (series.length === 0) {
+        throw new EndUserError("No match details found for the selected games.");
+      }
+
+      const derivedSeriesOutcome = this.deriveFixSeriesOutcome(series);
+      await this.setFixMetadata(interaction.message.id, { ...metadata, selectedSeriesOutcome });
+      await this.updateFixOutcomePreview(interaction, metadata, series, derivedSeriesOutcome, selectedSeriesOutcome);
+    } catch (error) {
+      await discordService.updateDeferredReplyWithError(interaction.token, error);
+    }
+  }
 }
