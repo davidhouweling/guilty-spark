@@ -31,7 +31,7 @@ import {
   TextInputStyle,
 } from "discord-api-types/v10";
 import { MatchType } from "halo-infinite-api";
-import type { MatchStats, GameVariantCategory } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { formatDistanceToNowStrict, subHours } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -49,7 +49,6 @@ import type {
   PreservedMessageContent,
   QueueData,
 } from "../../services/discord/discord";
-import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
@@ -71,7 +70,6 @@ import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/ne
 import { EmbedColors } from "../../embeds/colors";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { toMissingPermissionsError } from "../../base/missing-permissions-error";
-import { create } from "../../embeds/stats/create";
 import {
   ALL_QUEUES_VALUE,
   PLAYER_STATS_AGGREGATION_SELECT_CONTROL_ID,
@@ -103,7 +101,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
-import { StatsCommandBase } from "./stats-command-base";
+import { StatsMatchCommand } from "./stats-match-command";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
   allocateManualQueueNumber,
@@ -214,7 +212,7 @@ export enum InteractionButton {
   ManualScoreModal = "btn_stats_manual_score_modal",
 }
 
-export class StatsCommand extends StatsCommandBase {
+export class StatsCommand extends StatsMatchCommand {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -1897,55 +1895,6 @@ export class StatsCommand extends StatsCommandBase {
     }
   }
 
-  private handleMatchSubCommand(
-    interaction: APIApplicationCommandInteraction,
-    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-  ): ExecuteResponse {
-    const matchId = Preconditions.checkExists(options.get("id") as string, "Missing match id");
-    const ephemeral = (options.get("private") as boolean | undefined) ?? false;
-    const data: APIInteractionResponseDeferredChannelMessageWithSource["data"] = {};
-    if (ephemeral) {
-      data.flags = MessageFlags.Ephemeral;
-    }
-
-    return {
-      response: {
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data,
-      },
-      jobToComplete: async () => this.matchSubCommandJob(interaction, matchId),
-    };
-  }
-
-  private async matchSubCommandJob(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
-    const { discordService, haloService } = this.services;
-    const locale = interaction.guild_locale ?? interaction.locale;
-
-    try {
-      const [guildConfig, matches] = await Promise.all([
-        this.services.databaseService.getGuildConfig(Preconditions.checkExists(interaction.guild_id)),
-        haloService.getMatchDetails([matchId]),
-      ]);
-      if (!matches.length) {
-        await discordService.updateDeferredReply(interaction.token, { content: "Match not found" });
-
-        return;
-      }
-
-      const match = Preconditions.checkExists(matches[0]);
-      const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
-
-      const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
-      const embed = await matchEmbed.getEmbed(match, players);
-
-      await discordService.updateDeferredReply(interaction.token, {
-        embeds: [embed],
-      });
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
   private async retryJob(interaction: APIMessageComponentButtonInteraction): Promise<void> {
     const { discordService } = this.services;
     try {
@@ -2196,20 +2145,6 @@ export class StatsCommand extends StatsCommandBase {
     });
 
     return seriesEmbed;
-  }
-
-  private getMatchEmbed(
-    guildConfig: GuildConfigRow,
-    match: MatchStats,
-    locale: string,
-  ): BaseMatchEmbed<GameVariantCategory> {
-    return create({
-      discordService: this.services.discordService,
-      haloService: this.services.haloService,
-      guildConfig,
-      gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      locale,
-    });
   }
 
   private async cacheDiscordSeriesStats(
