@@ -2983,7 +2983,9 @@ describe("NeatQueueService", () => {
       it("nudges trackers with the resolved series match ids even when posting series data fails", async () => {
         const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
         (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
-        vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const cleanupError = new Error("timeline cleanup failed");
+        vi.spyOn(env.APP_DATA, "delete").mockRejectedValue(cleanupError);
+        const cleanupWarningSpy = vi.spyOn(logService, "warn");
         const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
         const liveTrackerState = aFakeLiveTrackerStateWith({ status: "active", matchIds: [match.MatchId] });
         vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({ state: liveTrackerState });
@@ -3009,6 +3011,27 @@ describe("NeatQueueService", () => {
         await expect(jobToComplete?.()).rejects.toThrow("discord unavailable");
 
         expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest, [match.MatchId]));
+        expect(cleanupWarningSpy).toHaveBeenCalledWith(cleanupError, expect.any(Map));
+      });
+
+      it("runs cleanup when series resolution and error posting both fail", async () => {
+        const matchCompletedRequest = getFakeNeatQueueData("matchCompleted");
+        (vi.spyOn(env.APP_DATA, "get") as MockInstance).mockResolvedValue(aFakeNeatQueueStateWith());
+        const appDataDeleteSpy = vi.spyOn(env.APP_DATA, "delete").mockResolvedValue();
+        const resolutionError = new Error("series resolution failed");
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockRejectedValue(resolutionError);
+        const errorPostingError = new Error("error posting failed");
+        vi.spyOn(discordService, "getTeamsFromQueueResult").mockResolvedValue(discordNeatQueueData);
+        vi.spyOn(discordService, "getTimestamp").mockImplementation(() => {
+          throw errorPostingError;
+        });
+        vi.spyOn(haloService, "updateDiscordAssociations").mockResolvedValue();
+
+        const { jobToComplete } = neatQueueService.handleRequest(matchCompletedRequest, neatQueueConfig);
+        await expect(jobToComplete?.()).rejects.toThrow("error posting failed");
+
+        expect(appDataDeleteSpy).toHaveBeenCalled();
+        expect(nudgeTrackersSpy).toHaveBeenCalledWith([], anEndedPayload(matchCompletedRequest));
       });
 
       it("nudges with empty array when no players have XUIDs", async () => {

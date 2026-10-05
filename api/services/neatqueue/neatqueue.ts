@@ -1401,47 +1401,72 @@ export class NeatQueueService {
       ]),
     );
 
-    const timeline = await this.getTimeline(request, neatQueueConfig);
-    timeline.push({ timestamp: new Date().toISOString(), event: request });
-
     let series: MatchStats[] = [];
     let errorOccurred = false;
     let seriesSource = "live-tracker";
-
+    let mainFlowError: Error | null = null;
     try {
-      const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
-      if (liveTrackerSeries != null) {
-        series = liveTrackerSeries;
-      } else {
-        seriesSource = "timeline";
-        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
-      }
-    } catch (error) {
-      this.logService.warn(
-        error,
-        new Map([
-          ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
-          ["guildId", request.guild],
-          ["channelId", request.channel],
-          ["queueNumber", request.match_number.toString()],
-          ["seriesSource", seriesSource],
-        ]),
-      );
-      errorOccurred = true;
+      const timeline = await this.getTimeline(request, neatQueueConfig);
+      timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-      const handledError = error instanceof Error ? error : new Error(String(error));
-      const opts = { request, neatQueueConfig, handledError, timeline };
-      await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
+      try {
+        const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
+        if (liveTrackerSeries != null) {
+          series = liveTrackerSeries;
+        } else {
+          seriesSource = "timeline";
+          series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+        }
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+            ["seriesSource", seriesSource],
+          ]),
+        );
+        errorOccurred = true;
+
+        const handledError = error instanceof Error ? error : new Error(String(error));
+        const opts = { request, neatQueueConfig, handledError, timeline };
+        await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
+      }
+
+      await this.postResolvedSeriesData({ request, neatQueueConfig, series, timeline, errorOccurred, seriesSource });
+    } catch (error) {
+      mainFlowError = error instanceof Error ? error : new Error(String(error));
     }
 
+    let cleanupError: Error | null = null;
     try {
-      await this.postResolvedSeriesData({ request, neatQueueConfig, series, timeline, errorOccurred, seriesSource });
-    } finally {
       await this.runMatchCompletedCleanup(
         request,
         neatQueueConfig,
         series.map((match) => match.MatchId),
       );
+    } catch (error) {
+      cleanupError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    if (mainFlowError != null) {
+      if (cleanupError != null) {
+        this.logService.warn(
+          cleanupError,
+          new Map([
+            ["reason", "MATCH_COMPLETED cleanup failed after primary error"],
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+          ]),
+        );
+      }
+      throw mainFlowError;
+    }
+    if (cleanupError != null) {
+      throw cleanupError;
     }
 
     this.logService.info(

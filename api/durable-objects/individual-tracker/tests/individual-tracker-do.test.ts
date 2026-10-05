@@ -4017,7 +4017,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(409);
     });
 
-    it("moves activeSeries to completedSeries, clears activeSeries, and broadcasts view", async () => {
+    it("drops an empty activeSeries from history and broadcasts view", async () => {
       const activeSeries: ActiveSeries = {
         title: "Eagle vs Cobra",
         subtitle: "Bo5",
@@ -4040,8 +4040,7 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toHaveLength(1);
-      expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Eagle vs Cobra", isActive: false });
+      expect(persisted.completedSeries).toBeUndefined();
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
@@ -4543,6 +4542,7 @@ describe("IndividualTrackerDO", () => {
                 players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
               },
             ],
+            matchIds: ["match-1"],
           }),
           seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
@@ -5095,7 +5095,7 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #3");
     });
 
-    it("activeSeries title takes priority over completedSeries on overlapping matchIds", async () => {
+    it("gives activeSeries ownership of overlapping matchIds", async () => {
       const ids = ["match-overlap-1", "match-overlap-2"];
       const completedSeries: ActiveSeries = {
         title: "Old Queue",
@@ -5126,10 +5126,53 @@ describe("IndividualTrackerDO", () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
       expect(response.status).toBe(200);
-      const body = await response.json<{ state: { series: { title: string; subtitle: string }[] } }>();
+      const body = await response.json<{
+        state: { series: { title: string; subtitle: string; matchIds: string[] }[] };
+      }>();
       const [group] = body.state.series;
       expect(group?.title).toBe("New Queue");
       expect(group?.subtitle).toBe("Queue #2");
+      expect(group?.matchIds).toEqual(ids);
+      expect(body.state.series).toHaveLength(1);
+    });
+
+    it("gives newer completed contexts ownership of overlapping matchIds", async () => {
+      const ids = ["match-older-1", "match-shared", "match-newer-1"];
+      const olderSeries: ActiveSeries = {
+        title: "Older Queue",
+        subtitle: "Queue #1",
+        guildIconUrl: null,
+        matchIds: ["match-older-1", "match-shared"],
+        teams: [],
+        startedAt: "2024-11-26T10:00:00.000Z",
+        isActive: false,
+      };
+      const newerSeries: ActiveSeries = {
+        title: "Newer Queue",
+        subtitle: "Queue #2",
+        guildIconUrl: null,
+        matchIds: ["match-shared", "match-newer-1"],
+        teams: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: false,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          completedSeries: [olderSeries, newerSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { series: { title: string; matchIds: string[] }[] } }>();
+
+      expect(body.state.series).toHaveLength(2);
+      expect(body.state.series).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: "Newer Queue", matchIds: ["match-shared", "match-newer-1"] }),
+          expect.objectContaining({ title: "Older Queue", matchIds: ["match-older-1"] }),
+        ]),
+      );
     });
 
     it("uses computed default subtitle when activeSeries subtitle is null", async () => {

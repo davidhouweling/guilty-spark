@@ -421,11 +421,25 @@ function buildSeriesGroupings(
   visibleMatchIds: ReadonlySet<string>,
   autoGroupings: readonly string[][],
 ): SeriesGrouping[] {
-  const contextGroupings = [
+  const seriesContexts = [
     ...(state.activeSeries != null ? [state.activeSeries] : []),
-    ...(state.completedSeries ?? []).filter((series) => series.matchIds.some((id) => visibleMatchIds.has(id))),
-  ].map((seriesContext): SeriesGrouping => ({ matchIds: seriesContext.matchIds, seriesContext }));
-  const claimedMatchIds = new Set(contextGroupings.flatMap((grouping) => grouping.matchIds));
+    ...(state.completedSeries ?? []).slice().reverse(),
+  ];
+  const contextGroupings: SeriesGrouping[] = [];
+  const claimedMatchIds = new Set<string>();
+  for (const seriesContext of seriesContexts) {
+    const matchIds = seriesContext.matchIds.filter(
+      (matchId) => visibleMatchIds.has(matchId) && !claimedMatchIds.has(matchId),
+    );
+    if (seriesContext !== state.activeSeries && matchIds.length === 0) {
+      continue;
+    }
+    for (const matchId of matchIds) {
+      claimedMatchIds.add(matchId);
+    }
+    contextGroupings.push({ matchIds, seriesContext });
+  }
+
   const unclaimedAutoGroupings = autoGroupings
     .filter((matchIds) => !matchIds.some((id) => claimedMatchIds.has(id)))
     .map((matchIds): SeriesGrouping => ({ matchIds, seriesContext: undefined }));
@@ -2745,7 +2759,9 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
     if (state.activeSeries == null) {
       return;
     }
-    state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
+    if (state.activeSeries.matchIds.length > 0) {
+      state.completedSeries = [...(state.completedSeries ?? []), { ...state.activeSeries, isActive: false }];
+    }
     delete state.activeSeries;
   }
 
