@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { getCommands } from "../commands";
-import { InteractionButton } from "../stats/stats";
+import { InteractionButton } from "../stats/stats-interaction-button";
 import { installFakeServicesWith } from "../../services/fakes/services";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 
