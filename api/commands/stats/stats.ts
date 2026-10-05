@@ -40,7 +40,6 @@ import {
   LeaderboardMetricAggregation,
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
-import type { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import type { BaseInteraction, ExecuteResponse, ApplicationCommandData, CommandData } from "../base/base-command";
 import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
 import type {
@@ -75,10 +74,8 @@ import {
   PLAYER_STATS_QUEUE_SELECT_CONTROL_ID,
   PLAYER_STATS_TEMPORARY_ERROR_FOOTER,
   PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
-  createPlayerStatsEmbeds,
   createPlayerStatsLoadingResponse,
   createPlayerStatsNoQualifyingGamesResponse,
-  createPlayerStatsRelationshipEmbeds,
   getPlayerStatsMetricsForAggregation,
   getPlayerStatsStateFromMessage,
   parsePlayerStatsRelationshipMetric,
@@ -100,7 +97,7 @@ import {
 } from "../../embeds/stats/player-compare-embed";
 import type { PlayerCompareViewState } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
-import { StatsGamesCommand } from "./stats-games-command";
+import { StatsPlayerResponseCommand } from "./stats-player-response-command";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
   allocateManualQueueNumber,
@@ -211,7 +208,7 @@ export enum InteractionButton {
   ManualScoreModal = "btn_stats_manual_score_modal",
 }
 
-export class StatsCommand extends StatsGamesCommand {
+export class StatsCommand extends StatsPlayerResponseCommand {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -1061,171 +1058,6 @@ export class StatsCommand extends StatsGamesCommand {
         errorEmbedFooter: PLAYER_STATS_TEMPORARY_ERROR_FOOTER,
       });
     }
-  }
-
-  private async createPlayerStatsResponse({
-    guildId,
-    xboxXuid,
-    queueChannelId,
-    configuredQueues,
-    aggregation,
-    relationshipMetric,
-    window,
-    locale,
-  }: {
-    guildId: string;
-    xboxXuid: string;
-    queueChannelId: string | null;
-    configuredQueues: NeatQueueConfigRow[];
-    aggregation: LeaderboardMetricAggregation | null;
-    relationshipMetric: LeaderboardPlayerRelationshipMetric | null;
-    window: LeaderboardWindow | undefined;
-    locale: string;
-  }): Promise<ReturnType<typeof createPlayerStatsEmbeds> | null> {
-    const configuredQueueChannelIds = configuredQueues.map((queue) => queue.ChannelId);
-    if (relationshipMetric != null) {
-      const relationshipResult = await this.services.leaderboardService.getLeaderboardPlayerRelationships({
-        guildId,
-        xboxXuid,
-        queueChannelId,
-        ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
-        ...(window == null ? {} : { window }),
-        metric: relationshipMetric,
-      });
-      if (relationshipResult == null) {
-        return null;
-      }
-
-      const queueOptions = await this.getPlayerStatsQueueOptions({
-        guildId,
-        xboxXuid,
-        configuredQueues,
-        window: relationshipResult.window,
-      });
-      return createPlayerStatsRelationshipEmbeds({
-        targetGamertag: relationshipResult.stats.Gamertag,
-        rows: relationshipResult.rows,
-        state: {
-          aggregation: null,
-          relationshipMetric,
-          gamertag: relationshipResult.stats.Gamertag,
-          queueChannelId,
-          window: relationshipResult.window,
-        },
-        locale,
-        guildId,
-        queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
-        queueOptions,
-        resetAt: relationshipResult.resetAt,
-        pagesUrl: this.env.PAGES_URL,
-      });
-    }
-
-    const result = await this.services.leaderboardService.getLeaderboardPlayerStats({
-      guildId,
-      xboxXuid,
-      queueChannelId,
-      ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
-      ...(window == null ? {} : { window }),
-    });
-    if (result == null) {
-      return null;
-    }
-
-    const selectedAggregation = aggregation ?? result.defaultAggregation;
-    const metrics = getPlayerStatsMetricsForAggregation(selectedAggregation);
-    const rankMetrics = metrics.includes(LeaderboardMetric.GamesPlayed)
-      ? metrics
-      : [LeaderboardMetric.GamesPlayed, ...metrics];
-    const ranks = await this.services.leaderboardService.getLeaderboardPlayerMetricRanks({
-      guildId,
-      xboxXuid,
-      queueChannelId,
-      ...(queueChannelId == null ? { queueChannelIds: configuredQueueChannelIds } : {}),
-      startEpochSeconds: result.startEpochSeconds,
-      minGamesPlayed: result.minGamesPlayed,
-      metrics: rankMetrics,
-    });
-    const queueOptions = await this.getPlayerStatsQueueOptions({
-      guildId,
-      xboxXuid,
-      configuredQueues,
-      window: result.window,
-    });
-
-    return createPlayerStatsEmbeds({
-      stats: result.stats,
-      ranks,
-      state: {
-        aggregation: selectedAggregation,
-        relationshipMetric: null,
-        gamertag: result.stats.Gamertag,
-        queueChannelId,
-        window: result.window,
-      },
-      locale,
-      guildId,
-      queueLabel: this.getPlayerStatsQueueLabel(queueChannelId, queueOptions),
-      queueOptions,
-      resetAt: result.resetAt,
-      minGamesPlayed: result.minGamesPlayed,
-      pagesUrl: this.env.PAGES_URL,
-    });
-  }
-
-  private async getPlayerStatsQueueOptions({
-    guildId,
-    xboxXuid,
-    configuredQueues,
-    window,
-  }: {
-    guildId: string;
-    xboxXuid: string;
-    configuredQueues: NeatQueueConfigRow[];
-    window: LeaderboardWindow;
-  }): Promise<PlayerStatsQueueOption[]> {
-    const maxPlayedQueueOptions = 24;
-    const queueProbeBatchSize = 8;
-    const playedQueues: PlayerStatsQueueOption[] = [];
-    const queueChannelNames = await this.getQueueChannelNames(guildId, configuredQueues);
-
-    // Reset markers (for LeaderboardWindow.LastReset) can differ per queue, so each queue's
-    // eligibility must be resolved independently. Probing in small concurrent batches avoids both
-    // a full round-trip's latency per configured queue and an unbounded burst across all queues,
-    // and still exits early once enough played queues have been found.
-    for (let batchStart = 0; batchStart < configuredQueues.length; batchStart += queueProbeBatchSize) {
-      if (playedQueues.length >= maxPlayedQueueOptions) {
-        break;
-      }
-
-      const batch = configuredQueues.slice(batchStart, batchStart + queueProbeBatchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (queue) => ({
-          queue,
-          result: await this.services.leaderboardService.getLeaderboardPlayerStats({
-            guildId,
-            xboxXuid,
-            queueChannelId: queue.ChannelId,
-            window,
-          }),
-        })),
-      );
-
-      for (const { queue, result } of batchResults) {
-        if (result != null && playedQueues.length < maxPlayedQueueOptions) {
-          playedQueues.push({
-            label: this.getQueueOptionLabel(queue.ChannelId, queueChannelNames),
-            value: queue.ChannelId,
-          });
-        }
-      }
-    }
-
-    if (playedQueues.length <= 1) {
-      return playedQueues;
-    }
-
-    return [{ label: "All configured queues", value: null }, ...playedQueues.slice(0, maxPlayedQueueOptions)];
   }
 
   private handleCompareSubCommand(
