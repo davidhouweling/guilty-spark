@@ -7,7 +7,6 @@ import type {
   APIMessage,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
-  APIMessageTopLevelComponent,
   APISelectMenuOption,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
@@ -22,7 +21,6 @@ import {
   InteractionContextType,
   PermissionFlagsBits,
   ButtonStyle,
-  SelectMenuDefaultValueType,
   TextInputStyle,
 } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
@@ -58,7 +56,7 @@ import {
   PLAYER_COMPARE_WINDOW_SELECT_CONTROL_ID,
   getPlayerCompareControlIdBase,
 } from "../../embeds/stats/player-compare-embed";
-import { StatsManualQueueCommand } from "./stats-manual-queue-command";
+import { StatsManualEntryCommand } from "./stats-manual-entry-command";
 import { InteractionButton } from "./stats-interaction-button";
 import type {
   FixFlowMetadata,
@@ -69,7 +67,6 @@ import type {
 } from "./stats-flow-types";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
-  allocateManualQueueNumber,
   deriveManualSeriesTeams,
   findGuildMemberIdForGamertag,
   formatManualSeriesScore,
@@ -109,7 +106,7 @@ function isCompareStatsUserCommand(
   );
 }
 
-export class StatsCommand extends StatsManualQueueCommand {
+export class StatsCommand extends StatsManualEntryCommand {
   readonly commands: ApplicationCommandData[] = [
     {
       type: ApplicationCommandType.User,
@@ -694,63 +691,6 @@ export class StatsCommand extends StatsManualQueueCommand {
     }
   }
 
-  private handleManualSubCommand(
-    interaction: APIApplicationCommandInteraction,
-    options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
-  ): ExecuteResponse {
-    const queueNumber = options.get("queue_number");
-
-    return {
-      response: {
-        type: InteractionResponseType.DeferredChannelMessageWithSource,
-        data: { flags: MessageFlags.Ephemeral },
-      },
-      jobToComplete: async () =>
-        this.manualSubCommandJob(interaction, typeof queueNumber === "number" ? queueNumber : undefined),
-    };
-  }
-
-  private async manualSubCommandJob(
-    interaction: APIApplicationCommandInteraction,
-    queueNumber: number | undefined,
-  ): Promise<void> {
-    const { databaseService, discordService } = this.services;
-
-    try {
-      const guildId = interaction.guild_id;
-      if (guildId == null) {
-        throw new EndUserError("This command can only be used inside a server.");
-      }
-
-      const metadata: ManualFlowMetadata = {
-        guildId,
-        channelId: interaction.channel.id,
-        queueNumber: queueNumber ?? allocateManualQueueNumber(),
-        queueChannelId: null,
-        queuePage: 0,
-      };
-
-      if (queueNumber != null) {
-        const configuredQueues = await databaseService.findNeatQueueConfig({ GuildId: guildId });
-        if (configuredQueues.length > 1) {
-          await this.showManualQueueSelect(interaction.token, metadata, configuredQueues);
-          return;
-        }
-
-        metadata.queueChannelId = configuredQueues[0]?.ChannelId ?? null;
-      }
-
-      await this.showManualGamesForPlayer(
-        interaction.token,
-        interaction.guild_locale ?? interaction.locale,
-        metadata,
-        discordService.getDiscordUserId(interaction),
-      );
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
   private async handleManualQueueSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
     const { databaseService, discordService } = this.services;
 
@@ -853,81 +793,6 @@ export class StatsCommand extends StatsManualQueueCommand {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-  }
-
-  private async handleManualPlayerSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
-    const { discordService } = this.services;
-
-    try {
-      const playerId = Preconditions.checkExists(interaction.data.values[0], "No player selected");
-      const metadata = await this.getManualMetadataWithRetry(interaction.message.id);
-
-      await this.showManualGamesForPlayer(
-        interaction.token,
-        interaction.guild_locale ?? interaction.locale,
-        metadata,
-        playerId,
-      );
-    } catch (error) {
-      await discordService.updateDeferredReplyWithError(interaction.token, error);
-    }
-  }
-
-  /**
-   * Lookup problems (unlinked player, no custom games) keep the player picker visible so another player can be tried.
-   */
-  private async showManualGamesForPlayer(
-    interactionToken: string,
-    locale: string,
-    metadata: ManualFlowMetadata,
-    playerId: string,
-  ): Promise<void> {
-    let gameOptions: APISelectMenuOption[] = [];
-    let status = `Select the custom games for this series from <@${playerId}>'s recent games, or pick a different player.`;
-    try {
-      gameOptions = this.toGameSelectOptions(await this.getRecentCustomGames(playerId, locale), new Set());
-    } catch (error) {
-      if (!(error instanceof EndUserError)) {
-        throw error;
-      }
-
-      status = `${error.endUserMessage} Pick a different player.`;
-    }
-
-    const gamesSelectRow: APIMessageTopLevelComponent = {
-      type: ComponentType.ActionRow,
-      components: [
-        {
-          type: ComponentType.StringSelect,
-          custom_id: InteractionButton.ManualGamesSelect,
-          min_values: 1,
-          max_values: Math.min(gameOptions.length, 25),
-          options: gameOptions,
-        },
-      ],
-    };
-    const message = await this.services.discordService.updateDeferredReply(interactionToken, {
-      embeds: [this.createStatusEmbed(status)],
-      components: [
-        ...(gameOptions.length > 0 ? [gamesSelectRow] : []),
-        {
-          type: ComponentType.ActionRow,
-          components: [
-            {
-              type: ComponentType.UserSelect,
-              custom_id: InteractionButton.ManualPlayerSelect,
-              placeholder: "Load games from a different player",
-              min_values: 1,
-              max_values: 1,
-              default_values: [{ id: playerId, type: SelectMenuDefaultValueType.User }],
-            },
-          ],
-        },
-        this.createManualActionRow(metadata, []),
-      ],
-    });
-
-    await this.setManualMetadata(message.id, { ...metadata, selectedPlayerId: playerId });
   }
 
   private async handleManualGamesSelectJob(interaction: APIMessageComponentSelectMenuInteraction): Promise<void> {
