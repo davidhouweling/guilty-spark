@@ -10,10 +10,27 @@ import type { ExecuteResponse } from "../base/base-command";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import { create } from "../../embeds/stats/create";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
-import { StatsCommandBase } from "./stats-command-base";
+import type { StatsHandlerContext } from "./stats-handler-context";
 
-export abstract class StatsMatchCommand extends StatsCommandBase {
-  protected handleMatchSubCommand(
+export function createMatchEmbed(
+  context: StatsHandlerContext,
+  guildConfig: GuildConfigRow,
+  match: MatchStats,
+  locale: string,
+): BaseMatchEmbed<GameVariantCategory> {
+  return create({
+    discordService: context.services.discordService,
+    haloService: context.services.haloService,
+    guildConfig,
+    gameVariantCategory: match.MatchInfo.GameVariantCategory,
+    locale,
+  });
+}
+
+export class StatsMatchHandler {
+  constructor(private readonly context: StatsHandlerContext) {}
+
+  handleMatchSubCommand(
     interaction: APIApplicationCommandInteraction,
     options: Map<string, APIApplicationCommandInteractionDataBasicOption["value"]>,
   ): ExecuteResponse {
@@ -34,12 +51,12 @@ export abstract class StatsMatchCommand extends StatsCommandBase {
   }
 
   private async matchSubCommandJob(interaction: APIApplicationCommandInteraction, matchId: string): Promise<void> {
-    const { discordService, haloService } = this.services;
+    const { discordService, haloService } = this.context.services;
     const locale = interaction.guild_locale ?? interaction.locale;
 
     try {
       const [guildConfig, matches] = await Promise.all([
-        this.services.databaseService.getGuildConfig(Preconditions.checkExists(interaction.guild_id)),
+        this.context.services.databaseService.getGuildConfig(Preconditions.checkExists(interaction.guild_id)),
         haloService.getMatchDetails([matchId]),
       ]);
       if (!matches.length) {
@@ -50,7 +67,7 @@ export abstract class StatsMatchCommand extends StatsCommandBase {
       const match = Preconditions.checkExists(matches[0]);
       const players = await haloService.getPlayerXuidsToGametags(match, { presentAtBeginningOnly: true });
 
-      const matchEmbed = this.getMatchEmbed(guildConfig, match, locale);
+      const matchEmbed = createMatchEmbed(this.context, guildConfig, match, locale);
       const embed = await matchEmbed.getEmbed(match, players);
 
       await discordService.updateDeferredReply(interaction.token, {
@@ -59,19 +76,5 @@ export abstract class StatsMatchCommand extends StatsCommandBase {
     } catch (error) {
       await discordService.updateDeferredReplyWithError(interaction.token, error);
     }
-  }
-
-  protected getMatchEmbed(
-    guildConfig: GuildConfigRow,
-    match: MatchStats,
-    locale: string,
-  ): BaseMatchEmbed<GameVariantCategory> {
-    return create({
-      discordService: this.services.discordService,
-      haloService: this.services.haloService,
-      guildConfig,
-      gameVariantCategory: match.MatchInfo.GameVariantCategory,
-      locale,
-    });
   }
 }

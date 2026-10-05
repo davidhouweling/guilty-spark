@@ -37,7 +37,7 @@ import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import type { GuildConfigRow } from "../database/types/guild_config";
 import { MapsPostType, StatsReturnType } from "../database/types/guild_config";
-import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats";
+import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats-interaction-button";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import type { LogService } from "../log/types";
 import { EndUserError } from "../../base/end-user-error";
