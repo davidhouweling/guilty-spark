@@ -140,7 +140,7 @@ describe("LiveTracker", () => {
     expect(played.querySelector("img")).toHaveAttribute("alt", "Slayer");
     expect(upcoming).toHaveTextContent("Strongholds: Recharge");
     expect(upcoming).not.toHaveTextContent("50:49");
-    expect(upcoming.querySelector("img")).toHaveAttribute("alt", "Strongholds");
+    expect(upcoming.querySelector("img")).toHaveAttribute("alt", "");
     expect(upcoming).toHaveClass(/seriesScoreUpcoming/);
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });

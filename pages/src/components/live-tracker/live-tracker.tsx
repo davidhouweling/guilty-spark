@@ -369,11 +369,9 @@ export function LiveTrackerView(): React.ReactElement {
                             style={{ "--series-score-bg": `url(${game.gameMapThumbnailUrl})` } as React.CSSProperties}
                           >
                             <div className={styles.seriesScoreLink}>
-                              <img
-                                src={gameModeIconSrc(game.mode, game.gameVariantCategory)}
-                                alt={game.mode}
-                                className={styles.gameTypeIcon}
-                              />
+                              {game.gameModeIconUrl != null && (
+                                <img src={game.gameModeIconUrl} alt="" className={styles.gameTypeIcon} />
+                              )}
                               <span className={styles.gameTypeAndMap}>{`${game.mode}: ${game.map}`}</span>
                             </div>
                           </li>

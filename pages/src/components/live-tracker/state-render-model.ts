@@ -3,12 +3,11 @@ import type {
   LiveTrackerNeatQueueSeriesData,
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
-import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
+import { gameModeIconSrcForModeName } from "../individual-tracker/game-mode-icon";
 import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import type {
   LiveTrackerMatchRenderModel,
@@ -108,17 +107,6 @@ function transformNeatQueueData(
   return { matches, teams, substitutions };
 }
 
-function getGameVariantCategory(mode: string): number {
-  const normalizedMode = mode.replace(/^FFA /, "");
-  for (const category of Object.values(GameVariantCategory)) {
-    if (typeof category === "number" && getGameModeName(category) === normalizedMode) {
-      return category;
-    }
-  }
-
-  return GameVariantCategory.MultiplayerSlayer;
-}
-
 function toPlannedGames(
   matches: readonly LiveTrackerMatchRenderModel[],
   plannedMaps: LiveTrackerNeatQueueSeriesData["plannedMaps"],
@@ -148,7 +136,7 @@ function toPlannedGames(
       mode: planned.mode,
       map: planned.map,
       gameMapThumbnailUrl: matchingMap?.gameMapThumbnailUrl ?? "data:,",
-      gameVariantCategory: getGameVariantCategory(planned.mode),
+      gameModeIconUrl: gameModeIconSrcForModeName(planned.mode),
     };
   });
 }

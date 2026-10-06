@@ -58,7 +58,7 @@ export interface LiveTrackerPlannedGameRenderModel {
   readonly mode: string;
   readonly map: string;
   readonly gameMapThumbnailUrl: string;
-  readonly gameVariantCategory: number;
+  readonly gameModeIconUrl: string | null;
 }
 
 export interface LiveTrackerSeriesDataRenderModel {

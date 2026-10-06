@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { GameVariantCategory } from "halo-infinite-api";
-
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { toLiveTrackerStateRenderModel } from "../state-render-model";
 
@@ -109,7 +107,7 @@ describe("toLiveTrackerStateRenderModel", () => {
         mode: "Oddball",
         map: "Next Map",
         gameMapThumbnailUrl: "data:,",
-        gameVariantCategory: GameVariantCategory.MultiplayerOddball,
+        gameModeIconUrl: "data:,",
       },
     ]);
   });

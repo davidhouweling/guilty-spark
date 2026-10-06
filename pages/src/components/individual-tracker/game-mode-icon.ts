@@ -1,5 +1,6 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import attritionPng from "../../assets/game-modes/attrition.png";
+import assaultPng from "../../assets/game-modes/assault.png";
 import captureTheFlagPng from "../../assets/game-modes/capture-the-flag.png";
 import eliminationPng from "../../assets/game-modes/elimination.png";
 import extractionPng from "../../assets/game-modes/extraction.png";
@@ -30,6 +31,33 @@ const ICON_BY_CATEGORY: Record<number, string> = {
   [GameVariantCategory.MultiplayerFirefight]: firefightPng.src,
 };
 
+const ICON_BY_MODE_NAME: Record<string, string> = {
+  Attrition: attritionPng.src,
+  Elimination: eliminationPng.src,
+  Strongholds: strongholdsPng.src,
+  "King of the Hill": kingOfTheHillPng.src,
+  "Total Control": totalControlPng.src,
+  "Capture the Flag": captureTheFlagPng.src,
+  Extraction: extractionPng.src,
+  Oddball: oddballPng.src,
+  Stockpile: stockpilePng.src,
+  Infection: infectionPng.src,
+  VIP: vipPng.src,
+  "Land Grab": landGrabPng.src,
+  Firefight: firefightPng.src,
+  Slayer: slayerPng.src,
+  "Neutral Bomb": assaultPng.src,
+};
+
 export function gameModeIconSrc(gameVariantCategory: number): string {
   return ICON_BY_CATEGORY[gameVariantCategory] ?? slayerPng.src;
+}
+
+export function gameModeIconSrcForModeName(gameMode: string): string | null {
+  const normalizedMode = gameMode.replace(/^FFA /, "");
+  if (!Object.prototype.hasOwnProperty.call(ICON_BY_MODE_NAME, normalizedMode)) {
+    return null;
+  }
+
+  return ICON_BY_MODE_NAME[normalizedMode] ?? "data:,";
 }
