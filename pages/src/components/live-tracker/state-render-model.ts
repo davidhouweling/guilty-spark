@@ -6,8 +6,12 @@ import type {
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
+import { gameModeIconSrcForModeName } from "../individual-tracker/game-mode-icon";
+import { isMatchStats } from "../../controllers/stats/is-match-stats";
 import type {
   LiveTrackerMatchRenderModel,
+  LiveTrackerPlannedGameRenderModel,
   LiveTrackerStateRenderModel,
   LiveTrackerSubstitutionRenderModel,
 } from "./types";
@@ -103,6 +107,40 @@ function transformNeatQueueData(
   return { matches, teams, substitutions };
 }
 
+function toPlannedGames(
+  matches: readonly LiveTrackerMatchRenderModel[],
+  plannedMaps: LiveTrackerNeatQueueSeriesData["plannedMaps"],
+): readonly LiveTrackerPlannedGameRenderModel[] {
+  const completedGames = collapseSequentialSeriesEntries(
+    matches.flatMap((match) => {
+      const raw = match.rawMatchStats;
+      return !isMatchStats(raw)
+        ? []
+        : [
+            {
+              startTime: raw.MatchInfo.StartTime,
+              mapAssetId: raw.MatchInfo.MapVariant.AssetId,
+              mapVersionId: raw.MatchInfo.MapVariant.VersionId,
+              gameVariantCategory: raw.MatchInfo.GameVariantCategory,
+              match,
+            },
+          ];
+    }),
+  );
+
+  const completedGameCount = completedGames.length;
+  return (plannedMaps ?? []).slice(completedGameCount).map((planned, index) => {
+    const matchingMap = matches.find((match) => match.gameMap === planned.map);
+    return {
+      gameNumber: completedGameCount + index + 1,
+      mode: planned.mode,
+      map: planned.map,
+      gameMapThumbnailUrl: matchingMap?.gameMapThumbnailUrl ?? "data:,",
+      gameModeIconUrl: gameModeIconSrcForModeName(planned.mode),
+    };
+  });
+}
+
 export function toLiveTrackerStateRenderModel(
   message: LiveTrackerStateMessage,
   medalMetadata: MedalMetadata,
@@ -119,6 +157,7 @@ export function toLiveTrackerStateRenderModel(
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
+    plannedGames: toPlannedGames(matches, message.data.plannedMaps),
     substitutions,
     seriesScore: normalizeSeriesScore(message.data.seriesScore),
     medalMetadata,

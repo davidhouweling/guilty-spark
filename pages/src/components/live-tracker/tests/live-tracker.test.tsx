@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 
 import type {
   LiveTrackerMatchSummary,
@@ -100,6 +100,49 @@ async function renderLiveTrackerWith(
 describe("LiveTracker", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it("appends upcoming map tiles to the completed score list", async () => {
+    const message = aStateMessage(["m1"]);
+    const match = message.data.matchSummaries.at(0);
+    if (match == null) {
+      throw new Error("Expected match summary");
+    }
+    const connection = await renderLiveTrackerWith({
+      ...message,
+      data: {
+        ...message.data,
+        plannedMaps: [
+          { mode: "Oddball", map: "Streets" },
+          { mode: "Strongholds", map: "Recharge" },
+        ],
+        rawMatches: {
+          m1: {
+            MatchId: "m1",
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: match.startTime,
+              EndTime: match.endTime,
+              MapVariant: { AssetId: "aquarius", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+        },
+      },
+    });
+    connection.step();
+
+    const scores = await screen.findByRole("list", { name: "Series score tiles" });
+    const [played, upcoming] = within(scores).getAllByRole("listitem");
+    expect(played).toHaveTextContent("50:49");
+    expect(played).toHaveTextContent("Aquarius");
+    expect(played.querySelector("img")).toHaveAttribute("alt", "Slayer");
+    expect(upcoming).toHaveTextContent("Strongholds: Recharge");
+    expect(upcoming).not.toHaveTextContent("50:49");
+    expect(upcoming.querySelector("img")).toHaveAttribute("alt", "");
+    expect(upcoming).toHaveClass(/seriesScoreUpcoming/);
+    expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });
 
   it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {
