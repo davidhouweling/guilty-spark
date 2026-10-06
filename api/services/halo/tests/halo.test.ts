@@ -75,6 +75,47 @@ describe("Halo service", () => {
   });
 
   describe("getSeriesFromDiscordQueue()", () => {
+    it.each([false, true])(
+      "discards a lone bot warm-up with bot PresentAtBeginning=%s",
+      async (botPresentAtBeginning) => {
+        const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+        infiniteClient.getPlayerMatches.mockImplementation(async (_xuid, _type, _count, start) =>
+          Promise.resolve(start === 0 ? getPlayerMatches().filter((entry) => entry.MatchId === match.MatchId) : []),
+        );
+        const player = Preconditions.checkExists(match.Players[0]);
+        infiniteClient.getMatchStats.mockResolvedValue({
+          ...match,
+          Players: [
+            player,
+            {
+              ...player,
+              PlayerId: "bid(9.0)",
+              PlayerType: 2,
+              LastTeamId: 1,
+              ParticipationInfo: { ...player.ParticipationInfo, PresentAtBeginning: botPresentAtBeginning },
+            },
+          ],
+        });
+
+        const series = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
+
+        expect(series).toEqual([]);
+        expect(infiniteClient.getMatchStats).toHaveBeenCalledOnce();
+      },
+    );
+
+    it("discards free-for-all matches even when they expose two team records", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      infiniteClient.getMatchStats.mockResolvedValue({
+        ...match,
+        MatchInfo: { ...match.MatchInfo, TeamsEnabled: false },
+      });
+
+      const series = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
+
+      expect(series).toEqual([]);
+    });
+
     it("returns the series from the discord queue", async () => {
       const series = await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
 
