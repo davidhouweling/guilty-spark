@@ -5,6 +5,7 @@ import type {
   StatsHighlightItem,
 } from "@guilty-spark/shared/individual-tracker/stats-highlights-compute";
 import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
+import type { SeriesQueueIdentity } from "@guilty-spark/shared/contracts/durable-objects/individual-tracker/nudge";
 import type { IndividualTrackerStatus } from "../../services/database/types/individual_trackers";
 
 export interface IndividualTrackerState {
@@ -88,6 +89,7 @@ export interface SeriesTeam {
 }
 
 export interface ActiveSeries {
+  queue?: SeriesQueueIdentity | undefined;
   title: string;
   subtitle: string | null;
   guildIconUrl: string | null;

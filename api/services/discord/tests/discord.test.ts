@@ -705,6 +705,73 @@ describe("DiscordService", () => {
     });
   });
 
+  describe("searchGuildMembers()", () => {
+    it("searches guild members by query with the maximum result limit", async () => {
+      const member = aGuildMemberWith();
+      mockFetch.mockResolvedValue(new Response(JSON.stringify([member])));
+
+      const result = await discordService.searchGuildMembers("fake-guild-id", "Some Player");
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/guilds\/fake-guild-id\/members\/search\?query=Some(%20|\+)Player&limit=1000$/),
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual([member]);
+    });
+  });
+
+  describe("getTeamsFromSeriesOverview()", () => {
+    function anOverviewMessageWith(description: string): APIMessage {
+      return {
+        ...apiMessage,
+        id: "overview-message-id",
+        timestamp: "2026-10-03T05:07:09.000Z",
+        embeds: [
+          {
+            type: EmbedType.Rich,
+            color: EmbedColors.INFO,
+            title: "Series stats for queue #20261003050709 (🦅 2:1 🐍)",
+            description,
+          },
+        ],
+      };
+    }
+
+    it("builds queue data from the overview's team lines", async () => {
+      const getGuildMemberSpy = vi
+        .spyOn(discordService, "getGuildMember")
+        .mockImplementation(async (_guildId, userId) =>
+          Promise.resolve(aGuildMemberWith({ user: { ...aGuildMemberWith().user, id: userId } })),
+        );
+      const message = anOverviewMessageWith(
+        "**Eagle:** <@111> <@222> gamertag05 gamertag09\n**Cobra:** <@333> unlinked-player\n\n-# Start time: x",
+      );
+
+      const result = await discordService.getTeamsFromSeriesOverview("fake-guild-id", message, 20261003050709);
+
+      expect(getGuildMemberSpy).toHaveBeenCalledTimes(3);
+      expect(result.message).toBe(message);
+      expect(result.queue).toBe(20261003050709);
+      expect(result.timestamp).toEqual(new Date("2026-10-03T05:07:09.000Z"));
+      expect(result.teams.map((team) => [team.name, team.players.map((player) => player.user.id)])).toEqual([
+        ["Eagle", ["111", "222"]],
+        ["Cobra", ["333"]],
+      ]);
+      expect(result.teams.map((team) => team.unlinkedGamertags)).toEqual([
+        ["gamertag05 gamertag09"],
+        ["unlinked-player"],
+      ]);
+    });
+
+    it("throws when the overview does not list two teams", async () => {
+      const message = anOverviewMessageWith("-# Start time: x");
+
+      await expect(discordService.getTeamsFromSeriesOverview("fake-guild-id", message, 20261003050709)).rejects.toThrow(
+        "Could not read the teams from the series stats for queue #20261003050709.",
+      );
+    });
+  });
+
   describe("getTeamsFromQueueChannel()", () => {
     const activeTeamsMessages = [
       {

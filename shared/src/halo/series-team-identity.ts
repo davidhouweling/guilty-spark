@@ -6,6 +6,8 @@ import type { MatchStats } from "halo-infinite-api";
 export interface SeriesTeamRoster {
   readonly seriesTeamId: number;
   readonly xuids: ReadonlySet<string>;
+  // Players on the series roster with no linked Xbox identity (e.g. no Discord association).
+  readonly unidentifiedPlayerCount?: number | undefined;
 }
 
 export interface MatchTeamRoster {
@@ -32,7 +34,7 @@ function resolvePairing(pairs: readonly [SeriesTeamRoster, MatchTeamRoster][]): 
   for (const [expected, matched] of pairs) {
     const removedXuids = Array.from(expected.xuids).filter((xuid) => !matched.xuids.has(xuid));
     const addedXuids = Array.from(matched.xuids).filter((xuid) => !expected.xuids.has(xuid));
-    if (removedXuids.length > 0 || addedXuids.length > 0) {
+    if (removedXuids.length > 0 || addedXuids.length !== (expected.unidentifiedPlayerCount ?? 0)) {
       return null;
     }
 
@@ -52,7 +54,8 @@ function resolvePairing(pairs: readonly [SeriesTeamRoster, MatchTeamRoster][]): 
  * Resolves a 2-team series' expected rosters against a single match's rosters, picking whichever
  * of the two possible pairings (same side, or swapped sides) has equal rosters. Returns null when
  * any player differs: substitutions are accepted only after their NeatQueue event updates the
- * series baseline roster.
+ * series baseline roster. Unidentified series players may be filled by any otherwise-unexpected
+ * match player, exactly one per unidentified roster slot.
  */
 export function resolveSeriesTeamMapping(
   expectedRosters: readonly SeriesTeamRoster[],

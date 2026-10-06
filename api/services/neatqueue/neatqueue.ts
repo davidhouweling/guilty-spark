@@ -37,7 +37,7 @@ import { SeriesTeamsEmbed } from "../../embeds/stats/series-teams-embed";
 import { SeriesPlayersEmbed } from "../../embeds/stats/series-players-embed";
 import type { GuildConfigRow } from "../database/types/guild_config";
 import { MapsPostType, StatsReturnType } from "../database/types/guild_config";
-import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats";
+import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats-interaction-button";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
 import type { LogService } from "../log/types";
 import { EndUserError } from "../../base/end-user-error";
@@ -789,6 +789,7 @@ export class NeatQueueService {
       }
       const seriesContext: SeriesStartedPayload = {
         type: "started",
+        queue: { guildId: request.guild, queueNumber: request.match_number },
         title,
         subtitle: `Queue #${request.match_number.toString()}`,
         guildIconUrl,
@@ -1400,39 +1401,99 @@ export class NeatQueueService {
       ]),
     );
 
-    const timeline = await this.getTimeline(request, neatQueueConfig);
-    timeline.push({ timestamp: new Date().toISOString(), event: request });
-
     let series: MatchStats[] = [];
     let errorOccurred = false;
     let seriesSource = "live-tracker";
-
+    let mainFlowError: Error | null = null;
     try {
-      const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
-      if (liveTrackerSeries != null) {
-        series = liveTrackerSeries;
-      } else {
-        seriesSource = "timeline";
-        series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
-      }
-    } catch (error) {
-      this.logService.warn(
-        error,
-        new Map([
-          ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
-          ["guildId", request.guild],
-          ["channelId", request.channel],
-          ["queueNumber", request.match_number.toString()],
-          ["seriesSource", seriesSource],
-        ]),
-      );
-      errorOccurred = true;
+      const timeline = await this.getTimeline(request, neatQueueConfig);
+      timeline.push({ timestamp: new Date().toISOString(), event: request });
 
-      const handledError = error instanceof Error ? error : new Error(String(error));
-      const opts = { request, neatQueueConfig, handledError, timeline };
-      await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
+      try {
+        const liveTrackerSeries = await this.resolveSeriesFromLiveTracker(request);
+        if (liveTrackerSeries != null) {
+          series = liveTrackerSeries;
+        } else {
+          seriesSource = "timeline";
+          series = await this.getSeriesDataFromTimeline(timeline, neatQueueConfig);
+        }
+      } catch (error) {
+        this.logService.warn(
+          error,
+          new Map([
+            ["reason", "Failed to resolve series data for MATCH_COMPLETED"],
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+            ["seriesSource", seriesSource],
+          ]),
+        );
+        errorOccurred = true;
+
+        const handledError = error instanceof Error ? error : new Error(String(error));
+        const opts = { request, neatQueueConfig, handledError, timeline };
+        await this.handlePostSeriesError(neatQueueConfig.PostSeriesMode, opts);
+      }
+
+      await this.postResolvedSeriesData({ request, neatQueueConfig, series, timeline, errorOccurred, seriesSource });
+    } catch (error) {
+      mainFlowError = error instanceof Error ? error : new Error(String(error));
     }
 
+    let cleanupError: Error | null = null;
+    try {
+      await this.runMatchCompletedCleanup(
+        request,
+        neatQueueConfig,
+        series.map((match) => match.MatchId),
+      );
+    } catch (error) {
+      cleanupError = error instanceof Error ? error : new Error(String(error));
+    }
+
+    if (mainFlowError != null) {
+      if (cleanupError != null) {
+        this.logService.warn(
+          cleanupError,
+          new Map([
+            ["reason", "MATCH_COMPLETED cleanup failed after primary error"],
+            ["guildId", request.guild],
+            ["channelId", request.channel],
+            ["queueNumber", request.match_number.toString()],
+          ]),
+        );
+      }
+      throw mainFlowError;
+    }
+    if (cleanupError != null) {
+      throw cleanupError;
+    }
+
+    this.logService.info(
+      "Completed NeatQueue MATCH_COMPLETED background job",
+      new Map([
+        ["guildId", request.guild],
+        ["channelId", request.channel],
+        ["queueNumber", request.match_number.toString()],
+      ]),
+    );
+  }
+
+  private async postResolvedSeriesData({
+    request,
+    neatQueueConfig,
+    series,
+    timeline,
+    errorOccurred,
+    seriesSource,
+  }: {
+    request: NeatQueueMatchCompletedRequest;
+    neatQueueConfig: NeatQueueConfigRow;
+    series: MatchStats[];
+    timeline: NeatQueueTimelineEvent[];
+    errorOccurred: boolean;
+    seriesSource: string;
+  }): Promise<void> {
     if (!errorOccurred && series.length > 0) {
       this.logService.info(
         "Resolved series data for MATCH_COMPLETED",
@@ -1478,7 +1539,13 @@ export class NeatQueueService {
         ]),
       );
     }
+  }
 
+  private async runMatchCompletedCleanup(
+    request: NeatQueueMatchCompletedRequest,
+    neatQueueConfig: NeatQueueConfigRow,
+    seriesMatchIds: string[],
+  ): Promise<void> {
     const completedQueueState = await this.getQueueState(neatQueueConfig.GuildId, request.match_number);
     const allPlayerXuids = await this.extractXuidsWithFallback(completedQueueState.playersAssociationData);
 
@@ -1492,27 +1559,19 @@ export class NeatQueueService {
     );
 
     await Promise.all([
-      this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids),
+      this.nudgeIndividualTrackersForMatchCompletion(request, neatQueueConfig, allPlayerXuids, seriesMatchIds),
       this.stopLiveTrackingIfActive(request, neatQueueConfig),
       this.clearTimeline(request, neatQueueConfig),
       this.deletePlayersMessageId(request, neatQueueConfig),
       this.haloService.updateDiscordAssociations(),
     ]);
-
-    this.logService.info(
-      "Completed NeatQueue MATCH_COMPLETED background job",
-      new Map([
-        ["guildId", request.guild],
-        ["channelId", request.channel],
-        ["queueNumber", request.match_number.toString()],
-      ]),
-    );
   }
 
   private async nudgeIndividualTrackersForMatchCompletion(
     request: NeatQueueMatchCompletedRequest,
     neatQueueConfig: NeatQueueConfigRow,
     allPlayerXuids: string[],
+    seriesMatchIds: string[],
   ): Promise<void> {
     this.logService.debug(
       "nudgeIndividualTrackersForMatchCompletion: resolved player xuids for series end nudge",
@@ -1520,10 +1579,15 @@ export class NeatQueueService {
         ["guildId", neatQueueConfig.GuildId],
         ["queueNumber", request.match_number.toString()],
         ["resolvedXuidCount", allPlayerXuids.length.toString()],
+        ["seriesMatchCount", seriesMatchIds.length.toString()],
       ]),
     );
     try {
-      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, { type: "ended" });
+      await this.individualTrackerService.nudgeTrackers(allPlayerXuids, {
+        type: "ended",
+        queue: { guildId: neatQueueConfig.GuildId, queueNumber: request.match_number },
+        matchIds: seriesMatchIds,
+      });
     } catch (error: unknown) {
       this.logService.warn(
         "Failed to nudge individual trackers for match completion",
@@ -2464,10 +2528,13 @@ export class NeatQueueService {
   }
 
   private getTeams(request: NeatQueueMatchCompletedRequest): TeamMapping[] {
-    return request.teams.map((team) => ({
-      name: team[0]?.team_name ?? "",
-      playerIds: team.map((player) => player.id),
-    }));
+    return request.teams.map((team, teamIndex) => {
+      const teamName = team[0]?.team_name?.trim();
+      return {
+        name: teamName == null || teamName === "" ? getTeamName(teamIndex) : teamName,
+        playerIds: team.map((player) => player.id),
+      };
+    });
   }
 
   private getSubstitutionsFromTimeline(
@@ -2615,7 +2682,7 @@ export class NeatQueueService {
       series,
       finalTeams,
       substitutions,
-      hideTeamsDescription: true,
+      hideTeamsDescription: false,
     });
   }
 

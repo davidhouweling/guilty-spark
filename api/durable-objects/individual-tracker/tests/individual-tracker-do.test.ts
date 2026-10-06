@@ -45,6 +45,8 @@ import type {
   IndividualTrackerStartSeriesRequest,
   ActiveSeries,
   ActiveSeriesContext,
+  IndividualTrackerMatchSummary,
+  SeriesTeam,
 } from "../types";
 import {
   aFakeIndividualTrackerInternalStateWith,
@@ -797,7 +799,7 @@ describe("IndividualTrackerDO", () => {
       expect(series?.score).toBe("0:1");
     });
 
-    it("filters series matches by expected team sizes when series teams are known", async () => {
+    it("keeps series matches played before a roster substitution", async () => {
       storageGetSpy.mockResolvedValue(
         aFakeIndividualTrackerInternalStateWith({
           matchIds: ["m1", "m2"],
@@ -811,16 +813,16 @@ describe("IndividualTrackerDO", () => {
                 id: 0,
                 name: "Alpha",
                 players: [
-                  { discordId: null, discordName: "A1", gamertag: "A1", xboxId: null },
-                  { discordId: null, discordName: "A2", gamertag: "A2", xboxId: null },
+                  { discordId: null, discordName: "A1", gamertag: "A1", xboxId: "a" },
+                  { discordId: null, discordName: "Sub", gamertag: "Sub", xboxId: "e" },
                 ],
               },
               {
                 id: 1,
                 name: "Beta",
                 players: [
-                  { discordId: null, discordName: "B1", gamertag: "B1", xboxId: null },
-                  { discordId: null, discordName: "B2", gamertag: "B2", xboxId: null },
+                  { discordId: null, discordName: "B1", gamertag: "B1", xboxId: "c" },
+                  { discordId: null, discordName: "B2", gamertag: "B2", xboxId: "d" },
                 ],
               },
             ],
@@ -846,10 +848,10 @@ describe("IndividualTrackerDO", () => {
               mapAssetId: "map-b",
               mapVersionId: "ver-b",
               gameVariantCategory: 7,
-              outcome: "Loss",
+              outcome: "Win",
               isMatchmaking: false,
-              teamRosterSignature: "0:a,b,e|1:c,d,f",
-              teamOutcomes: [3, 2],
+              teamRosterSignature: "0:a,e|1:c,d",
+              teamOutcomes: [2, 3],
             }),
           },
         }),
@@ -860,8 +862,74 @@ describe("IndividualTrackerDO", () => {
 
       expect(body.state?.series).toHaveLength(1);
       const series = body.state?.series[0];
-      expect(series?.matchIds).toEqual(["m1"]);
-      expect(series?.score).toBe("1:0");
+      expect(series?.matchIds).toEqual(["m1", "m2"]);
+      expect(series?.score).toBe("2:0");
+    });
+
+    it("groups a completed series' matches into one series even when a substitution changed the roster", async () => {
+      const seriesTeams: SeriesTeam[] = [
+        {
+          id: 0,
+          name: "Alpha",
+          players: [
+            { discordId: null, discordName: "A1", gamertag: "A1", xboxId: "a" },
+            { discordId: null, discordName: "Sub", gamertag: "Sub", xboxId: "e" },
+          ],
+        },
+        {
+          id: 1,
+          name: "Beta",
+          players: [
+            { discordId: null, discordName: "B1", gamertag: "B1", xboxId: "c" },
+            { discordId: null, discordName: "B2", gamertag: "B2", xboxId: "d" },
+          ],
+        },
+      ];
+      const aSummary = (
+        matchId: string,
+        startTime: string,
+        teamRosterSignature: string,
+      ): IndividualTrackerMatchSummary =>
+        aFakeIndividualTrackerMatchSummaryWith({
+          matchId,
+          startTime,
+          isMatchmaking: false,
+          teamRosterSignature,
+          teamOutcomes: [2, 3],
+        });
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ["m1", "m2", "m3", "m4"],
+          selectedMatchIds: ["m1", "m2", "m3", "m4"],
+          completedSeries: [
+            {
+              title: "Dog Crew",
+              subtitle: "Queue #1",
+              guildIconUrl: null,
+              teams: seriesTeams,
+              matchIds: ["m1", "m2", "m3", "m4"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+          discoveredMatches: {
+            m1: aSummary("m1", "2024-11-26T11:00:00.000Z", "0:a,b|1:c,d"),
+            m2: aSummary("m2", "2024-11-26T11:15:00.000Z", "0:a,b|1:c,d"),
+            m3: aSummary("m3", "2024-11-26T11:30:00.000Z", "0:a,e|1:c,d"),
+            m4: aSummary("m4", "2024-11-26T11:45:00.000Z", "0:a,e|1:c,d"),
+          },
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body: IndividualTrackerViewStateResponse = await response.json();
+
+      expect(body.state?.series).toHaveLength(1);
+      expect(body.state?.series[0]).toMatchObject({
+        title: "Dog Crew",
+        subtitle: "Queue #1",
+        matchIds: ["m1", "m2", "m3", "m4"],
+      });
     });
 
     it("orders matches chronologically and groups time-adjacent matches regardless of discovery order", async () => {
@@ -1966,7 +2034,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.selectedMatchIds).toEqual(["match-new"]);
     });
 
-    it("flushes active/completed series metadata before appending a newly discovered matchmaking match", async () => {
+    it("retires the active series to history with its metadata before appending a newly discovered matchmaking match", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([aFakePlayerMatch("match-matchmaking", "2024-11-26T11:30:00.000Z", 2, "PT5M", true)])
         .mockResolvedValueOnce([]);
@@ -2018,13 +2086,20 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({
+          title: "Active Series",
+          subtitle: "Customs",
+          isActive: false,
+          matchIds: ["series-custom-match"],
+        }),
+      ]);
       expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
       expect(persisted.matchIds).toEqual(["series-custom-match", "match-matchmaking"]);
       expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
     });
 
-    it("flushes completed series metadata when a newer matchmaking match appears in the same batch", async () => {
+    it("retires the active series to history when a newer matchmaking match appears in the same batch", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([
           aFakePlayerMatch("match-matchmaking", "2024-11-26T11:32:00.000Z", 2, "PT5M", true),
@@ -2058,13 +2133,19 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({
+          title: "Active Series",
+          isActive: false,
+          matchIds: ["series-custom-existing", "match-custom-older"],
+        }),
+      ]);
       expect(persisted.matchIds).toEqual(["series-custom-existing", "match-custom-older", "match-matchmaking"]);
       expect(persisted.discoveredMatches["match-matchmaking"]?.isMatchmaking).toBe(true);
       expect(persisted.discoveredMatches["match-custom-older"]?.isMatchmaking).toBe(false);
     });
 
-    it("flushes completed series metadata when an older matchmaking match is the boundary", async () => {
+    it("retires the active series to history when an older matchmaking match is the boundary", async () => {
       ownerClient.getPlayerMatches
         .mockResolvedValueOnce([
           aFakePlayerMatch("match-custom-newer", "2024-11-26T11:32:00.000Z", 2, "PT5M", false),
@@ -2098,7 +2179,9 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Active Series", isActive: false, matchIds: ["series-custom-existing"] }),
+      ]);
       expect(persisted.matchIds).toEqual(["series-custom-existing", "match-matchmaking-older", "match-custom-newer"]);
       expect(persisted.discoveredMatches["match-matchmaking-older"]?.isMatchmaking).toBe(true);
       expect(persisted.discoveredMatches["match-custom-newer"]?.isMatchmaking).toBe(false);
@@ -2567,6 +2650,110 @@ describe("IndividualTrackerDO", () => {
       await individualTrackerDO.alarm();
 
       const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual([]);
+    });
+
+    it("attaches a discovered match to the active series when a series player has no linked Xbox identity", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const activeSeries: ActiveSeries = {
+        title: "Active Series",
+        subtitle: "Customs",
+        guildIconUrl: null,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: "unlinked", discordName: "Unlinked", gamertag: null, xboxId: null },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        matchIds: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: true,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          activeSeries,
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries?.matchIds).toEqual(["match-new"]);
+    });
+
+    it("does not attach a late-discovered match already claimed by a completed series to the next series", async () => {
+      ownerClient.getPlayerMatches
+        .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
+        .mockResolvedValueOnce([]);
+      const teams: SeriesTeam[] = [
+        {
+          id: 0,
+          name: "Eagle",
+          players: [
+            { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+            { discordId: null, discordName: null, gamertag: "Bravo", xboxId: "2222222222" },
+          ],
+        },
+        {
+          id: 1,
+          name: "Cobra",
+          players: [
+            { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+            { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+          ],
+        },
+      ];
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          startTime: now.toISOString(),
+          searchStartTime: "2024-11-26T11:00:00.000Z",
+          matchIds: [],
+          discoveredMatches: {},
+          completedSeries: [
+            {
+              title: "Queue #1",
+              subtitle: null,
+              guildIconUrl: null,
+              teams,
+              matchIds: ["match-new"],
+              startedAt: "2024-11-26T11:00:00.000Z",
+              isActive: false,
+            },
+          ],
+          activeSeries: {
+            title: "Queue #2",
+            subtitle: null,
+            guildIconUrl: null,
+            teams,
+            matchIds: [],
+            startedAt: "2024-11-26T11:40:00.000Z",
+            isActive: true,
+          },
+        }),
+      );
+
+      await individualTrackerDO.alarm();
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.matchIds).toContain("match-new");
       expect(persisted.activeSeries?.matchIds).toEqual([]);
     });
 
@@ -3788,7 +3975,7 @@ describe("IndividualTrackerDO", () => {
       expect(persisted.activeSeries?.subtitle).toBeNull();
     });
 
-    it("flushes old series metadata when starting a new one", async () => {
+    it("retires old series to history when starting a new one", async () => {
       const existingSeries: ActiveSeries = {
         title: "Old Series",
         subtitle: "",
@@ -3806,7 +3993,9 @@ describe("IndividualTrackerDO", () => {
 
       expect(response.status).toBe(200);
       const persisted = lastPersistedState(storagePutSpy);
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Old Series", isActive: false, matchIds: ["match-old-1"] }),
+      ]);
       expect(persisted.activeSeries).toMatchObject({ title: "New Series", isActive: true });
     });
   });
@@ -3828,7 +4017,7 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(409);
     });
 
-    it("moves activeSeries to completedSeries, clears activeSeries, and broadcasts view", async () => {
+    it("drops an empty activeSeries from history and broadcasts view", async () => {
       const activeSeries: ActiveSeries = {
         title: "Eagle vs Cobra",
         subtitle: "Bo5",
@@ -3851,8 +4040,7 @@ describe("IndividualTrackerDO", () => {
 
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toHaveLength(1);
-      expect(persisted.completedSeries?.[0]).toMatchObject({ title: "Eagle vs Cobra", isActive: false });
+      expect(persisted.completedSeries).toBeUndefined();
       expect(webSocketAdapter.broadcasts).toHaveLength(1);
     });
   });
@@ -4236,6 +4424,74 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(400);
     });
 
+    it("keeps the active series running when the ended event is for a different queue", async () => {
+      const previousQueue = { guildId: "guild-1", queueNumber: 1 };
+      const activeQueue = { guildId: "guild-1", queueNumber: 2 };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          completedSeries: [
+            anActiveSeries({ queue: previousQueue, subtitle: "Queue #1", matchIds: ["match-1"], isActive: false }),
+          ],
+          activeSeries: anActiveSeries({ queue: activeQueue, subtitle: "Queue #2", matchIds: ["match-3"] }),
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "ended", queue: previousQueue, matchIds: ["match-1", "match-2"] }),
+        }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toMatchObject({ subtitle: "Queue #2", isActive: true, matchIds: ["match-3"] });
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ subtitle: "Queue #1", matchIds: ["match-1", "match-2"] }),
+      ]);
+    });
+
+    it("retires the active series when the ended event is for its queue", async () => {
+      const queue = { guildId: "guild-1", queueNumber: 2 };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: anActiveSeries({ queue, subtitle: "Queue #2", matchIds: ["match-1"] }),
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "ended", queue, matchIds: ["match-1", "match-2"] }),
+        }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ queue, isActive: false, matchIds: ["match-1", "match-2"] }),
+      ]);
+    });
+
+    it("records the queue identity when a series starts via nudge", async () => {
+      storageGetSpy.mockResolvedValue(aFakeIndividualTrackerInternalStateWith());
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({
+            type: "started",
+            queue: { guildId: "guild-1", queueNumber: 7 },
+            title: "Dog Crew",
+            subtitle: "Queue #7",
+            guildIconUrl: null,
+            teams: [],
+          }),
+        }),
+      );
+
+      expect(lastPersistedState(storagePutSpy).activeSeries?.queue).toEqual({ guildId: "guild-1", queueNumber: 7 });
+    });
+
     it("retires active series metadata when nudging with ended event", async () => {
       const persistedSeriesGroupOverrides = [
         { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
@@ -4271,7 +4527,7 @@ describe("IndividualTrackerDO", () => {
       expect(storageSetAlarmSpy).toHaveBeenCalledWith(Date.now());
     });
 
-    it("flushes active/completed series metadata when tracked player is subbed out", async () => {
+    it("retires the active series to history when tracked player is subbed out", async () => {
       const persistedSeriesGroupOverrides = [
         { matchIds: ["match-1"], titleOverride: "Custom Label", subtitleOverride: null },
       ];
@@ -4286,6 +4542,7 @@ describe("IndividualTrackerDO", () => {
                 players: [{ discordId: "discord-1", discordName: "PlayerOne", gamertag: "GT1", xboxId: "xuid-1" }],
               },
             ],
+            matchIds: ["match-1"],
           }),
           seriesGroupOverrides: persistedSeriesGroupOverrides,
         }),
@@ -4298,8 +4555,52 @@ describe("IndividualTrackerDO", () => {
       expect(response.status).toBe(200);
       const persisted = lastPersistedState(storagePutSpy);
       expect(persisted.activeSeries).toBeUndefined();
-      expect(persisted.completedSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({ title: "Guilty Spark", subtitle: "Queue #1", isActive: false }),
+      ]);
       expect(persisted.seriesGroupOverrides).toEqual(persistedSeriesGroupOverrides);
+    });
+
+    it("replaces the retired series' matches with the NeatQueue series matches when nudging with ended event", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: anActiveSeries({ title: "Dog Crew", subtitle: "Queue #8018", matchIds: ["match-1"] }),
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(
+        new Request("http://do/nudge", {
+          method: "POST",
+          body: JSON.stringify({ type: "ended", matchIds: ["match-1", "match-2", "match-3"] }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.activeSeries).toBeUndefined();
+      expect(persisted.completedSeries).toEqual([
+        expect.objectContaining({
+          title: "Dog Crew",
+          subtitle: "Queue #8018",
+          isActive: false,
+          matchIds: ["match-1", "match-2", "match-3"],
+        }),
+      ]);
+    });
+
+    it("keeps the attached matches when the ended event has no NeatQueue series matches", async () => {
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          activeSeries: anActiveSeries({ matchIds: ["match-1"] }),
+        }),
+      );
+
+      await individualTrackerDO.fetch(
+        new Request("http://do/nudge", { method: "POST", body: JSON.stringify({ type: "ended", matchIds: [] }) }),
+      );
+
+      const persisted = lastPersistedState(storagePutSpy);
+      expect(persisted.completedSeries?.[0]?.matchIds).toEqual(["match-1"]);
     });
 
     it("resumes completed series and applies substitution when tracked player is subbed in", async () => {
@@ -4709,6 +5010,64 @@ describe("IndividualTrackerDO", () => {
       expect(body.state.series[0]?.score).toBe("1:1");
     });
 
+    it("orients a pre-substitution match by roster overlap when computing the series score", async () => {
+      const ids = ["match-1", "match-2"];
+      const activeSeries: ActiveSeries = {
+        title: "Guilty Spark",
+        subtitle: "Queue #5",
+        guildIconUrl: null,
+        matchIds: ids,
+        teams: [
+          {
+            id: 0,
+            name: "Eagle",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha", xboxId: "1111111111" },
+              { discordId: null, discordName: null, gamertag: "Sub", xboxId: "5555555555" },
+            ],
+          },
+          {
+            id: 1,
+            name: "Cobra",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Charlie", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Delta", xboxId: "4444444444" },
+            ],
+          },
+        ],
+        startedAt: new Date().toISOString(),
+        isActive: true,
+      };
+
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          matchIds: ids,
+          selectedMatchIds: ids,
+          discoveredMatches: {
+            // Played before Bravo was subbed out, with Eagle on TeamId 1
+            "match-1": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "match-1",
+              mapAssetId: "map-a",
+              teamRosterSignature: "0:3333333333,4444444444|1:1111111111,2222222222",
+              teamOutcomes: [3, 2],
+            }),
+            "match-2": aFakeIndividualTrackerMatchSummaryWith({
+              matchId: "match-2",
+              mapAssetId: "map-b",
+              teamRosterSignature: "0:1111111111,5555555555|1:3333333333,4444444444",
+              teamOutcomes: [2, 3],
+            }),
+          },
+          activeSeries,
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+
+      const body = await response.json<{ state: { series: { score: string }[] } }>();
+      expect(body.state.series[0]?.score).toBe("2:0");
+    });
+
     it("applies completedSeries metadata to a matching group after the series ends", async () => {
       const ids = ["match-c-1", "match-c-2"];
       const completedSeries: ActiveSeries = {
@@ -4736,7 +5095,7 @@ describe("IndividualTrackerDO", () => {
       expect(group?.subtitle).toBe("Queue #3");
     });
 
-    it("activeSeries title takes priority over completedSeries on overlapping matchIds", async () => {
+    it("gives activeSeries ownership of overlapping matchIds", async () => {
       const ids = ["match-overlap-1", "match-overlap-2"];
       const completedSeries: ActiveSeries = {
         title: "Old Queue",
@@ -4767,10 +5126,83 @@ describe("IndividualTrackerDO", () => {
       const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
 
       expect(response.status).toBe(200);
-      const body = await response.json<{ state: { series: { title: string; subtitle: string }[] } }>();
+      const body = await response.json<{
+        state: { series: { title: string; subtitle: string; matchIds: string[] }[] };
+      }>();
       const [group] = body.state.series;
       expect(group?.title).toBe("New Queue");
       expect(group?.subtitle).toBe("Queue #2");
+      expect(group?.matchIds).toEqual(ids);
+      expect(body.state.series).toHaveLength(1);
+    });
+
+    it("gives newer completed contexts ownership of overlapping matchIds", async () => {
+      const ids = ["match-older-1", "match-shared", "match-newer-1"];
+      const olderSeries: ActiveSeries = {
+        title: "Older Queue",
+        subtitle: "Queue #1",
+        guildIconUrl: null,
+        matchIds: ["match-older-1", "match-shared"],
+        teams: [],
+        startedAt: "2024-11-26T10:00:00.000Z",
+        isActive: false,
+      };
+      const newerSeries: ActiveSeries = {
+        title: "Newer Queue",
+        subtitle: "Queue #2",
+        guildIconUrl: null,
+        matchIds: ["match-shared", "match-newer-1"],
+        teams: [],
+        startedAt: "2024-11-26T11:00:00.000Z",
+        isActive: false,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          completedSeries: [olderSeries, newerSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { series: { title: string; matchIds: string[] }[] } }>();
+
+      expect(body.state.series).toHaveLength(2);
+      expect(body.state.series).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: "Newer Queue", matchIds: ["match-shared", "match-newer-1"] }),
+          expect.objectContaining({ title: "Older Queue", matchIds: ["match-older-1"] }),
+        ]),
+      );
+    });
+
+    it("preserves unclaimed auto-group matches after a completed context claims part of the group", async () => {
+      const ids = ["match-claimed", "match-unclaimed-1", "match-unclaimed-2"];
+      const completedSeries: ActiveSeries = {
+        title: "Completed Queue",
+        subtitle: "Queue #3",
+        guildIconUrl: null,
+        matchIds: ["match-claimed"],
+        teams: [],
+        startedAt: new Date().toISOString(),
+        isActive: false,
+      };
+      storageGetSpy.mockResolvedValue(
+        aFakeIndividualTrackerInternalStateWith({
+          ...makeSeriesMatches(ids),
+          completedSeries: [completedSeries],
+        }),
+      );
+
+      const response = await individualTrackerDO.fetch(new Request("http://do/view-state", { method: "GET" }));
+      const body = await response.json<{ state: { series: { title: string; matchIds: string[] }[] } }>();
+
+      expect(body.state.series).toHaveLength(2);
+      expect(body.state.series).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: "Completed Queue", matchIds: ["match-claimed"] }),
+          expect.objectContaining({ matchIds: ["match-unclaimed-1", "match-unclaimed-2"] }),
+        ]),
+      );
     });
 
     it("uses computed default subtitle when activeSeries subtitle is null", async () => {

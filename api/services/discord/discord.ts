@@ -19,6 +19,7 @@ import type {
   RESTError,
   RESTGetAPIGuildMemberResult,
   RESTGetAPIGuildMessagesSearchQuery,
+  RESTGetAPIGuildMembersSearchResult,
   RESTGetAPIGuildMessagesSearchResult,
   RESTGetAPIWebhookWithTokenMessageResult,
   RESTPatchAPIChannelMessageResult,
@@ -66,8 +67,10 @@ import {
   DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
   extractDiscordSeriesMatchIdsFromEmbeds,
   extractQueueNumberFromSeriesOverviewEmbed,
+  extractTeamsFromSeriesOverviewEmbed,
   getDiscordSeriesOverviewEmbed,
   getDiscordSeriesStatsCacheKey,
+  getDiscordSeriesStatsMatchIdsKey,
   isDiscordSeriesErrorMessage,
 } from "./discord-series-stats";
 
@@ -80,6 +83,7 @@ export interface QueueData {
   teams: {
     name: string;
     players: APIGuildMember[];
+    unlinkedGamertags?: string[] | undefined;
   }[];
 }
 
@@ -122,6 +126,7 @@ export type DiscordSeriesLookupResult =
       guildId: string;
       queueNumber: number;
       matchIds: string[];
+      isManualSeries?: boolean | undefined;
     }
   | DiscordSeriesStatsPending
   | DiscordSeriesStatsNotFound;
@@ -423,6 +428,11 @@ export class DiscordService {
         return cached;
       }
 
+      const manualMatchIds = await this.getManualSeriesMatchIds(guildId, queueNumber);
+      if (manualMatchIds != null) {
+        return { status: "lookup-resolved", guildId, queueNumber, matchIds: manualMatchIds, isManualSeries: true };
+      }
+
       const cachedLookup = await this.getCachedDiscordSeriesLookupResult(guildId, queueNumber);
       if (cachedLookup != null) {
         return cachedLookup;
@@ -455,7 +465,10 @@ export class DiscordService {
   }: {
     guildId: string;
     queueNumber: number;
-    resolveRenderData: (matchIds: string[]) => Promise<DiscordSeriesStatsResolved["renderData"]>;
+    resolveRenderData: (
+      matchIds: string[],
+      isManualSeries: boolean,
+    ) => Promise<DiscordSeriesStatsResolved["renderData"]>;
   }): Promise<DiscordSeriesStats | DiscordSeriesStatsForbidden> {
     const lookupOrCached = await this.getSeriesStatsLookup(guildId, queueNumber);
 
@@ -475,7 +488,7 @@ export class DiscordService {
       return lookupOrCached;
     }
 
-    const renderData = await resolveRenderData(lookupOrCached.matchIds);
+    const renderData = await resolveRenderData(lookupOrCached.matchIds, lookupOrCached.isManualSeries === true);
     const resolvedResponse: DiscordSeriesStats = {
       status: "resolved",
       guildId,
@@ -636,14 +649,15 @@ export class DiscordService {
       return null;
     }
 
+    const hasValidManualMarker = cached.isManualSeries == null || typeof cached.isManualSeries === "boolean";
     const hasValidMatchIds =
       Array.isArray(cached.matchIds) && cached.matchIds.every((matchId) => typeof matchId === "string");
-    if (!hasValidMatchIds) {
+    if (!hasValidMatchIds || !hasValidManualMarker) {
       this.logService.warn(
         "Invalid cached discord series lookup payload, treating as cache miss",
         new Map([
           ["cacheKey", lookupCacheKey],
-          ["reason", "matchIds must be an array of strings"],
+          ["reason", "matchIds must be strings and isManualSeries must be a boolean when present"],
         ]),
       );
       return null;
@@ -675,6 +689,37 @@ export class DiscordService {
     await this.env.APP_DATA.put(cacheKey, JSON.stringify(resolvedResponse), {
       expirationTtl: DISCORD_SERIES_STATS_RESOLVED_CACHE_TTL_SECONDS,
     });
+  }
+
+  async cacheDiscordSeriesMatchIds(guildId: string, queueNumber: number, matchIds: string[]): Promise<void> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
+    await this.env.APP_DATA.put(key, JSON.stringify(matchIds));
+    await Promise.all([
+      this.env.APP_DATA.delete(getDiscordSeriesStatsCacheKey(guildId, queueNumber)),
+      this.env.APP_DATA.delete(getDiscordSeriesStatsLookupCacheKey(guildId, queueNumber)),
+    ]);
+  }
+
+  private async getManualSeriesMatchIds(guildId: string, queueNumber: number): Promise<string[] | null> {
+    const key = getDiscordSeriesStatsMatchIdsKey(guildId, queueNumber);
+    const matchIds = await this.env.APP_DATA.get(key, { type: "json" });
+    if (matchIds == null) {
+      return null;
+    }
+
+    if (
+      !Array.isArray(matchIds) ||
+      matchIds.length === 0 ||
+      !matchIds.every((matchId) => typeof matchId === "string")
+    ) {
+      this.logService.warn(
+        "Invalid manual discord series match IDs, treating as not found",
+        new Map([["cacheKey", key]]),
+      );
+      return null;
+    }
+
+    return matchIds;
   }
 
   async getTeamsFromMessage(guildId: string, message: APIMessage): Promise<QueueData> {
@@ -710,6 +755,36 @@ export class DiscordService {
     }
 
     return this.buildQueueDataFromMessage(guildId, message, embed, queueNumber, false);
+  }
+
+  /**
+   * Manual series have no NeatQueue result, so their teams are recovered from the overview's team lines instead.
+   */
+  async getTeamsFromSeriesOverview(guildId: string, message: APIMessage, queueNumber: number): Promise<QueueData> {
+    const embed = getDiscordSeriesOverviewEmbed(message, queueNumber);
+    const teams = embed == null ? [] : extractTeamsFromSeriesOverviewEmbed(embed);
+    if (teams.length !== 2) {
+      throw new EndUserError(`Could not read the teams from the series stats for queue #${queueNumber.toString()}.`, {
+        errorType: EndUserErrorType.ERROR,
+        handled: true,
+      });
+    }
+
+    const members = new Map<string, APIGuildMember>();
+    for (const playerId of teams.flatMap((team) => team.playerIds)) {
+      members.set(playerId, await this.getGuildMember(guildId, playerId));
+    }
+
+    return {
+      message,
+      timestamp: new Date(message.timestamp),
+      queue: queueNumber,
+      teams: teams.map((team) => ({
+        name: team.name,
+        players: team.playerIds.map((playerId) => Preconditions.checkExists(members.get(playerId))),
+        unlinkedGamertags: [...team.unlinkedGamertags],
+      })),
+    };
   }
 
   async getTeamsFromQueueChannel(guildId: string, channelId: string): Promise<QueueData | null> {
@@ -1098,6 +1173,13 @@ export class DiscordService {
     });
   }
 
+  async searchGuildMembers(guildId: string, query: string): Promise<RESTGetAPIGuildMembersSearchResult> {
+    return this.fetch<RESTGetAPIGuildMembersSearchResult>(Routes.guildMembersSearch(guildId), {
+      method: "GET",
+      queryParameters: { query, limit: 1000 },
+    });
+  }
+
   async getGuildMember(
     guildId: string,
     userId: string,
@@ -1214,7 +1296,7 @@ export class DiscordService {
     return searchResponse.messages;
   }
 
-  private async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
+  async findSeriesOverviewMessage(guildId: string, queueNumber: number): Promise<APIMessage | undefined> {
     const searchResponse = await this.searchGuildMessages(guildId, {
       content: `Series stats for queue #${queueNumber.toString()}`,
       author_id: [this.env.DISCORD_APP_ID],
@@ -1412,6 +1494,15 @@ export class DiscordService {
 
   async deleteMessage(channelId: string, messageId: string, reason: string): Promise<void> {
     await this.fetch(Routes.channelMessage(channelId, messageId), {
+      method: "DELETE",
+      headers: {
+        "X-Audit-Log-Reason": reason,
+      },
+    });
+  }
+
+  async deleteChannel(channelId: string, reason: string): Promise<void> {
+    await this.fetch(Routes.channel(channelId), {
       method: "DELETE",
       headers: {
         "X-Audit-Log-Reason": reason,

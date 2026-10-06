@@ -149,6 +149,15 @@
   --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
 }
 
+.seriesScoreUpcoming {
+  --team-color: var(--halo-gray);
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 45%, transparent);
+}
+
+.seriesScoreUpcoming .seriesScoreLink {
+  color: var(--halo-gray);
+}
+
 .seriesScoreLink {
   align-items: center;
   border: 2px solid var(--team-color, color-mix(in srgb, var(--halo-teal-primary) 25%, transparent));

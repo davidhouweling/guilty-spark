@@ -169,6 +169,7 @@ describe("/api/individual-tracker manage routes", () => {
     }
     const startBody = JSON.parse(rawStartBody) as Record<string, unknown>;
     expect(startBody["seriesSeed"]).toEqual({
+      queue: { guildId: "guild-1", queueNumber: 5 },
       title: "Test Server",
       subtitle: "Queue #5",
       guildIconUrl: null,

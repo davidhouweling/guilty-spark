@@ -60,6 +60,7 @@ export async function resolveSeriesSeed(opts: ResolveSeriesSeedOpts): Promise<In
     }
 
     return {
+      queue: { guildId: activeSeries.guildId, queueNumber: activeSeries.queueNumber },
       title: seriesContext.title,
       subtitle: seriesContext.subtitle,
       guildIconUrl: seriesContext.guildIconUrl,

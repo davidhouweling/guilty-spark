@@ -43,6 +43,29 @@ describe("DiscordSeriesStatsPresenter", () => {
     });
   });
 
+  it("loads manual series using the queue number", async (): Promise<void> => {
+    const response = aFakeResolvedDiscordSeriesStatsWith();
+    const getStats = vi.fn<DiscordSeriesStatsService["getStats"]>(async () =>
+      Promise.resolve<DiscordSeriesStatsResult>({
+        status: 200,
+        data: response,
+        retryAfterSeconds: null,
+      }),
+    );
+    const store = new DiscordSeriesStatsStore();
+    const presenter = new DiscordSeriesStatsPresenter({
+      store,
+      discordSeriesStatsService: createServiceWith(getStats),
+      guildId: "123456789012345678",
+      queueNumber: "7777",
+    });
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(getStats).toHaveBeenCalledWith("123456789012345678", "7777");
+    });
+  });
+
   it("stores an error when the service request fails", async (): Promise<void> => {
     const store = new DiscordSeriesStatsStore();
     const presenter = new DiscordSeriesStatsPresenter({

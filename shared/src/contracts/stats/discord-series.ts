@@ -44,6 +44,7 @@ export const discordSeriesStatsResolvedSchema = z.object({
           endTime: z.string(),
           playerXuidToGametag: z.record(z.string(), z.string()),
           rawMatch: z.unknown(),
+          seriesMatch: z.unknown().optional(),
         }),
       )
       .min(1),

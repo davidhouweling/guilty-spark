@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, expect } from "vitest";
 import { getCommands } from "../commands";
-import { InteractionButton } from "../stats/stats";
+import { InteractionButton } from "../stats/stats-interaction-button";
 import { installFakeServicesWith } from "../../services/fakes/services";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 
@@ -45,6 +45,16 @@ describe("getCommands", () => {
   it("registers manual queue pagination buttons for component dispatch", () => {
     expect(commandMap.get(InteractionButton.ManualQueuePreviousPage)).toBe(commandMap.get("stats"));
     expect(commandMap.get(InteractionButton.ManualQueueNextPage)).toBe(commandMap.get("stats"));
+  });
+
+  it("registers manual games, outcome and confirm components for component dispatch", () => {
+    expect(commandMap.get(InteractionButton.ManualGamesSelect)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualOutcomeSelect)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualConfirm)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualSetQueueNumber)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualQueueNumberModal)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualAdjustScore)).toBe(commandMap.get("stats"));
+    expect(commandMap.get(InteractionButton.ManualScoreModal)).toBe(commandMap.get("stats"));
   });
 
   it("all commands have required data property", () => {

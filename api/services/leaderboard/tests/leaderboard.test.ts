@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MatchOutcome } from "halo-infinite-api";
 import type { APIMessage, APIMessageTopLevelComponent } from "discord-api-types/v10";
 import { ComponentType, Locale } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -9,6 +10,7 @@ import {
   LeaderboardWindow,
 } from "@guilty-spark/shared/halo/leaderboard";
 import { LEADERBOARD_MAX_PAGE_SIZE } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LeaderboardRankingRow } from "../../database/types/leaderboard_ranking_row";
 import {
   aFakeDatabaseServiceWith,
@@ -21,7 +23,7 @@ import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage } from "../../discord/fakes/data";
 import { DiscordError } from "../../discord/discord-error";
 import { aFakeHaloServiceWith } from "../../halo/fakes/halo.fake";
-import { getMatchStats } from "../../halo/fakes/data";
+import { aMatchWithSwappableRosters, getMatchStats } from "../../halo/fakes/data";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { NeatQueueMatchCompletedRequest } from "../../neatqueue/types";
 import { LeaderboardService } from "../leaderboard";
@@ -930,12 +932,159 @@ describe("LeaderboardService", () => {
       neatQueueConfig: aFakeNeatQueueConfigRow(),
       series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
       winnerTeamIndex: -1,
+      seriesScore: "1:1",
       locale: "en-US",
     });
 
     const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
     expect(payload.series.WinnerTeamIndex).toBe(-1);
+    expect(payload.series.SeriesScore).toBe("1:1");
     expect(payload.seriesPlayers.every((player) => player.SeriesWon === 0)).toBe(true);
+  });
+
+  it("persists scores for matches whose Halo team IDs are 2 and 3", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const service = new LeaderboardService({
+      databaseService,
+      haloService,
+      logService: aFakeLogServiceWith(),
+    });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const matchWithNonstandardTeamIds = {
+      ...match,
+      Teams: match.Teams.map((team, index) => ({
+        ...team,
+        TeamId: team.TeamId + 2,
+        Stats: {
+          ...team.Stats,
+          CoreStats: { ...team.Stats.CoreStats, Score: index === 0 ? 50 : 45 },
+        },
+      })),
+      Players: match.Players.map((player) => ({
+        ...player,
+        LastTeamId: player.LastTeamId + 2,
+        PlayerTeamStats: player.PlayerTeamStats.map((teamStats) => ({
+          ...teamStats,
+          TeamId: teamStats.TeamId + 2,
+        })),
+      })),
+    };
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [matchWithNonstandardTeamIds],
+      winnerTeamIndex: 2,
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const game = Preconditions.checkExists(payload.games.find((row) => row.MatchId === match.MatchId));
+    expect(game.Team0Score).toBe(50);
+    expect(game.Team1Score).toBe(45);
+  });
+
+  it("uses stable series-team identity when assigning series wins", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+    const player = Preconditions.checkExists(match.Players[0]);
+    const playerTeamId = Preconditions.checkExists(player.PlayerTeamStats[0]).TeamId;
+    const xuid = getPlayerXuid(player);
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [match],
+      winnerTeamIndex: playerTeamId + 1,
+      seriesTeamIdByXuid: new Map([[xuid, playerTeamId + 1]]),
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const playerRow = Preconditions.checkExists(payload.seriesPlayers.find((row) => row.XboxXuid === xuid));
+    expect(playerRow.SeriesWon).toBe(1);
+  });
+
+  it("persists the stable series team for a substitute joining after teams swap sides", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const service = new LeaderboardService({
+      databaseService,
+      haloService,
+      logService: aFakeLogServiceWith(),
+    });
+    const anchorMatch = aMatchWithSwappableRosters({
+      matchId: "manual-anchor",
+      startTime: "2026-10-03T10:00:00Z",
+      mapAssetId: "manual-map-1",
+      team0PlayerIds: ["0100000000000000", "0200000000000000"],
+      team1PlayerIds: ["0400000000000000", "0800000000000000"],
+      team0Outcome: MatchOutcome.Win.valueOf(),
+      team1Outcome: MatchOutcome.Loss.valueOf(),
+    });
+    const swappedMatch = aMatchWithSwappableRosters({
+      matchId: "manual-swapped",
+      startTime: "2026-10-03T10:15:00Z",
+      mapAssetId: "manual-map-2",
+      team0PlayerIds: ["0400000000000000", "0800000000000000"],
+      team1PlayerIds: ["0100000000000000", "0200000000000000", "0900000000000000"],
+      team0Outcome: MatchOutcome.Loss.valueOf(),
+      team1Outcome: MatchOutcome.Win.valueOf(),
+    });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [anchorMatch, swappedMatch],
+      winnerTeamIndex: 0,
+      seriesTeamIdByXuid: new Map([["0900000000000000", 0]]),
+      locale: "en-US",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    const substituteSeriesRow = Preconditions.checkExists(
+      payload.seriesPlayers.find((row) => row.XboxXuid === "0900000000000000"),
+    );
+    const substituteGameRow = Preconditions.checkExists(
+      payload.gamePlayers.find((row) => row.MatchId === "manual-swapped" && row.XboxXuid === "0900000000000000"),
+    );
+    expect(substituteSeriesRow.TeamId).toBe(0);
+    expect(substituteGameRow.TeamId).toBe(1);
+  });
+
+  it("persists a provided series score instead of the computed one", async () => {
+    const databaseService = aFakeDatabaseServiceWith();
+    const haloService = aFakeHaloServiceWith({ databaseService });
+    const logService = aFakeLogServiceWith();
+    const service = new LeaderboardService({ databaseService, haloService, logService });
+    const upsertSpy = vi.spyOn(databaseService, "upsertLeaderboardSeriesDataBatch");
+
+    await service.persistReconciledSeriesData({
+      guildId: "guild-1",
+      channelId: "channel-1",
+      queueNumber: 42,
+      neatQueueConfig: aFakeNeatQueueConfigRow(),
+      series: [Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"))],
+      winnerTeamIndex: 0,
+      locale: "en-US",
+      seriesScore: "3:1",
+    });
+
+    const [payload] = Preconditions.checkExists(upsertSpy.mock.calls[0]);
+    expect(payload.series.SeriesScore).toBe("3:1");
   });
 
   it("persists average damage per life using total lives", async () => {

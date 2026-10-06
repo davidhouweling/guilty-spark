@@ -149,4 +149,29 @@ describe("RealDiscordSeriesStatsService", () => {
     expect(result.status).toBe(503);
     expect(result.retryAfterSeconds).toBeNull();
   });
+
+  it("uses the queue number for stats and lookup requests", async () => {
+    fetchSpy
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "not-found",
+            guildId: "123456789012345678",
+            queueNumber: 7777,
+            reason: "No matching manual series stats were found",
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    await service.getStats("123456789012345678", "7777");
+    await service.getLookup("123456789012345678", "7777");
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, "https://api.example.com/api/stats/discord/123456789012345678/7777");
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.com/api/stats/discord/123456789012345678/7777/lookup",
+    );
+  });
 });
