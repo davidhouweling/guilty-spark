@@ -120,58 +120,6 @@
   padding: 0;
 }
 
-.plannedGames {
-  margin-top: var(--space-4);
-}
-
-.plannedGamesHeader {
-  color: var(--halo-white);
-  font-size: var(--text-base);
-  margin: 0 0 var(--space-2);
-}
-
-.plannedGamesList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.plannedGame {
-  align-items: center;
-  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 30%, transparent);
-  color: var(--halo-white);
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: var(--space-2) 0;
-}
-
-.plannedGamePlayed {
-  color: var(--halo-gray);
-}
-
-.plannedGameNumber,
-.plannedGameStatus {
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.plannedGameDetails {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-2);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.plannedGameDetails strong {
-  color: var(--halo-accent);
-}
-
-.plannedGamePlayed .plannedGameDetails strong {
-  color: inherit;
-}
-
 .seriesScore {
   background-color: var(--halo-bg-secondary);
   background-image:
@@ -199,6 +147,15 @@
   --series-score-bg: none;
   --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 25%, transparent);
   --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
+}
+
+.seriesScoreUpcoming {
+  --team-color: var(--halo-gray);
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 45%, transparent);
+}
+
+.seriesScoreUpcoming .seriesScoreLink {
+  color: var(--halo-gray);
 }
 
 .seriesScoreLink {

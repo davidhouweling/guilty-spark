@@ -57,7 +57,8 @@ export interface LiveTrackerPlannedGameRenderModel {
   readonly gameNumber: number;
   readonly mode: string;
   readonly map: string;
-  readonly played: boolean;
+  readonly gameMapThumbnailUrl: string;
+  readonly gameVariantCategory: number;
 }
 
 export interface LiveTrackerSeriesDataRenderModel {

@@ -102,7 +102,7 @@ describe("LiveTracker", () => {
     cleanup();
   });
 
-  it("shows actual played games beside tentative planned maps", async () => {
+  it("appends upcoming map tiles to the completed score list", async () => {
     const message = aStateMessage(["m1"]);
     const match = message.data.matchSummaries.at(0);
     if (match == null) {
@@ -133,17 +133,16 @@ describe("LiveTracker", () => {
     });
     connection.step();
 
-    const plan = await screen.findByRole("list", { name: "Map plan" });
-    const [played, upcoming] = within(plan).getAllByRole("listitem");
-    expect(played).toHaveTextContent("Game 1");
-    expect(played).toHaveTextContent("Slayer");
+    const scores = await screen.findByRole("list", { name: "Series score tiles" });
+    const [played, upcoming] = within(scores).getAllByRole("listitem");
+    expect(played).toHaveTextContent("50:49");
     expect(played).toHaveTextContent("Aquarius");
-    expect(played).toHaveTextContent("Played");
-    expect(played).not.toHaveTextContent("Streets");
-    expect(upcoming).toHaveTextContent("Game 2");
-    expect(upcoming).toHaveTextContent("Strongholds");
-    expect(upcoming).toHaveTextContent("Recharge");
-    expect(upcoming).toHaveTextContent("Planned");
+    expect(played.querySelector("img")).toHaveAttribute("alt", "Slayer");
+    expect(upcoming).toHaveTextContent("Strongholds: Recharge");
+    expect(upcoming).not.toHaveTextContent("50:49");
+    expect(upcoming.querySelector("img")).toHaveAttribute("alt", "Strongholds");
+    expect(upcoming).toHaveClass(/seriesScoreUpcoming/);
+    expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });
 
   it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {

@@ -303,60 +303,9 @@ export function LiveTrackerView(): React.ReactElement {
                 <div className={styles.seriesOverview}>
                   <section className={styles.seriesScores}>
                     {hasMatches ? (
-                      <>
-                        <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
-                          {state.seriesScore}
-                        </Heading>
-                        <ul className={styles.seriesScoresList}>
-                          {state.matches.map((match) => {
-                            // Determine winning team for overlay color
-                            let winningTeamIndex: number | null = null;
-                            if (match.rawMatchStats) {
-                              const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
-                              if (winningTeam) {
-                                winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
-                              }
-                            }
-
-                            const teamColorId = winningTeamIndex === 0 ? team1Color : team2Color;
-                            const teamColor =
-                              winningTeamIndex !== null && winningTeamIndex < 2
-                                ? getTeamColorOrDefault(teamColorId, winningTeamIndex)
-                                : undefined;
-
-                            return (
-                              <li
-                                key={match.matchId}
-                                className={styles.seriesScore}
-                                style={
-                                  {
-                                    "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                                    "--team-color": teamColor?.hex ?? "transparent",
-                                  } as React.CSSProperties
-                                }
-                              >
-                                <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
-                                  <img
-                                    src={gameModeIconSrc(
-                                      match.gameType,
-                                      match.rawMatchStats?.MatchInfo.GameVariantCategory,
-                                    )}
-                                    alt={match.gameType}
-                                    className={styles.gameTypeIcon}
-                                  />
-                                  {match.gameScore}
-                                  {match.gameSubScore != null ? (
-                                    <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                                  ) : (
-                                    ""
-                                  )}
-                                  <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                                </a>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </>
+                      <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
+                        {state.seriesScore}
+                      </Heading>
                     ) : (
                       <div className={styles.noticeFlexFill}>
                         <Alert variant="info" icon="⏳">
@@ -364,27 +313,72 @@ export function LiveTrackerView(): React.ReactElement {
                         </Alert>
                       </div>
                     )}
-                    {state.plannedGames.length > 0 && (
-                      <div className={styles.plannedGames}>
-                        <Heading tagName="h3" className={styles.plannedGamesHeader}>
-                          Map plan
-                        </Heading>
-                        <ol className={styles.plannedGamesList} aria-label="Map plan">
-                          {state.plannedGames.map((game) => (
+                    {(hasMatches || state.plannedGames.length > 0) && (
+                      <ul className={styles.seriesScoresList} aria-label="Series score tiles">
+                        {state.matches.map((match) => {
+                          // Determine winning team for overlay color
+                          let winningTeamIndex: number | null = null;
+                          if (match.rawMatchStats) {
+                            const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
+                            if (winningTeam) {
+                              winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
+                            }
+                          }
+
+                          const teamColorId = winningTeamIndex === 0 ? team1Color : team2Color;
+                          const teamColor =
+                            winningTeamIndex !== null && winningTeamIndex < 2
+                              ? getTeamColorOrDefault(teamColorId, winningTeamIndex)
+                              : undefined;
+
+                          return (
                             <li
-                              key={game.gameNumber}
-                              className={classNames(styles.plannedGame, game.played && styles.plannedGamePlayed)}
+                              key={match.matchId}
+                              className={styles.seriesScore}
+                              style={
+                                {
+                                  "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
+                                  "--team-color": teamColor?.hex ?? "transparent",
+                                } as React.CSSProperties
+                              }
                             >
-                              <span className={styles.plannedGameNumber}>Game {game.gameNumber}</span>
-                              <span className={styles.plannedGameDetails}>
-                                <strong>{game.mode}</strong>
-                                <span>{game.map}</span>
-                              </span>
-                              <span className={styles.plannedGameStatus}>{game.played ? "Played" : "Planned"}</span>
+                              <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
+                                <img
+                                  src={gameModeIconSrc(
+                                    match.gameType,
+                                    match.rawMatchStats?.MatchInfo.GameVariantCategory,
+                                  )}
+                                  alt={match.gameType}
+                                  className={styles.gameTypeIcon}
+                                />
+                                {match.gameScore}
+                                {match.gameSubScore != null ? (
+                                  <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
+                                ) : (
+                                  ""
+                                )}
+                                <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
+                              </a>
                             </li>
-                          ))}
-                        </ol>
-                      </div>
+                          );
+                        })}
+                        {state.plannedGames.map((game) => (
+                          <li
+                            key={`planned-${game.gameNumber.toString()}`}
+                            className={classNames(styles.seriesScore, styles.seriesScoreUpcoming)}
+                            style={{ "--series-score-bg": `url(${game.gameMapThumbnailUrl})` } as React.CSSProperties}
+                          >
+                            <div className={styles.seriesScoreLink}>
+                              <img
+                                src={gameModeIconSrc(game.mode, game.gameVariantCategory)}
+                                alt={game.mode}
+                                className={styles.gameTypeIcon}
+                              />
+                              <span className={styles.gameTypeAndMap}>{`${game.mode}: ${game.map}`}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </section>
                   {state.teams.map((team, teamIndex) => {
