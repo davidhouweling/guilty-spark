@@ -154,7 +154,8 @@ export class HaloService {
       // we want at least 2 minutes of game play, otherwise assume that the match was chalked
       return (parsedDuration.days ?? 0) > 0 || (parsedDuration.hours ?? 0) > 0 || (parsedDuration.minutes ?? 0) >= 2;
     });
-    const seriesMatches = this.filterMatchesToMatchingTeams(matchDetails);
+    const eligibleMatches = matchDetails.filter((match) => this.hasTwoHumanTeams(match));
+    const seriesMatches = this.filterMatchesToMatchingTeams(eligibleMatches);
 
     // Attempt fuzzy matching for unassociated users
     await this.fuzzyMatchUnassociatedUsers(queueData.teams, seriesMatches);
@@ -1361,6 +1362,19 @@ export class HaloService {
     }
 
     return Array.from(seriesMatches);
+  }
+
+  private hasTwoHumanTeams(match: MatchStats): boolean {
+    if (!match.MatchInfo.TeamsEnabled || match.Teams.length !== 2) {
+      return false;
+    }
+
+    return match.Teams.every((team) =>
+      match.Players.some(
+        (player) =>
+          player.PlayerType === 1 && player.ParticipationInfo.PresentAtBeginning && player.LastTeamId === team.TeamId,
+      ),
+    );
   }
 
   private filterMatchesToMatchingTeams(matches: MatchStats[]): MatchStats[] {
