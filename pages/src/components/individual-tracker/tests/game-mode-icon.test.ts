@@ -6,7 +6,7 @@ import firefightPng from "../../../assets/game-modes/firefight.png";
 import oddballPng from "../../../assets/game-modes/oddball.png";
 import slayerPng from "../../../assets/game-modes/slayer.png";
 import strongholdsPng from "../../../assets/game-modes/strongholds.png";
-import { gameModeIconSrc } from "../game-mode-icon";
+import { gameModeIconSrc, gameModeIconSrcForModeName } from "../game-mode-icon";
 
 describe("gameModeIconSrc", () => {
   it("maps Slayer to the slayer icon", () => {
@@ -43,5 +43,23 @@ describe("gameModeIconSrc", () => {
 
   it("falls back to the slayer icon for an unknown category", () => {
     expect(gameModeIconSrc(9999)).toBe(slayerPng.src);
+  });
+});
+
+describe("gameModeIconSrcForModeName", () => {
+  it("recognizes named modes when asset URLs are stubbed", () => {
+    expect(gameModeIconSrcForModeName("Oddball")).toBe("data:,");
+  });
+
+  it("recognizes FFA Slayer when asset URLs are stubbed", () => {
+    expect(gameModeIconSrcForModeName("FFA Slayer")).toBe("data:,");
+  });
+
+  it("recognizes Neutral Bomb when asset URLs are stubbed", () => {
+    expect(gameModeIconSrcForModeName("Neutral Bomb")).toBe("data:,");
+  });
+
+  it("returns no icon for unknown modes", () => {
+    expect(gameModeIconSrcForModeName("Unknown Mode")).toBeNull();
   });
 });

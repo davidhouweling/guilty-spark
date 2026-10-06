@@ -76,6 +76,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
         },
       ],
       substitutions: [],
+      plannedGames: [],
       seriesScore: "1:0",
       medalMetadata: {},
       playersAssociationData: {},

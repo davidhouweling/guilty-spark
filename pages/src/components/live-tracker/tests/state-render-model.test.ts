@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { toLiveTrackerStateRenderModel } from "../state-render-model";
 
@@ -56,5 +55,98 @@ describe("toLiveTrackerStateRenderModel", () => {
 
     expect(model.seriesScore).toBe("0:0");
     expect(model.seriesData?.seriesScore).toBe("0:0");
+  });
+
+  it("shows only unplayed planned slots after collapsing resumed matches", () => {
+    const first = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
+    const second = sampleLiveTrackerStateMessage.data.matchSummaries.at(1);
+    if (first == null || second == null) {
+      throw new Error("Expected sample matches");
+    }
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [first, { ...second, gameMap: "Actual Map", gameType: "Actual Mode" }],
+        rawMatches: {
+          [first.matchId]: {
+            MatchId: first.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: first.startTime,
+              EndTime: first.endTime,
+              MapVariant: { AssetId: "map-a", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+          [second.matchId]: {
+            MatchId: second.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: second.startTime,
+              EndTime: second.endTime,
+              MapVariant: { AssetId: "map-a", VersionId: "v1" },
+              GameVariantCategory: 1,
+            },
+          },
+        },
+        plannedMaps: [
+          { mode: "Slayer", map: "Planned Map" },
+          { mode: "Oddball", map: "Next Map" },
+        ],
+      },
+    };
+
+    const model = toLiveTrackerStateRenderModel(message, {});
+
+    expect(model.plannedGames).toEqual([
+      {
+        gameNumber: 2,
+        mode: "Oddball",
+        map: "Next Map",
+        gameMapThumbnailUrl: "data:,",
+        gameModeIconUrl: "data:,",
+      },
+    ]);
+  });
+
+  it("keeps all planned slots before the first game and removes them on clear", () => {
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: [], rawMatches: {} },
+    };
+    const model = toLiveTrackerStateRenderModel(message, {});
+
+    expect(model.plannedGames).toHaveLength(sampleLiveTrackerStateMessage.data.plannedMaps?.length ?? 0);
+    expect(
+      toLiveTrackerStateRenderModel({ ...message, data: { ...message.data, plannedMaps: [] } }, {}).plannedGames,
+    ).toEqual([]);
+  });
+
+  it("uses a completed match thumbnail for a planned map with the same name", () => {
+    const firstSummary = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
+    if (firstSummary == null) {
+      throw new Error("Expected sample match summary");
+    }
+    const summary = {
+      ...firstSummary,
+      gameMap: "Recharge",
+      gameMapThumbnailUrl: "https://example.com/recharge.png",
+    };
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [summary],
+        rawMatches: {},
+        plannedMaps: [{ mode: "Strongholds", map: "Recharge" }],
+      },
+    };
+
+    expect(toLiveTrackerStateRenderModel(message, {}).plannedGames[0]?.gameMapThumbnailUrl).toBe(
+      "https://example.com/recharge.png",
+    );
   });
 });
