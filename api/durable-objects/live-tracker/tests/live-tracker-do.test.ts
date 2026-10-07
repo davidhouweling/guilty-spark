@@ -977,7 +977,14 @@ describe("LiveTrackerDO", () => {
         expect.arrayContaining([
           expect.objectContaining({
             title: "Upcoming maps",
-            description: "**Game 1** · Slayer on Live Fire",
+            fields: expect.arrayContaining([
+              expect.objectContaining({ name: "#", value: "1" }),
+              expect.objectContaining({ name: "Mode", value: "Slayer" }),
+              expect.objectContaining({
+                name: "Map",
+                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire"),
+              }),
+            ]),
           }),
         ]),
       );
@@ -2245,7 +2252,17 @@ describe("LiveTrackerDO", () => {
 
       expect(editMessageSpy.mock.calls[0]?.[2]?.embeds).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ title: "Upcoming maps", description: "**Game 1** · Slayer on Live Fire" }),
+          expect.objectContaining({
+            title: "Upcoming maps",
+            fields: expect.arrayContaining([
+              expect.objectContaining({ name: "#", value: "1" }),
+              expect.objectContaining({ name: "Mode", value: "Slayer" }),
+              expect.objectContaining({
+                name: "Map",
+                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire"),
+              }),
+            ]),
+          }),
         ]),
       );
     });
