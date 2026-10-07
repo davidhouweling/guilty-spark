@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       cleanup_old_deployments:
-        description: "Delete stale Pages deployments (preview, legacy, and old production)"
+        description: "Delete stale Pages deployments (closed-PR previews and old production)"
         required: false
         type: boolean
         default: false
@@ -122,6 +122,8 @@ jobs:
           initial-status: success
           auto-inactive: true
           transient-environment: ${{ github.event_name != 'push' }}
+          # Deployment ref is the head SHA, so tag previews with the PR to find all of them on close.
+          payload: ${{ github.event_name == 'push' && '{}' || format('{{"pr_number":{0}}}', github.event.number) }}
 
   close-preview-deployment:
     name: Close preview deployment
@@ -133,6 +135,7 @@ jobs:
         uses: actions/github-script@v9
         env:
           PREVIEW_ENVIRONMENT: preview
+          PR_NUMBER: ${{ github.event.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         with:
@@ -142,6 +145,7 @@ jobs:
             if (environment !== "preview") {
               throw new Error(`Unexpected preview environment: ${environment ?? "<missing>"}`);
             }
+            const prNumber = Number(process.env.PR_NUMBER);
             const prHeadSha = process.env.PR_HEAD_SHA;
             const prHeadRef = process.env.PR_HEAD_REF;
             const { owner, repo } = context.repo;
@@ -152,15 +156,18 @@ jobs:
               per_page: 100,
             });
 
-            // Only delete preview deployments that belong to this PR branch/SHA.
-            const deployments = allDeployments.filter((deployment) => {
-              const deploymentRef = deployment.ref ?? "";
-              return (
-                deployment.sha === prHeadSha ||
-                deploymentRef === prHeadRef ||
-                deploymentRef === `refs/heads/${prHeadRef}`
-              );
-            });
+            const getPrNumber = (deployment) => {
+              const payload =
+                typeof deployment.payload === "string"
+                  ? JSON.parse(deployment.payload || "{}")
+                  : deployment.payload ?? {};
+              return payload.pr_number;
+            };
+
+            // Only delete preview deployments that belong to this PR.
+            const deployments = allDeployments.filter(
+              (deployment) => getPrNumber(deployment) === prNumber || deployment.sha === prHeadSha,
+            );
 
             core.info(
               `Found ${deployments.length} matching preview deployments for ref ${prHeadRef} (${prHeadSha})`,
@@ -190,7 +197,8 @@ jobs:
 
   cleanup-old-deployments:
     name: Cleanup stale deployments
-    if: github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true
+    needs: deploy
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
     runs-on: ubuntu-latest
 
     steps:
@@ -200,77 +208,62 @@ jobs:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+            const listDeployments = (environment) =>
+              github.paginate(github.rest.repos.listDeployments, {
+                owner,
+                repo,
+                environment,
+                per_page: 100,
+              });
+
+            const openPulls = await github.paginate(github.rest.pulls.list, {
               owner,
               repo,
+              state: "open",
               per_page: 100,
             });
+            const openPrNumbers = new Set(openPulls.map((pull) => pull.number));
+            const openHeadShas = new Set(openPulls.map((pull) => pull.head.sha));
 
-            const byEnvironment = new Map();
-            for (const deployment of deployments) {
-              const list = byEnvironment.get(deployment.environment) ?? [];
-              list.push(deployment);
-              byEnvironment.set(deployment.environment, list);
-            }
-
-            const shouldDeactivate = (environment, index) => {
-              if (environment === "Production-Pages") {
-                return index > 0;
-              }
-
-              // Legacy Pages production naming.
-              if (environment === "pages-production") {
-                return true;
-              }
-
-              if (environment.startsWith("pages-preview-pr-")) {
-                return index > 0;
-              }
-
-              // Legacy environments from the previous workflow naming.
-              if (environment === "production") {
-                return true;
-              }
-
-              if (environment === "preview") {
-                return index > 0;
-              }
-
-              return false;
+            const getPrNumber = (deployment) => {
+              const payload =
+                typeof deployment.payload === "string"
+                  ? JSON.parse(deployment.payload || "{}")
+                  : deployment.payload ?? {};
+              return payload.pr_number;
             };
+
+            const productionDeployments = (await listDeployments("Production-Pages"))
+              .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+              .slice(1);
+            const orphanedPreviewDeployments = (await listDeployments("preview")).filter(
+              (deployment) =>
+                !openPrNumbers.has(getPrNumber(deployment)) && !openHeadShas.has(deployment.sha),
+            );
 
             let deletedCount = 0;
 
-            for (const [environment, envDeployments] of byEnvironment.entries()) {
-              envDeployments.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+            for (const deployment of [...productionDeployments, ...orphanedPreviewDeployments]) {
+              try {
+                await github.rest.repos.createDeploymentStatus({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                  state: "inactive",
+                  description: "Stale deployment cleanup",
+                  auto_inactive: false,
+                });
 
-              for (let index = 0; index < envDeployments.length; index += 1) {
-                const deployment = envDeployments[index];
-                if (!shouldDeactivate(environment, index)) {
-                  continue;
-                }
+                await github.rest.repos.deleteDeployment({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                });
 
-                try {
-                  await github.rest.repos.createDeploymentStatus({
-                    owner,
-                    repo,
-                    deployment_id: deployment.id,
-                    state: "inactive",
-                    description: "Stale deployment cleanup",
-                    auto_inactive: false,
-                  });
-
-                  await github.rest.repos.deleteDeployment({
-                    owner,
-                    repo,
-                    deployment_id: deployment.id,
-                  });
-
-                  deletedCount += 1;
-                } catch (error) {
-                  const message = error instanceof Error ? error.message : String(error);
-                  core.warning(`Failed to delete deployment ${deployment.id}: ${message}`);
-                }
+                deletedCount += 1;
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                core.warning(`Failed to delete deployment ${deployment.id}: ${message}`);
               }
             }
 
