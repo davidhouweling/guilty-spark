@@ -12,6 +12,7 @@ import type { LiveTrackerEmbedData } from "@guilty-spark/shared/contracts/durabl
 import type { DiscordService } from "../services/discord/discord";
 import { BaseTableEmbed } from "./base-table-embed";
 import { EmbedColors } from "./colors";
+import { createMapTableFields } from "./map-table-fields";
 
 export enum InteractionComponent {
   Refresh = "btn_track_refresh",
@@ -275,9 +276,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       embeds.push({
         title: "Upcoming maps",
         color: embedColor,
-        description: upcomingMaps
-          .map(({ mode, map }, index) => `**Game ${(completedGameCount + index + 1).toString()}** · ${mode} on ${map}`)
-          .join("\n"),
+        fields: createMapTableFields(discordService, upcomingMaps, completedGameCount + 1),
       });
     }
 
