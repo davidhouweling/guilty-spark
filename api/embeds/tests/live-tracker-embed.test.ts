@@ -134,11 +134,15 @@ describe("LiveTrackerEmbed", () => {
       const { embeds } = createLiveTrackerEmbed({ plannedMaps, enrichedMatches: [] });
 
       expect(embeds).toHaveLength(2);
-      expect(embeds[1]).toMatchObject({
-        title: "Upcoming maps",
-        description:
-          "**Game 1** · Slayer on Live Fire\n**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets",
-      });
+      const upcomingMaps = Preconditions.checkExists(embeds[1]);
+      expect(upcomingMaps.title).toBe("Upcoming maps");
+      expect(upcomingMaps.fields?.map((field) => field.name)).toEqual(["#", "Mode", "Map"]);
+      expect(upcomingMaps.fields?.[0]?.value).toBe("1\n2\n3");
+      expect(upcomingMaps.fields?.[1]?.value).toBe("Slayer\nStrongholds\nOddball");
+      expect(upcomingMaps.fields?.[2]?.value).toContain("[Live Fire ");
+      expect(upcomingMaps.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/livefire");
+      expect(upcomingMaps.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/recharge");
+      expect(upcomingMaps.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/streets");
     });
 
     it("removes played slots by game number even when the played map differs", () => {
@@ -149,7 +153,10 @@ describe("LiveTrackerEmbed", () => {
       });
 
       expect(embeds).toHaveLength(2);
-      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+      expect(embeds[1]?.fields?.[0]?.value).toBe("2\n3");
+      expect(embeds[1]?.fields?.[1]?.value).toBe("Strongholds\nOddball");
+      expect(embeds[1]?.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/recharge");
+      expect(embeds[1]?.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/streets");
     });
 
     it("keeps the next planned slot when two match records belong to one resumed game", () => {
@@ -159,14 +166,22 @@ describe("LiveTrackerEmbed", () => {
         enrichedMatches: testEnrichedMatches,
       });
 
-      expect(embeds[1]?.description).toBe("**Game 2** · Strongholds on Recharge\n**Game 3** · Oddball on Streets");
+      expect(embeds[1]?.fields?.[0]?.value).toBe("2\n3");
+      expect(embeds[1]?.fields?.[1]?.value).toBe("Strongholds\nOddball");
+      expect(embeds[1]?.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/recharge");
+      expect(embeds[1]?.fields?.[2]?.value).toContain("https://gamecoach.gg/esports/haloinfinite/streets");
     });
 
     it("omits the upcoming embed after every planned slot is played or cleared", () => {
-      expect(
-        createLiveTrackerEmbed({ plannedMaps, completedGameCount: 2, enrichedMatches: testEnrichedMatches }).embeds[1]
-          ?.description,
-      ).toBe("**Game 3** · Oddball on Streets");
+      const [, finalUpcomingEmbed] = createLiveTrackerEmbed({
+        plannedMaps,
+        completedGameCount: 2,
+        enrichedMatches: testEnrichedMatches,
+      }).embeds;
+      const [gameNumberField, modeField, mapField] = finalUpcomingEmbed?.fields ?? [];
+      expect(gameNumberField?.value).toBe("3");
+      expect(modeField?.value).toBe("Oddball");
+      expect(mapField?.value).toContain("https://gamecoach.gg/esports/haloinfinite/streets");
       expect(
         createLiveTrackerEmbed({
           plannedMaps,
