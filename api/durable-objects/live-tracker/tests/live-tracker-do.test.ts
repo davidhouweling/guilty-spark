@@ -1,6 +1,6 @@
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
-import type { APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
+import type { APIEmbedField, APIGroupDMChannel, APIChannel, APIGuildMember } from "discord-api-types/v10";
 import { ChannelType, Locale } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchOutcome } from "halo-infinite-api";
@@ -978,13 +978,13 @@ describe("LiveTrackerDO", () => {
           expect.objectContaining({
             title: "Upcoming maps",
             fields: expect.arrayContaining([
-              expect.objectContaining({ name: "#", value: "1" }),
-              expect.objectContaining({ name: "Mode", value: "Slayer" }),
+              expect.objectContaining({ name: "#", value: "1" }) as APIEmbedField,
+              expect.objectContaining({ name: "Mode", value: "Slayer" }) as APIEmbedField,
               expect.objectContaining({
                 name: "Map",
-                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire"),
-              }),
-            ]),
+                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire") as string,
+              }) as APIEmbedField,
+            ]) as APIEmbedField[],
           }),
         ]),
       );
@@ -2255,13 +2255,13 @@ describe("LiveTrackerDO", () => {
           expect.objectContaining({
             title: "Upcoming maps",
             fields: expect.arrayContaining([
-              expect.objectContaining({ name: "#", value: "1" }),
-              expect.objectContaining({ name: "Mode", value: "Slayer" }),
+              expect.objectContaining({ name: "#", value: "1" }) as APIEmbedField,
+              expect.objectContaining({ name: "Mode", value: "Slayer" }) as APIEmbedField,
               expect.objectContaining({
                 name: "Map",
-                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire"),
-              }),
-            ]),
+                value: expect.stringContaining("https://gamecoach.gg/esports/haloinfinite/livefire") as string,
+              }) as APIEmbedField,
+            ]) as APIEmbedField[],
           }),
         ]),
       );
