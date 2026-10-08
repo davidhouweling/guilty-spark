@@ -21,6 +21,13 @@ on:
     types: [completed]
     branches: [main]
 
+# Only the latest successful Typecheck run deploys; newer runs cancel older ones.
+# Failed-Typecheck runs get their own group so they never cancel a good deploy,
+# and manual cleanup queues behind an in-flight deploy instead of cancelling it.
+concurrency:
+  group: ${{ (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') && 'deploy-api-production' || format('deploy-api-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -206,41 +213,26 @@ jobs:
             let deletedCount = 0;
 
             const getLatestState = async (deployment) => {
-              try {
-                const { data } = await github.rest.repos.listDeploymentStatuses({
-                  owner,
-                  repo,
-                  deployment_id: deployment.id,
-                  per_page: 1,
-                });
-                return data[0]?.state;
-              } catch (error) {
-                // Already deleted by an overlapping run.
-                if (error.status === 404) {
-                  return undefined;
-                }
-                throw error;
-              }
+              const { data } = await github.rest.repos.listDeploymentStatuses({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+                per_page: 1,
+              });
+              return data[0]?.state;
             };
 
-            const terminalStates = new Set(["success", "failure", "error", "inactive"]);
-
-            // Keep the newest successful record, anything newer, and any older run still in flight.
+            // Runs are serialized by the concurrency group, so anything but the newest success is stale.
             const getStaleDeployments = async (envDeployments) => {
               const sorted = [...envDeployments].sort(
                 (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
               );
-              const states = [];
-              for (const deployment of sorted) {
-                states.push(await getLatestState(deployment));
+              for (const [index, deployment] of sorted.entries()) {
+                if ((await getLatestState(deployment)) === "success") {
+                  return sorted.filter((_, otherIndex) => otherIndex !== index);
+                }
               }
-              const newestSuccessIndex = states.indexOf("success");
-              if (newestSuccessIndex === -1) {
-                return [];
-              }
-              return sorted.filter(
-                (_, index) => index > newestSuccessIndex && terminalStates.has(states[index]),
-              );
+              return [];
             };
 
             for (const envDeployments of byEnvironment.values()) {

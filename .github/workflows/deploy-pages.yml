@@ -24,6 +24,12 @@ on:
     branches:
       - main
 
+# Only the latest run per PR (or for production) matters; newer runs cancel older ones.
+# Manual cleanup queues behind an in-flight production deploy instead of cancelling it.
+concurrency:
+  group: deploy-pages-${{ github.event_name == 'pull_request_target' && format('pr-{0}', github.event.number) || 'production' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 jobs:
   deploy:
     name: Deploy
@@ -237,46 +243,31 @@ jobs:
             };
 
             const getLatestState = async (deployment) => {
-              try {
-                const { data } = await github.rest.repos.listDeploymentStatuses({
-                  owner,
-                  repo,
-                  deployment_id: deployment.id,
-                  per_page: 1,
-                });
-                return data[0]?.state;
-              } catch (error) {
-                // Already deleted by an overlapping run.
-                if (error.status === 404) {
-                  return undefined;
-                }
-                throw error;
-              }
+              const { data } = await github.rest.repos.listDeploymentStatuses({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+                per_page: 1,
+              });
+              return data[0]?.state;
             };
 
-            const terminalStates = new Set(["success", "failure", "error", "inactive"]);
-
-            // Keep the newest successful record, anything newer, and any older run still in flight.
+            // Runs are serialized by the concurrency group, so anything but the newest success is stale.
             const getStaleProductionDeployments = async () => {
               const sorted = (await listDeployments("Production-Pages")).sort(
                 (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
               );
-              const states = [];
-              for (const deployment of sorted) {
-                states.push(await getLatestState(deployment));
+              for (const [index, deployment] of sorted.entries()) {
+                if ((await getLatestState(deployment)) === "success") {
+                  return sorted.filter((_, otherIndex) => otherIndex !== index);
+                }
               }
-              const newestSuccessIndex = states.indexOf("success");
-              if (newestSuccessIndex === -1) {
-                return [];
-              }
-              return sorted.filter(
-                (_, index) => index > newestSuccessIndex && terminalStates.has(states[index]),
-              );
+              return [];
             };
 
             const productionDeployments = await getStaleProductionDeployments();
             // Untagged legacy deployments can only be matched by head SHA.
-            const orphanedPreviewCandidates = (await listDeployments("preview")).filter(
+            const orphanedPreviewDeployments = (await listDeployments("preview")).filter(
               (deployment) => {
                 const deploymentPrNumber = getPrNumber(deployment);
                 return deploymentPrNumber === undefined
@@ -284,12 +275,6 @@ jobs:
                   : !openPrNumbers.has(deploymentPrNumber);
               },
             );
-            const orphanedPreviewDeployments = [];
-            for (const deployment of orphanedPreviewCandidates) {
-              if (terminalStates.has(await getLatestState(deployment))) {
-                orphanedPreviewDeployments.push(deployment);
-              }
-            }
 
             let deletedCount = 0;
 
