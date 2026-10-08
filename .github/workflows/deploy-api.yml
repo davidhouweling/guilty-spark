@@ -205,10 +205,31 @@ jobs:
 
             let deletedCount = 0;
 
-            for (const envDeployments of byEnvironment.values()) {
-              envDeployments.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+            const isSuccessful = async (deployment) => {
+              const { data } = await github.rest.repos.listDeploymentStatuses({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+                per_page: 1,
+              });
+              return data[0]?.state === "success";
+            };
 
-              for (const deployment of envDeployments.slice(1)) {
+            // Keep the newest successful record and anything newer (e.g. an overlapping in-progress run).
+            const getStaleDeployments = async (envDeployments) => {
+              const sorted = [...envDeployments].sort(
+                (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+              );
+              for (const [index, deployment] of sorted.entries()) {
+                if (await isSuccessful(deployment)) {
+                  return sorted.slice(index + 1);
+                }
+              }
+              return [];
+            };
+
+            for (const envDeployments of byEnvironment.values()) {
+              for (const deployment of await getStaleDeployments(envDeployments)) {
                 try {
                   await github.rest.repos.createDeploymentStatus({
                     owner,

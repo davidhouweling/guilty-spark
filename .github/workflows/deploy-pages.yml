@@ -201,7 +201,7 @@ jobs:
   cleanup-old-deployments:
     name: Cleanup stale deployments
     needs: deploy
-    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
+    if: always() && ((github.event_name == 'push' && needs.deploy.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
     runs-on: ubuntu-latest
 
     steps:
@@ -236,9 +236,30 @@ jobs:
               return payload.pr_number;
             };
 
-            const productionDeployments = (await listDeployments("Production-Pages"))
-              .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-              .slice(1);
+            const isSuccessful = async (deployment) => {
+              const { data } = await github.rest.repos.listDeploymentStatuses({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+                per_page: 1,
+              });
+              return data[0]?.state === "success";
+            };
+
+            // Keep the newest successful record and anything newer (e.g. an overlapping in-progress run).
+            const getStaleProductionDeployments = async () => {
+              const sorted = (await listDeployments("Production-Pages")).sort(
+                (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+              );
+              for (const [index, deployment] of sorted.entries()) {
+                if (await isSuccessful(deployment)) {
+                  return sorted.slice(index + 1);
+                }
+              }
+              return [];
+            };
+
+            const productionDeployments = await getStaleProductionDeployments();
             // Untagged legacy deployments can only be matched by head SHA.
             const orphanedPreviewDeployments = (await listDeployments("preview")).filter(
               (deployment) => {
