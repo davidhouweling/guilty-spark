@@ -174,7 +174,7 @@ jobs:
   cleanup-old-deployments:
     runs-on: ubuntu-latest
     needs: deploy
-    if: always() && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
+    if: always() && ((github.event_name == 'workflow_run' && needs.deploy.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
     steps:
       - name: Delete stale API deployments
         uses: actions/github-script@v9

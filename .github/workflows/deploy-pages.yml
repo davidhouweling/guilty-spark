@@ -164,10 +164,13 @@ jobs:
               return payload.pr_number;
             };
 
-            // Only delete preview deployments that belong to this PR.
-            const deployments = allDeployments.filter(
-              (deployment) => getPrNumber(deployment) === prNumber || deployment.sha === prHeadSha,
-            );
+            // Untagged legacy deployments can only be matched by head SHA.
+            const deployments = allDeployments.filter((deployment) => {
+              const deploymentPrNumber = getPrNumber(deployment);
+              return deploymentPrNumber === undefined
+                ? deployment.sha === prHeadSha
+                : deploymentPrNumber === prNumber;
+            });
 
             core.info(
               `Found ${deployments.length} matching preview deployments for ref ${prHeadRef} (${prHeadSha})`,
@@ -236,9 +239,14 @@ jobs:
             const productionDeployments = (await listDeployments("Production-Pages"))
               .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
               .slice(1);
+            // Untagged legacy deployments can only be matched by head SHA.
             const orphanedPreviewDeployments = (await listDeployments("preview")).filter(
-              (deployment) =>
-                !openPrNumbers.has(getPrNumber(deployment)) && !openHeadShas.has(deployment.sha),
+              (deployment) => {
+                const deploymentPrNumber = getPrNumber(deployment);
+                return deploymentPrNumber === undefined
+                  ? !openHeadShas.has(deployment.sha)
+                  : !openPrNumbers.has(deploymentPrNumber);
+              },
             );
 
             let deletedCount = 0;
