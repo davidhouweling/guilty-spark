@@ -53,13 +53,11 @@ const profileTemplateId = "profile-menu-template";
     </div>
 
     <div id="nav-links" class={styles.navLinks} hidden>
-      {
-        navLinks.map((link) => (
-          <a href={link.href} aria-label={link.label}>
-            {link.label}
-          </a>
-        ))
-      }
+      {navLinks.map((link) => (
+        <a href={link.href} aria-label={link.label}>
+          {link.label}
+        </a>
+      ))}
       <div class={styles.navLinksIcons}>
         <a
           href={GITHUB_URL}

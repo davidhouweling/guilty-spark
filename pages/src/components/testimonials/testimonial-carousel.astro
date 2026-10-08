@@ -30,91 +30,87 @@ const slideCount = items.length;
 >
   <div class={styles.carouselWindow} data-carousel-window>
     <div class={styles.carouselTrack} role="presentation" data-carousel-track>
-      {
-        items.map((item, index) => {
-          const slideId = `${id}-slide-${index}`;
-          const tabId = `${id}-tab-${index}`;
-          const isActive = index === 0;
+      {items.map((item, index) => {
+        const slideId = `${id}-slide-${index}`;
+        const tabId = `${id}-tab-${index}`;
+        const isActive = index === 0;
 
-          // Split text into paragraphs on double newlines
-          const text: string = item.text;
-          const paragraphs: readonly string[] = text.split("\n\n");
+        // Split text into paragraphs on double newlines
+        const text: string = item.text;
+        const paragraphs: readonly string[] = text.split("\n\n");
 
-          return (
-            <article
-              id={slideId}
-              class={`${styles.testimonialCard}${isActive ? " is-active" : ""}`}
-              role="tabpanel"
-              aria-roledescription="slide"
-              aria-label={`Testimonial ${index + 1} of ${slideCount}`}
-              aria-labelledby={tabId}
-              aria-hidden={isActive ? "false" : "true"}
-              tabindex={isActive ? "0" : "-1"}
-              data-carousel-slide
-              data-index={index}
-            >
-              <div class={styles.testimonialText}>
-                {paragraphs.map((paragraph: string) => {
-                  // Split each paragraph on single newlines for line breaks
-                  const lines: string[] = paragraph.split("\n");
-                  return (
-                    <p>
-                      {lines.map((line: string, lIndex: number) => (
-                        <>
-                          {line}
-                          {lIndex < lines.length - 1 && <br />}
-                        </>
-                      ))}
-                    </p>
-                  );
-                })}
-              </div>
-              <footer class={styles.testimonialMeta}>
-                <span class={styles.testimonialWho}>{item.who}</span>
-                {item.discordLink ? (
-                  <a
-                    href={item.discordLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class={styles.testimonialServerLink}
-                  >
-                    <span class={styles.testimonialServer}>{item.discordServer}</span>
-                  </a>
-                ) : (
+        return (
+          <article
+            id={slideId}
+            class={`${styles.testimonialCard}${isActive ? " is-active" : ""}`}
+            role="tabpanel"
+            aria-roledescription="slide"
+            aria-label={`Testimonial ${index + 1} of ${slideCount}`}
+            aria-labelledby={tabId}
+            aria-hidden={isActive ? "false" : "true"}
+            tabindex={isActive ? "0" : "-1"}
+            data-carousel-slide
+            data-index={index}
+          >
+            <div class={styles.testimonialText}>
+              {paragraphs.map((paragraph: string) => {
+                // Split each paragraph on single newlines for line breaks
+                const lines: string[] = paragraph.split("\n");
+                return (
+                  <p>
+                    {lines.map((line: string, lIndex: number) => (
+                      <>
+                        {line}
+                        {lIndex < lines.length - 1 && <br />}
+                      </>
+                    ))}
+                  </p>
+                );
+              })}
+            </div>
+            <footer class={styles.testimonialMeta}>
+              <span class={styles.testimonialWho}>{item.who}</span>
+              {item.discordLink ? (
+                <a
+                  href={item.discordLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class={styles.testimonialServerLink}
+                >
                   <span class={styles.testimonialServer}>{item.discordServer}</span>
-                )}
-              </footer>
-            </article>
-          );
-        })
-      }
+                </a>
+              ) : (
+                <span class={styles.testimonialServer}>{item.discordServer}</span>
+              )}
+            </footer>
+          </article>
+        );
+      })}
     </div>
   </div>
 
   <div class={styles.carouselControls} role="tablist" aria-label="Select testimonial">
-    {
-      items.map((_item, index) => {
-        const tabId = `${id}-tab-${index}`;
-        const slideId = `${id}-slide-${index}`;
-        const isActive = index === 0;
+    {items.map((_item, index) => {
+      const tabId = `${id}-tab-${index}`;
+      const slideId = `${id}-slide-${index}`;
+      const isActive = index === 0;
 
-        return (
-          <button
-            id={tabId}
-            type="button"
-            role="tab"
-            aria-selected={isActive ? "true" : "false"}
-            aria-controls={slideId}
-            tabindex={isActive ? "0" : "-1"}
-            class={`${styles.carouselDot}${isActive ? " is-active" : ""}`}
-            data-carousel-dot
-            data-index={index}
-          >
-            <span class={styles.visuallyHidden}>Testimonial {index + 1}</span>
-          </button>
-        );
-      })
-    }
+      return (
+        <button
+          id={tabId}
+          type="button"
+          role="tab"
+          aria-selected={isActive ? "true" : "false"}
+          aria-controls={slideId}
+          tabindex={isActive ? "0" : "-1"}
+          class={`${styles.carouselDot}${isActive ? " is-active" : ""}`}
+          data-carousel-dot
+          data-index={index}
+        >
+          <span class={styles.visuallyHidden}>Testimonial {index + 1}</span>
+        </button>
+      );
+    })}
   </div>
 </section>
 

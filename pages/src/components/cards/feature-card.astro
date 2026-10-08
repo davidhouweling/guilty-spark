@@ -14,13 +14,11 @@ const hasIcon = Astro.slots.has("icon");
 
 <BaseCard padding="none" interactive class:list={[styles.featureCard, className]}>
   <div class={styles.cardBody}>
-    {
-      hasIcon && (
-        <div class={styles.featureIcon}>
-          <slot name="icon" />
-        </div>
-      )
-    }
+    {hasIcon && (
+      <div class={styles.featureIcon}>
+        <slot name="icon" />
+      </div>
+    )}
 
     <h3 class={styles.cardTitle}>{title}</h3>
     <p class={styles.cardText}>{description}</p>

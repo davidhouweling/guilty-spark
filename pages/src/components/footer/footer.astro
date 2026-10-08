@@ -33,23 +33,21 @@ const footerSections = [
         <p class={styles.footerDesc}>Installation 04 Combat Statistics Interface</p>
       </div>
 
-      {
-        footerSections.map((section) => (
-          <div class={styles.footerSection}>
-            <h4 class={styles.footerHeading}>{section.heading}</h4>
-            {section.links.map((link) => (
-              <a
-                class={styles.footerLink}
-                href={link.href}
-                target={link.external ? "_blank" : undefined}
-                rel={link.external ? "noopener noreferrer" : undefined}
-              >
-                {link.label}
-              </a>
-            ))}
-          </div>
-        ))
-      }
+      {footerSections.map((section) => (
+        <div class={styles.footerSection}>
+          <h4 class={styles.footerHeading}>{section.heading}</h4>
+          {section.links.map((link) => (
+            <a
+              class={styles.footerLink}
+              href={link.href}
+              target={link.external ? "_blank" : undefined}
+              rel={link.external ? "noopener noreferrer" : undefined}
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+      ))}
     </div>
 
     <div class={styles.footerBottom}>
