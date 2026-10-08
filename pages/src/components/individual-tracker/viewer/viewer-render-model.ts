@@ -13,11 +13,13 @@ import {
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
+import { gameModeIconSrcForModeName } from "../game-mode-icon";
 import type {
   ViewerActiveSeriesContext,
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
+  ViewerPlannedGame,
   ViewerPreSeriesTableData,
   ViewerSeriesTeamPlayer,
   ViewerSeriesTeam,
@@ -99,6 +101,24 @@ function getSeriesTeams(
   return view.activeSeriesContext.teams.map(toViewerSeriesTeam);
 }
 
+function toViewerPlannedGames(
+  plannedMaps: TrackerSeriesGroup["plannedMaps"],
+  playedMatches: readonly ViewerMatchTab[],
+): readonly ViewerPlannedGame[] {
+  return (plannedMaps ?? []).map((planned, index) => {
+    const playedMatch = playedMatches.at(index);
+    const mode = playedMatch?.gameModeName ?? planned.mode;
+
+    return {
+      gameNumber: index + 1,
+      mode,
+      map: playedMatch?.mapName ?? planned.map,
+      played: playedMatch != null,
+      gameModeIconUrl: gameModeIconSrcForModeName(mode),
+    };
+  });
+}
+
 function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeriesContext | undefined {
   if (view.activeSeriesContext == null) {
     return undefined;
@@ -110,6 +130,7 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
     guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
     startedAt: view.activeSeriesContext.startedAt,
     teams: view.activeSeriesContext.teams.map(toViewerSeriesTeam),
+    plannedGames: toViewerPlannedGames(view.activeSeriesContext.plannedMaps, []),
   };
 }
 
@@ -192,6 +213,7 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     startTime: activeSeriesContext.startedAt ?? view.lastUpdateTime,
     endTime: "",
     matches: [],
+    plannedGames: toViewerPlannedGames(activeSeriesContext.plannedMaps, []),
     iconMatches: [],
     colorHex: undefined,
   };
@@ -365,6 +387,9 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         seriesStartTime = view.activeSeriesContext.startedAt;
       }
 
+      const iconMatches = toIconMatches(seriesMatches, seriesSummaries);
+      const plannedMaps =
+        anchoredSeries.plannedMaps ?? (isCurrentActiveSeries ? view.activeSeriesContext?.plannedMaps : undefined);
       const series: ViewerSeriesTab = {
         id: anchoredSeries.id,
         title: anchoredSeries.title,
@@ -382,7 +407,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         startTime: seriesStartTime,
         endTime: seriesEndTime,
         matches: seriesMatches,
-        iconMatches: toIconMatches(seriesMatches, seriesSummaries),
+        iconMatches,
+        plannedGames: toViewerPlannedGames(plannedMaps, iconMatches),
         colorHex: undefined,
       };
       const seriesWithPreSeriesData: ViewerSeriesTab =

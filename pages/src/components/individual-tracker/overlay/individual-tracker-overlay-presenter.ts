@@ -227,9 +227,17 @@ export class IndividualTrackerOverlayPresenter {
         icon: gameModeIconSrc(match.gameVariantCategory),
         teamColor: match.colorHex,
       }));
+      const upcomingTabs = activeSeries.plannedGames
+        .filter((game) => !game.played)
+        .map((game, index): OverlayTab => ({
+          type: "upcoming",
+          index: activeSeries.matches.length + index,
+          label: `${game.mode}: ${game.map}`,
+          icons: game.gameModeIconUrl != null ? [{ src: game.gameModeIconUrl, dimmed: false }] : [],
+        }));
 
       if (!options.includeInSeriesSummaryTab) {
-        return matchTabs;
+        return [...matchTabs, ...upcomingTabs];
       }
 
       const seriesTab: OverlayTab = {
@@ -243,10 +251,10 @@ export class IndividualTrackerOverlayPresenter {
       };
 
       if (activeSeries.matches.length === 0) {
-        return [seriesTab];
+        return [seriesTab, ...upcomingTabs];
       }
 
-      return [seriesTab, ...matchTabs];
+      return [seriesTab, ...matchTabs, ...upcomingTabs];
     }
 
     const matchmakingSummaryTab: OverlayTab | null = options.includeMatchmakingSummaryTab
@@ -558,9 +566,10 @@ export class IndividualTrackerOverlayPresenter {
     maxPreviousGamesToShow: number,
   ): readonly OverlayTab[] {
     const pinnedSummaryTabs = tabs.filter((tab) => tab.type === "series" && tab.index === -1);
-    const historyTabs = tabs.filter((tab) => !(tab.type === "series" && tab.index === -1));
+    const upcomingTabs = tabs.filter((tab) => tab.type === "upcoming");
+    const historyTabs = tabs.filter((tab) => tab.type !== "upcoming" && !(tab.type === "series" && tab.index === -1));
     const trimmedHistoryTabs = historyTabs.slice(-maxPreviousGamesToShow);
-    return [...pinnedSummaryTabs, ...trimmedHistoryTabs];
+    return [...pinnedSummaryTabs, ...trimmedHistoryTabs, ...upcomingTabs];
   }
 
   private getMatchmakingStatsHighlights(
@@ -608,6 +617,7 @@ export class IndividualTrackerOverlayPresenter {
       guildIconUrl: renderModel.activeSeriesContext.guildIconUrl ?? null,
       isActive: true,
       teams: renderModel.activeSeriesContext.teams,
+      plannedGames: renderModel.activeSeriesContext.plannedGames ?? [],
       matchBackgroundUrls: [],
       score: "0:0",
       duration: "unknown",
