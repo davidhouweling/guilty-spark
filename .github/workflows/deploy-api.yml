@@ -12,7 +12,7 @@ on:
         required: false
         type: boolean
       cleanup_old_deployments:
-        description: "Delete stale API deployments, including legacy Staging"
+        description: "Delete stale API deployments (keeps the latest per environment)"
         required: false
         type: boolean
         default: false
@@ -22,10 +22,37 @@ on:
     branches: [main]
 
 jobs:
+  # Typecheck can finish out of commit order, so only deploy if this commit is still main's head.
+  preflight:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      is-latest: ${{ steps.check.outputs.is-latest }}
+    steps:
+      - name: Check commit is latest on main
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          latest=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          if [ "$latest" = "$HEAD_SHA" ]; then
+            echo "is-latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Skipping deploy: $HEAD_SHA superseded by $latest"
+            echo "is-latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
     runs-on: ubuntu-latest
+    needs: preflight
     environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'staging' }}
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ needs.preflight.outputs.is-latest == 'true' }}
+    # A newer deploy cancels an older in-flight one.
+    concurrency:
+      group: deploy-api-production
+      cancel-in-progress: true
     timeout-minutes: 10
     steps:
       - name: Debug
@@ -173,7 +200,12 @@ jobs:
 
   cleanup-old-deployments:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true
+    needs: deploy
+    if: always() && ((github.event_name == 'workflow_run' && needs.deploy.result == 'success') || (github.event_name == 'workflow_dispatch' && inputs.cleanup_old_deployments == true))
+    # Queues behind an in-flight deploy rather than cancelling it.
+    concurrency:
+      group: deploy-api-production
+      cancel-in-progress: false
     steps:
       - name: Delete stale API deployments
         uses: actions/github-script@v9
@@ -181,11 +213,19 @@ jobs:
           github-token: ${{ secrets.DEPLOY_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const deployments = await github.paginate(github.rest.repos.listDeployments, {
-              owner,
-              repo,
-              per_page: 100,
-            });
+            // Environment filter is case-insensitive: "production" also returns "Production" (deployment-action).
+            const deployments = (
+              await Promise.all(
+                ["production", "staging", "api-staging"].map((environment) =>
+                  github.paginate(github.rest.repos.listDeployments, {
+                    owner,
+                    repo,
+                    environment,
+                    per_page: 100,
+                  }),
+                ),
+              )
+            ).flat();
 
             const byEnvironment = new Map();
             for (const deployment of deployments) {
@@ -194,40 +234,33 @@ jobs:
               byEnvironment.set(deployment.environment, list);
             }
 
-            const shouldDeactivate = (environment, index) => {
-              if (environment === "Production" || environment === "api-staging") {
-                return index > 0;
-              }
-
-              // Legacy API production naming.
-              if (environment === "api-production") {
-                return true;
-              }
-
-              // Legacy environments from earlier API workflow naming.
-              if (environment === "staging") {
-                return true;
-              }
-
-              // Older legacy environment name.
-              if (environment === "Staging") {
-                return true;
-              }
-
-              return false;
-            };
-
             let deletedCount = 0;
 
-            for (const [environment, envDeployments] of byEnvironment.entries()) {
-              envDeployments.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+            const getLatestState = async (deployment) => {
+              const { data } = await github.rest.repos.listDeploymentStatuses({
+                owner,
+                repo,
+                deployment_id: deployment.id,
+                per_page: 1,
+              });
+              return data[0]?.state;
+            };
 
-              for (let index = 0; index < envDeployments.length; index += 1) {
-                const deployment = envDeployments[index];
-                if (!shouldDeactivate(environment, index)) {
-                  continue;
+            // Runs are serialized by the concurrency group, so anything but the newest success is stale.
+            const getStaleDeployments = async (envDeployments) => {
+              const sorted = [...envDeployments].sort(
+                (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+              );
+              for (const [index, deployment] of sorted.entries()) {
+                if ((await getLatestState(deployment)) === "success") {
+                  return sorted.filter((_, otherIndex) => otherIndex !== index);
                 }
+              }
+              return [];
+            };
 
+            for (const envDeployments of byEnvironment.values()) {
+              for (const deployment of await getStaleDeployments(envDeployments)) {
                 try {
                   await github.rest.repos.createDeploymentStatus({
                     owner,
