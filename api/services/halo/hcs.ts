@@ -1,3 +1,5 @@
+import { MAP_GENERATOR_COUNTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
+
 // LVT Pro League map/mode pool. HCS names are retained for compatibility.
 
 export const HCS_LAST_UPDATED = "18 August 2026";
@@ -6,7 +8,7 @@ export type HcsMapMode =
   "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type MapMode = string;
 export type Format = "random" | "objective" | "slayer";
-export const MAP_COUNTS: readonly number[] = [1, 3, 5, 7, 9, 11, 13];
+export const MAP_COUNTS = MAP_GENERATOR_COUNTS;
 
 export const CURRENT_HCS_MAPS: Record<HcsMapMode, string[]> = {
   Slayer: ["Solitude", "Live Fire", "Recharge", "Streets", "Origin"],

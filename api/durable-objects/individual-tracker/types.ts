@@ -160,6 +160,7 @@ export interface IndividualTrackerStartSeriesRequest {
   subtitleOverride: string | null;
   teams: IndividualTrackerSeriesTeam[];
   matchIds?: string[];
+  plannedMaps?: LiveTrackerMap[] | undefined;
 }
 
 export interface IndividualTrackerEditSeriesRequest {

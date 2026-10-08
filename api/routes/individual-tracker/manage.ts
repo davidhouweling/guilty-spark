@@ -37,7 +37,14 @@ import {
   userTrackerNudgeContract,
 } from "@guilty-spark/shared/contracts/durable-objects/user-tracker/nudge";
 import { parseJsonBody, parsePathParams } from "@guilty-spark/shared/base/request-parsing";
+import {
+  generateMapsContract,
+  generateMapsRequestSchema,
+} from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
+import { z } from "zod";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
+import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
+import { MAP_COUNTS } from "../../services/halo/hcs";
 import {
   ActiveSeriesExistsError,
   NoActiveSeriesError,
@@ -52,6 +59,9 @@ import { resolveSeriesSeed } from "../../individual-tracker/series-seed";
 import { assertDoOk, startTrackerDo, trackerDoStub } from "../../individual-tracker/start-tracker-do";
 import type { RoutesRegisterHandler } from "../base/types";
 import { requireSession } from "../base/require-session";
+
+const mapsPlaylistSchema = z.enum(MapsPlaylistType);
+const mapsFormatSchema = z.enum(MapsFormatType);
 
 class SyncMatchesError extends Error {
   public constructor(message: string) {
@@ -601,6 +611,54 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
     }
   });
 
+  router.post("/api/individual-tracker/:trackerId/generate-maps", async (request, env: Env) => {
+    const services = installServices({ env });
+    const { authService, individualTrackerService, haloService, logService } = services;
+
+    try {
+      const auth = await requireSession(request, authService);
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const parsedParams = parsePathParams(request.params, trackerParamsSchema, "Invalid tracker id");
+      if (!parsedParams.success) {
+        return parsedParams.response;
+      }
+      const { trackerId } = parsedParams.data;
+
+      const parsed = await parseJsonBody(request, generateMapsRequestSchema, "Invalid map generation request");
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      const playlist = mapsPlaylistSchema.safeParse(parsed.data.playlist);
+      const format = mapsFormatSchema.safeParse(parsed.data.format);
+      if (!playlist.success || !format.success || !MAP_COUNTS.includes(parsed.data.count)) {
+        return errorContract.toResponse({ error: "Invalid map generation options" }, { status: 400, noStore: true });
+      }
+
+      try {
+        await individualTrackerService.getOwnedTracker(auth.session.userId, trackerId);
+      } catch (error) {
+        if (error instanceof TrackerNotFoundError) {
+          return errorContract.toResponse({ error: "Tracker not found" }, { status: 404, noStore: true });
+        }
+        throw error;
+      }
+
+      const maps = await haloService.generateMaps({
+        playlist: playlist.data,
+        format: format.data,
+        count: parsed.data.count,
+      });
+      return generateMapsContract.toResponse({ maps }, { noStore: true });
+    } catch (error) {
+      logService.error(error, new Map([["context", "Individual tracker map generation error"]]));
+      return errorContract.toResponse({ error: "Failed to generate maps" }, { status: 500, noStore: true });
+    }
+  });
+
   router.post("/api/individual-tracker/:trackerId/start-series", async (request, env: Env) => {
     const services = installServices({ env });
     const { authService, individualTrackerService, logService } = services;
@@ -638,6 +696,9 @@ export const trackerManageRoutesRegisterHandler: RoutesRegisterHandler = (router
         teams: parsed.data.teams.map((team) => ({ name: team.name, members: Array.from(team.members) })),
         ...(parsed.data.matchIds != null && parsed.data.matchIds.length > 0
           ? { matchIds: [...parsed.data.matchIds] }
+          : {}),
+        ...(parsed.data.plannedMaps != null && parsed.data.plannedMaps.length > 0
+          ? { plannedMaps: [...parsed.data.plannedMaps] }
           : {}),
       });
 

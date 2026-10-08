@@ -3945,6 +3945,7 @@ describe("IndividualTrackerDO", () => {
           { name: "Eagle", members: ["Alpha", "Bravo"] },
           { name: "Cobra", members: ["Charlie"] },
         ],
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
       };
 
       const response = await do2.fetch(startSeriesRequest(body));
@@ -3958,6 +3959,7 @@ describe("IndividualTrackerDO", () => {
         title: "Eagle vs Cobra",
         subtitle: "Bo5",
         isActive: true,
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           { name: "Eagle", players: [{ gamertag: "Alpha" }, { gamertag: "Bravo" }] },
           { name: "Cobra", players: [{ gamertag: "Charlie" }] },

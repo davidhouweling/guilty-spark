@@ -2162,6 +2162,7 @@ export class IndividualTrackerDO implements DurableObject, Rpc.DurableObjectBran
       guildIconUrl: null,
       teams,
       matchIds: body.matchIds ?? [],
+      ...(body.plannedMaps != null ? { plannedMaps: body.plannedMaps } : {}),
       startedAt: new Date().toISOString(),
       isActive: true,
     };
