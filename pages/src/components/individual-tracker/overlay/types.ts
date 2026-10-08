@@ -3,7 +3,7 @@ import type { StreamerViewSettings } from "@guilty-spark/shared/individual-track
 import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
-import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
+import type { OverlayTab } from "../../streamer-overlay/types";
 
 export const MATCHMAKING_SUMMARY_TAB_SERIES_ID = "matchmaking-summary";
 

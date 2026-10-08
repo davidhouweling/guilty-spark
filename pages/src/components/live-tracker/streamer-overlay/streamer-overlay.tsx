@@ -22,7 +22,7 @@ import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
-import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
+import type { OverlayTab } from "../../streamer-overlay/types";
 import { timeAgo } from "../../../services/time-ago";
 import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";

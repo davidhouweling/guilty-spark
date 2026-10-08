@@ -16,7 +16,7 @@ import { createMatchStatsFormatter } from "../../../controllers/stats/create";
 import { SeriesTeamStatsFormatter } from "../../../controllers/stats/series-team-stats-formatter";
 import { SeriesPlayerStatsFormatter } from "../../../controllers/stats/series-player-stats-formatter";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
-import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
+import type { OverlayTab } from "../../streamer-overlay/types";
 import type {
   IndividualTrackerViewerRenderModel,
   SeriesDetailsState,

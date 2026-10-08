@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
-import type { OverlayTab } from "./tabs-bar";
+import type { OverlayTab } from "./types";
 import { StreamerOverlayPresenter } from "./streamer-overlay-presenter";
 import { StreamerOverlayStore } from "./streamer-overlay-store";
 import { StreamerOverlay } from "./streamer-overlay";
