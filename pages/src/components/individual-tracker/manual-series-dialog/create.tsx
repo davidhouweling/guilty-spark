@@ -114,6 +114,21 @@ function ManualSeriesDialogSectionInternal({
       onBackfillMatchToggle={(matchId): void => {
         presenter.toggleBackfillMatch(matchId);
       }}
+      onMapPlaylistChange={(value): void => {
+        presenter.setMapPlaylist(value);
+      }}
+      onMapFormatChange={(value): void => {
+        presenter.setMapFormat(value);
+      }}
+      onMapCountChange={(value): void => {
+        presenter.setMapCount(value);
+      }}
+      onGenerateMaps={(): void => {
+        presenter.generateMaps();
+      }}
+      onRemovePlannedMap={(index): void => {
+        presenter.removePlannedMap(index);
+      }}
       onStartSeries={handleSubmit}
     />
   );

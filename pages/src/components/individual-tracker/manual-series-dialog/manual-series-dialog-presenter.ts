@@ -1,7 +1,11 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
-import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type {
+  GenerateMapsRequest,
+  IndividualTrackerService,
+  TrackerMatchHistoryEntry,
+} from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
 import type { ManualSeriesDialogStore } from "./manual-series-dialog-store";
@@ -138,6 +142,63 @@ export class ManualSeriesDialogPresenter {
     this.config.store.toggleBackfillMatch(matchId);
   }
 
+  public setMapPlaylist(value: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setMapPlaylist(value);
+  }
+
+  public setMapFormat(value: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setMapFormat(value);
+  }
+
+  public setMapCount(value: number): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setMapCount(value);
+  }
+
+  public removePlannedMap(index: number): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.removePlannedMap(index);
+  }
+
+  public generateMaps(): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    void this.generateMapsAsync();
+  }
+
+  private async generateMapsAsync(): Promise<void> {
+    const snapshot = this.config.store.getSnapshot();
+    this.config.store.setMapGenerationLoading();
+    try {
+      const maps = await this.config.individualTrackerService.generateMaps({
+        trackerId: this.config.trackerId,
+        playlist: snapshot.mapPlaylist,
+        format: snapshot.mapFormat,
+        count: snapshot.mapCount,
+      } satisfies GenerateMapsRequest);
+      if (this.checkDisposed()) {
+        return;
+      }
+      this.config.store.setPlannedMaps(maps);
+    } catch (error) {
+      if (this.checkDisposed()) {
+        return;
+      }
+      this.config.store.setMapGenerationError(error instanceof Error ? error.message : "Failed to generate maps.");
+    }
+  }
+
   public discoverBackfillMatches(): void {
     if (this.checkDisposed()) {
       return;
@@ -193,6 +254,7 @@ export class ManualSeriesDialogPresenter {
         subtitleOverride,
         teams,
         matchIds: [...snapshot.selectedBackfillMatchIds],
+        ...(snapshot.plannedMaps.length > 0 ? { plannedMaps: [...snapshot.plannedMaps] } : {}),
       });
 
       if (this.checkDisposed()) {

@@ -12,6 +12,7 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type {
   EditSeriesRequest,
+  GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
@@ -247,6 +248,25 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   public async syncMatchesToTracker(): Promise<void> {
     await Promise.resolve();
+  }
+
+  public async generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
+    const fakeMaps = [
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Oddball", map: "Streets" },
+      { mode: "Capture the Flag", map: "Aquarius" },
+      { mode: "Strongholds", map: "Recharge" },
+      { mode: "King of the Hill", map: "Origin" },
+      { mode: "Slayer", map: "Solitude" },
+      { mode: "Oddball", map: "Lattice" },
+      { mode: "Capture the Flag", map: "Empyrean" },
+      { mode: "Strongholds", map: "Live Fire" },
+      { mode: "King of the Hill", map: "Streets" },
+      { mode: "Slayer", map: "Recharge" },
+      { mode: "Oddball", map: "Live Fire" },
+      { mode: "Capture the Flag", map: "Origin" },
+    ];
+    return Promise.resolve(fakeMaps.slice(0, request.count));
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

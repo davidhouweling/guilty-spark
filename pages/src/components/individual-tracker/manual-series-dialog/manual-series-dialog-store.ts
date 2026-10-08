@@ -1,3 +1,4 @@
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 
 export interface ManualSeriesTeamSnapshot {
@@ -18,6 +19,12 @@ export interface ManualSeriesDialogSnapshot {
   readonly backfillWarning: string | null;
   readonly backfillMatches: readonly TrackerMatchHistoryEntry[];
   readonly selectedBackfillMatchIds: readonly string[];
+  readonly mapPlaylist: string;
+  readonly mapFormat: string;
+  readonly mapCount: number;
+  readonly plannedMaps: readonly LiveTrackerMap[];
+  readonly mapGenerationLoading: boolean;
+  readonly mapGenerationError: string | null;
   readonly busy: boolean;
   readonly submitError: string | null;
 }
@@ -66,6 +73,12 @@ export class ManualSeriesDialogStore {
       backfillWarning: null,
       backfillMatches: [],
       selectedBackfillMatchIds: [],
+      mapPlaylist: "C",
+      mapFormat: "H",
+      mapCount: 5,
+      plannedMaps: [],
+      mapGenerationLoading: false,
+      mapGenerationError: null,
       busy: false,
       submitError: null,
     };
@@ -97,6 +110,12 @@ export class ManualSeriesDialogStore {
       backfillWarning: null,
       backfillMatches: [],
       selectedBackfillMatchIds: [],
+      mapPlaylist: "C",
+      mapFormat: "H",
+      mapCount: 5,
+      plannedMaps: [],
+      mapGenerationLoading: false,
+      mapGenerationError: null,
       busy: false,
       submitError: null,
     });
@@ -151,6 +170,34 @@ export class ManualSeriesDialogStore {
     const current = this.snapshot.selectedBackfillMatchIds;
     const updated = current.includes(matchId) ? current.filter((id) => id !== matchId) : [...current, matchId];
     this.update({ selectedBackfillMatchIds: updated });
+  }
+
+  public setMapPlaylist(mapPlaylist: string): void {
+    this.update({ mapPlaylist, plannedMaps: [], mapGenerationError: null });
+  }
+
+  public setMapFormat(mapFormat: string): void {
+    this.update({ mapFormat, plannedMaps: [], mapGenerationError: null });
+  }
+
+  public setMapCount(mapCount: number): void {
+    this.update({ mapCount, plannedMaps: [], mapGenerationError: null });
+  }
+
+  public setMapGenerationLoading(): void {
+    this.update({ mapGenerationLoading: true, mapGenerationError: null });
+  }
+
+  public setPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): void {
+    this.update({ plannedMaps: [...plannedMaps], mapGenerationLoading: false, mapGenerationError: null });
+  }
+
+  public setMapGenerationError(mapGenerationError: string): void {
+    this.update({ mapGenerationLoading: false, mapGenerationError });
+  }
+
+  public removePlannedMap(index: number): void {
+    this.update({ plannedMaps: this.snapshot.plannedMaps.filter((_, mapIndex) => mapIndex !== index) });
   }
 
   public setBusy(busy: boolean): void {

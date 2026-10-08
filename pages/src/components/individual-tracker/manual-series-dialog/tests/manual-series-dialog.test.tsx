@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { TrackerMatchHistoryEntry, TrackerSearchResult } from "../../../../services/individual-tracker/types";
 import { ManualSeriesDialogStore } from "../manual-series-dialog-store";
 import { ManualSeriesDialog } from "../manual-series-dialog";
@@ -9,6 +9,14 @@ import { ManualSeriesDialog } from "../manual-series-dialog";
 afterEach(() => {
   cleanup();
 });
+
+const mapGeneratorCallbacks = {
+  onMapPlaylistChange: (): void => undefined,
+  onMapFormatChange: (): void => undefined,
+  onMapCountChange: (): void => undefined,
+  onGenerateMaps: (): void => undefined,
+  onRemovePlannedMap: (): void => undefined,
+};
 
 function aMatchEntryWith(overrides: Partial<TrackerMatchHistoryEntry>): TrackerMatchHistoryEntry {
   return {
@@ -73,6 +81,7 @@ function renderDialog(store: ManualSeriesDialogStore): void {
       onRemoveTeamMember={vi.fn()}
       onDiscoverBackfill={vi.fn()}
       onBackfillMatchToggle={vi.fn()}
+      {...mapGeneratorCallbacks}
       onStartSeries={vi.fn()}
     />,
   );
@@ -84,6 +93,25 @@ describe("ManualSeriesDialog", () => {
     renderDialog(store);
     const gamertag = screen.getAllByPlaceholderText("Gamertag");
     expect(gamertag.length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Generate maps" })).toBeInTheDocument();
+  });
+
+  it("renders selected generated maps with removable rows", () => {
+    const store = new ManualSeriesDialogStore();
+    store.setPlannedMaps([
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Oddball", map: "Recharge" },
+    ]);
+
+    renderDialog(store);
+
+    const mapList = screen.getByRole("list", { name: "Selected map plan" });
+    expect(within(mapList).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(mapList).getByText("Slayer")).toBeInTheDocument();
+    expect(within(mapList).getByText("Live Fire")).toBeInTheDocument();
+    expect(within(mapList).getByText("Oddball")).toBeInTheDocument();
+    expect(within(mapList).getByText("Recharge")).toBeInTheDocument();
+    expect(within(mapList).getAllByRole("button", { name: "Remove" })).toHaveLength(2);
   });
 
   it("shows backfill matches when backfillState is done", () => {
@@ -106,6 +134,7 @@ describe("ManualSeriesDialog", () => {
         onRemoveTeamMember={vi.fn()}
         onDiscoverBackfill={vi.fn()}
         onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
         onStartSeries={vi.fn()}
       />,
     );
@@ -131,6 +160,7 @@ describe("ManualSeriesDialog", () => {
         onRemoveTeamMember={vi.fn()}
         onDiscoverBackfill={vi.fn()}
         onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
         onStartSeries={onStartSeries}
       />,
     );
@@ -180,6 +210,7 @@ describe("ManualSeriesDialog", () => {
         onRemoveTeamMember={vi.fn()}
         onDiscoverBackfill={vi.fn()}
         onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
         onStartSeries={vi.fn()}
       />,
     );
@@ -283,6 +314,7 @@ describe("ManualSeriesDialog (backfill interaction simulation)", () => {
           void onDiscoverBackfill();
         }}
         onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
         onStartSeries={vi.fn()}
       />,
     );
@@ -310,6 +342,7 @@ describe("ManualSeriesDialog (backfill interaction simulation)", () => {
           void onDiscoverBackfill();
         }}
         onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
         onStartSeries={vi.fn()}
       />,
     );

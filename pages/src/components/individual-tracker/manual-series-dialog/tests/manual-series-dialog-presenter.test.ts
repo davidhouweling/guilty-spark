@@ -214,6 +214,40 @@ describe("ManualSeriesDialogPresenter", () => {
     });
   });
 
+  describe("map generation", () => {
+    it("generates maps from the selected playlist, format, and count", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const generatedMaps = [
+        { mode: "Oddball", map: "Streets" },
+        { mode: "Slayer", map: "Recharge" },
+        { mode: "Strongholds", map: "Live Fire" },
+      ];
+      const generateMapsSpy = vi.spyOn(service, "generateMaps").mockResolvedValue(generatedMaps);
+      const { presenter, store } = buildPresenter(service);
+      presenter.setMapPlaylist("H");
+      presenter.setMapFormat("R");
+      presenter.setMapCount(3);
+
+      let resolveGeneration: () => void = (): void => undefined;
+      const generationCompleted = new Promise<void>((resolve) => {
+        resolveGeneration = resolve;
+      });
+      const unsubscribe = store.subscribe(() => {
+        const snapshot = store.getSnapshot();
+        if (!snapshot.mapGenerationLoading && snapshot.plannedMaps.length > 0) {
+          resolveGeneration();
+        }
+      });
+
+      presenter.generateMaps();
+      await generationCompleted;
+      unsubscribe();
+
+      expect(generateMapsSpy).toHaveBeenCalledWith({ trackerId: "tracker-1", playlist: "H", format: "R", count: 3 });
+      expect(store.getSnapshot().plannedMaps).toEqual(generatedMaps);
+    });
+  });
+
   describe("startSeries", () => {
     it("calls service startSeries with trimmed teams and overrides then fires onSeriesStarted", async () => {
       const service = aFakeIndividualTrackerServiceWith();
@@ -223,6 +257,7 @@ describe("ManualSeriesDialogPresenter", () => {
 
       store.setTitleOverride("Eagle vs Cobra");
       store.setSubtitleOverride("Bo5");
+      store.setPlannedMaps([{ mode: "Oddball", map: "Streets" }]);
       presenter.setTeamMember(0, 0, "Alpha");
       presenter.setTeamMember(1, 0, "Bravo");
 
@@ -240,6 +275,7 @@ describe("ManualSeriesDialogPresenter", () => {
           trackerId: "tracker-1",
           titleOverride: "Eagle vs Cobra",
           subtitleOverride: "Bo5",
+          plannedMaps: [{ mode: "Oddball", map: "Streets" }],
         }),
       );
       expect(onSeriesStarted).toHaveBeenCalled();
