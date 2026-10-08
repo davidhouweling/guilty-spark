@@ -343,6 +343,12 @@
   min-width: 100px;
 }
 
+.tabUpcoming {
+  cursor: default;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
 .tabContent {
   align-items: center;
   display: flex;

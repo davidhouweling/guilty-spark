@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
-import type { OverlayTab } from "./tabs-bar";
+import type { OverlayTab } from "./types";
 import { BottomSection } from "./bottom-section";
 import { StatsPanel } from "./stats-panel/stats-panel";
 import styles from "./streamer-overlay.module.css";

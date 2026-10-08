@@ -133,6 +133,10 @@ export function IndividualTrackerOverlay({
         return;
       }
 
+      if (selectedTab.type === "upcoming") {
+        return;
+      }
+
       if (selectedTab.matchId === selectedMatchId) {
         onDeselect();
       } else {
@@ -149,7 +153,7 @@ export function IndividualTrackerOverlay({
         return false;
       }
 
-      return selectedTab != null;
+      return selectedTab != null && selectedTab.type !== "upcoming";
     },
     [viewModel.tabs],
   );

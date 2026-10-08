@@ -4,7 +4,7 @@ import React from "react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../team-colors/team-colors";
-import type { OverlayTab } from "../tabs-bar";
+import type { OverlayTab } from "../types";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
 import { createStreamerOverlaySection } from "../create";
 import type { StreamerOverlayProps } from "../create";

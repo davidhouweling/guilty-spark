@@ -27,12 +27,16 @@ vi.mock("../../../streamer-overlay/create", () => ({
 
         return count;
       }, 0);
+      const tabDescriptions = props.tabs.map((tab) => `${tab.type}:${tab.index.toString()}:${tab.label}`).join("|");
+      const tickerMatchIndices = props.tickerMatchGroups.map((group) => group.matchIndex.toString()).join(",");
 
       return (
         <>
           <div data-testid="shared-overlay-matches-length">{props.matchesLength.toString()}</div>
           <div data-testid="shared-overlay-tabs-length">{props.tabs.length.toString()}</div>
+          <div data-testid="shared-overlay-tabs">{tabDescriptions}</div>
           <div data-testid="shared-overlay-ticker-groups-length">{props.tickerMatchGroups.length.toString()}</div>
+          <div data-testid="shared-overlay-ticker-match-indices">{tickerMatchIndices}</div>
           <div data-testid="shared-overlay-dimmed-icons">{dimmedIconCount.toString()}</div>
         </>
       );
@@ -173,7 +177,7 @@ describe("StreamerOverlay create props", () => {
     expect(screen.getByTestId("shared-overlay-matches-length")).toHaveTextContent("0");
   });
 
-  it("limits tabs to the series tab plus max previous games", () => {
+  it("adds upcoming tabs after matches without adding them to ticker rotation", () => {
     const model = aFakeLiveTrackerViewModelWith({
       state: {
         type: "neatqueue",
@@ -246,7 +250,22 @@ describe("StreamerOverlay create props", () => {
           },
         ],
         substitutions: [],
-        plannedGames: [],
+        plannedGames: [
+          {
+            gameNumber: 3,
+            mode: "Slayer",
+            map: "Recharge",
+            gameMapThumbnailUrl: "data:,",
+            gameModeIconUrl: "https://example.com/icons/Slayer.png",
+          },
+          {
+            gameNumber: 4,
+            mode: "Strongholds",
+            map: "Streets",
+            gameMapThumbnailUrl: "data:,",
+            gameModeIconUrl: "https://example.com/icons/Strongholds.png",
+          },
+        ],
         seriesScore: "2:2",
         medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 1500 } },
         playersAssociationData: {},
@@ -319,8 +338,12 @@ describe("StreamerOverlay create props", () => {
       </LiveTrackerProvider>,
     );
 
-    expect(screen.getByTestId("shared-overlay-tabs-length")).toHaveTextContent("3");
+    expect(screen.getByTestId("shared-overlay-tabs-length")).toHaveTextContent("5");
+    expect(screen.getByTestId("shared-overlay-tabs")).toHaveTextContent(
+      "series:-1:Series score|match:2:Streets|match:3:Live Fire|upcoming:4:Slayer: Recharge|upcoming:5:Strongholds: Streets",
+    );
     expect(screen.getByTestId("shared-overlay-ticker-groups-length")).toHaveTextContent("2");
+    expect(screen.getByTestId("shared-overlay-ticker-match-indices")).toHaveTextContent("2,3");
   });
 
   it("never dims tab icons for a loss, since the live tracker ticker only ever shows the in-progress series", () => {

@@ -3,7 +3,7 @@ import type { TeamColor } from "../team-colors/team-colors";
 import { InformationTicker } from "../information-ticker/information-ticker";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import { OverlayTabsBar } from "./tabs-bar";
-import type { OverlayTab } from "./tabs-bar";
+import type { OverlayTab } from "./types";
 import styles from "./streamer-overlay.module.css";
 
 interface BottomSectionProps {

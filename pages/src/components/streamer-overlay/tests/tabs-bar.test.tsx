@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverlayTabsBar } from "../tabs-bar";
-import type { OverlayTab } from "../tabs-bar";
+import type { OverlayTab } from "../types";
 
 afterEach(() => {
   cleanup();
@@ -75,5 +75,35 @@ describe("OverlayTabsBar", () => {
     await user.click(screen.getByRole("button", { name: /match 1/i }));
 
     expect(onTabClick).toHaveBeenCalledWith(1);
+  });
+
+  it("renders upcoming tabs as disabled and does not handle clicks", async () => {
+    const user = userEvent.setup();
+    const onTabClick = vi.fn<(tabIndex: number) => void>();
+    const upcomingTab: OverlayTab = {
+      type: "upcoming",
+      index: 3,
+      label: "Oddball: Live Fire",
+      icons: [{ src: "/oddball.png", dimmed: false }],
+    };
+
+    render(
+      <OverlayTabsBar
+        tabs={[aSeriesTabWith(), aMatchTabWith(0), upcomingTab]}
+        activeTabIndex={undefined}
+        selectedTab={3}
+        isPanelOpen={true}
+        onTabClick={onTabClick}
+      />,
+    );
+
+    const upcomingButton = screen.getByRole("button", { name: "Oddball: Live Fire" });
+    expect(upcomingButton).toBeDisabled();
+    expect(upcomingButton.className).not.toContain("tabActive");
+    expect(upcomingButton.className).not.toContain("tabSelected");
+
+    await user.click(upcomingButton);
+
+    expect(onTabClick).not.toHaveBeenCalled();
   });
 });

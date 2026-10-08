@@ -1,34 +1,7 @@
 import React, { memo } from "react";
 import classNames from "classnames";
+import type { OverlayTab } from "./types";
 import styles from "./streamer-overlay.module.css";
-
-interface SeriesTab {
-  readonly type: "series";
-  readonly seriesId: string;
-  readonly index: number;
-  readonly label: string;
-  readonly score: string;
-  readonly teamColor: string | undefined;
-  readonly icons?: readonly { readonly src: string; readonly dimmed: boolean }[];
-}
-
-interface MatchTabBase {
-  readonly type: "match";
-  readonly index: number;
-  readonly matchId: string;
-  readonly label: string;
-  readonly score: string;
-  readonly teamColor: string | undefined;
-}
-
-type SingleIconMatchTab = MatchTabBase & { readonly icon: string; readonly icons?: never };
-type MultiIconMatchTab = MatchTabBase & {
-  readonly icons: readonly { readonly src: string; readonly dimmed: boolean }[];
-  readonly icon?: never;
-};
-
-export type MatchTab = SingleIconMatchTab | MultiIconMatchTab;
-export type OverlayTab = SeriesTab | MatchTab;
 
 interface OverlayTabsBarProps {
   readonly tabs: readonly OverlayTab[];
@@ -50,7 +23,12 @@ const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProp
   const tabIcons =
     tab.type === "series"
       ? (tab.icons ?? [])
-      : (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []));
+      : tab.type === "upcoming"
+        ? tab.icons
+        : (tab.icons ?? (tab.icon !== "" ? [{ src: tab.icon, dimmed: false as const }] : []));
+  const isUpcoming = tab.type === "upcoming";
+  const tabScore = isUpcoming ? "" : tab.score;
+  const teamColor = isUpcoming ? undefined : tab.teamColor;
 
   return (
     <button
@@ -59,14 +37,20 @@ const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProp
         [styles.tabActive]: isActive,
         [styles.tabSelected]: isSelected,
         [styles.tabSeries]: tab.type === "series",
+        [styles.tabUpcoming]: isUpcoming,
       })}
-      onClick={(): void => {
-        onTabClick(tabIndex);
-      }}
+      disabled={isUpcoming}
+      onClick={
+        isUpcoming
+          ? undefined
+          : (): void => {
+              onTabClick(tabIndex);
+            }
+      }
       style={
-        tab.teamColor != null
+        teamColor != null
           ? ({
-              "--tab-team-color": tab.teamColor,
+              "--tab-team-color": teamColor,
             } as React.CSSProperties)
           : undefined
       }
@@ -87,10 +71,10 @@ const TabButton = memo(({ tab, isActive, isSelected, onTabClick }: TabButtonProp
           </div>
         )}
         <span className={styles.tabLabel}>{tab.label}</span>
-        {tab.score && (
+        {tabScore && (
           <>
             {" "}
-            • <span className={styles.tabScore}>{tab.score}</span>
+            • <span className={styles.tabScore}>{tabScore}</span>
           </>
         )}
       </div>
@@ -109,9 +93,14 @@ function OverlayTabsBarComponent({
     <div className={styles.tabBar}>
       {tabs.map((tab) => {
         const tabIndex = tab.index;
-        const tabKey = tab.type === "series" ? `series-${tab.seriesId}` : tab.matchId;
-        const isActive = activeTabIndex === tabIndex;
-        const isSelected = selectedTab === tabIndex && isPanelOpen;
+        const tabKey =
+          tab.type === "series"
+            ? `series-${tab.seriesId}`
+            : tab.type === "match"
+              ? tab.matchId
+              : `upcoming-${tabIndex.toString()}`;
+        const isActive = tab.type !== "upcoming" && activeTabIndex === tabIndex;
+        const isSelected = tab.type !== "upcoming" && selectedTab === tabIndex && isPanelOpen;
 
         return <TabButton key={tabKey} tab={tab} isActive={isActive} isSelected={isSelected} onTabClick={onTabClick} />;
       })}

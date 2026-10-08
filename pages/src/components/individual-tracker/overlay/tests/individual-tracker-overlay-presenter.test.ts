@@ -122,11 +122,11 @@ describe("individual-tracker-overlay-presenter", () => {
       expect(tabs[0].teamColor).toBeUndefined();
       expect(tabs[0].icons).toEqual([]);
     }
-    expect(tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
-      "series-active",
-      "a",
-      "b",
-    ]);
+    expect(
+      tabs.map((tab) =>
+        tab.type === "series" ? tab.seriesId : tab.type === "match" ? tab.matchId : `upcoming-${tab.index.toString()}`,
+      ),
+    ).toEqual(["series-active", "a", "b"]);
   });
 
   it("omits the in-series summary tab when inSeriesShowSeriesTab is disabled", () => {
@@ -157,7 +157,11 @@ describe("individual-tracker-overlay-presenter", () => {
       selectedMatchId: null,
     });
 
-    expect(model.tabs.map((tab) => (tab.type === "match" ? tab.matchId : tab.seriesId))).toEqual(["a", "b"]);
+    expect(
+      model.tabs.map((tab) =>
+        tab.type === "match" ? tab.matchId : tab.type === "series" ? tab.seriesId : `upcoming-${tab.index.toString()}`,
+      ),
+    ).toEqual(["a", "b"]);
     expect(model.tabs.every((tab) => tab.type === "match")).toBe(true);
   });
 
@@ -268,12 +272,11 @@ describe("individual-tracker-overlay-presenter", () => {
       selectedMatchId: null,
     });
 
-    expect(model.tabs.map((tab) => (tab.type === "series" ? tab.seriesId : tab.matchId))).toEqual([
-      MATCHMAKING_SUMMARY_TAB_SERIES_ID,
-      "m-2",
-      "m-3",
-      "m-4",
-    ]);
+    expect(
+      model.tabs.map((tab) =>
+        tab.type === "series" ? tab.seriesId : tab.type === "match" ? tab.matchId : `upcoming-${tab.index.toString()}`,
+      ),
+    ).toEqual([MATCHMAKING_SUMMARY_TAB_SERIES_ID, "m-2", "m-3", "m-4"]);
   });
 
   it("respects per-state show tabs toggles", () => {

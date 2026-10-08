@@ -22,7 +22,7 @@ import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../../streamer-overlay/team-details-content";
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
-import type { OverlayTab } from "../../streamer-overlay/tabs-bar";
+import type { OverlayTab } from "../../streamer-overlay/types";
 import { timeAgo } from "../../../services/time-ago";
 import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
@@ -535,6 +535,12 @@ function NeatQueueStreamerOverlay({
         teamColor,
       };
     });
+    const upcomingTabs = neatQueueState.plannedGames.map((game, index): OverlayTab => ({
+      type: "upcoming",
+      index: neatQueueState.matches.length + index,
+      label: `${game.mode}: ${game.map}`,
+      icons: game.gameModeIconUrl != null ? [{ src: game.gameModeIconUrl, dimmed: false }] : [],
+    }));
 
     return [
       {
@@ -546,11 +552,13 @@ function NeatQueueStreamerOverlay({
         teamColor: undefined,
       },
       ...allMatchTabs.slice(-clampedMaxPreviousGamesToShow),
+      ...upcomingTabs,
     ];
   }, [
     clampedMaxPreviousGamesToShow,
     gameModeIconUrl,
     neatQueueState.matches,
+    neatQueueState.plannedGames,
     neatQueueState.seriesScore,
     settings.global.ticker.showTabs,
     teamColors,
