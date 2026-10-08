@@ -535,6 +535,12 @@ function NeatQueueStreamerOverlay({
         teamColor,
       };
     });
+    const upcomingTabs = neatQueueState.plannedGames.map((game, index): OverlayTab => ({
+      type: "upcoming",
+      index: neatQueueState.matches.length + index,
+      label: `${game.mode}: ${game.map}`,
+      icons: game.gameModeIconUrl != null ? [{ src: game.gameModeIconUrl, dimmed: false }] : [],
+    }));
 
     return [
       {
@@ -546,11 +552,13 @@ function NeatQueueStreamerOverlay({
         teamColor: undefined,
       },
       ...allMatchTabs.slice(-clampedMaxPreviousGamesToShow),
+      ...upcomingTabs,
     ];
   }, [
     clampedMaxPreviousGamesToShow,
     gameModeIconUrl,
     neatQueueState.matches,
+    neatQueueState.plannedGames,
     neatQueueState.seriesScore,
     settings.global.ticker.showTabs,
     teamColors,
