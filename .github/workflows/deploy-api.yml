@@ -205,27 +205,34 @@ jobs:
 
             let deletedCount = 0;
 
-            const isSuccessful = async (deployment) => {
+            const getLatestState = async (deployment) => {
               const { data } = await github.rest.repos.listDeploymentStatuses({
                 owner,
                 repo,
                 deployment_id: deployment.id,
                 per_page: 1,
               });
-              return data[0]?.state === "success";
+              return data[0]?.state;
             };
 
-            // Keep the newest successful record and anything newer (e.g. an overlapping in-progress run).
+            const terminalStates = new Set(["success", "failure", "error", "inactive"]);
+
+            // Keep the newest successful record, anything newer, and any older run still in flight.
             const getStaleDeployments = async (envDeployments) => {
               const sorted = [...envDeployments].sort(
                 (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
               );
-              for (const [index, deployment] of sorted.entries()) {
-                if (await isSuccessful(deployment)) {
-                  return sorted.slice(index + 1);
-                }
+              const states = [];
+              for (const deployment of sorted) {
+                states.push(await getLatestState(deployment));
               }
-              return [];
+              const newestSuccessIndex = states.indexOf("success");
+              if (newestSuccessIndex === -1) {
+                return [];
+              }
+              return sorted.filter(
+                (_, index) => index > newestSuccessIndex && terminalStates.has(states[index]),
+              );
             };
 
             for (const envDeployments of byEnvironment.values()) {
