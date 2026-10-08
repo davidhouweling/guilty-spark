@@ -206,13 +206,21 @@ jobs:
             let deletedCount = 0;
 
             const getLatestState = async (deployment) => {
-              const { data } = await github.rest.repos.listDeploymentStatuses({
-                owner,
-                repo,
-                deployment_id: deployment.id,
-                per_page: 1,
-              });
-              return data[0]?.state;
+              try {
+                const { data } = await github.rest.repos.listDeploymentStatuses({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                  per_page: 1,
+                });
+                return data[0]?.state;
+              } catch (error) {
+                // Already deleted by an overlapping run.
+                if (error.status === 404) {
+                  return undefined;
+                }
+                throw error;
+              }
             };
 
             const terminalStates = new Set(["success", "failure", "error", "inactive"]);

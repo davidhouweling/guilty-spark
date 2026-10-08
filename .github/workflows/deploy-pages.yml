@@ -237,13 +237,21 @@ jobs:
             };
 
             const getLatestState = async (deployment) => {
-              const { data } = await github.rest.repos.listDeploymentStatuses({
-                owner,
-                repo,
-                deployment_id: deployment.id,
-                per_page: 1,
-              });
-              return data[0]?.state;
+              try {
+                const { data } = await github.rest.repos.listDeploymentStatuses({
+                  owner,
+                  repo,
+                  deployment_id: deployment.id,
+                  per_page: 1,
+                });
+                return data[0]?.state;
+              } catch (error) {
+                // Already deleted by an overlapping run.
+                if (error.status === 404) {
+                  return undefined;
+                }
+                throw error;
+              }
             };
 
             const terminalStates = new Set(["success", "failure", "error", "inactive"]);
@@ -268,7 +276,7 @@ jobs:
 
             const productionDeployments = await getStaleProductionDeployments();
             // Untagged legacy deployments can only be matched by head SHA.
-            const orphanedPreviewDeployments = (await listDeployments("preview")).filter(
+            const orphanedPreviewCandidates = (await listDeployments("preview")).filter(
               (deployment) => {
                 const deploymentPrNumber = getPrNumber(deployment);
                 return deploymentPrNumber === undefined
@@ -276,6 +284,12 @@ jobs:
                   : !openPrNumbers.has(deploymentPrNumber);
               },
             );
+            const orphanedPreviewDeployments = [];
+            for (const deployment of orphanedPreviewCandidates) {
+              if (terminalStates.has(await getLatestState(deployment))) {
+                orphanedPreviewDeployments.push(deployment);
+              }
+            }
 
             let deletedCount = 0;
 
