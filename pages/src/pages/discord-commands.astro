@@ -95,25 +95,25 @@ const commandGroups = [
     <Container>
       <header class={styles.heroBlock}>
         <p class={styles.eyebrow}>Command Uplink</p>
-        <Heading tagName="h1" class={styles.title}>Discord Commands</Heading>
+        <Heading tagName="h1" class={styles.title}>
+          Discord Commands
+        </Heading>
         <p class={styles.subtitle}>
           Quick-reference index for Guilty Spark slash commands. Use this operator deck for setup, stat retrieval, and
           live operations.
         </p>
       </header>
 
-      {
-        commandGroups.map((group) => (
-          <section class={styles.section} aria-label={group.title}>
-            <SectionHeader title={group.title} subtitle="Operational command set" />
-            <div class={styles.grid}>
-              {group.commands.map((item) => (
-                <CommandCard command={item.command} description={item.description} />
-              ))}
-            </div>
-          </section>
-        ))
-      }
+      {commandGroups.map((group) => (
+        <section class={styles.section} aria-label={group.title}>
+          <SectionHeader title={group.title} subtitle="Operational command set" />
+          <div class={styles.grid}>
+            {group.commands.map((item) => (
+              <CommandCard command={item.command} description={item.description} />
+            ))}
+          </div>
+        </section>
+      ))}
     </Container>
   </section>
 </Layout>

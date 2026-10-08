@@ -42,18 +42,16 @@ if (gamertag !== "") {
 ---
 
 <Layout title="Player Stats - Guilty Spark" description="Public Halo Infinite player statistics">
-  {
-    lookupStatus === 200 ? (
-      <PlayerStatsApp client:only="react" apiHost={API_HOST} gamertag={gamertag} initialResponse={initialResponse} />
-    ) : (
-      <ErrorState
-        title={lookupStatus === 404 ? "Player stats not found" : "Unable to load player stats"}
-        message={
-          lookupStatus === 404
-            ? "No leaderboard data was found for this player."
-            : "The player stats could not be loaded right now."
-        }
-      />
-    )
-  }
+  {lookupStatus === 200 ? (
+    <PlayerStatsApp client:only="react" apiHost={API_HOST} gamertag={gamertag} initialResponse={initialResponse} />
+  ) : (
+    <ErrorState
+      title={lookupStatus === 404 ? "Player stats not found" : "Unable to load player stats"}
+      message={
+        lookupStatus === 404
+          ? "No leaderboard data was found for this player."
+          : "The player stats could not be loaded right now."
+      }
+    />
+  )}
 </Layout>

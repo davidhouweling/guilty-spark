@@ -25,14 +25,12 @@ if (cleanedGamertags.length === 0) {
 ---
 
 <Layout title="Compare players - Guilty Spark" description="Public Halo Infinite player comparison">
-  {
-    hasError ? (
-      <ErrorState
-        title="Player comparison requires 1 to 8 players"
-        message="Use repeated gamertag query params to compare players, for example: ?gamertag=Alpha&gamertag=Bravo"
-      />
-    ) : (
-      <PlayerCompareApp client:only="react" apiHost={API_HOST} gamertags={gamertags} />
-    )
-  }
+  {hasError ? (
+    <ErrorState
+      title="Player comparison requires 1 to 8 players"
+      message="Use repeated gamertag query params to compare players, for example: ?gamertag=Alpha&gamertag=Bravo"
+    />
+  ) : (
+    <PlayerCompareApp client:only="react" apiHost={API_HOST} gamertags={gamertags} />
+  )}
 </Layout>

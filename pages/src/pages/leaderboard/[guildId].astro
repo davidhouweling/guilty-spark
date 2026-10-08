@@ -50,24 +50,22 @@ if (isValidGuildId) {
 ---
 
 <Layout title="Leaderboard - Guilty Spark" description="Public Halo Infinite leaderboard">
-  {
-    lookupStatus === 200 ? (
-      <LeaderboardApp
-        client:only="react"
-        apiHost={API_HOST}
-        guildId={guildId}
-        queueChannelId={null}
-        initialResponse={initialResponse}
-      />
-    ) : (
-      <ErrorState
-        title={lookupStatus === 404 ? "Leaderboard not found" : "Unable to load leaderboard"}
-        message={
-          lookupStatus === 404
-            ? "No completed leaderboard data was found for this guild."
-            : "The leaderboard could not be validated right now."
-        }
-      />
-    )
-  }
+  {lookupStatus === 200 ? (
+    <LeaderboardApp
+      client:only="react"
+      apiHost={API_HOST}
+      guildId={guildId}
+      queueChannelId={null}
+      initialResponse={initialResponse}
+    />
+  ) : (
+    <ErrorState
+      title={lookupStatus === 404 ? "Leaderboard not found" : "Unable to load leaderboard"}
+      message={
+        lookupStatus === 404
+          ? "No completed leaderboard data was found for this guild."
+          : "The leaderboard could not be validated right now."
+      }
+    />
+  )}
 </Layout>

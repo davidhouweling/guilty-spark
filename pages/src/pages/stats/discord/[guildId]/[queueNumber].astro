@@ -51,17 +51,15 @@ if (hasInvalidParams) {
 ---
 
 <Layout title={`Queue #${queueNumber} Stats - Guilty Spark`} description="Series stats for a completed queue">
-  {
-    hasInvalidParams || lookupStatus === 404 ? (
-      <ErrorState title="Queue not found" message="No matching queue was found for this guild." />
-    ) : lookupStatus === 200 ? (
-      <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
-    ) : lookupStatus === 503 ? (
-      <LoadingState text={`Stats are still indexing. Retry in ${retryAfterSeconds.toString()}s.`} />
-    ) : lookupStatus === 403 ? (
-      <ErrorState title="Access forbidden" message="Missing Discord permissions or message content access" />
-    ) : (
-      <ErrorState title="Unable to load stats" message="Failed to validate queue stats" />
-    )
-  }
+  {hasInvalidParams || lookupStatus === 404 ? (
+    <ErrorState title="Queue not found" message="No matching queue was found for this guild." />
+  ) : lookupStatus === 200 ? (
+    <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
+  ) : lookupStatus === 503 ? (
+    <LoadingState text={`Stats are still indexing. Retry in ${retryAfterSeconds.toString()}s.`} />
+  ) : lookupStatus === 403 ? (
+    <ErrorState title="Access forbidden" message="Missing Discord permissions or message content access" />
+  ) : (
+    <ErrorState title="Unable to load stats" message="Failed to validate queue stats" />
+  )}
 </Layout>

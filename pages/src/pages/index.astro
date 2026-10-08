@@ -163,12 +163,16 @@ const testimonialItems: CommunityTestimonial[] = [
       </p>
 
       <div class={styles.heroButtons}>
-        <Button href={DISCORD_INVITE_URL} variant="primary" target="_blank" icon={DiscordLogo}>Add to Discord</Button>
+        <Button href={DISCORD_INVITE_URL} variant="primary" target="_blank" icon={DiscordLogo}>
+          Add to Discord
+        </Button>
       </div>
 
       <!-- Stats Display -->
       <div class={styles.statsGrid}>
-        {heroStats.map(({ value, label }) => <StatCard value={value} label={label} />)}
+        {heroStats.map(({ value, label }) => (
+          <StatCard value={value} label={label} />
+        ))}
       </div>
     </Container>
   </section>
@@ -178,29 +182,25 @@ const testimonialItems: CommunityTestimonial[] = [
     <Container>
       <SectionHeader title="Operational Demonstrations" subtitle="Inspect protocol systems in active deployment" />
       <div class={styles.demoGrid}>
-        {
-          featuredDemoItem && (
-            <DemoCard
-              title={featuredDemoItem.title}
-              description={featuredDemoItem.description}
-              iconVariant={featuredDemoItem.iconVariant}
-              class={styles.demoFeaturedCard}
-            >
-              <featuredDemoItem.Icon slot="icon" />
-              <featuredDemoItem.Media slot="media" />
-            </DemoCard>
-          )
-        }
+        {featuredDemoItem && (
+          <DemoCard
+            title={featuredDemoItem.title}
+            description={featuredDemoItem.description}
+            iconVariant={featuredDemoItem.iconVariant}
+            class={styles.demoFeaturedCard}
+          >
+            <featuredDemoItem.Icon slot="icon" />
+            <featuredDemoItem.Media slot="media" />
+          </DemoCard>
+        )}
 
         <div class={styles.demoSecondaryGrid}>
-          {
-            secondaryDemoItems.map(({ title, description, iconVariant, Icon, Media }) => (
-              <DemoCard title={title} description={description} iconVariant={iconVariant}>
-                <Icon slot="icon" />
-                <Media slot="media" />
-              </DemoCard>
-            ))
-          }
+          {secondaryDemoItems.map(({ title, description, iconVariant, Icon, Media }) => (
+            <DemoCard title={title} description={description} iconVariant={iconVariant}>
+              <Icon slot="icon" />
+              <Media slot="media" />
+            </DemoCard>
+          ))}
         </div>
       </div>
     </Container>
@@ -220,13 +220,11 @@ const testimonialItems: CommunityTestimonial[] = [
       <SectionHeader title="Capabilities" subtitle="Advanced combat analysis systems" />
 
       <div class={styles.featuresGrid}>
-        {
-          featureItems.map(({ title, description, Icon }) => (
-            <FeatureCard title={title} description={description}>
-              <Icon slot="icon" />
-            </FeatureCard>
-          ))
-        }
+        {featureItems.map(({ title, description, Icon }) => (
+          <FeatureCard title={title} description={description}>
+            <Icon slot="icon" />
+          </FeatureCard>
+        ))}
       </div>
     </Container>
   </section>
@@ -254,9 +252,9 @@ const testimonialItems: CommunityTestimonial[] = [
             <p class={styles.ctaColumnText}>
               Sign in first, then launch tracker management and overlay configuration workflows.
             </p>
-            <Button href="/login?redirect=%2Findividual-tracker" variant="secondary" size="large"
-              >Sign In for Tracker</Button
-            >
+            <Button href="/login?redirect=%2Findividual-tracker" variant="secondary" size="large">
+              Sign In for Tracker
+            </Button>
           </article>
         </div>
       </div>

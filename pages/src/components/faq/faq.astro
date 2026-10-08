@@ -22,14 +22,12 @@ const { items, showHeader = true } = Astro.props;
     {showHeader && <SectionHeader title="Frequently Asked Queries" subtitle="Knowledge Base Protocol" />}
 
     <div class={styles.faqContainer}>
-      {
-        items.map((item) => (
-          <div class={styles.faqItem}>
-            <h3 class={styles.faqQuestion}>{item.question}</h3>
-            <div class={styles.faqAnswer} set:html={item.answer} />
-          </div>
-        ))
-      }
+      {items.map((item) => (
+        <div class={styles.faqItem}>
+          <h3 class={styles.faqQuestion}>{item.question}</h3>
+          <div class={styles.faqAnswer} set:html={item.answer} />
+        </div>
+      ))}
     </div>
   </Container>
 </section>

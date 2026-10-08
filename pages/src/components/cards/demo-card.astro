@@ -17,25 +17,21 @@ const hasMedia = Astro.slots.has("media");
 <BaseCard padding="lg" interactive class:list={[styles.demoCard, className]}>
   <div class={styles.demoCardInner}>
     <div class={styles.demoHeader}>
-      {
-        hasIcon && (
-          <div class:list={[styles.demoIcon, iconVariant === "image" && styles.demoIconImage]}>
-            <slot name="icon" />
-          </div>
-        )
-      }
+      {hasIcon && (
+        <div class:list={[styles.demoIcon, iconVariant === "image" && styles.demoIconImage]}>
+          <slot name="icon" />
+        </div>
+      )}
       <h3 class={styles.demoTitle}>{title}</h3>
     </div>
 
     <p class={styles.demoDescription}>{description}</p>
 
-    {
-      hasMedia && (
-        <div class={styles.demoMedia}>
-          <slot name="media" />
-        </div>
-      )
-    }
+    {hasMedia && (
+      <div class={styles.demoMedia}>
+        <slot name="media" />
+      </div>
+    )}
     <slot />
   </div>
 </BaseCard>
