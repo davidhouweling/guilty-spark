@@ -10,6 +10,7 @@ import type {
   ViewerTimelineItem,
 } from "../../viewer/types";
 import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
+import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "../types";
 import haloTrophyIconPng from "../../../../assets/halo-trophy-icon.png";
 
@@ -76,8 +77,25 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     startTime: overrides.startTime ?? "2026-01-01T00:00:00.000Z",
     endTime: overrides.endTime ?? "2026-01-01T00:30:00.000Z",
     matches,
+    plannedGames: overrides.plannedGames ?? [],
     iconMatches: overrides.iconMatches ?? matches,
     colorHex: overrides.colorHex,
+  };
+}
+
+function aLoadedMatchStatsWith(matchId: string): Extract<MatchStatsState, { status: "loaded" }> {
+  return {
+    status: "loaded",
+    stats: aFakeMatchStatsWith({ MatchId: matchId }),
+    playerMap: new Map<string, string>([
+      ["1111111111", "TrackedPlayer"],
+      ["2222222222", "PlayerTwo"],
+      ["3333333333", "PlayerThree"],
+      ["4444444444", "PlayerFour"],
+    ]),
+    medalMetadata: aFakeMedalMetadata(),
+    analytics: null,
+    analyticsStatus: ComponentLoaderStatus.LOADED,
   };
 }
 
@@ -137,6 +155,10 @@ describe("individual-tracker-overlay-presenter", () => {
         aMatchWith({ matchId: "a", gameVariantCategory: 6 }),
         aMatchWith({ matchId: "b", gameVariantCategory: 8 }),
       ],
+      plannedGames: [
+        { gameNumber: 1, mode: "Slayer", map: "Played Map", played: true, gameModeIconUrl: null },
+        { gameNumber: 2, mode: "Oddball", map: "Upcoming Map", played: false, gameModeIconUrl: null },
+      ],
     });
     const model = presenter.present({
       renderModel: aRenderModelWith({
@@ -159,10 +181,14 @@ describe("individual-tracker-overlay-presenter", () => {
 
     expect(
       model.tabs.map((tab) =>
-        tab.type === "match" ? tab.matchId : tab.type === "series" ? tab.seriesId : `upcoming-${tab.index.toString()}`,
+        tab.type === "match"
+          ? tab.matchId
+          : tab.type === "series"
+            ? tab.seriesId
+            : `upcoming-${tab.index.toString()}:${tab.label}`,
       ),
-    ).toEqual(["a", "b"]);
-    expect(model.tabs.every((tab) => tab.type === "match")).toBe(true);
+    ).toEqual(["a", "b", "upcoming-2:Oddball: Upcoming Map"]);
+    expect(model.tabs.every((tab) => tab.type !== "series")).toBe(true);
   });
 
   it("builds series-consolidated tabs with per-match mode icons when no active series", () => {
@@ -277,6 +303,43 @@ describe("individual-tracker-overlay-presenter", () => {
         tab.type === "series" ? tab.seriesId : tab.type === "match" ? tab.matchId : `upcoming-${tab.index.toString()}`,
       ),
     ).toEqual([MATCHMAKING_SUMMARY_TAB_SERIES_ID, "m-2", "m-3", "m-4"]);
+  });
+
+  it("keeps all upcoming tabs outside the history limit and ticker groups", () => {
+    const activeSeries = aSeriesWith({
+      id: "series-active",
+      isActive: true,
+      matches: [aMatchWith({ matchId: "m0", mapName: "Aquarius" }), aMatchWith({ matchId: "m1", mapName: "Streets" })],
+      plannedGames: [
+        { gameNumber: 1, mode: "Slayer", map: "Aquarius", played: true, gameModeIconUrl: null },
+        { gameNumber: 2, mode: "Slayer", map: "Streets", played: true, gameModeIconUrl: null },
+        { gameNumber: 3, mode: "Oddball", map: "Recharge", played: false, gameModeIconUrl: null },
+        { gameNumber: 4, mode: "Strongholds", map: "Origin", played: false, gameModeIconUrl: null },
+      ],
+    });
+
+    const model = presenter.present({
+      renderModel: aRenderModelWith({
+        hasActiveSeries: true,
+        timeline: [{ type: "series", series: activeSeries }],
+      }),
+      streamerSettings: {
+        visibleSections: { maxPreviousGamesToShow: 1 },
+      } satisfies StreamerViewSettings,
+      matchStatsByMatchId: new Map([["m1", aLoadedMatchStatsWith("m1")]]),
+      selectedMatchId: null,
+    });
+
+    expect(
+      model.tabs.map((tab) =>
+        tab.type === "series"
+          ? `series:${tab.index.toString()}`
+          : tab.type === "match"
+            ? `match:${tab.index.toString()}`
+            : `upcoming:${tab.index.toString()}`,
+      ),
+    ).toEqual(["series:-1", "match:1", "upcoming:2", "upcoming:3"]);
+    expect(model.tickerMatchGroups.map((group) => group.matchIndex)).toEqual([-1, 1]);
   });
 
   it("respects per-state show tabs toggles", () => {
