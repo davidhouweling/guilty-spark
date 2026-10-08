@@ -82,10 +82,8 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
-    "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260825.1": true,
-    "workerd@1.20260831.1": true,
-    "@sentry/cli@3.7.0": true
+    "workerd@1.20260921.1": true,
+    "@sentry/cli@3.8.0": true
   }
 }
