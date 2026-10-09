@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defineContract } from "../base";
+import { liveTrackerMapSchema } from "../durable-objects/live-tracker/maps";
 
 export const INDIVIDUAL_TRACKER_IDLE_TIMEOUT_HOURS = 1;
 
@@ -87,6 +88,7 @@ export const startSeriesRequestSchema = z.object({
   subtitleOverride: z.string().nullable(),
   teams: z.array(startSeriesTeamSchema),
   matchIds: z.array(z.string()).optional(),
+  plannedMaps: z.array(liveTrackerMapSchema).max(13).optional(),
 });
 export type StartSeriesRequest = z.infer<typeof startSeriesRequestSchema>;
 

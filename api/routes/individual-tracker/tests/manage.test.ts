@@ -14,6 +14,7 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { ErrorResponse } from "@guilty-spark/shared/contracts/error";
+import { generateMapsContract } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
@@ -26,6 +27,7 @@ import { aFakeUserTrackerDOWith } from "../../../durable-objects/user-tracker/fa
 import type { FakeUserTrackerDO } from "../../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeLiveTrackerStateWith } from "../../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
+import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/individual-tracker";
 import { TrackerLimitReachedError, TrackerNotFoundError } from "../../../services/individual-tracker/errors";
@@ -47,6 +49,125 @@ describe("/api/individual-tracker manage routes", () => {
   beforeEach(() => {
     env = aFakeEnvWith();
     router = createApiRouter();
+  });
+
+  it("generates maps for an owned tracker", async () => {
+    const generatedMaps = [{ mode: "Slayer", map: "Live Fire" }];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(
+        aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "user-123" }),
+      );
+      vi.spyOn(services.haloService, "generateMaps").mockResolvedValue(generatedMaps);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postRequest("/api/individual-tracker/tracker-1/generate-maps", {
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        count: 1,
+      }),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    await expect(generateMapsContract.fromResponse(response)).resolves.toEqual({ maps: generatedMaps });
+  });
+
+  it.each([
+    { playlist: "invalid", format: MapsFormatType.HCS },
+    { playlist: MapsPlaylistType.HCS_CURRENT, format: "invalid" },
+  ])("rejects unsupported map generation values", async ({ playlist, format }) => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+    const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postRequest("/api/individual-tracker/tracker-1/generate-maps", { playlist, format, count: 1 }),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(400);
+    expect(generateMapsSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 and does not generate maps for a tracker the user does not own", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+    vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockRejectedValue(new TrackerNotFoundError());
+    const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postRequest("/api/individual-tracker/tracker-1/generate-maps", {
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        count: 1,
+      }),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(404);
+    expect(generateMapsSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 and does not generate maps when the user is unauthenticated", async () => {
+    const services = installFakeServicesWith({ env });
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(null);
+    const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postRequest("/api/individual-tracker/tracker-1/generate-maps", {
+        playlist: MapsPlaylistType.HCS_CURRENT,
+        format: MapsFormatType.HCS,
+        count: 1,
+      }),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(401);
+    expect(generateMapsSpy).not.toHaveBeenCalled();
+  });
+
+  it("forwards selected planned maps when starting a manual series", async () => {
+    const doStub = aFakeIndividualTrackerDOWith();
+    const fetchSpy: MockInstance<FakeIndividualTrackerDO["fetch"]> = vi.spyOn(doStub, "fetch");
+    const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub) });
+    const row = aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "user-123" });
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env: localEnv });
+      vi.spyOn(services.authService, "validateSession").mockResolvedValue(aFakeAuthSessionWith({ userId: "user-123" }));
+      vi.spyOn(services.individualTrackerService, "getOwnedTracker").mockResolvedValue(row);
+      return services;
+    });
+    individualTrackerRoutesRegisterHandler(router, localInstallServices);
+
+    const response = (await router.fetch(
+      postRequest("/api/individual-tracker/tracker-1/start-series", {
+        titleOverride: "Series",
+        subtitleOverride: "Best of 3",
+        teams: [],
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
+      }),
+      localEnv,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    const startCall = fetchSpy.mock.calls.find(([url]) => url === "http://do/start-series");
+    const rawBody = Preconditions.checkExists(startCall?.[1]?.body);
+    if (typeof rawBody !== "string") {
+      throw new Error("Expected start-series body to be a JSON string");
+    }
+    const startBody = JSON.parse(rawBody) as { plannedMaps: { mode: string; map: string }[] };
+    expect(startBody.plannedMaps).toEqual([{ mode: "Slayer", map: "Live Fire" }]);
   });
 
   it("returns 401 on start when not authenticated", async () => {
