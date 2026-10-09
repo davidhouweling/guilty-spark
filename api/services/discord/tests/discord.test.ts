@@ -612,6 +612,41 @@ describe("DiscordService", () => {
       expect(result.teams[1]?.name).toBe("__Cobra__");
     });
 
+    it("falls back to the Discord user when a player has left the server", async () => {
+      mockFetch.mockImplementation(async (path) => {
+        if (typeof path !== "string") {
+          throw new Error("unexpected path type");
+        }
+        const prefix = "https://discord.com/api/v10";
+        const id = path.slice(-2);
+        if (path.startsWith(`${prefix}/guilds/fake-guild-id/members/`)) {
+          if (id === "09") {
+            return Promise.resolve(
+              new Response(JSON.stringify({ message: "Unknown Member", code: 10007 }), { status: 404 }),
+            );
+          }
+          return Promise.resolve(
+            new Response(
+              JSON.stringify(aGuildMemberWith({ user: { ...aGuildMemberWith().user, id: `fake-id-${id}` } })),
+            ),
+          );
+        }
+        if (path.startsWith(`${prefix}/users/`)) {
+          return Promise.resolve(
+            new Response(JSON.stringify({ ...aGuildMemberWith().user, id: `fake-id-${id}`, username: "departed" })),
+          );
+        }
+
+        return Promise.reject(new Error(`Invalid path: ${path}`));
+      });
+
+      const result = await discordService.getTeamsFromMessage("fake-guild-id", neatQueueMessage);
+
+      const departed = result.teams.flatMap((team) => team.players).find((player) => player.user.id === "fake-id-09");
+      expect(departed?.user.username).toBe("departed");
+      expect(departed?.nick).toBeUndefined();
+    });
+
     it("throws error if message is not from NeatQueue bot", async () => {
       const nonBotMessage: APIMessage = {
         ...neatQueueMessage,
@@ -693,6 +728,15 @@ describe("DiscordService", () => {
       await discordService.bulkDeleteMessages("fake-channel-id", ["msg1"], "Single delete");
 
       expect(deleteSpy).toHaveBeenCalledWith("fake-channel-id", "msg1", "Single delete");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when there are no messages to delete", async () => {
+      const deleteSpy = vi.spyOn(discordService, "deleteMessage");
+
+      await discordService.bulkDeleteMessages("fake-channel-id", [], "Nothing to delete");
+
+      expect(deleteSpy).not.toHaveBeenCalled();
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
