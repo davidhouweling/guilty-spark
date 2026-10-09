@@ -1,4 +1,8 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import {
+  generateMapsFormatSchema,
+  generateMapsPlaylistSchema,
+} from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import type {
@@ -146,14 +150,20 @@ export class ManualSeriesDialogPresenter {
     if (this.checkDisposed()) {
       return;
     }
-    this.config.store.setMapPlaylist(value);
+    const result = generateMapsPlaylistSchema.safeParse(value);
+    if (result.success) {
+      this.config.store.setMapPlaylist(result.data);
+    }
   }
 
   public setMapFormat(value: string): void {
     if (this.checkDisposed()) {
       return;
     }
-    this.config.store.setMapFormat(value);
+    const result = generateMapsFormatSchema.safeParse(value);
+    if (result.success) {
+      this.config.store.setMapFormat(result.data);
+    }
   }
 
   public setMapCount(value: number): void {
