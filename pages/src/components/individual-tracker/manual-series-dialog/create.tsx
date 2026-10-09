@@ -135,6 +135,12 @@ function ManualSeriesDialogSectionInternal({
       onRemovePlannedMap={(index): void => {
         presenter.removePlannedMap(index);
       }}
+      onPlannedMapModeChange={(index, mode): void => {
+        presenter.setPlannedMapMode(index, mode);
+      }}
+      onPlannedMapNameChange={(index, mapName): void => {
+        presenter.setPlannedMapName(index, mapName);
+      }}
       onStartSeries={handleSubmit}
     />
   );

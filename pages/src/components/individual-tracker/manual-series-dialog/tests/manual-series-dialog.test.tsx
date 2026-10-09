@@ -17,6 +17,8 @@ const mapGeneratorCallbacks = {
   onMapCountChange: (): void => undefined,
   onGenerateMaps: (): void => undefined,
   onRemovePlannedMap: (): void => undefined,
+  onPlannedMapModeChange: (): void => undefined,
+  onPlannedMapNameChange: (): void => undefined,
 };
 
 const mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
@@ -127,7 +129,7 @@ describe("ManualSeriesDialog", () => {
     expect(screen.getByRole("button", { name: "Generate maps" })).toBeInTheDocument();
   });
 
-  it("renders selected generated maps with removable rows", () => {
+  it("renders selected generated maps with editable and removable rows", () => {
     const store = new ManualSeriesDialogStore();
     store.setPlannedMaps([
       { mode: "Slayer", map: "Live Fire" },
@@ -138,15 +140,51 @@ describe("ManualSeriesDialog", () => {
 
     const mapList = screen.getByRole("list", { name: "Selected map plan" });
     expect(within(mapList).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(mapList).getByText("Slayer")).toBeInTheDocument();
-    expect(within(mapList).getByText("Live Fire")).toBeInTheDocument();
-    expect(within(mapList).getByText("Oddball")).toBeInTheDocument();
-    expect(within(mapList).getByText("Recharge")).toBeInTheDocument();
+    expect(within(mapList).getByRole("textbox", { name: "Game 1 mode" })).toHaveValue("Slayer");
+    expect(within(mapList).getByRole("textbox", { name: "Game 1 map" })).toHaveValue("Live Fire");
+    expect(within(mapList).getByRole("textbox", { name: "Game 2 mode" })).toHaveValue("Oddball");
+    expect(within(mapList).getByRole("textbox", { name: "Game 2 map" })).toHaveValue("Recharge");
     expect(
       within(mapList)
         .getAllByRole("button", { name: /^Remove Game/ })
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Remove Game 1: Slayer on Live Fire", "Remove Game 2: Oddball on Recharge"]);
+  });
+
+  it("forwards individual slot edits to the callbacks", () => {
+    const store = new ManualSeriesDialogStore();
+    store.setPlannedMaps([{ mode: "Slayer", map: "Live Fire" }]);
+    const onPlannedMapModeChange = vi.fn<(index: number, mode: string) => void>();
+    const onPlannedMapNameChange = vi.fn<(index: number, mapName: string) => void>();
+    const snapshot = store.getSnapshot();
+
+    render(
+      <ManualSeriesDialog
+        isOpen={true}
+        trackerLabel="Owner Tracker"
+        snapshot={snapshot}
+        {...mapDialogProps(snapshot)}
+        onClose={vi.fn()}
+        onTitleChange={vi.fn()}
+        onSubtitleChange={vi.fn()}
+        onTeamNameChange={vi.fn()}
+        onTeamMemberChange={vi.fn()}
+        onAddTeamMember={vi.fn()}
+        onRemoveTeamMember={vi.fn()}
+        onDiscoverBackfill={vi.fn()}
+        onBackfillMatchToggle={vi.fn()}
+        {...mapGeneratorCallbacks}
+        onPlannedMapModeChange={onPlannedMapModeChange}
+        onPlannedMapNameChange={onPlannedMapNameChange}
+        onStartSeries={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Game 1 mode" }), { target: { value: "Oddball" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Game 1 map" }), { target: { value: "Streets" } });
+
+    expect(onPlannedMapModeChange).toHaveBeenCalledWith(0, "Oddball");
+    expect(onPlannedMapNameChange).toHaveBeenCalledWith(0, "Streets");
   });
 
   it("shows backfill matches when backfillState is done", () => {

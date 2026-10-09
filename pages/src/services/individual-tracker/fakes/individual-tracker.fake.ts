@@ -25,6 +25,22 @@ import type {
   TrackerStatusResponse,
 } from "../types";
 
+const HCS_MODE_SEQUENCE = [
+  "objective",
+  "slayer",
+  "objective",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+] as const;
+
 interface FakeTrackerOverrides {
   readonly trackerId?: string;
   readonly gamertag?: string;
@@ -251,7 +267,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     await Promise.resolve();
   }
 
-  public generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
+  public async generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
     const fakeMaps = [
       { mode: "Slayer", map: "Live Fire" },
       { mode: "Oddball", map: "Streets" },
@@ -282,6 +298,18 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
           : playlistMaps;
     if (formatMaps.length === 0) {
       throw new Error("No fake maps match the requested playlist and format");
+    }
+    if (format === "H") {
+      const maps: { mode: string; map: string }[] = [];
+      for (let index = 0; index < request.count; index++) {
+        const mode = HCS_MODE_SEQUENCE[index];
+        const modeMaps =
+          mode === "slayer"
+            ? formatMaps.filter((map) => map.mode === "Slayer")
+            : formatMaps.filter((map) => map.mode !== "Slayer");
+        maps.push(modeMaps[index % modeMaps.length]);
+      }
+      return Promise.resolve(maps);
     }
     const maps: { mode: string; map: string }[] = [];
     for (let index = 0; index < request.count; index++) {

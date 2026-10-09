@@ -254,6 +254,22 @@ describe("ManualSeriesDialogPresenter", () => {
       ]);
     });
 
+    it("updates the mode and map for individual planned slots", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+      store.setPlannedMaps([
+        { mode: "Slayer", map: "Live Fire" },
+        { mode: "Oddball", map: "Recharge" },
+      ]);
+
+      presenter.setPlannedMapMode(1, "Strongholds");
+      presenter.setPlannedMapName(1, "Streets");
+
+      expect(store.getSnapshot().plannedMaps).toEqual([
+        { mode: "Slayer", map: "Live Fire" },
+        { mode: "Strongholds", map: "Streets" },
+      ]);
+    });
+
     it("ignores unsupported playlist and format selections", () => {
       const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
 

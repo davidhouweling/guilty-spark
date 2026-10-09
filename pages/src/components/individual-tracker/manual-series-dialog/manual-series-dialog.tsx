@@ -30,6 +30,8 @@ interface ManualSeriesDialogProps {
   readonly onMapCountChange: (value: number) => void;
   readonly onGenerateMaps: () => void;
   readonly onRemovePlannedMap: (index: number) => void;
+  readonly onPlannedMapModeChange: (index: number, mode: string) => void;
+  readonly onPlannedMapNameChange: (index: number, mapName: string) => void;
   readonly onStartSeries: () => void;
 }
 
@@ -114,6 +116,8 @@ export function ManualSeriesDialog({
   onMapCountChange,
   onGenerateMaps,
   onRemovePlannedMap,
+  onPlannedMapModeChange,
+  onPlannedMapNameChange,
   onStartSeries,
 }: ManualSeriesDialogProps): React.ReactElement | null {
   const MatchHistorySection = useMemo(() => createMatchHistorySection(), []);
@@ -245,10 +249,26 @@ export function ManualSeriesDialog({
             {snapshot.plannedMaps.length > 0 && (
               <ol className={styles.plannedMapsList} aria-label="Selected map plan">
                 {plannedMapRows.map((map) => (
-                  <li key={`${map.index.toString()}:${map.mode}:${map.map}`} className={styles.plannedMapRow}>
+                  <li key={map.index.toString()} className={styles.plannedMapRow}>
                     <span className={styles.plannedMapNumber}>{map.gameLabel}</span>
-                    <strong>{map.mode}</strong>
-                    <span className={styles.plannedMapName}>{map.map}</span>
+                    <Input
+                      label={`${map.gameLabel} mode`}
+                      value={map.mode}
+                      containerClassName={styles.plannedMapField}
+                      disabled={snapshot.busy || isMapGenerationLoading}
+                      onChange={(event): void => {
+                        onPlannedMapModeChange(map.index, event.currentTarget.value);
+                      }}
+                    />
+                    <Input
+                      label={`${map.gameLabel} map`}
+                      value={map.map}
+                      containerClassName={styles.plannedMapField}
+                      disabled={snapshot.busy || isMapGenerationLoading}
+                      onChange={(event): void => {
+                        onPlannedMapNameChange(map.index, event.currentTarget.value);
+                      }}
+                    />
                     <Button
                       variant="secondary"
                       ariaLabel={map.removeLabel}

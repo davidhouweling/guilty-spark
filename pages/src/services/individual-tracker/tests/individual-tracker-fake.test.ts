@@ -3,6 +3,14 @@ import { aFakeIndividualTrackerServiceWith } from "../fakes/individual-tracker.f
 
 describe("FakeIndividualTrackerService", () => {
   describe("generateMaps", () => {
+    it("uses the HCS mode sequence for the selected game count", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+
+      const maps = await service.generateMaps({ trackerId: "tracker-1", playlist: "C", format: "H", count: 5 });
+
+      expect(maps.map((map) => map.mode)).toEqual(["Oddball", "Slayer", "Strongholds", "King of the Hill", "Slayer"]);
+    });
+
     it("returns only objective modes when the objective format is selected", async () => {
       const service = aFakeIndividualTrackerServiceWith();
 

@@ -234,6 +234,20 @@ export class ManualSeriesDialogPresenter {
     this.config.store.removePlannedMap(index);
   }
 
+  public setPlannedMapMode(index: number, mode: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setPlannedMapMode(index, mode);
+  }
+
+  public setPlannedMapName(index: number, mapName: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setPlannedMapName(index, mapName);
+  }
+
   public generateMaps(): void {
     if (this.checkDisposed()) {
       return;

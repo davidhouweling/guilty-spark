@@ -200,6 +200,20 @@ export class ManualSeriesDialogStore {
     this.update({ plannedMaps: this.snapshot.plannedMaps.filter((_, mapIndex) => mapIndex !== index) });
   }
 
+  public setPlannedMapMode(index: number, mode: string): void {
+    this.update({
+      plannedMaps: this.snapshot.plannedMaps.map((map, mapIndex) => (mapIndex === index ? { ...map, mode } : map)),
+    });
+  }
+
+  public setPlannedMapName(index: number, mapName: string): void {
+    this.update({
+      plannedMaps: this.snapshot.plannedMaps.map((map, mapIndex) =>
+        mapIndex === index ? { ...map, map: mapName } : map,
+      ),
+    });
+  }
+
   public setBusy(busy: boolean): void {
     this.update({ busy });
   }
