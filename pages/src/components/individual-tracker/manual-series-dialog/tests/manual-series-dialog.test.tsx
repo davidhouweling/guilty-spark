@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import type { TrackerMatchHistoryEntry, TrackerSearchResult } from "../../../../services/individual-tracker/types";
 import { ManualSeriesDialogStore } from "../manual-series-dialog-store";
 import { ManualSeriesDialog } from "../manual-series-dialog";
+import type { ManualSeriesDialogMapGeneratorOptions, PlannedMapRow } from "../types";
 
 afterEach(() => {
   cleanup();
@@ -17,6 +18,35 @@ const mapGeneratorCallbacks = {
   onGenerateMaps: (): void => undefined,
   onRemovePlannedMap: (): void => undefined,
 };
+
+const mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
+  playlistOptions: [{ value: "C", label: "Current" }],
+  formatOptions: [{ value: "H", label: "HCS" }],
+  counts: [1, 3, 5],
+};
+
+function presentPlannedMaps(snapshot: ReturnType<ManualSeriesDialogStore["getSnapshot"]>): PlannedMapRow[] {
+  return snapshot.plannedMaps.map((map, index) => {
+    const gameLabel = `Game ${(index + 1).toString()}`;
+    return {
+      index,
+      gameLabel,
+      removeLabel: `Remove ${gameLabel}: ${map.mode} on ${map.map}`,
+      mode: map.mode,
+      map: map.map,
+    };
+  });
+}
+
+function mapDialogProps(snapshot: ReturnType<ManualSeriesDialogStore["getSnapshot"]>): {
+  readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions;
+  readonly plannedMapRows: readonly PlannedMapRow[];
+} {
+  return {
+    mapGeneratorOptions,
+    plannedMapRows: presentPlannedMaps(snapshot),
+  };
+}
 
 function aMatchEntryWith(overrides: Partial<TrackerMatchHistoryEntry>): TrackerMatchHistoryEntry {
   return {
@@ -72,6 +102,7 @@ function renderDialog(store: ManualSeriesDialogStore): void {
       isOpen={true}
       trackerLabel="Owner Tracker"
       snapshot={snapshot}
+      {...mapDialogProps(snapshot)}
       onClose={vi.fn()}
       onTitleChange={vi.fn()}
       onSubtitleChange={vi.fn()}
@@ -111,7 +142,11 @@ describe("ManualSeriesDialog", () => {
     expect(within(mapList).getByText("Live Fire")).toBeInTheDocument();
     expect(within(mapList).getByText("Oddball")).toBeInTheDocument();
     expect(within(mapList).getByText("Recharge")).toBeInTheDocument();
-    expect(within(mapList).getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+    expect(
+      within(mapList)
+        .getAllByRole("button", { name: /^Remove Game/ })
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Remove Game 1: Slayer on Live Fire", "Remove Game 2: Oddball on Recharge"]);
   });
 
   it("shows backfill matches when backfillState is done", () => {
@@ -125,6 +160,7 @@ describe("ManualSeriesDialog", () => {
         isOpen={true}
         trackerLabel="Owner Tracker"
         snapshot={snapshot}
+        {...mapDialogProps(snapshot)}
         onClose={vi.fn()}
         onTitleChange={vi.fn()}
         onSubtitleChange={vi.fn()}
@@ -151,6 +187,7 @@ describe("ManualSeriesDialog", () => {
         isOpen={true}
         trackerLabel="Owner Tracker"
         snapshot={store.getSnapshot()}
+        {...mapDialogProps(store.getSnapshot())}
         onClose={vi.fn()}
         onTitleChange={vi.fn()}
         onSubtitleChange={vi.fn()}
@@ -201,6 +238,7 @@ describe("ManualSeriesDialog", () => {
         isOpen={false}
         trackerLabel="Owner Tracker"
         snapshot={store.getSnapshot()}
+        {...mapDialogProps(store.getSnapshot())}
         onClose={vi.fn()}
         onTitleChange={vi.fn()}
         onSubtitleChange={vi.fn()}
@@ -303,6 +341,7 @@ describe("ManualSeriesDialog (backfill interaction simulation)", () => {
         isOpen={true}
         trackerLabel="Owner Tracker"
         snapshot={snapshot}
+        {...mapDialogProps(snapshot)}
         onClose={vi.fn()}
         onTitleChange={vi.fn()}
         onSubtitleChange={vi.fn()}
@@ -331,6 +370,7 @@ describe("ManualSeriesDialog (backfill interaction simulation)", () => {
         isOpen={true}
         trackerLabel="Owner Tracker"
         snapshot={snapshot}
+        {...mapDialogProps(snapshot)}
         onClose={vi.fn()}
         onTitleChange={vi.fn()}
         onSubtitleChange={vi.fn()}

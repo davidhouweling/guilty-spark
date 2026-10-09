@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { MAP_GENERATOR_COUNTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
@@ -8,31 +7,15 @@ import { Alert } from "../../alert/alert";
 import { Heading } from "../../heading/heading";
 import { createMatchHistorySection } from "../../match-history/create";
 import type { ManualSeriesDialogSnapshot, ManualSeriesTeamSnapshot } from "./manual-series-dialog-store";
+import type { ManualSeriesDialogMapGeneratorOptions, PlannedMapRow } from "./types";
 import styles from "./manual-series-dialog.module.css";
-
-const MAP_PLAYLIST_OPTIONS = [
-  { value: "C", label: "LVT Pro League - Current" },
-  { value: "H", label: "HCS + LVT Pro League - Historical" },
-  { value: "R", label: "Ranked Arena" },
-  { value: "S", label: "Ranked Slayer" },
-  { value: "N", label: "Ranked Snipers" },
-  { value: "T", label: "Ranked Tactical" },
-  { value: "D", label: "Ranked Doubles" },
-  { value: "F", label: "Ranked FFA" },
-  { value: "Q", label: "Ranked Squad Battle" },
-];
-
-const MAP_FORMAT_OPTIONS = [
-  { value: "H", label: "HCS" },
-  { value: "R", label: "Random" },
-  { value: "O", label: "Objective only" },
-  { value: "S", label: "Slayer only" },
-];
 
 interface ManualSeriesDialogProps {
   readonly isOpen: boolean;
   readonly trackerLabel: string;
   readonly snapshot: ManualSeriesDialogSnapshot;
+  readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions;
+  readonly plannedMapRows: readonly PlannedMapRow[];
   readonly onClose: () => void;
   readonly onTitleChange: (value: string) => void;
   readonly onSubtitleChange: (value: string) => void;
@@ -115,6 +98,8 @@ export function ManualSeriesDialog({
   isOpen,
   trackerLabel,
   snapshot,
+  mapGeneratorOptions,
+  plannedMapRows,
   onClose,
   onTitleChange,
   onSubtitleChange,
@@ -207,7 +192,7 @@ export function ManualSeriesDialog({
                     onMapPlaylistChange(event.currentTarget.value);
                   }}
                 >
-                  {MAP_PLAYLIST_OPTIONS.map((option) => (
+                  {mapGeneratorOptions.playlistOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -224,7 +209,7 @@ export function ManualSeriesDialog({
                     onMapFormatChange(event.currentTarget.value);
                   }}
                 >
-                  {MAP_FORMAT_OPTIONS.map((option) => (
+                  {mapGeneratorOptions.formatOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -241,7 +226,7 @@ export function ManualSeriesDialog({
                     onMapCountChange(Number(event.currentTarget.value));
                   }}
                 >
-                  {MAP_GENERATOR_COUNTS.map((count) => (
+                  {mapGeneratorOptions.counts.map((count) => (
                     <option key={count.toString()} value={count.toString()}>
                       {count.toString()}
                     </option>
@@ -259,16 +244,17 @@ export function ManualSeriesDialog({
             {snapshot.mapGenerationError != null && <Alert variant="error">{snapshot.mapGenerationError}</Alert>}
             {snapshot.plannedMaps.length > 0 && (
               <ol className={styles.plannedMapsList} aria-label="Selected map plan">
-                {snapshot.plannedMaps.map((map, index) => (
-                  <li key={`${index.toString()}:${map.mode}:${map.map}`} className={styles.plannedMapRow}>
-                    <span className={styles.plannedMapNumber}>Game {index + 1}</span>
+                {plannedMapRows.map((map) => (
+                  <li key={`${map.index.toString()}:${map.mode}:${map.map}`} className={styles.plannedMapRow}>
+                    <span className={styles.plannedMapNumber}>{map.gameLabel}</span>
                     <strong>{map.mode}</strong>
                     <span className={styles.plannedMapName}>{map.map}</span>
                     <Button
                       variant="secondary"
+                      ariaLabel={map.removeLabel}
                       disabled={snapshot.busy || isMapGenerationLoading}
                       onClick={(): void => {
-                        onRemovePlannedMap(index);
+                        onRemovePlannedMap(map.index);
                       }}
                     >
                       Remove

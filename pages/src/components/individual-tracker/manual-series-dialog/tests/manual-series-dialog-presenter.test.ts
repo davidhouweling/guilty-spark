@@ -215,6 +215,43 @@ describe("ManualSeriesDialogPresenter", () => {
   });
 
   describe("map generation", () => {
+    it("provides display-ready picker options", () => {
+      const { presenter } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      expect(presenter.mapGeneratorOptions.playlistOptions).toContainEqual({
+        value: "C",
+        label: "LVT Pro League - Current",
+      });
+      expect(presenter.mapGeneratorOptions.formatOptions).toContainEqual({ value: "H", label: "HCS" });
+      expect(presenter.mapGeneratorOptions.counts).toEqual([1, 3, 5, 7, 9, 11, 13]);
+    });
+
+    it("presents planned map rows with unique remove labels", () => {
+      const { presenter } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      expect(
+        presenter.presentPlannedMaps([
+          { mode: "Slayer", map: "Live Fire" },
+          { mode: "Oddball", map: "Recharge" },
+        ]),
+      ).toEqual([
+        {
+          index: 0,
+          gameLabel: "Game 1",
+          removeLabel: "Remove Game 1: Slayer on Live Fire",
+          mode: "Slayer",
+          map: "Live Fire",
+        },
+        {
+          index: 1,
+          gameLabel: "Game 2",
+          removeLabel: "Remove Game 2: Oddball on Recharge",
+          mode: "Oddball",
+          map: "Recharge",
+        },
+      ]);
+    });
+
     it("ignores unsupported playlist and format selections", () => {
       const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
 
@@ -255,6 +292,28 @@ describe("ManualSeriesDialogPresenter", () => {
 
       expect(generateMapsSpy).toHaveBeenCalledWith({ trackerId: "tracker-1", playlist: "H", format: "R", count: 3 });
       expect(store.getSnapshot().plannedMaps).toEqual(generatedMaps);
+    });
+
+    it("clears loading and surfaces an error when map generation fails", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      vi.spyOn(service, "generateMaps").mockRejectedValue(new Error("Map generation failed"));
+      const { presenter, store } = buildPresenter(service);
+
+      const generationFailed = new Promise<void>((resolve) => {
+        const unsubscribe = store.subscribe(() => {
+          const snapshot = store.getSnapshot();
+          if (!snapshot.mapGenerationLoading && snapshot.mapGenerationError !== null) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        presenter.generateMaps();
+      });
+
+      await generationFailed;
+
+      expect(store.getSnapshot().mapGenerationLoading).toBe(false);
+      expect(store.getSnapshot().mapGenerationError).toBe("Map generation failed");
     });
   });
 
