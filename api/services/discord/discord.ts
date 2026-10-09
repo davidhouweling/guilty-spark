@@ -16,6 +16,7 @@ import type {
   APIMessageComponentButtonInteraction,
   APIMessageTopLevelComponent,
   APIModalSubmitInteraction,
+  APIUser,
   RESTError,
   RESTGetAPIGuildMemberResult,
   RESTGetAPIGuildMessagesSearchQuery,
@@ -43,6 +44,7 @@ import {
   Routes,
   PermissionFlagsBits,
   OverwriteType,
+  GuildMemberFlags,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -75,6 +77,11 @@ import {
 } from "./discord-series-stats";
 
 export const NEAT_QUEUE_BOT_USER_ID = "857633321064595466";
+
+const DISCORD_UNKNOWN_MEMBER_ERROR_CODE = 10007;
+
+// GuildMemberFlags is a bit field with no named empty value.
+const NO_GUILD_MEMBER_FLAGS: GuildMemberFlags = GuildMemberFlags.DidRejoin & ~GuildMemberFlags.DidRejoin;
 
 export interface QueueData {
   message: APIMessage;
@@ -772,7 +779,7 @@ export class DiscordService {
 
     const members = new Map<string, APIGuildMember>();
     for (const playerId of teams.flatMap((team) => team.playerIds)) {
-      members.set(playerId, await this.getGuildMember(guildId, playerId));
+      members.set(playerId, await this.getGuildMemberOrFormerMember(guildId, playerId));
     }
 
     return {
@@ -959,7 +966,7 @@ export class DiscordService {
     // Fetch full player data for all players
     const playerIdToUserMap = new Map<string, APIGuildMember>();
     for (const playerId of playerIds) {
-      const user = await this.getGuildMember(guildId, playerId);
+      const user = await this.getGuildMemberOrFormerMember(guildId, playerId);
       playerIdToUserMap.set(playerId, user);
     }
 
@@ -1511,6 +1518,9 @@ export class DiscordService {
   }
 
   async bulkDeleteMessages(channelId: string, messageIds: string[], reason: string): Promise<void> {
+    if (messageIds.length === 0) {
+      return;
+    }
     if (messageIds.length < 2 && messageIds[0] != null) {
       return this.deleteMessage(channelId, messageIds[0], reason);
     }
@@ -1544,11 +1554,32 @@ export class DiscordService {
     // doing it sequentially to better handle rate limit
     const users: APIGuildMember[] = [];
     for (const discordId of discordIds) {
-      const user = await this.getGuildMember(guildId, discordId);
+      const user = await this.getGuildMemberOrFormerMember(guildId, discordId);
       users.push(user);
     }
 
     return users;
+  }
+
+  // Players can leave the server before the series result is processed.
+  async getGuildMemberOrFormerMember(guildId: string, userId: string): Promise<APIGuildMember> {
+    try {
+      return await this.getGuildMember(guildId, userId);
+    } catch (error) {
+      if (!(error instanceof DiscordError) || error.restError.code !== DISCORD_UNKNOWN_MEMBER_ERROR_CODE) {
+        throw error;
+      }
+
+      this.logService.info(
+        "Guild member not found, falling back to Discord user",
+        new Map([
+          ["guildId", guildId],
+          ["userId", userId],
+        ]),
+      );
+      const user = await this.fetch<APIUser>(Routes.user(userId), { method: "GET" });
+      return { user, roles: [], joined_at: null, deaf: false, mute: false, flags: NO_GUILD_MEMBER_FLAGS };
+    }
   }
 
   hasPermissions(
