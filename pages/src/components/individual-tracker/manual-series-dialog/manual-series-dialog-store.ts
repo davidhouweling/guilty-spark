@@ -1,5 +1,5 @@
 import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
-import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { GenerateMapsRequest, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 
 export interface ManualSeriesTeamSnapshot {
   readonly name: string;
@@ -19,8 +19,8 @@ export interface ManualSeriesDialogSnapshot {
   readonly backfillWarning: string | null;
   readonly backfillMatches: readonly TrackerMatchHistoryEntry[];
   readonly selectedBackfillMatchIds: readonly string[];
-  readonly mapPlaylist: string;
-  readonly mapFormat: string;
+  readonly mapPlaylist: GenerateMapsRequest["playlist"];
+  readonly mapFormat: GenerateMapsRequest["format"];
   readonly mapCount: number;
   readonly plannedMaps: readonly LiveTrackerMap[];
   readonly mapGenerationLoading: boolean;
@@ -172,11 +172,11 @@ export class ManualSeriesDialogStore {
     this.update({ selectedBackfillMatchIds: updated });
   }
 
-  public setMapPlaylist(mapPlaylist: string): void {
+  public setMapPlaylist(mapPlaylist: GenerateMapsRequest["playlist"]): void {
     this.update({ mapPlaylist, plannedMaps: [], mapGenerationError: null });
   }
 
-  public setMapFormat(mapFormat: string): void {
+  public setMapFormat(mapFormat: GenerateMapsRequest["format"]): void {
     this.update({ mapFormat, plannedMaps: [], mapGenerationError: null });
   }
 

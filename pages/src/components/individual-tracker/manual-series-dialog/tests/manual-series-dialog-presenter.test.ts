@@ -215,6 +215,16 @@ describe("ManualSeriesDialogPresenter", () => {
   });
 
   describe("map generation", () => {
+    it("ignores unsupported playlist and format selections", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      presenter.setMapPlaylist("invalid");
+      presenter.setMapFormat("invalid");
+
+      expect(store.getSnapshot().mapPlaylist).toBe("C");
+      expect(store.getSnapshot().mapFormat).toBe("H");
+    });
+
     it("generates maps from the selected playlist, format, and count", async () => {
       const service = aFakeIndividualTrackerServiceWith();
       const generatedMaps = [
