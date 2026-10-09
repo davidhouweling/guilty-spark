@@ -75,6 +75,10 @@ function ManualSeriesDialogSectionInternal({
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
+  const plannedMapRows = useMemo(
+    () => presenter.presentPlannedMaps(snapshot.plannedMaps),
+    [presenter, snapshot.plannedMaps],
+  );
 
   const handleSubmit = (): void => {
     if (snapshot.mode === "edit") {
@@ -89,6 +93,8 @@ function ManualSeriesDialogSectionInternal({
       isOpen={isOpen}
       trackerLabel={trackerLabel}
       snapshot={snapshot}
+      mapGeneratorOptions={presenter.mapGeneratorOptions}
+      plannedMapRows={plannedMapRows}
       onClose={onClose}
       onTitleChange={(value): void => {
         presenter.setTitleOverride(value);

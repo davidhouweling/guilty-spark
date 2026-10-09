@@ -2,7 +2,9 @@ import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individ
 import {
   generateMapsFormatSchema,
   generateMapsPlaylistSchema,
+  MAP_GENERATOR_COUNTS,
 } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
 import type {
@@ -13,6 +15,7 @@ import type {
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
 import type { ManualSeriesDialogStore } from "./manual-series-dialog-store";
+import type { ManualSeriesDialogMapGeneratorOptions, PlannedMapRow } from "./types";
 
 interface Config {
   readonly trackerId: string;
@@ -63,8 +66,44 @@ export class ManualSeriesDialogPresenter {
   private readonly config: Config;
   private disposed = false;
 
+  public readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
+    playlistOptions: [
+      { value: "C", label: "LVT Pro League - Current" },
+      { value: "H", label: "HCS + LVT Pro League - Historical" },
+      { value: "R", label: "Ranked Arena" },
+      { value: "S", label: "Ranked Slayer" },
+      { value: "N", label: "Ranked Snipers" },
+      { value: "T", label: "Ranked Tactical" },
+      { value: "D", label: "Ranked Doubles" },
+      { value: "F", label: "Ranked FFA" },
+      { value: "Q", label: "Ranked Squad Battle" },
+    ],
+    formatOptions: [
+      { value: "H", label: "HCS" },
+      { value: "R", label: "Random" },
+      { value: "O", label: "Objective only" },
+      { value: "S", label: "Slayer only" },
+    ],
+    counts: MAP_GENERATOR_COUNTS,
+  };
+
   public constructor(config: Config) {
     this.config = config;
+  }
+
+  public presentPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): readonly PlannedMapRow[] {
+    const rows: PlannedMapRow[] = [];
+    for (const [index, map] of plannedMaps.entries()) {
+      const gameLabel = `Game ${(index + 1).toString()}`;
+      rows.push({
+        index,
+        gameLabel,
+        removeLabel: `Remove ${gameLabel}: ${map.mode} on ${map.map}`,
+        mode: map.mode,
+        map: map.map,
+      });
+    }
+    return rows;
   }
 
   public dispose(): void {
