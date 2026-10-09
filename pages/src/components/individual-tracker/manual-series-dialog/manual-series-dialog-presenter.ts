@@ -3,6 +3,7 @@ import {
   generateMapsFormatSchema,
   generateMapsPlaylistSchema,
   MAP_GENERATOR_COUNTS,
+  MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS,
 } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
@@ -66,7 +67,7 @@ export class ManualSeriesDialogPresenter {
   private readonly config: Config;
   private disposed = false;
 
-  public readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
+  private readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
     playlistOptions: [
       { value: "C", label: "LVT Pro League - Current" },
       { value: "H", label: "HCS + LVT Pro League - Historical" },
@@ -87,8 +88,20 @@ export class ManualSeriesDialogPresenter {
     counts: MAP_GENERATOR_COUNTS,
   };
 
+  private readonly slayerOnlyPlaylists = new Set<string>(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS);
+
   public constructor(config: Config) {
     this.config = config;
+  }
+
+  public getMapGeneratorOptions(playlist: string): ManualSeriesDialogMapGeneratorOptions {
+    if (this.slayerOnlyPlaylists.has(playlist)) {
+      return {
+        ...this.mapGeneratorOptions,
+        formatOptions: this.mapGeneratorOptions.formatOptions.filter((option) => option.value === "S"),
+      };
+    }
+    return this.mapGeneratorOptions;
   }
 
   public presentPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): readonly PlannedMapRow[] {
@@ -191,7 +204,9 @@ export class ManualSeriesDialogPresenter {
     }
     const result = generateMapsPlaylistSchema.safeParse(value);
     if (result.success) {
-      this.config.store.setMapPlaylist(result.data);
+      const currentFormat = this.config.store.getSnapshot().mapFormat;
+      const format = this.slayerOnlyPlaylists.has(result.data) ? "S" : currentFormat;
+      this.config.store.setMapPlaylist(result.data, format);
     }
   }
 

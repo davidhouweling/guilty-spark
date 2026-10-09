@@ -10,6 +10,7 @@ import type {
   TrackerResponse,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import { MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type {
   EditSeriesRequest,
   GenerateMapsRequest,
@@ -250,7 +251,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     await Promise.resolve();
   }
 
-  public async generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
+  public generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
     const fakeMaps = [
       { mode: "Slayer", map: "Live Fire" },
       { mode: "Oddball", map: "Streets" },
@@ -266,7 +267,28 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       { mode: "Oddball", map: "Live Fire" },
       { mode: "Capture the Flag", map: "Origin" },
     ];
-    return Promise.resolve(fakeMaps.slice(0, request.count));
+    const slayerOnlyPlaylists = new Set<string>(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS);
+    const playlistMaps = slayerOnlyPlaylists.has(request.playlist)
+      ? fakeMaps.filter((map) => map.mode === "Slayer")
+      : request.playlist === "D"
+        ? fakeMaps.filter((map) => map.mode === "Slayer" || map.mode === "Capture the Flag")
+        : fakeMaps;
+    const format = slayerOnlyPlaylists.has(request.playlist) ? "S" : request.format;
+    const formatMaps =
+      format === "O"
+        ? playlistMaps.filter((map) => map.mode !== "Slayer")
+        : format === "S"
+          ? playlistMaps.filter((map) => map.mode === "Slayer")
+          : playlistMaps;
+    if (formatMaps.length === 0) {
+      throw new Error("No fake maps match the requested playlist and format");
+    }
+    const maps: { mode: string; map: string }[] = [];
+    for (let index = 0; index < request.count; index++) {
+      const map = formatMaps[index % formatMaps.length];
+      maps.push(map);
+    }
+    return Promise.resolve(maps);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

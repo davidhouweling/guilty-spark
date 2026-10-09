@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
@@ -218,12 +219,13 @@ describe("ManualSeriesDialogPresenter", () => {
     it("provides display-ready picker options", () => {
       const { presenter } = buildPresenter(aFakeIndividualTrackerServiceWith());
 
-      expect(presenter.mapGeneratorOptions.playlistOptions).toContainEqual({
+      const options = presenter.getMapGeneratorOptions("C");
+      expect(options.playlistOptions).toContainEqual({
         value: "C",
         label: "LVT Pro League - Current",
       });
-      expect(presenter.mapGeneratorOptions.formatOptions).toContainEqual({ value: "H", label: "HCS" });
-      expect(presenter.mapGeneratorOptions.counts).toEqual([1, 3, 5, 7, 9, 11, 13]);
+      expect(options.formatOptions).toContainEqual({ value: "H", label: "HCS" });
+      expect(options.counts).toEqual([1, 3, 5, 7, 9, 11, 13]);
     });
 
     it("presents planned map rows with unique remove labels", () => {
@@ -261,6 +263,21 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(store.getSnapshot().mapPlaylist).toBe("C");
       expect(store.getSnapshot().mapFormat).toBe("H");
     });
+
+    it.each(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS)(
+      "normalizes the format when selecting the single-mode playlist %s",
+      (playlist) => {
+        const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+        presenter.setMapFormat("O");
+
+        presenter.setMapPlaylist(playlist);
+
+        expect(store.getSnapshot().mapFormat).toBe("S");
+        expect(presenter.getMapGeneratorOptions(playlist).formatOptions).toEqual([
+          { value: "S", label: "Slayer only" },
+        ]);
+      },
+    );
 
     it("generates maps from the selected playlist, format, and count", async () => {
       const service = aFakeIndividualTrackerServiceWith();

@@ -93,7 +93,7 @@ function ManualSeriesDialogSectionInternal({
       isOpen={isOpen}
       trackerLabel={trackerLabel}
       snapshot={snapshot}
-      mapGeneratorOptions={presenter.mapGeneratorOptions}
+      mapGeneratorOptions={presenter.getMapGeneratorOptions(snapshot.mapPlaylist)}
       plannedMapRows={plannedMapRows}
       onClose={onClose}
       onTitleChange={(value): void => {
