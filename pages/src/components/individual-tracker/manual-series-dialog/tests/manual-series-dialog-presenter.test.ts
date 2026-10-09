@@ -383,6 +383,19 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(onSeriesStarted).toHaveBeenCalled();
     });
 
+    it("does not start a series with an invalid planned map", () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const startSeriesSpy = vi.spyOn(service, "startSeries");
+      const { presenter, store } = buildPresenter(service);
+      store.setPlannedMaps([{ mode: " ", map: "" }]);
+
+      presenter.startSeries();
+
+      expect(startSeriesSpy).not.toHaveBeenCalled();
+      expect(store.getSnapshot().busy).toBe(false);
+      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
+    });
+
     it("sets submitError when startSeries fails", async () => {
       const service = aFakeIndividualTrackerServiceWith();
       vi.spyOn(service, "startSeries").mockRejectedValue(new Error("Server error"));

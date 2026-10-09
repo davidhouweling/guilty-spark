@@ -197,12 +197,16 @@ export class ManualSeriesDialogStore {
   }
 
   public removePlannedMap(index: number): void {
-    this.update({ plannedMaps: this.snapshot.plannedMaps.filter((_, mapIndex) => mapIndex !== index) });
+    this.update({
+      plannedMaps: this.snapshot.plannedMaps.filter((_, mapIndex) => mapIndex !== index),
+      submitError: null,
+    });
   }
 
   public setPlannedMapMode(index: number, mode: string): void {
     this.update({
       plannedMaps: this.snapshot.plannedMaps.map((map, mapIndex) => (mapIndex === index ? { ...map, mode } : map)),
+      submitError: null,
     });
   }
 
@@ -211,6 +215,7 @@ export class ManualSeriesDialogStore {
       plannedMaps: this.snapshot.plannedMaps.map((map, mapIndex) =>
         mapIndex === index ? { ...map, map: mapName } : map,
       ),
+      submitError: null,
     });
   }
 

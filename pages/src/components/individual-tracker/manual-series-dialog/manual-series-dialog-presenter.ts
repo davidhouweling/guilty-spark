@@ -5,6 +5,7 @@ import {
   MAP_GENERATOR_COUNTS,
   MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS,
 } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
+import { liveTrackerMapSchema } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
@@ -315,6 +316,11 @@ export class ManualSeriesDialogPresenter {
 
   private async runStartSeries(): Promise<void> {
     const snapshot = this.config.store.getSnapshot();
+    const plannedMapsResult = liveTrackerMapSchema.array().safeParse(snapshot.plannedMaps);
+    if (!plannedMapsResult.success) {
+      this.config.store.setSubmitError("Each planned game must have a valid mode and map.");
+      return;
+    }
     this.config.store.setBusy(true);
     this.config.store.setSubmitError(null);
 
@@ -332,7 +338,7 @@ export class ManualSeriesDialogPresenter {
         subtitleOverride,
         teams,
         matchIds: [...snapshot.selectedBackfillMatchIds],
-        ...(snapshot.plannedMaps.length > 0 ? { plannedMaps: [...snapshot.plannedMaps] } : {}),
+        ...(plannedMapsResult.data.length > 0 ? { plannedMaps: plannedMapsResult.data } : {}),
       });
 
       if (this.checkDisposed()) {
