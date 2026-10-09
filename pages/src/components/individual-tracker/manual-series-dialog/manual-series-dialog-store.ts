@@ -172,8 +172,8 @@ export class ManualSeriesDialogStore {
     this.update({ selectedBackfillMatchIds: updated });
   }
 
-  public setMapPlaylist(mapPlaylist: GenerateMapsRequest["playlist"]): void {
-    this.update({ mapPlaylist, plannedMaps: [], mapGenerationError: null });
+  public setMapPlaylist(mapPlaylist: GenerateMapsRequest["playlist"], mapFormat: GenerateMapsRequest["format"]): void {
+    this.update({ mapPlaylist, mapFormat, plannedMaps: [], mapGenerationError: null });
   }
 
   public setMapFormat(mapFormat: GenerateMapsRequest["format"]): void {
