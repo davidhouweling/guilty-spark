@@ -295,6 +295,17 @@ describe("ManualSeriesDialogPresenter", () => {
       },
     );
 
+    it("clears stale validation errors when the map plan is replaced", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+      store.setSubmitError("Each planned game must have a valid mode and map.");
+
+      presenter.setMapPlaylist("H");
+      presenter.setMapFormat("R");
+      presenter.setMapCount(3);
+
+      expect(store.getSnapshot().submitError).toBeNull();
+    });
+
     it("generates maps from the selected playlist, format, and count", async () => {
       const service = aFakeIndividualTrackerServiceWith();
       const generatedMaps = [

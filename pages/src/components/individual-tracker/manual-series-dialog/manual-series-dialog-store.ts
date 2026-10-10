@@ -173,27 +173,32 @@ export class ManualSeriesDialogStore {
   }
 
   public setMapPlaylist(mapPlaylist: GenerateMapsRequest["playlist"], mapFormat: GenerateMapsRequest["format"]): void {
-    this.update({ mapPlaylist, mapFormat, plannedMaps: [], mapGenerationError: null });
+    this.update({ mapPlaylist, mapFormat, plannedMaps: [], mapGenerationError: null, submitError: null });
   }
 
   public setMapFormat(mapFormat: GenerateMapsRequest["format"]): void {
-    this.update({ mapFormat, plannedMaps: [], mapGenerationError: null });
+    this.update({ mapFormat, plannedMaps: [], mapGenerationError: null, submitError: null });
   }
 
   public setMapCount(mapCount: number): void {
-    this.update({ mapCount, plannedMaps: [], mapGenerationError: null });
+    this.update({ mapCount, plannedMaps: [], mapGenerationError: null, submitError: null });
   }
 
   public setMapGenerationLoading(): void {
-    this.update({ mapGenerationLoading: true, mapGenerationError: null });
+    this.update({ mapGenerationLoading: true, mapGenerationError: null, submitError: null });
   }
 
   public setPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): void {
-    this.update({ plannedMaps: [...plannedMaps], mapGenerationLoading: false, mapGenerationError: null });
+    this.update({
+      plannedMaps: [...plannedMaps],
+      mapGenerationLoading: false,
+      mapGenerationError: null,
+      submitError: null,
+    });
   }
 
   public setMapGenerationError(mapGenerationError: string): void {
-    this.update({ mapGenerationLoading: false, mapGenerationError });
+    this.update({ mapGenerationLoading: false, mapGenerationError, submitError: null });
   }
 
   public removePlannedMap(index: number): void {
