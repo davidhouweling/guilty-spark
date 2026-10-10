@@ -29,6 +29,19 @@ describe("FakeIndividualTrackerService", () => {
       expect(maps.every((map) => map.mode === "Slayer")).toBe(true);
     });
 
+    it("keeps Current HCS fake maps within the supported map pool", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+
+      const maps = await service.generateMaps({ trackerId: "tracker-1", playlist: "C", format: "H", count: 9 });
+
+      expect(maps).toHaveLength(9);
+      expect(
+        maps.every(({ mode, map }) =>
+          mode === "King of the Hill" ? ["Live Fire", "Lattice", "Recharge", "Streets"].includes(map) : true,
+        ),
+      ).toBe(true);
+    });
+
     it("limits Ranked Doubles to its supported mode pool", async () => {
       const service = aFakeIndividualTrackerServiceWith();
 
