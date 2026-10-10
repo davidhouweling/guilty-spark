@@ -273,7 +273,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       { mode: "Oddball", map: "Streets" },
       { mode: "Capture the Flag", map: "Aquarius" },
       { mode: "Strongholds", map: "Recharge" },
-      { mode: "King of the Hill", map: "Origin" },
+      { mode: "King of the Hill", map: "Lattice" },
       { mode: "Slayer", map: "Solitude" },
       { mode: "Oddball", map: "Lattice" },
       { mode: "Capture the Flag", map: "Empyrean" },

@@ -280,6 +280,18 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(store.getSnapshot().mapFormat).toBe("H");
     });
 
+    it("rejects whitespace-only map names when starting a series", () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const startSeriesSpy = vi.spyOn(service, "startSeries");
+      const { presenter, store } = buildPresenter(service);
+      store.setPlannedMaps([{ mode: "Slayer", map: "   " }]);
+
+      presenter.startSeries();
+
+      expect(startSeriesSpy).not.toHaveBeenCalled();
+      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
+    });
+
     it.each(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS)(
       "normalizes the format when selecting the single-mode playlist %s",
       (playlist) => {
