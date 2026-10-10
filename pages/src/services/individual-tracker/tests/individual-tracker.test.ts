@@ -324,6 +324,52 @@ describe("RealIndividualTrackerService", () => {
     );
   });
 
+  it("generates maps through the tracker map-generation endpoint", async () => {
+    const maps = [
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Oddball", map: "Streets" },
+    ];
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ maps }));
+
+    await expect(
+      service.generateMaps({ trackerId: "tracker-1", playlist: "C", format: "H", count: 3 }),
+    ).resolves.toEqual(maps);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/individual-tracker/tracker-1/generate-maps"),
+      expect.objectContaining({
+        credentials: "include",
+        method: "POST",
+        body: JSON.stringify({ playlist: "C", format: "H", count: 3 }),
+      }),
+    );
+  });
+
+  it("includes planned maps when starting a series", async () => {
+    const plannedMaps = [{ mode: "Oddball", map: "Streets" }];
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ success: true }));
+
+    await service.startSeries({
+      trackerId: "tracker-1",
+      titleOverride: "Series",
+      subtitleOverride: "Best of 3",
+      teams: [],
+      plannedMaps,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/api/individual-tracker/tracker-1/start-series"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          titleOverride: "Series",
+          subtitleOverride: "Best of 3",
+          teams: [],
+          plannedMaps,
+        }),
+      }),
+    );
+  });
+
   it("sends a POST request to resume a series", async () => {
     fetchSpy.mockResolvedValueOnce(new Response("", { status: 200 }));
     await service.resumeSeries("tracker-1");

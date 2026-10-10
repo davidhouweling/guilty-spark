@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import {
@@ -214,6 +215,164 @@ describe("ManualSeriesDialogPresenter", () => {
     });
   });
 
+  describe("map generation", () => {
+    it("provides display-ready picker options", () => {
+      const { presenter } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      const options = presenter.getMapGeneratorOptions("C");
+      expect(options.playlistOptions).toContainEqual({
+        value: "C",
+        label: "LVT Pro League - Current",
+      });
+      expect(options.formatOptions).toContainEqual({ value: "H", label: "HCS" });
+      expect(options.counts).toEqual([1, 3, 5, 7, 9, 11, 13]);
+    });
+
+    it("presents planned map rows with unique remove labels", () => {
+      const { presenter } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      expect(
+        presenter.presentPlannedMaps([
+          { mode: "Slayer", map: "Live Fire" },
+          { mode: "Oddball", map: "Recharge" },
+        ]),
+      ).toEqual([
+        {
+          index: 0,
+          gameLabel: "Game 1",
+          removeLabel: "Remove Game 1: Slayer on Live Fire",
+          mode: "Slayer",
+          map: "Live Fire",
+        },
+        {
+          index: 1,
+          gameLabel: "Game 2",
+          removeLabel: "Remove Game 2: Oddball on Recharge",
+          mode: "Oddball",
+          map: "Recharge",
+        },
+      ]);
+    });
+
+    it("updates the mode and map for individual planned slots", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+      store.setPlannedMaps([
+        { mode: "Slayer", map: "Live Fire" },
+        { mode: "Oddball", map: "Recharge" },
+      ]);
+
+      presenter.setPlannedMapMode(1, "Strongholds");
+      presenter.setPlannedMapName(1, "Streets");
+
+      expect(store.getSnapshot().plannedMaps).toEqual([
+        { mode: "Slayer", map: "Live Fire" },
+        { mode: "Strongholds", map: "Streets" },
+      ]);
+    });
+
+    it("ignores unsupported playlist and format selections", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+
+      presenter.setMapPlaylist("invalid");
+      presenter.setMapFormat("invalid");
+
+      expect(store.getSnapshot().mapPlaylist).toBe("C");
+      expect(store.getSnapshot().mapFormat).toBe("H");
+    });
+
+    it("rejects whitespace-only map names when starting a series", () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const startSeriesSpy = vi.spyOn(service, "startSeries");
+      const { presenter, store } = buildPresenter(service);
+      store.setPlannedMaps([{ mode: "Slayer", map: "   " }]);
+
+      presenter.startSeries();
+
+      expect(startSeriesSpy).not.toHaveBeenCalled();
+      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
+    });
+
+    it.each(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS)(
+      "normalizes the format when selecting the single-mode playlist %s",
+      (playlist) => {
+        const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+        presenter.setMapFormat("O");
+
+        presenter.setMapPlaylist(playlist);
+
+        expect(store.getSnapshot().mapFormat).toBe("S");
+        expect(presenter.getMapGeneratorOptions(playlist).formatOptions).toEqual([
+          { value: "S", label: "Slayer only" },
+        ]);
+      },
+    );
+
+    it("clears stale validation errors when the map plan is replaced", () => {
+      const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
+      store.setSubmitError("Each planned game must have a valid mode and map.");
+
+      presenter.setMapPlaylist("H");
+      presenter.setMapFormat("R");
+      presenter.setMapCount(3);
+
+      expect(store.getSnapshot().submitError).toBeNull();
+    });
+
+    it("generates maps from the selected playlist, format, and count", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const generatedMaps = [
+        { mode: "Oddball", map: "Streets" },
+        { mode: "Slayer", map: "Recharge" },
+        { mode: "Strongholds", map: "Live Fire" },
+      ];
+      const generateMapsSpy = vi.spyOn(service, "generateMaps").mockResolvedValue(generatedMaps);
+      const { presenter, store } = buildPresenter(service);
+      presenter.setMapPlaylist("H");
+      presenter.setMapFormat("R");
+      presenter.setMapCount(3);
+
+      let resolveGeneration: () => void = (): void => undefined;
+      const generationCompleted = new Promise<void>((resolve) => {
+        resolveGeneration = resolve;
+      });
+      const unsubscribe = store.subscribe(() => {
+        const snapshot = store.getSnapshot();
+        if (!snapshot.mapGenerationLoading && snapshot.plannedMaps.length > 0) {
+          resolveGeneration();
+        }
+      });
+
+      presenter.generateMaps();
+      await generationCompleted;
+      unsubscribe();
+
+      expect(generateMapsSpy).toHaveBeenCalledWith({ trackerId: "tracker-1", playlist: "H", format: "R", count: 3 });
+      expect(store.getSnapshot().plannedMaps).toEqual(generatedMaps);
+    });
+
+    it("clears loading and surfaces an error when map generation fails", async () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      vi.spyOn(service, "generateMaps").mockRejectedValue(new Error("Map generation failed"));
+      const { presenter, store } = buildPresenter(service);
+
+      const generationFailed = new Promise<void>((resolve) => {
+        const unsubscribe = store.subscribe(() => {
+          const snapshot = store.getSnapshot();
+          if (!snapshot.mapGenerationLoading && snapshot.mapGenerationError !== null) {
+            unsubscribe();
+            resolve();
+          }
+        });
+        presenter.generateMaps();
+      });
+
+      await generationFailed;
+
+      expect(store.getSnapshot().mapGenerationLoading).toBe(false);
+      expect(store.getSnapshot().mapGenerationError).toBe("Map generation failed");
+    });
+  });
+
   describe("startSeries", () => {
     it("calls service startSeries with trimmed teams and overrides then fires onSeriesStarted", async () => {
       const service = aFakeIndividualTrackerServiceWith();
@@ -223,6 +382,7 @@ describe("ManualSeriesDialogPresenter", () => {
 
       store.setTitleOverride("Eagle vs Cobra");
       store.setSubtitleOverride("Bo5");
+      store.setPlannedMaps([{ mode: "Oddball", map: "Streets" }]);
       presenter.setTeamMember(0, 0, "Alpha");
       presenter.setTeamMember(1, 0, "Bravo");
 
@@ -240,9 +400,23 @@ describe("ManualSeriesDialogPresenter", () => {
           trackerId: "tracker-1",
           titleOverride: "Eagle vs Cobra",
           subtitleOverride: "Bo5",
+          plannedMaps: [{ mode: "Oddball", map: "Streets" }],
         }),
       );
       expect(onSeriesStarted).toHaveBeenCalled();
+    });
+
+    it("does not start a series with an invalid planned map", () => {
+      const service = aFakeIndividualTrackerServiceWith();
+      const startSeriesSpy = vi.spyOn(service, "startSeries");
+      const { presenter, store } = buildPresenter(service);
+      store.setPlannedMaps([{ mode: " ", map: "" }]);
+
+      presenter.startSeries();
+
+      expect(startSeriesSpy).not.toHaveBeenCalled();
+      expect(store.getSnapshot().busy).toBe(false);
+      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
     });
 
     it("sets submitError when startSeries fails", async () => {

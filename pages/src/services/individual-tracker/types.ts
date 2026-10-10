@@ -10,6 +10,8 @@ import type {
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
+import type { GenerateMapsRequest as GenerateMapsOptions } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type { GameVariantCategory, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 
@@ -100,7 +102,10 @@ export interface StartSeriesRequest {
   readonly subtitleOverride: string | null;
   readonly teams: readonly ManualSeriesTeamForm[];
   readonly matchIds?: readonly string[];
+  readonly plannedMaps?: readonly LiveTrackerMap[] | undefined;
 }
+
+export type GenerateMapsRequest = GenerateMapsOptions & { readonly trackerId: string };
 
 export interface StartSeriesResponse {
   readonly success: true;
@@ -157,6 +162,7 @@ export interface IndividualTrackerService {
     category?: "custom" | "all",
   ): Promise<TrackerMatchHistoryResponse>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
+  generateMaps(request: GenerateMapsRequest): Promise<readonly LiveTrackerMap[]>;
   startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse>;
   getTrackers(): Promise<TrackerListResponse>;
   getActiveTrackerState(xuid: string): Promise<TrackerStatusResponse>;

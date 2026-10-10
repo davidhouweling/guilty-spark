@@ -1,10 +1,23 @@
 import type { TrackerMatchSummary } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import {
+  generateMapsFormatSchema,
+  generateMapsPlaylistSchema,
+  MAP_GENERATOR_COUNTS,
+  MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS,
+} from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
+import { liveTrackerMapSchema } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
+import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import { getDurationBetween } from "@guilty-spark/shared/halo/duration";
 import { getGameModeName } from "@guilty-spark/shared/halo/game-variants";
-import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type {
+  GenerateMapsRequest,
+  IndividualTrackerService,
+  TrackerMatchHistoryEntry,
+} from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { formatDisplayDateTime } from "../../../services/individual-tracker/match-history-helpers";
 import type { ManualSeriesDialogStore } from "./manual-series-dialog-store";
+import type { ManualSeriesDialogMapGeneratorOptions, PlannedMapRow } from "./types";
 
 interface Config {
   readonly trackerId: string;
@@ -55,8 +68,56 @@ export class ManualSeriesDialogPresenter {
   private readonly config: Config;
   private disposed = false;
 
+  private readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
+    playlistOptions: [
+      { value: "C", label: "LVT Pro League - Current" },
+      { value: "H", label: "HCS + LVT Pro League - Historical" },
+      { value: "R", label: "Ranked Arena" },
+      { value: "S", label: "Ranked Slayer" },
+      { value: "N", label: "Ranked Snipers" },
+      { value: "T", label: "Ranked Tactical" },
+      { value: "D", label: "Ranked Doubles" },
+      { value: "F", label: "Ranked FFA" },
+      { value: "Q", label: "Ranked Squad Battle" },
+    ],
+    formatOptions: [
+      { value: "H", label: "HCS" },
+      { value: "R", label: "Random" },
+      { value: "O", label: "Objective only" },
+      { value: "S", label: "Slayer only" },
+    ],
+    counts: MAP_GENERATOR_COUNTS,
+  };
+
+  private readonly slayerOnlyPlaylists = new Set<string>(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS);
+
   public constructor(config: Config) {
     this.config = config;
+  }
+
+  public getMapGeneratorOptions(playlist: string): ManualSeriesDialogMapGeneratorOptions {
+    if (this.slayerOnlyPlaylists.has(playlist)) {
+      return {
+        ...this.mapGeneratorOptions,
+        formatOptions: this.mapGeneratorOptions.formatOptions.filter((option) => option.value === "S"),
+      };
+    }
+    return this.mapGeneratorOptions;
+  }
+
+  public presentPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): readonly PlannedMapRow[] {
+    const rows: PlannedMapRow[] = [];
+    for (const [index, map] of plannedMaps.entries()) {
+      const gameLabel = `Game ${(index + 1).toString()}`;
+      rows.push({
+        index,
+        gameLabel,
+        removeLabel: `Remove ${gameLabel}: ${map.mode} on ${map.map}`,
+        mode: map.mode,
+        map: map.map,
+      });
+    }
+    return rows;
   }
 
   public dispose(): void {
@@ -138,6 +199,85 @@ export class ManualSeriesDialogPresenter {
     this.config.store.toggleBackfillMatch(matchId);
   }
 
+  public setMapPlaylist(value: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    const result = generateMapsPlaylistSchema.safeParse(value);
+    if (result.success) {
+      const currentFormat = this.config.store.getSnapshot().mapFormat;
+      const format = this.slayerOnlyPlaylists.has(result.data) ? "S" : currentFormat;
+      this.config.store.setMapPlaylist(result.data, format);
+    }
+  }
+
+  public setMapFormat(value: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    const result = generateMapsFormatSchema.safeParse(value);
+    if (result.success) {
+      this.config.store.setMapFormat(result.data);
+    }
+  }
+
+  public setMapCount(value: number): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setMapCount(value);
+  }
+
+  public removePlannedMap(index: number): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.removePlannedMap(index);
+  }
+
+  public setPlannedMapMode(index: number, mode: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setPlannedMapMode(index, mode);
+  }
+
+  public setPlannedMapName(index: number, mapName: string): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    this.config.store.setPlannedMapName(index, mapName);
+  }
+
+  public generateMaps(): void {
+    if (this.checkDisposed()) {
+      return;
+    }
+    void this.generateMapsAsync();
+  }
+
+  private async generateMapsAsync(): Promise<void> {
+    const snapshot = this.config.store.getSnapshot();
+    this.config.store.setMapGenerationLoading();
+    try {
+      const maps = await this.config.individualTrackerService.generateMaps({
+        trackerId: this.config.trackerId,
+        playlist: snapshot.mapPlaylist,
+        format: snapshot.mapFormat,
+        count: snapshot.mapCount,
+      } satisfies GenerateMapsRequest);
+      if (this.checkDisposed()) {
+        return;
+      }
+      this.config.store.setPlannedMaps(maps);
+    } catch (error) {
+      if (this.checkDisposed()) {
+        return;
+      }
+      this.config.store.setMapGenerationError(error instanceof Error ? error.message : "Failed to generate maps.");
+    }
+  }
+
   public discoverBackfillMatches(): void {
     if (this.checkDisposed()) {
       return;
@@ -176,6 +316,11 @@ export class ManualSeriesDialogPresenter {
 
   private async runStartSeries(): Promise<void> {
     const snapshot = this.config.store.getSnapshot();
+    const plannedMapsResult = liveTrackerMapSchema.array().safeParse(snapshot.plannedMaps);
+    if (!plannedMapsResult.success) {
+      this.config.store.setSubmitError("Each planned game must have a valid mode and map.");
+      return;
+    }
     this.config.store.setBusy(true);
     this.config.store.setSubmitError(null);
 
@@ -193,6 +338,7 @@ export class ManualSeriesDialogPresenter {
         subtitleOverride,
         teams,
         matchIds: [...snapshot.selectedBackfillMatchIds],
+        ...(plannedMapsResult.data.length > 0 ? { plannedMaps: plannedMapsResult.data } : {}),
       });
 
       if (this.checkDisposed()) {

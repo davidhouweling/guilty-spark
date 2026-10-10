@@ -2,16 +2,20 @@ import React, { useMemo } from "react";
 import { Button } from "../../button/button";
 import { Dialog } from "../../dialog/dialog";
 import { Input } from "../../input/input";
+import { Select } from "../../select/select";
 import { Alert } from "../../alert/alert";
 import { Heading } from "../../heading/heading";
 import { createMatchHistorySection } from "../../match-history/create";
 import type { ManualSeriesDialogSnapshot, ManualSeriesTeamSnapshot } from "./manual-series-dialog-store";
+import type { ManualSeriesDialogMapGeneratorOptions, PlannedMapRow } from "./types";
 import styles from "./manual-series-dialog.module.css";
 
 interface ManualSeriesDialogProps {
   readonly isOpen: boolean;
   readonly trackerLabel: string;
   readonly snapshot: ManualSeriesDialogSnapshot;
+  readonly mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions;
+  readonly plannedMapRows: readonly PlannedMapRow[];
   readonly onClose: () => void;
   readonly onTitleChange: (value: string) => void;
   readonly onSubtitleChange: (value: string) => void;
@@ -21,6 +25,13 @@ interface ManualSeriesDialogProps {
   readonly onRemoveTeamMember: (teamIndex: number, memberIndex: number) => void;
   readonly onDiscoverBackfill: () => void;
   readonly onBackfillMatchToggle: (matchId: string) => void;
+  readonly onMapPlaylistChange: (value: string) => void;
+  readonly onMapFormatChange: (value: string) => void;
+  readonly onMapCountChange: (value: number) => void;
+  readonly onGenerateMaps: () => void;
+  readonly onRemovePlannedMap: (index: number) => void;
+  readonly onPlannedMapModeChange: (index: number, mode: string) => void;
+  readonly onPlannedMapNameChange: (index: number, mapName: string) => void;
   readonly onStartSeries: () => void;
 }
 
@@ -89,6 +100,8 @@ export function ManualSeriesDialog({
   isOpen,
   trackerLabel,
   snapshot,
+  mapGeneratorOptions,
+  plannedMapRows,
   onClose,
   onTitleChange,
   onSubtitleChange,
@@ -98,6 +111,13 @@ export function ManualSeriesDialog({
   onRemoveTeamMember,
   onDiscoverBackfill,
   onBackfillMatchToggle,
+  onMapPlaylistChange,
+  onMapFormatChange,
+  onMapCountChange,
+  onGenerateMaps,
+  onRemovePlannedMap,
+  onPlannedMapModeChange,
+  onPlannedMapNameChange,
   onStartSeries,
 }: ManualSeriesDialogProps): React.ReactElement | null {
   const MatchHistorySection = useMemo(() => createMatchHistorySection(), []);
@@ -107,6 +127,7 @@ export function ManualSeriesDialog({
   }
 
   const isBackfillLoading = snapshot.backfillState === "loading";
+  const isMapGenerationLoading = snapshot.mapGenerationLoading;
   const showBackfillResults = snapshot.backfillState === "done" || snapshot.backfillState === "error";
 
   return (
@@ -119,7 +140,7 @@ export function ManualSeriesDialog({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={onStartSeries} disabled={snapshot.busy}>
+          <Button onClick={onStartSeries} disabled={snapshot.busy || isMapGenerationLoading}>
             {snapshot.mode === "edit" ? "Save series" : "Start series"}
           </Button>
         </div>
@@ -158,6 +179,112 @@ export function ManualSeriesDialog({
             />
           </div>
         </section>
+
+        {snapshot.mode === "start" && (
+          <section className={styles.section}>
+            <Heading tagName="h3" styleAs="h6">
+              Map plan (optional)
+            </Heading>
+            <div className={styles.mapGeneratorControls}>
+              <label className={styles.mapGeneratorField}>
+                Playlist
+                <Select
+                  aria-label="Map playlist"
+                  value={snapshot.mapPlaylist}
+                  disabled={snapshot.busy || isMapGenerationLoading}
+                  onChange={(event): void => {
+                    onMapPlaylistChange(event.currentTarget.value);
+                  }}
+                >
+                  {mapGeneratorOptions.playlistOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className={styles.mapGeneratorField}>
+                Format
+                <Select
+                  aria-label="Map format"
+                  value={snapshot.mapFormat}
+                  disabled={snapshot.busy || isMapGenerationLoading}
+                  onChange={(event): void => {
+                    onMapFormatChange(event.currentTarget.value);
+                  }}
+                >
+                  {mapGeneratorOptions.formatOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <label className={styles.mapGeneratorField}>
+                Games
+                <Select
+                  aria-label="Number of maps"
+                  value={snapshot.mapCount.toString()}
+                  disabled={snapshot.busy || isMapGenerationLoading}
+                  onChange={(event): void => {
+                    onMapCountChange(Number(event.currentTarget.value));
+                  }}
+                >
+                  {mapGeneratorOptions.counts.map((count) => (
+                    <option key={count.toString()} value={count.toString()}>
+                      {count.toString()}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <Button variant="secondary" onClick={onGenerateMaps} disabled={snapshot.busy || isMapGenerationLoading}>
+                {isMapGenerationLoading
+                  ? "Generating..."
+                  : snapshot.plannedMaps.length > 0
+                    ? "Regenerate maps"
+                    : "Generate maps"}
+              </Button>
+            </div>
+            {snapshot.mapGenerationError != null && <Alert variant="error">{snapshot.mapGenerationError}</Alert>}
+            {snapshot.plannedMaps.length > 0 && (
+              <ol className={styles.plannedMapsList} aria-label="Selected map plan">
+                {plannedMapRows.map((map) => (
+                  <li key={map.index.toString()} className={styles.plannedMapRow}>
+                    <span className={styles.plannedMapNumber}>{map.gameLabel}</span>
+                    <Input
+                      label={`${map.gameLabel} mode`}
+                      value={map.mode}
+                      containerClassName={styles.plannedMapField}
+                      disabled={snapshot.busy || isMapGenerationLoading}
+                      onChange={(event): void => {
+                        onPlannedMapModeChange(map.index, event.currentTarget.value);
+                      }}
+                    />
+                    <Input
+                      label={`${map.gameLabel} map`}
+                      value={map.map}
+                      containerClassName={styles.plannedMapField}
+                      disabled={snapshot.busy || isMapGenerationLoading}
+                      onChange={(event): void => {
+                        onPlannedMapNameChange(map.index, event.currentTarget.value);
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      ariaLabel={map.removeLabel}
+                      disabled={snapshot.busy || isMapGenerationLoading}
+                      onClick={(): void => {
+                        onRemovePlannedMap(map.index);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        )}
 
         <section className={styles.section}>
           <Heading tagName="h3" styleAs="h6">

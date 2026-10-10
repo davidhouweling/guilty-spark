@@ -10,8 +10,10 @@ import type {
   TrackerResponse,
   TrackersResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
+import { MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type {
   EditSeriesRequest,
+  GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
@@ -22,6 +24,22 @@ import type {
   TrackerSearchResult,
   TrackerStatusResponse,
 } from "../types";
+
+const HCS_MODE_SEQUENCE = [
+  "objective",
+  "slayer",
+  "objective",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+  "objective",
+  "slayer",
+] as const;
 
 interface FakeTrackerOverrides {
   readonly trackerId?: string;
@@ -247,6 +265,58 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
 
   public async syncMatchesToTracker(): Promise<void> {
     await Promise.resolve();
+  }
+
+  public async generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
+    const fakeMaps = [
+      { mode: "Slayer", map: "Live Fire" },
+      { mode: "Oddball", map: "Streets" },
+      { mode: "Capture the Flag", map: "Aquarius" },
+      { mode: "Strongholds", map: "Recharge" },
+      { mode: "King of the Hill", map: "Lattice" },
+      { mode: "Slayer", map: "Solitude" },
+      { mode: "Oddball", map: "Lattice" },
+      { mode: "Capture the Flag", map: "Empyrean" },
+      { mode: "Strongholds", map: "Live Fire" },
+      { mode: "King of the Hill", map: "Streets" },
+      { mode: "Slayer", map: "Recharge" },
+      { mode: "Oddball", map: "Live Fire" },
+      { mode: "Capture the Flag", map: "Origin" },
+    ];
+    const slayerOnlyPlaylists = new Set<string>(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS);
+    const playlistMaps = slayerOnlyPlaylists.has(request.playlist)
+      ? fakeMaps.filter((map) => map.mode === "Slayer")
+      : request.playlist === "D"
+        ? fakeMaps.filter((map) => map.mode === "Slayer" || map.mode === "Capture the Flag")
+        : fakeMaps;
+    const format = slayerOnlyPlaylists.has(request.playlist) ? "S" : request.format;
+    const formatMaps =
+      format === "O"
+        ? playlistMaps.filter((map) => map.mode !== "Slayer")
+        : format === "S"
+          ? playlistMaps.filter((map) => map.mode === "Slayer")
+          : playlistMaps;
+    if (formatMaps.length === 0) {
+      throw new Error("No fake maps match the requested playlist and format");
+    }
+    if (format === "H") {
+      const maps: { mode: string; map: string }[] = [];
+      for (let index = 0; index < request.count; index++) {
+        const mode = HCS_MODE_SEQUENCE[index];
+        const modeMaps =
+          mode === "slayer"
+            ? formatMaps.filter((map) => map.mode === "Slayer")
+            : formatMaps.filter((map) => map.mode !== "Slayer");
+        maps.push(modeMaps[index % modeMaps.length]);
+      }
+      return Promise.resolve(maps);
+    }
+    const maps: { mode: string; map: string }[] = [];
+    for (let index = 0; index < request.count; index++) {
+      const map = formatMaps[index % formatMaps.length];
+      maps.push(map);
+    }
+    return Promise.resolve(maps);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
