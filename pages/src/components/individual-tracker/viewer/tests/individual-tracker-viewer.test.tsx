@@ -35,12 +35,13 @@ function renderViewer(
   view: ReturnType<typeof aFakeTrackerViewStateWith>,
   connectionStatus: TrackerViewConnectionStatus = "connected",
   canManage = true,
+  expandedEntryKeys: ReadonlySet<string> = new Set(),
 ): void {
   render(
     <IndividualTrackerViewer
       renderModel={aModel(view)}
       connectionStatus={connectionStatus}
-      expandedEntryKeys={new Set()}
+      expandedEntryKeys={expandedEntryKeys}
       entryStates={new Map()}
       canManage={canManage}
       refreshPending={false}
@@ -164,6 +165,42 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("20:15:9 (1.53)")).toBeInTheDocument();
     expect(screen.getByText("8,200:7,500 (1.09)")).toBeInTheDocument();
     expect(screen.getByText(/End time/)).toBeInTheDocument();
+  });
+
+  it("renders played and upcoming planned maps in an archived series", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Actual Live Fire", mapAssetId: "map-1" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Actual Streets", mapAssetId: "map-2" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-archive",
+          matchIds: ["m-1", "m-2"],
+          title: "Archived Series",
+          plannedMaps: [
+            { mode: "Slayer", map: "Planned Live Fire" },
+            { mode: "Oddball", map: "Planned Streets" },
+            { mode: "Neutral Bomb", map: "Recharge" },
+          ],
+        }),
+      ],
+    });
+
+    renderViewer(view, "connected", true, new Set(["series:series-archive"]));
+
+    const plannedMaps = screen.getByRole("list", { name: "Map plan for Archived Series" });
+    const [firstGame, secondGame, upcomingGame] = within(plannedMaps).getAllByRole("listitem");
+    expect(firstGame).toHaveTextContent("Game 1");
+    expect(firstGame).toHaveTextContent("Slayer");
+    expect(firstGame).toHaveTextContent("Actual Live Fire");
+    expect(firstGame).toHaveTextContent("Played");
+    expect(secondGame).toHaveTextContent("Actual Streets");
+    expect(secondGame).toHaveTextContent("Played");
+    expect(upcomingGame).toHaveTextContent("Game 3");
+    expect(upcomingGame).toHaveTextContent("Neutral Bomb");
+    expect(upcomingGame).toHaveTextContent("Recharge");
+    expect(upcomingGame).toHaveTextContent("Upcoming");
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {
