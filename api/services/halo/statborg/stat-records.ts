@@ -17,6 +17,7 @@ const MAX_COMPONENT_INDEX = 58;
 const MAX_COMPONENTS_PER_RECORD = 7;
 const MIN_SLOT = 6;
 const MAX_SLOT = 24;
+// LevelUp's measured end-of-payload margin below which no record anchors
 const TAIL_BITS = 64;
 const MAX_VALUE_BITS = 32;
 const WIDTH_SELECTOR_BITS = 2;
@@ -204,16 +205,6 @@ export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
   return records;
 }
 
-export function sortStatRecords(records: StatRecord[]): StatRecord[] {
-  return records.sort((left, right) => left.timestampMs - right.timestampMs || left.slot - right.slot);
-}
-
-export function scanStatRecords(chunks: readonly ReplicationChunk[]): StatRecord[] {
-  const records: StatRecord[] = [];
-  for (const chunk of chunks) {
-    for (const record of scanChunkStatRecords(chunk)) {
-      records.push(record);
-    }
-  }
-  return sortStatRecords(records);
+export function sortStatRecords(records: readonly StatRecord[]): StatRecord[] {
+  return [...records].sort((left, right) => left.timestampMs - right.timestampMs || left.slot - right.slot);
 }

@@ -50,6 +50,7 @@ interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
 }
+type ChunkDownload = { bytes: Uint8Array } | { error: unknown };
 type ReplicationChunkEntry =
   { kind: "chunk"; chunk: ReplicationChunk } | { kind: "skipped"; skipped: SkippedReplicationChunk };
 interface FilmAttributionData {
@@ -258,14 +259,22 @@ export class HaloFilmService {
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): AsyncGenerator<ReplicationChunkEntry> {
     const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
-    const perChunkBytes = await Promise.all(
-      chunks.map(async ({ chunk }) =>
-        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+    // every download starts at once; chunks are consumed in film order as each arrives, and a
+    // failure is surfaced when its chunk is reached rather than left as an unhandled rejection
+    const downloads = chunks.map(async ({ chunk }) =>
+      this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
+        (bytes): ChunkDownload => ({ bytes }),
+        (error: unknown): ChunkDownload => ({ error }),
       ),
     );
     for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+      const download = await Preconditions.checkExists(downloads[chunkIndex]);
+      downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
+      if ("error" in download) {
+        throw download.error instanceof Error ? download.error : new Error(String(download.error));
+      }
       try {
-        const data = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+        const data = new Uint8Array(inflateSync(download.bytes));
         yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
       } catch {
         // malformed chunk — reported so each consumer decides whether a gap is tolerable

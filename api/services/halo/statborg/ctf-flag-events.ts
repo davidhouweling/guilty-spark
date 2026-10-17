@@ -1,9 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
-import type { ReplicationChunk } from "../types";
 import { resolveSlotIdentities } from "./slot-identity";
 import { counterIncrementTimes } from "./stat-counters";
-import { scanStatRecords } from "./stat-records";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
 
 interface CtfStatSlot {
@@ -65,8 +63,4 @@ export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], ma
     }
   }
   return { events: events.sort(compareEvents), unresolvedSlots: [...unresolvedSlots].sort((a, b) => a - b) };
-}
-
-export function buildCtfFlagEvents(chunks: readonly ReplicationChunk[], matchStats: MatchStats): CtfFlagEvents {
-  return buildCtfFlagEventsFromRecords(scanStatRecords(chunks), matchStats);
 }

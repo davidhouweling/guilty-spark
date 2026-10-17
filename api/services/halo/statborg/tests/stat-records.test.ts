@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scanFrameForStatRecords, scanStatRecords } from "../stat-records";
+import { scanChunkStatRecords, scanFrameForStatRecords, sortStatRecords } from "../stat-records";
 import { aFakeReplicationChunkWith, buildFramePayload } from "../fakes/replication-chunk.fake";
 
 describe("scanFrameForStatRecords", () => {
@@ -86,7 +86,7 @@ describe("scanFrameForStatRecords back-to-back records", () => {
   });
 });
 
-describe("scanStatRecords", () => {
+describe("scanChunkStatRecords", () => {
   it("dates records from the chunk start plus the frame offset from the first frame", () => {
     const chunk = aFakeReplicationChunkWith(
       [
@@ -95,7 +95,7 @@ describe("scanStatRecords", () => {
       ],
       { startMs: 20_000 },
     );
-    expect(scanStatRecords([chunk]).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
+    expect(scanChunkStatRecords(chunk).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
   });
 
   it("merges chunks in timestamp order", () => {
@@ -113,13 +113,37 @@ describe("scanStatRecords", () => {
         startMs: 0,
       },
     );
-    expect(scanStatRecords([later, earlier]).map((record) => [record.timestampMs, record.slot])).toEqual([
+    expect(
+      sortStatRecords([...scanChunkStatRecords(later), ...scanChunkStatRecords(earlier)]).map((record) => [
+        record.timestampMs,
+        record.slot,
+      ]),
+    ).toEqual([
       [0, 12],
       [20_000, 10],
     ]);
   });
 
-  it("returns nothing for chunks without frames", () => {
-    expect(scanStatRecords([{ index: 1, startMs: 0, durationMs: 1, data: new Uint8Array(0) }])).toEqual([]);
+  it("returns nothing for a chunk without frames", () => {
+    expect(scanChunkStatRecords({ index: 1, startMs: 0, durationMs: 1, data: new Uint8Array(0) })).toEqual([]);
+  });
+
+  it("sorts without mutating the input", () => {
+    const records = [
+      ...scanChunkStatRecords(
+        aFakeReplicationChunkWith([
+          {
+            timestampUs: 1n,
+            records: [
+              { slot: 12, components: [{ index: 2, a: 1, b: 0 }] },
+              { slot: 10, components: [{ index: 2, a: 1, b: 0 }] },
+            ],
+          },
+        ]),
+      ),
+    ];
+    const sorted = sortStatRecords(records);
+    expect(sorted.map((record) => record.slot)).toEqual([10, 12]);
+    expect(records.map((record) => record.slot)).toEqual([12, 10]);
   });
 });

@@ -70,13 +70,16 @@ describe("counterIncrementTimes", () => {
   });
 
   it("dates units gained before the first emission to that emission", () => {
-    const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 12, b: 0 } } })];
-    expect(counterIncrementTimes(records, GRABS).get(10)).toHaveLength(12);
+    const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 5, b: 0 } } })];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([900, 900, 900, 900, 900]);
   });
 
-  it("ignores a first emission beyond any plausible counter", () => {
-    const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 5000, b: 0 } } })];
-    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([]);
+  it("fabricates no timestamps for a first emission beyond a plausible step", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 64, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 950, slot: 10, components: { 22: { a: 65, b: 0 } } }),
+    ];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([950]);
   });
 
   it("returns an empty map when no record carries the component", () => {
