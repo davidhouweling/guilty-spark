@@ -74,6 +74,12 @@ describe("resolveSlotIdentities", () => {
     expect(resolveSlotIdentities(records, matchStats).has(18)).toBe(false);
   });
 
+  it("resolves a player with no kills, deaths or assists from any other emission", () => {
+    const matchStats = aFakeCtfMatchStatsWith(new Map([["1200000000000000", { kills: 0, deaths: 0, assists: 0 }]]));
+    const records = [aFakeStatRecordWith({ slot: 24, components: { 22: { a: 2, b: 0 } } })];
+    expect(resolveSlotIdentities(records, matchStats).get(24)).toBe("1200000000000000");
+  });
+
   it("treats a missing assists component as zero assists", () => {
     const matchStats = aFakeCtfMatchStatsWith(new Map([["0500000000000000", { kills: 3, deaths: 4, assists: 0 }]]));
     const records = [aFakeStatRecordWith({ slot: 16, components: { 2: { a: 3, b: 4 } } })];

@@ -86,7 +86,7 @@ function incrementTimes(series: readonly CounterPoint[]): number[] {
     if (step > 0 && step <= MAX_COUNTER_STEP) {
       times.push(point.timestampMs);
     }
-    previous = Math.max(previous, point.value);
+    previous = point.value;
   }
   return times;
 }

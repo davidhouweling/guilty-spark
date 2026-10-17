@@ -2325,7 +2325,8 @@ describe("HaloFilmService replication chunks", () => {
         return new Response(JSON.stringify(metadata), { status: 200 });
       }
       const index = Number(/chunk-(\d+)\.bin/u.exec(requestUrl)?.[1]);
-      return new Response(Preconditions.checkExists(chunkBytesByIndex.get(index)), { status: 200 });
+      const bytes = chunkBytesByIndex.get(index);
+      return bytes == null ? new Response(null, { status: 404 }) : new Response(bytes, { status: 200 });
     });
     return new HaloFilmService({ env, spartanTokenProvider });
   }
@@ -2396,7 +2397,7 @@ describe("HaloFilmService replication chunks", () => {
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
 
-    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("Value cannot be null");
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("Chunk download failed with 404");
     await expect(service.getStateByte2Transitions("match-ctf")).resolves.toEqual([]);
   });
 

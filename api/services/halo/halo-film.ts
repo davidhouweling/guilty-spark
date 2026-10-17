@@ -263,20 +263,25 @@ export class HaloFilmService {
   ): AsyncGenerator<ReplicationChunkEntry> {
     const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
     const downloads = this.startChunkDownloads(matchId, filmMetadata, authResolver, chunks);
-    for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
-      const download = await Preconditions.checkExists(downloads[chunkIndex]);
-      downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
-      if ("error" in download) {
-        throw download.error;
+    try {
+      for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+        const download = await Preconditions.checkExists(downloads[chunkIndex]);
+        downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
+        if ("error" in download) {
+          throw download.error;
+        }
+        let data: Uint8Array;
+        try {
+          data = new Uint8Array(inflateSync(download.bytes));
+        } catch {
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
+          continue;
+        }
+        yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
       }
-      let data: Uint8Array;
-      try {
-        data = new Uint8Array(inflateSync(download.bytes));
-      } catch {
-        yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
-        continue;
-      }
-      yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
+    } finally {
+      // a consumer that stops early must not leave downloads and cache writes orphaned
+      await Promise.all(downloads);
     }
   }
 

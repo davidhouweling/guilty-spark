@@ -197,10 +197,13 @@ export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
   if (firstFrame == null) {
     return [];
   }
+  let originUs = firstFrame.timestampUs;
+  for (const frame of frames) {
+    originUs = frame.timestampUs < originUs ? frame.timestampUs : originUs;
+  }
   const records: StatRecord[] = [];
   for (const frame of frames) {
-    const offsetUs = frame.timestampUs > firstFrame.timestampUs ? frame.timestampUs - firstFrame.timestampUs : 0n;
-    const timestampMs = chunk.startMs + Number(offsetUs / MICROS_PER_MILLI);
+    const timestampMs = chunk.startMs + Number((frame.timestampUs - originUs) / MICROS_PER_MILLI);
     const payload = chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize);
     for (const record of scanFrameForStatRecords(payload, timestampMs)) {
       records.push(record);

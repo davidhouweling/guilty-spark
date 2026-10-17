@@ -1,6 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
-import { counterTotals } from "./stat-counters";
+import { counterTotals, isTeamSlot } from "./stat-counters";
 import type { StatRecord } from "./types";
 
 // Core stats replicated for every player regardless of mode: component 2 carries kills (A)
@@ -27,6 +27,16 @@ function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
   });
 }
 
+function playerSlotsOf(records: readonly StatRecord[]): Set<number> {
+  const slots = new Set<number>();
+  for (const record of records) {
+    if (!isTeamSlot(record.slot)) {
+      slots.add(record.slot);
+    }
+  }
+  return slots;
+}
+
 // A slot that never emitted a counter has zero of it; a slot whose counter was rejected as
 // implausible (null) cannot be matched at all.
 function totalOrZero(totals: ReadonlyMap<number, number | null>, slot: number): number | null {
@@ -44,8 +54,7 @@ export function resolveSlotIdentities(records: readonly StatRecord[], matchStats
   const lines = playerLinesOf(matchStats);
 
   const claims = new Map<number, string>();
-  const observedSlots = new Set([...kills.keys(), ...deaths.keys(), ...assists.keys()]);
-  for (const slot of observedSlots) {
+  for (const slot of playerSlotsOf(records)) {
     const slotKills = totalOrZero(kills, slot);
     const slotDeaths = totalOrZero(deaths, slot);
     const slotAssists = totalOrZero(assists, slot);
