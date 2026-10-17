@@ -32,7 +32,8 @@ function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
 
 // The record grammar's slot band (10..24) covers eight concurrent players; larger lobbies
 // would decode a credible-looking subset, so they are refused outright. A mid-match
-// substitute reuses a slot and simply fails identity resolution.
+// substitute reuses a slot; its counters then describe two players and identity resolution
+// may attribute the slot to one of them or neither.
 const MAX_SUPPORTED_PLAYERS = 8;
 
 export function assertCtfMatchSupported(matchStats: MatchStats): void {

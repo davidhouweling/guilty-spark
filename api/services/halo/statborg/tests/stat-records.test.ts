@@ -154,6 +154,17 @@ describe("scanChunkStatRecords", () => {
     ]);
   });
 
+  it("clamps a frame timestamped before the chunk's first frame to the chunk start", () => {
+    const chunk = aFakeReplicationChunkWith(
+      [
+        { timestampUs: 9_250_000n, records: [{ slot: 10, components: [{ index: 2, a: 1, b: 0 }] }] },
+        { timestampUs: 9_000_000n, records: [{ slot: 10, components: [{ index: 2, a: 2, b: 0 }] }] },
+      ],
+      { startMs: 20_000 },
+    );
+    expect(scanChunkStatRecords(chunk).map((record) => record.timestampMs)).toEqual([20_000, 20_000]);
+  });
+
   it("returns nothing for a chunk without frames", () => {
     expect(scanChunkStatRecords({ index: 1, startMs: 0, durationMs: 1, data: new Uint8Array(0) })).toEqual([]);
   });

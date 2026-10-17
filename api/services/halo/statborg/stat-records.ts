@@ -183,6 +183,8 @@ export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number
       if (decoded != null) {
         records.push(decoded.record);
         resumeBit = decoded.endBit;
+        byteIndex = Math.max(byteIndex, (resumeBit >> 3) - 1);
+        break;
       }
     }
   }
@@ -197,7 +199,8 @@ export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
   }
   const records: StatRecord[] = [];
   for (const frame of frames) {
-    const timestampMs = chunk.startMs + Number((frame.timestampUs - firstFrame.timestampUs) / MICROS_PER_MILLI);
+    const offsetUs = frame.timestampUs > firstFrame.timestampUs ? frame.timestampUs - firstFrame.timestampUs : 0n;
+    const timestampMs = chunk.startMs + Number(offsetUs / MICROS_PER_MILLI);
     const payload = chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize);
     for (const record of scanFrameForStatRecords(payload, timestampMs)) {
       records.push(record);

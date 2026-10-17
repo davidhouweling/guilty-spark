@@ -2396,7 +2396,7 @@ describe("HaloFilmService replication chunks", () => {
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
 
-    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow();
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("Value cannot be null");
     await expect(service.getStateByte2Transitions("match-ctf")).resolves.toEqual([]);
   });
 
