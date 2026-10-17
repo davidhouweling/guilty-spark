@@ -43,6 +43,12 @@ interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
 }
+export interface ReplicationChunk {
+  index: number;
+  startMs: number;
+  durationMs: number;
+  data: Uint8Array;
+}
 interface FilmAttributionData {
   attributor: WeaponAttributor;
   timeline: WeaponTimeline;
@@ -197,6 +203,27 @@ export class HaloFilmService {
     } catch {
       return [];
     }
+  }
+
+  async getReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {
+    const authResolver = this.createAuthResolver();
+    const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
+    const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
+    const perChunkBytes = await Promise.all(
+      chunks.map(async ({ chunk }) =>
+        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
+      ),
+    );
+    const result: ReplicationChunk[] = [];
+    for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+      try {
+        const data = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+        result.push({ index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data });
+      } catch {
+        // malformed chunk — skip it, callers tolerate gaps
+      }
+    }
+    return result;
   }
 
   private createAuthResolver(): () => Promise<{ spartanToken: string; clearanceToken: string }> {
