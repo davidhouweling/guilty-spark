@@ -179,9 +179,13 @@ export class HaloFilmService {
       const transitions: StateByte2Transition[] = [];
       let carriedValue: number | null = null;
       for (const chunk of chunks) {
-        const scanned = scanStateByte2Transitions(chunk.data, chunk.startMs, chunk.durationMs, carriedValue);
-        transitions.push(...scanned.transitions);
-        carriedValue = scanned.finalValue;
+        try {
+          const scanned = scanStateByte2Transitions(chunk.data, chunk.startMs, chunk.durationMs, carriedValue);
+          transitions.push(...scanned.transitions);
+          carriedValue = scanned.finalValue;
+        } catch {
+          // malformed chunk — keep scanning the rest with the carried state value
+        }
       }
       return transitions.sort((a, b) => a.timeMs - b.timeMs);
     } catch {
@@ -205,9 +209,6 @@ export class HaloFilmService {
     return this.loadReplicationChunks(matchId, filmMetadata, authResolver);
   }
 
-  // Fetches and inflates every type-2 chunk in film order; a chunk that fails to inflate is
-  // reported in skippedChunks rather than thrown so each consumer decides whether a gap is
-  // tolerable.
   private async loadReplicationChunks(
     matchId: string,
     filmMetadata: FilmMetadataResponse,

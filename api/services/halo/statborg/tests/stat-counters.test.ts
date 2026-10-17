@@ -75,6 +75,20 @@ describe("counterIncrementTimes", () => {
 });
 
 describe("counterTotals", () => {
+  it("reports the final counter value even when emissions were missed", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 4, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 15, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 16, b: 0 } } }),
+    ];
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(16);
+  });
+
+  it("ignores a slot whose first emission is beyond any plausible counter", () => {
+    const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 7000, b: 0 } } })];
+    expect(counterTotals(records, { component: 2, side: "a" }).has(10)).toBe(false);
+  });
+
   it("counts the units gained per slot", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 22: { a: 4, b: 0 } } }),

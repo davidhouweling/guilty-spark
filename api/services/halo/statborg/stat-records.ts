@@ -138,18 +138,50 @@ function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedCom
   return { components, endBit: cursor };
 }
 
+// Every record starts with the prefix bit followed by a slot of at most 24, so the ten bits
+// from the prefix read 1 then nine zeros; sliding a 24-bit window byte by byte finds those
+// candidates without a per-bit decode.
+const PREFIX_WINDOW_BITS = 10;
+const PREFIX_WINDOW_VALUE = 0b10_0000_0000;
+const PREFIX_WINDOW_MASK = (1 << PREFIX_WINDOW_BITS) - 1;
+
+function decodeRecordAt(
+  payload: Uint8Array,
+  bitPos: number,
+  timestampMs: number,
+): { record: StatRecord; endBit: number } | null {
+  const header = matchRecordHeader(payload, bitPos);
+  if (header == null) {
+    return null;
+  }
+  const { components, endBit } = decodeComponents(payload, header);
+  if (components.size === 0) {
+    return null;
+  }
+  return { record: { timestampMs, slot: header.slot, components }, endBit };
+}
+
 export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number): StatRecord[] {
   const records: StatRecord[] = [];
   const limit = payload.length * 8 - TAIL_BITS;
-  for (let bitPos = 1; bitPos < limit; bitPos++) {
-    const header = matchRecordHeader(payload, bitPos);
-    if (header == null) {
-      continue;
-    }
-    const { components, endBit } = decodeComponents(payload, header);
-    if (components.size > 0) {
-      records.push({ timestampMs, slot: header.slot, components });
-      bitPos = endBit - 1;
+  let resumeBit = 1;
+  for (let byteIndex = 0; byteIndex + 2 < payload.length; byteIndex++) {
+    const window =
+      ((payload[byteIndex] ?? 0) << 16) | ((payload[byteIndex + 1] ?? 0) << 8) | (payload[byteIndex + 2] ?? 0);
+    for (let shift = 0; shift < 8; shift++) {
+      const prefixBit = byteIndex * 8 + shift;
+      const bitPos = prefixBit + 1;
+      if (bitPos < resumeBit || bitPos >= limit) {
+        continue;
+      }
+      if (((window >>> (24 - PREFIX_WINDOW_BITS - shift)) & PREFIX_WINDOW_MASK) !== PREFIX_WINDOW_VALUE) {
+        continue;
+      }
+      const decoded = decodeRecordAt(payload, bitPos, timestampMs);
+      if (decoded != null) {
+        records.push(decoded.record);
+        resumeBit = decoded.endBit;
+      }
     }
   }
   return records;

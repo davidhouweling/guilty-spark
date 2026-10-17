@@ -42,10 +42,10 @@ function longestNonDecreasingRun(points: readonly CounterPoint[]): CounterPoint[
   for (let index = tailIndices.at(-1) ?? -1; index >= 0; index = previousIndex[index] ?? -1) {
     const point = points[index];
     if (point != null) {
-      run.unshift(point);
+      run.push(point);
     }
   }
-  return run;
+  return run.reverse();
 }
 
 function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): Map<number, CounterPoint[]> {
@@ -97,10 +97,18 @@ export function counterIncrementTimes(records: readonly StatRecord[], key: StatS
   return result;
 }
 
+// The final counter value per player slot. Unlike counterIncrementTimes this tolerates missed
+// emissions (a gap only loses event timestamps, not the total), so it is the right input for
+// matching slots against the roster.
 export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number> {
   const totals = new Map<number, number>();
-  for (const [slot, times] of counterIncrementTimes(records, key)) {
-    totals.set(slot, times.length);
+  for (const [slot, series] of counterSeriesBySlot(records, key)) {
+    const [first] = series;
+    const last = series.at(-1);
+    if (first == null || last == null || first.value > MAX_INITIAL_COUNTER) {
+      continue;
+    }
+    totals.set(slot, last.value);
   }
   return totals;
 }

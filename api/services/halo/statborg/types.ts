@@ -3,9 +3,7 @@ export interface StatValue {
   b: number;
 }
 
-// One entity record from a replication FRAME packet: the sparse set of stat components an
-// entity re-transmitted at this instant. Slots 6 and 8 are the two teams, 10..24 (even) the
-// eight players.
+// Slots 6 and 8 are the two teams, 10..24 (even) the eight players.
 export interface StatRecord {
   timestampMs: number;
   slot: number;

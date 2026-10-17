@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { walkFramePackets } from "../services/halo/statborg/bit-reader";
 
 const dir = process.argv[2] ?? ".";
 type V3 = [number, number, number];
@@ -45,18 +46,7 @@ const startMsByChunk = new Map(manifest.map((m) => [m.index, m.startMs]));
 
 function firstFrameUs(chunk: number): bigint {
   const data = readFileSync(path.join(dir, `chunk_${String(chunk).padStart(2, "0")}.bin`));
-  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  let off = 0;
-  while (off + 16 <= data.length) {
-    const typ = dv.getUint16(off, true);
-    const size = dv.getUint32(off + 4, true);
-    const us = dv.getBigUint64(off + 8, true);
-    if (typ === 0) {
-      return us;
-    }
-    off += 16 + size;
-  }
-  return 0n;
+  return walkFramePackets(new Uint8Array(data))[0]?.timestampUs ?? 0n;
 }
 const baseUs = new Map<number, bigint>();
 for (const m of manifest) {

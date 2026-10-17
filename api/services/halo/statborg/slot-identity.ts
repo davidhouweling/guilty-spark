@@ -15,8 +15,6 @@ interface PlayerLine {
   assists: number;
 }
 
-// Statborg counters are per entity for the whole match, so a player's stats are summed
-// across every team entry they accrued.
 function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
   return matchStats.Players.map((player) => {
     const line: PlayerLine = { xuid: unwrapXuid(player.PlayerId), kills: 0, deaths: 0, assists: 0 };
