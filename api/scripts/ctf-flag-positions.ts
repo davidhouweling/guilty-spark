@@ -23,7 +23,6 @@ interface NamedEv {
   timeMs: number;
   stat: string;
   xuid: string | null;
-  slot: number;
 }
 type CarriedEv = NamedEv & { xuid: string };
 interface Death {

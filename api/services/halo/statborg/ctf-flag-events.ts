@@ -1,0 +1,67 @@
+import type { MatchStats } from "halo-infinite-api";
+import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { ReplicationChunk } from "../types";
+import { resolveSlotIdentities } from "./slot-identity";
+import { counterIncrementTimes } from "./stat-counters";
+import { scanStatRecords } from "./stat-records";
+import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
+
+interface CtfStatSlot {
+  key: StatSlotKey;
+  kind: CtfFlagEventKind;
+}
+
+// Component slots are mode-specific. 21A/20B/21B/22A/23A/24A come from LevelUp's
+// disjoint-halves control (named.go); 22B and 23B were confirmed here by exact per-player
+// agreement with the API's FlagReturnersKilled and FlagSecures on match 5e3900a6.
+const CTF_STAT_SLOTS: readonly CtfStatSlot[] = [
+  { key: { component: 24, side: "a" }, kind: "steal" },
+  { key: { component: 22, side: "a" }, kind: "grab" },
+  { key: { component: 21, side: "a" }, kind: "capture" },
+  { key: { component: 20, side: "b" }, kind: "captureAssist" },
+  { key: { component: 23, side: "a" }, kind: "return" },
+  { key: { component: 23, side: "b" }, kind: "secure" },
+  { key: { component: 21, side: "b" }, kind: "carrierKilled" },
+  { key: { component: 22, side: "b" }, kind: "returnerKilled" },
+];
+
+function teamIdsByXuid(matchStats: MatchStats): Map<string, number> {
+  const teams = new Map<string, number>();
+  for (const player of matchStats.Players) {
+    teams.set(unwrapXuid(player.PlayerId), player.LastTeamId);
+  }
+  return teams;
+}
+
+function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
+  return (
+    left.timestampMs - right.timestampMs || left.xuid.localeCompare(right.xuid) || left.kind.localeCompare(right.kind)
+  );
+}
+
+export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+  const identities = resolveSlotIdentities(records, matchStats);
+  const teams = teamIdsByXuid(matchStats);
+  const events: CtfFlagEvent[] = [];
+  const unresolvedSlots = new Set<number>();
+  for (const { key, kind } of CTF_STAT_SLOTS) {
+    for (const [slot, times] of counterIncrementTimes(records, key)) {
+      const xuid = identities.get(slot);
+      const teamId = xuid != null ? teams.get(xuid) : undefined;
+      if (xuid == null || teamId == null) {
+        if (times.length > 0) {
+          unresolvedSlots.add(slot);
+        }
+        continue;
+      }
+      for (const timestampMs of times) {
+        events.push({ timestampMs, kind, xuid, teamId });
+      }
+    }
+  }
+  return { events: events.sort(compareEvents), unresolvedSlots: [...unresolvedSlots].sort((a, b) => a - b) };
+}
+
+export function buildCtfFlagEvents(chunks: readonly ReplicationChunk[], matchStats: MatchStats): CtfFlagEvents {
+  return buildCtfFlagEventsFromRecords(scanStatRecords(chunks), matchStats);
+}

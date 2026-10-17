@@ -152,6 +152,14 @@ export interface FilmMetadataCustomData {
   Chunks: FilmMetadataChunk[];
 }
 
+// A decompressed type-2 (replication) film chunk with its absolute match-time offset.
+export interface ReplicationChunk {
+  index: number;
+  startMs: number;
+  durationMs: number;
+  data: Uint8Array;
+}
+
 export interface FilmMetadataResponse {
   AssetId: string;
   BlobStoragePathPrefix: string;

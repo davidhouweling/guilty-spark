@@ -34,20 +34,17 @@ import type {
   KillRaceProgression,
   KillRaceProgressionEvent,
   KothProgression,
+  ReplicationChunk,
   StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
+import { buildCtfFlagEvents } from "./statborg/ctf-flag-events";
+import type { CtfFlagEvents } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
-}
-export interface ReplicationChunk {
-  index: number;
-  startMs: number;
-  durationMs: number;
-  data: Uint8Array;
 }
 interface FilmAttributionData {
   attributor: WeaponAttributor;
@@ -203,6 +200,11 @@ export class HaloFilmService {
     } catch {
       return [];
     }
+  }
+
+  async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
+    const chunks = await this.getReplicationChunks(matchStats.MatchId);
+    return buildCtfFlagEvents(chunks, matchStats);
   }
 
   async getReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {
