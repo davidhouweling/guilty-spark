@@ -95,9 +95,27 @@ describe("counterTotals", () => {
     expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(16);
   });
 
-  it("ignores a slot whose first emission is beyond any plausible counter", () => {
+  it("reports null for a slot whose first emission is beyond any plausible counter", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 7000, b: 0 } } })];
-    expect(counterTotals(records, { component: 2, side: "a" }).has(10)).toBe(false);
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBeNull();
+  });
+
+  it("falls back to the previous value when the last emission is an implausible jump", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 1, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 2, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 64, b: 0 } } }),
+    ];
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(2);
+  });
+
+  it("orders emissions by time before filtering", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 22: { a: 3, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 22: { a: 1, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 22: { a: 2, b: 0 } } }),
+    ];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([100, 200, 300]);
   });
 
   it("counts the units gained per slot", () => {

@@ -68,6 +68,7 @@ function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): 
   }
   const filtered = new Map<number, CounterPoint[]>();
   for (const [slot, series] of raw) {
+    series.sort((left, right) => left.timestampMs - right.timestampMs);
     filtered.set(slot, longestNonDecreasingRun(series));
   }
   return filtered;
@@ -98,16 +99,26 @@ export function counterIncrementTimes(records: readonly StatRecord[], key: StatS
   return result;
 }
 
-// final values survive missed emissions, which is why slot identity matches on them
-export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number> {
-  const totals = new Map<number, number>();
+function finalCounterValue(series: readonly CounterPoint[]): number | null {
+  const [first] = series;
+  const last = series.at(-1);
+  if (first == null || last == null || first.value > MAX_INITIAL_COUNTER) {
+    return null;
+  }
+  const beforeLast = series.at(-2);
+  if (beforeLast != null && last.value - beforeLast.value > MAX_COUNTER_STEP) {
+    return beforeLast.value;
+  }
+  return last.value;
+}
+
+// Final values survive missed emissions mid-series, which is why slot identity matches on
+// them; only a first emission beyond any plausible counter or a trailing implausible jump is
+// rejected, and such a slot reports null so callers can tell "rejected" from "never emitted".
+export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number | null> {
+  const totals = new Map<number, number | null>();
   for (const [slot, series] of counterSeriesBySlot(records, key)) {
-    const [first] = series;
-    const last = series.at(-1);
-    if (first == null || last == null || first.value > MAX_INITIAL_COUNTER) {
-      continue;
-    }
-    totals.set(slot, last.value);
+    totals.set(slot, finalCounterValue(series));
   }
   return totals;
 }

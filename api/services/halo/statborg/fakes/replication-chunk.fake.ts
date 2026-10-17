@@ -1,4 +1,5 @@
 import type { ReplicationChunk } from "../../types";
+import { PACKET_HEADER_BYTES, PACKET_TYPE_CHUNK_END, PACKET_TYPE_FRAME } from "../bit-reader";
 
 // Encodes synthetic entity records in the measured FRAME grammar (see stat-records.ts) so
 // scanner tests can assert on known slots, components and values.
@@ -21,9 +22,6 @@ export interface FrameSpec {
   records: StatRecordSpec[];
 }
 
-const PACKET_HEADER_BYTES = 16;
-const PACKET_TYPE_FRAME = 0;
-const PACKET_TYPE_CHUNK_END = 7;
 const RECORD_GAP_BITS = 8;
 
 class BitWriter {

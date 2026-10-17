@@ -51,16 +51,22 @@ describe("buildCtfFlagEventsFromRecords", () => {
     expect(unresolvedSlots).toEqual([18]);
   });
 
+  it("refuses lobbies larger than the eight-player slot band", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.Players.push(structuredClone(Preconditions.checkExists(matchStats.Players[0])));
+    expect(() => buildCtfFlagEventsFromRecords([], matchStats)).toThrow("at most 8 players");
+  });
+
   it("returns no events for an empty record set", () => {
     expect(buildCtfFlagEventsFromRecords([], aFakeCtfMatchStatsWith())).toEqual({ events: [], unresolvedSlots: [] });
   });
 });
 
 describe("buildCtfFlagEvents", () => {
-  it("refuses lobbies larger than the eight-player slot band", () => {
+  it("refuses lobbies larger than the eight-player slot band before decoding", () => {
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.Players.push(structuredClone(Preconditions.checkExists(matchStats.Players[0])));
-    expect(() => buildCtfFlagEventsFromRecords([], matchStats)).toThrow("at most 8 players");
+    expect(() => buildCtfFlagEvents([], matchStats)).toThrow("at most 8 players");
   });
 
   it("decodes flag events end to end from encoded replication chunks", () => {

@@ -65,6 +65,15 @@ describe("resolveSlotIdentities", () => {
     expect(resolveSlotIdentities(records, matchStats).get(18)).toBe("0900000000000000");
   });
 
+  it("leaves a slot unresolved when its kill counter was rejected as implausible", () => {
+    const matchStats = aFakeCtfMatchStatsWith(new Map([["0900000000000000", { kills: 0, deaths: 0, assists: 6 }]]));
+    const records = [
+      aFakeStatRecordWith({ slot: 18, components: { 2: { a: 7000, b: 0 } } }),
+      aFakeStatRecordWith({ slot: 18, components: { 3: { a: 6, b: 0 } } }),
+    ];
+    expect(resolveSlotIdentities(records, matchStats).has(18)).toBe(false);
+  });
+
   it("treats a missing assists component as zero assists", () => {
     const matchStats = aFakeCtfMatchStatsWith(new Map([["0500000000000000", { kills: 3, deaths: 4, assists: 0 }]]));
     const records = [aFakeStatRecordWith({ slot: 16, components: { 2: { a: 3, b: 4 } } })];

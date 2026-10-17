@@ -187,7 +187,7 @@ export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number
   return records;
 }
 
-function scanChunk(chunk: ReplicationChunk): StatRecord[] {
+export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
   const frames = walkFramePackets(chunk.data);
   const [firstFrame] = frames;
   if (firstFrame == null) {
@@ -204,12 +204,16 @@ function scanChunk(chunk: ReplicationChunk): StatRecord[] {
   return records;
 }
 
+export function sortStatRecords(records: StatRecord[]): StatRecord[] {
+  return records.sort((left, right) => left.timestampMs - right.timestampMs || left.slot - right.slot);
+}
+
 export function scanStatRecords(chunks: readonly ReplicationChunk[]): StatRecord[] {
   const records: StatRecord[] = [];
   for (const chunk of chunks) {
-    for (const record of scanChunk(chunk)) {
+    for (const record of scanChunkStatRecords(chunk)) {
       records.push(record);
     }
   }
-  return records.sort((left, right) => left.timestampMs - right.timestampMs || left.slot - right.slot);
+  return sortStatRecords(records);
 }

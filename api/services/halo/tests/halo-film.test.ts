@@ -2399,6 +2399,6 @@ describe("HaloFilmService replication chunks", () => {
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
 
-    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("malformed replication chunks: 2");
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("malformed replication chunk: 2");
   });
 });

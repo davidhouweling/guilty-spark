@@ -1,6 +1,6 @@
-const PACKET_HEADER_BYTES = 16;
-const PACKET_TYPE_FRAME = 0;
-const PACKET_TYPE_CHUNK_END = 7;
+export const PACKET_HEADER_BYTES = 16;
+export const PACKET_TYPE_FRAME = 0;
+export const PACKET_TYPE_CHUNK_END = 7;
 
 export interface FramePacket {
   timestampUs: bigint;

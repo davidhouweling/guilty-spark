@@ -167,12 +167,14 @@ describe("getTeamPlayersFromMatches", () => {
 
 describe("getTeamIdsByXuid", () => {
   it("maps each player's unwrapped xuid to their last team", () => {
-    const teamIds = getTeamIdsByXuid({
-      Players: [
-        { PlayerId: "xuid(1000000000000001)", LastTeamId: 0 },
-        { PlayerId: "xuid(1000000000000002)", LastTeamId: 1 },
-      ] as never,
-    });
+    const teamIds = getTeamIdsByXuid(
+      aFakeMatchStatsWith({
+        Players: [
+          aFakePlayerWith({ PlayerId: "xuid(1000000000000001)", LastTeamId: 0 }),
+          aFakePlayerWith({ PlayerId: "xuid(1000000000000002)", LastTeamId: 1 }),
+        ],
+      }),
+    );
     expect([...teamIds]).toEqual([
       ["1000000000000001", 0],
       ["1000000000000002", 1],

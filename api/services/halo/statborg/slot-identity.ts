@@ -27,6 +27,12 @@ function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
   });
 }
 
+// A slot that never emitted a counter has zero of it; a slot whose counter was rejected as
+// implausible (null) cannot be matched at all.
+function totalOrZero(totals: ReadonlyMap<number, number | null>, slot: number): number | null {
+  return totals.has(slot) ? (totals.get(slot) ?? null) : 0;
+}
+
 // Resolves which player each statborg entity slot belongs to by matching the slot's final
 // (kills, deaths, assists) against the match roster. A slot whose triplet fits zero or several
 // players stays unresolved, as does a player claimed by several slots: attributing events to
@@ -40,11 +46,14 @@ export function resolveSlotIdentities(records: readonly StatRecord[], matchStats
   const claims = new Map<number, string>();
   const observedSlots = new Set([...kills.keys(), ...deaths.keys(), ...assists.keys()]);
   for (const slot of observedSlots) {
+    const slotKills = totalOrZero(kills, slot);
+    const slotDeaths = totalOrZero(deaths, slot);
+    const slotAssists = totalOrZero(assists, slot);
+    if (slotKills == null || slotDeaths == null || slotAssists == null) {
+      continue;
+    }
     const candidates = lines.filter(
-      (line) =>
-        line.kills === (kills.get(slot) ?? 0) &&
-        line.deaths === (deaths.get(slot) ?? 0) &&
-        line.assists === (assists.get(slot) ?? 0),
+      (line) => line.kills === slotKills && line.deaths === slotDeaths && line.assists === slotAssists,
     );
     const [candidate] = candidates;
     if (candidates.length === 1 && candidate != null) {

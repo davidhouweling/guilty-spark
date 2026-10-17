@@ -35,12 +35,16 @@ function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
 // credible-looking subset, so they are refused outright.
 const MAX_SUPPORTED_PLAYERS = 8;
 
-export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+export function assertCtfLobbySupported(matchStats: MatchStats): void {
   if (matchStats.Players.length > MAX_SUPPORTED_PLAYERS) {
     throw new Error(
       `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} has ${String(matchStats.Players.length)}`,
     );
   }
+}
+
+export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+  assertCtfLobbySupported(matchStats);
   const identities = resolveSlotIdentities(records, matchStats);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];

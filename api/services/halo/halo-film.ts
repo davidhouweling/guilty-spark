@@ -1,6 +1,7 @@
 import { inflateSync } from "node:zlib";
 import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { wrapXuid, unwrapXuid, getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
 import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
@@ -34,24 +35,23 @@ import type {
   KillRaceProgression,
   KillRaceProgressionEvent,
   KothProgression,
+  ReplicationChunk,
   ReplicationChunkLoad,
+  SkippedReplicationChunk,
   StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
-import { buildCtfFlagEvents } from "./statborg/ctf-flag-events";
-import type { CtfFlagEvents } from "./statborg/types";
+import { assertCtfLobbySupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
+import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
 }
-interface ReplicationChunkEntry {
-  index: number;
-  startMs: number;
-  durationMs: number;
-  data: Uint8Array | null;
-}
+type ReplicationChunkEntry =
+  { kind: "chunk"; chunk: ReplicationChunk } | { kind: "skipped"; skipped: SkippedReplicationChunk };
 interface FilmAttributionData {
   attributor: WeaponAttributor;
   timeline: WeaponTimeline;
@@ -182,11 +182,12 @@ export class HaloFilmService {
       const transitions: StateByte2Transition[] = [];
       let carriedValue: number | null = null;
       for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
-        if (entry.data == null) {
+        if (entry.kind !== "chunk") {
           continue;
         }
         try {
-          const scanned = scanStateByte2Transitions(entry.data, entry.startMs, entry.durationMs, carriedValue);
+          const { data, startMs, durationMs } = entry.chunk;
+          const scanned = scanStateByte2Transitions(data, startMs, durationMs, carriedValue);
           transitions.push(...scanned.transitions);
           carriedValue = scanned.finalValue;
         } catch {
@@ -200,27 +201,44 @@ export class HaloFilmService {
   }
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
-    const { chunks, skippedChunks } = await this.getReplicationChunks(matchStats.MatchId);
-    if (skippedChunks.length > 0) {
-      throw new Error(
-        `Film for match ${matchStats.MatchId} has malformed replication chunks: ${skippedChunks.map((chunk) => chunk.index).join(", ")}`,
-      );
+    assertCtfLobbySupported(matchStats);
+    const records: StatRecord[] = [];
+    for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
+      switch (entry.kind) {
+        case "chunk": {
+          for (const record of scanChunkStatRecords(entry.chunk)) {
+            records.push(record);
+          }
+          break;
+        }
+        case "skipped": {
+          throw new Error(
+            `Film for match ${matchStats.MatchId} has a malformed replication chunk: ${String(entry.skipped.index)}`,
+          );
+        }
+        default: {
+          throw new UnreachableError(entry);
+        }
+      }
     }
-    return buildCtfFlagEvents(chunks, matchStats);
+    return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
   async getReplicationChunks(matchId: string): Promise<ReplicationChunkLoad> {
     const load: ReplicationChunkLoad = { chunks: [], skippedChunks: [] };
     for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
-      if (entry.data == null) {
-        load.skippedChunks.push({ index: entry.index, startMs: entry.startMs });
-      } else {
-        load.chunks.push({
-          index: entry.index,
-          startMs: entry.startMs,
-          durationMs: entry.durationMs,
-          data: entry.data,
-        });
+      switch (entry.kind) {
+        case "chunk": {
+          load.chunks.push(entry.chunk);
+          break;
+        }
+        case "skipped": {
+          load.skippedChunks.push(entry.skipped);
+          break;
+        }
+        default: {
+          throw new UnreachableError(entry);
+        }
       }
     }
     return load;
@@ -246,18 +264,13 @@ export class HaloFilmService {
       ),
     );
     for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
-      const entry: ReplicationChunkEntry = {
-        index: chunk.Index,
-        startMs,
-        durationMs: chunk.DurationMilliseconds,
-        data: null,
-      };
       try {
-        entry.data = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+        const data = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
+        yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
       } catch {
-        // malformed chunk — yielded without data so consumers can decide whether a gap is tolerable
+        // malformed chunk — reported so each consumer decides whether a gap is tolerable
+        yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
       }
-      yield entry;
     }
   }
 
@@ -373,19 +386,21 @@ export class HaloFilmService {
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
     for await (const entry of this.iterateReplicationChunks(matchId, filmMetadata, authResolver)) {
-      chunkTimings.push({ chunkIndex: entry.index, startMs: entry.startMs });
-      if (entry.data == null) {
+      if (entry.kind !== "chunk") {
+        chunkTimings.push({ chunkIndex: entry.skipped.index, startMs: entry.skipped.startMs });
         continue;
       }
-      for (const ev of scanFireEvents(entry.data, entry.startMs, entry.durationMs)) {
+      const { index, startMs, durationMs, data } = entry.chunk;
+      chunkTimings.push({ chunkIndex: index, startMs });
+      for (const ev of scanFireEvents(data, startMs, durationMs)) {
         allFireEvents.push(ev);
       }
       const chunkState = new Map<number, { weaponId: string; name: string }>();
-      for (const ev of scanFormulaAEvents(entry.data)) {
+      for (const ev of scanFormulaAEvents(data)) {
         chunkState.set(ev.playerIndex, { weaponId: weaponIdToHex(ev.weaponId), name: ev.weaponName });
       }
       if (chunkState.size > 0) {
-        timeline.set(entry.index, chunkState);
+        timeline.set(index, chunkState);
       }
     }
     if (chunkTimings.length === 0) {
