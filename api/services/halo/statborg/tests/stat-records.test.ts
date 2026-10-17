@@ -58,6 +58,20 @@ describe("scanFrameForStatRecords", () => {
     expect(scanFrameForStatRecords(payload, 0).map((record) => record.slot)).toEqual([10, 12]);
   });
 
+  it("rejects a record whose declared components do not all decode", () => {
+    const payload = buildFramePayload([
+      {
+        slot: 10,
+        components: [
+          { index: 2, a: 1, b: 1 },
+          { index: 3, a: 2, b: 2 },
+        ],
+      },
+    ]);
+    const truncated = payload.subarray(0, Math.ceil((1 + 14 + 2 + 1 + 3 + 12 + 10 + 10 + 10 + 2 + 4) / 8));
+    expect(scanFrameForStatRecords(truncated, 0)).toEqual([]);
+  });
+
   it("ignores records with odd or out-of-range slots", () => {
     const payload = buildFramePayload([
       { slot: 11, components: [{ index: 2, a: 1, b: 1 }] },

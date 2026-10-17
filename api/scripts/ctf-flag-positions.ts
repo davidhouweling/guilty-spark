@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { walkFramePackets } from "../services/halo/statborg/bit-reader";
+import { fmtMs } from "./script-services";
 
 const dir = process.argv[2] ?? ".";
 type V3 = [number, number, number];
@@ -396,14 +397,12 @@ for (const flagTeam of [0, 1]) {
   }
 }
 episodes.sort((a, b) => a.startMs - b.startMs);
-const fmt = (ms: number): string =>
-  `${String(Math.floor(ms / 60000))}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 for (const ep of episodes) {
   const max = Math.max(...ep.samples.map((s) => s.progress), 0);
   console.log(
-    `\nFlag of T${String(ep.flagTeam)} taken by T${String(ep.attackTeam)}: ${fmt(ep.startMs)} -> ${fmt(ep.endMs)} end=${ep.end} maxProgress=${(max * 100).toFixed(0)}%`,
+    `\nFlag of T${String(ep.flagTeam)} taken by T${String(ep.attackTeam)}: ${fmtMs(ep.startMs)} -> ${fmtMs(ep.endMs)} end=${ep.end} maxProgress=${(max * 100).toFixed(0)}%`,
   );
-  console.log(`  markers: ${ep.markers.map((m) => `${fmt(m.ms)} ${m.kind}(${m.who})`).join(", ")}`);
+  console.log(`  markers: ${ep.markers.map((m) => `${fmtMs(m.ms)} ${m.kind}(${m.who})`).join(", ")}`);
   const spark = ep.samples
     .filter((_, k) => k % 4 === 0)
     .map((s) => "▁▂▃▄▅▆▇█"[Math.min(7, Math.floor(s.progress * 8))])

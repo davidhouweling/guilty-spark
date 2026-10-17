@@ -204,9 +204,11 @@ export class HaloFilmService {
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
+    let chunkCount = 0;
     for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
       switch (entry.kind) {
         case "chunk": {
+          chunkCount += 1;
           for (const record of scanChunkStatRecords(entry.chunk)) {
             records.push(record);
           }
@@ -221,6 +223,9 @@ export class HaloFilmService {
           throw new UnreachableError(entry);
         }
       }
+    }
+    if (chunkCount === 0) {
+      throw new Error(`Film for match ${matchStats.MatchId} has no replication chunks`);
     }
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }

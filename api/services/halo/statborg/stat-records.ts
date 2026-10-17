@@ -131,7 +131,8 @@ function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedCom
   for (const index of header.componentIndices) {
     const component = decodeComponent(payload, cursor);
     if (component == null) {
-      break;
+      // a record whose declared components do not all decode is a chance match, not a record
+      return { components: new Map(), endBit: firstComponentBit };
     }
     components.set(index, component.value);
     cursor += component.bitsConsumed;

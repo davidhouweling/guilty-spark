@@ -2384,6 +2384,15 @@ describe("HaloFilmService replication chunks", () => {
     expect(unresolvedSlots).toEqual([]);
   });
 
+  it("refuses to build flag events when the film has no replication chunks", async () => {
+    const metadata = aChunkMetadata([{ Index: 3, ChunkType: 3, DurationMilliseconds: 500 }]);
+    const service = await aServiceWithFilm(metadata, new Map());
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("has no replication chunks");
+  });
+
   it("refuses to build flag events when a replication chunk is malformed", async () => {
     const metadata = aChunkMetadata([
       { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },

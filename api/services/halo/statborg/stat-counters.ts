@@ -75,18 +75,17 @@ function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): 
   return filtered;
 }
 
+// Every emission marks the instant its counter changed, so exactly one unit is dated per
+// plausible increase; units the emission skipped over (missed frames, a late first
+// replication) get no timestamp rather than a fabricated one.
 function incrementTimes(series: readonly CounterPoint[]): number[] {
   const times: number[] = [];
   let previous = 0;
   for (const point of series) {
-    const implausibleStep = point.value - previous > MAX_COUNTER_STEP;
-    if (!implausibleStep) {
-      for (; previous < point.value; previous++) {
-        times.push(point.timestampMs);
-      }
+    const step = point.value - previous;
+    if (step > 0 && step <= MAX_COUNTER_STEP) {
+      times.push(point.timestampMs);
     }
-    // an implausible step is either a parasite or missed emissions: the units it spans get no
-    // timestamp, but later increments resume from the new value
     previous = Math.max(previous, point.value);
   }
   return times;
@@ -100,17 +99,31 @@ export function counterIncrementTimes(records: readonly StatRecord[], key: StatS
   return result;
 }
 
+// A jump larger than a plausible step is kept only when the series keeps climbing after it
+// (missed emissions), and rejected when it merely persists or ends the series (a parasite).
 function finalCounterValue(series: readonly CounterPoint[]): number | null {
   const [first] = series;
-  const last = series.at(-1);
-  if (first == null || last == null || first.value > MAX_INITIAL_COUNTER) {
+  if (first == null || first.value > MAX_INITIAL_COUNTER) {
     return null;
   }
-  const beforeLast = series.at(-2);
-  if (beforeLast != null && last.value - beforeLast.value > MAX_COUNTER_STEP) {
-    return beforeLast.value;
+  let total = first.value;
+  for (const [index, point] of series.entries()) {
+    if (index === 0) {
+      continue;
+    }
+    const step = point.value - total;
+    if (step <= MAX_COUNTER_STEP) {
+      total = point.value;
+      continue;
+    }
+    const next = series[index + 1];
+    const continues = next != null && next.value > point.value && next.value - point.value <= MAX_COUNTER_STEP;
+    if (!continues) {
+      return total;
+    }
+    total = point.value;
   }
-  return last.value;
+  return total;
 }
 
 // Final values survive missed emissions mid-series, which is why slot identity matches on

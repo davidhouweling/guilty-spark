@@ -5,12 +5,14 @@ import { counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counte
 const GRABS = { component: 22, side: "a" } as const;
 
 describe("counterIncrementTimes", () => {
-  it("emits one timestamp per unit gained, at the emission that raised the counter", () => {
+  it("emits one timestamp per emission that raised the counter", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 1000, slot: 10, components: { 22: { a: 1, b: 0 } } }),
-      aFakeStatRecordWith({ timestampMs: 2500, slot: 10, components: { 22: { a: 3, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 2500, slot: 10, components: { 22: { a: 2, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 2600, slot: 10, components: { 22: { a: 2, b: 1 } } }),
+      aFakeStatRecordWith({ timestampMs: 4000, slot: 10, components: { 22: { a: 3, b: 1 } } }),
     ];
-    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([1000, 2500, 2500]);
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([1000, 2500, 4000]);
   });
 
   it("keeps slots independent and ignores team slots", () => {
@@ -21,12 +23,12 @@ describe("counterIncrementTimes", () => {
     ];
     const times = counterIncrementTimes(records, GRABS);
     expect([...times.keys()]).toEqual([10, 12]);
-    expect(times.get(12)).toEqual([300, 300]);
+    expect(times.get(12)).toEqual([300]);
   });
 
   it("reads the requested side of the component", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 23: { a: 0, b: 2 } } })];
-    expect(counterIncrementTimes(records, { component: 23, side: "b" }).get(10)).toEqual([100, 100]);
+    expect(counterIncrementTimes(records, { component: 23, side: "b" }).get(10)).toEqual([100]);
     expect(counterIncrementTimes(records, { component: 23, side: "a" }).get(10)).toEqual([]);
   });
 
@@ -69,9 +71,9 @@ describe("counterIncrementTimes", () => {
     expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([100, 200, 400, 500]);
   });
 
-  it("dates units gained before the first emission to that emission", () => {
+  it("dates only the unit that triggered a first emission above one", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 5, b: 0 } } })];
-    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([900, 900, 900, 900, 900]);
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([900]);
   });
 
   it("fabricates no timestamps for a first emission beyond a plausible step", () => {
@@ -101,6 +103,16 @@ describe("counterTotals", () => {
   it("reports null for a slot whose first emission is beyond any plausible counter", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 7000, b: 0 } } })];
     expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBeNull();
+  });
+
+  it("rejects a parasite that persists through the last emissions", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 1, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 2, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 64, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 400, slot: 10, components: { 2: { a: 64, b: 0 } } }),
+    ];
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(2);
   });
 
   it("falls back to the previous value when the last emission is an implausible jump", () => {
