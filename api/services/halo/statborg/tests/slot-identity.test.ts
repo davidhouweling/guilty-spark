@@ -41,6 +41,24 @@ describe("resolveSlotIdentities", () => {
     expect(identities.size).toBe(0);
   });
 
+  it("sums a player's stats across every team entry", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    const player = matchStats.Players.find((candidate) => candidate.PlayerId === "xuid(0100000000000000)");
+    const firstEntry = player?.PlayerTeamStats[0];
+    if (player == null || firstEntry == null) {
+      throw new Error("fixture player missing");
+    }
+    player.PlayerTeamStats.push({
+      ...structuredClone(firstEntry),
+      TeamId: 1,
+      Stats: {
+        ...structuredClone(firstEntry.Stats),
+        CoreStats: { ...firstEntry.Stats.CoreStats, Kills: 4, Deaths: 1, Assists: 0 },
+      },
+    });
+    expect(resolveSlotIdentities(coreStatsRecords(10, 20, 18, 12), matchStats).get(10)).toBe("0100000000000000");
+  });
+
   it("treats a missing assists component as zero assists", () => {
     const matchStats = aFakeCtfMatchStatsWith(new Map([["0500000000000000", { kills: 3, deaths: 4, assists: 0 }]]));
     const records = [aFakeStatRecordWith({ slot: 16, components: { 2: { a: 3, b: 4 } } })];

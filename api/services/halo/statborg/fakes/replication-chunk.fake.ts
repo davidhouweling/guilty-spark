@@ -6,6 +6,9 @@ export interface StatComponentSpec {
   index: number;
   a: number;
   b: number;
+  // conditional values gated by the component's two flag bits
+  conditionalA?: number | undefined;
+  conditionalB?: number | undefined;
 }
 
 export interface StatRecordSpec {
@@ -63,7 +66,14 @@ function writeRecord(writer: BitWriter, record: StatRecordSpec): void {
     writer.write(0, 5);
     writer.writeSigned(component.a);
     writer.writeSigned(component.b);
-    writer.write(0, 2);
+    writer.write(component.conditionalA == null ? 0 : 1, 1);
+    writer.write(component.conditionalB == null ? 0 : 1, 1);
+    if (component.conditionalA != null) {
+      writer.writeSigned(component.conditionalA);
+    }
+    if (component.conditionalB != null) {
+      writer.writeSigned(component.conditionalB);
+    }
   }
   writer.write(0, RECORD_GAP_BITS);
 }
@@ -102,7 +112,7 @@ export function buildReplicationChunkBytes(frames: readonly FrameSpec[]): Uint8A
   return bytes;
 }
 
-export function aReplicationChunkWith(
+export function aFakeReplicationChunkWith(
   frames: readonly FrameSpec[],
   overrides: Partial<Omit<ReplicationChunk, "data">> = {},
 ): ReplicationChunk {

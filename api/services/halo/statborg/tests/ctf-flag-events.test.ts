@@ -3,7 +3,7 @@ import { buildCtfFlagEvents, buildCtfFlagEventsFromRecords } from "../ctf-flag-e
 import { aFakeCtfMatchStatsWith } from "../fakes/ctf-match-stats.fake";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
 import type { StatRecord } from "../types";
-import { aReplicationChunkWith } from "./stat-record-builder";
+import { aFakeReplicationChunkWith } from "../fakes/replication-chunk.fake";
 
 // fixture roster: 0100… (team 0) = 16/17/12, 0400… (team 1) = 19/16/6
 function identityRecords(slot: number, kills: number, deaths: number, assists: number): StatRecord[] {
@@ -57,7 +57,7 @@ describe("buildCtfFlagEventsFromRecords", () => {
 
 describe("buildCtfFlagEvents", () => {
   it("decodes flag events end to end from encoded replication chunks", () => {
-    const chunk = aReplicationChunkWith(
+    const chunk = aFakeReplicationChunkWith(
       [
         {
           timestampUs: 1_000_000n,

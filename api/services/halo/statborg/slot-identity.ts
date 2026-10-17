@@ -15,18 +15,18 @@ interface PlayerLine {
   assists: number;
 }
 
+// Statborg counters are per entity for the whole match, so a player's stats are summed
+// across every team entry they accrued.
 function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
-  const lines: PlayerLine[] = [];
-  for (const player of matchStats.Players) {
-    const teamStats =
-      player.PlayerTeamStats.find((stats) => stats.TeamId === player.LastTeamId) ?? player.PlayerTeamStats[0];
-    if (teamStats == null) {
-      continue;
+  return matchStats.Players.map((player) => {
+    const line: PlayerLine = { xuid: unwrapXuid(player.PlayerId), kills: 0, deaths: 0, assists: 0 };
+    for (const teamStats of player.PlayerTeamStats) {
+      line.kills += teamStats.Stats.CoreStats.Kills;
+      line.deaths += teamStats.Stats.CoreStats.Deaths;
+      line.assists += teamStats.Stats.CoreStats.Assists;
     }
-    const { Kills, Deaths, Assists } = teamStats.Stats.CoreStats;
-    lines.push({ xuid: unwrapXuid(player.PlayerId), kills: Kills, deaths: Deaths, assists: Assists });
-  }
-  return lines;
+    return line;
+  });
 }
 
 // Resolves which player each statborg entity slot belongs to by matching the slot's final

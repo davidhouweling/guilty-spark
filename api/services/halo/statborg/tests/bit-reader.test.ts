@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readBitsBE, walkFramePackets } from "../bit-reader";
-import { buildReplicationChunkBytes } from "./stat-record-builder";
+import { buildReplicationChunkBytes } from "../fakes/replication-chunk.fake";
 
 describe("readBitsBE", () => {
   it("reads big-endian bit fields across byte boundaries", () => {

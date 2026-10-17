@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scanFrameForStatRecords, scanStatRecords } from "../stat-records";
-import { aReplicationChunkWith, buildFramePayload } from "./stat-record-builder";
+import { aFakeReplicationChunkWith, buildFramePayload } from "../fakes/replication-chunk.fake";
 
 describe("scanFrameForStatRecords", () => {
   it("decodes slot, component indices and both values of a record", () => {
@@ -35,6 +35,29 @@ describe("scanFrameForStatRecords", () => {
     expect(scanFrameForStatRecords(payload, 0)[0]?.components.get(1)).toEqual({ a: -115, b: 70_000 });
   });
 
+  it("consumes flagged conditional values so the following component still decodes", () => {
+    const payload = buildFramePayload([
+      {
+        slot: 10,
+        components: [
+          { index: 1, a: 0, b: 2075, conditionalA: 300, conditionalB: -5 },
+          { index: 2, a: 17, b: 12 },
+        ],
+      },
+    ]);
+    const [record] = scanFrameForStatRecords(payload, 0);
+    expect(record?.components.get(1)).toEqual({ a: 0, b: 2075 });
+    expect(record?.components.get(2)).toEqual({ a: 17, b: 12 });
+  });
+
+  it("decodes consecutive records without re-matching inside a decoded record", () => {
+    const payload = buildFramePayload([
+      { slot: 10, components: [{ index: 2, a: 1, b: 1 }] },
+      { slot: 12, components: [{ index: 2, a: 2, b: 2 }] },
+    ]);
+    expect(scanFrameForStatRecords(payload, 0).map((record) => record.slot)).toEqual([10, 12]);
+  });
+
   it("ignores records with odd or out-of-range slots", () => {
     const payload = buildFramePayload([
       { slot: 11, components: [{ index: 2, a: 1, b: 1 }] },
@@ -52,7 +75,7 @@ describe("scanFrameForStatRecords", () => {
 
 describe("scanStatRecords", () => {
   it("dates records from the chunk start plus the frame offset from the first frame", () => {
-    const chunk = aReplicationChunkWith(
+    const chunk = aFakeReplicationChunkWith(
       [
         { timestampUs: 9_000_000n, records: [{ slot: 10, components: [{ index: 2, a: 1, b: 0 }] }] },
         { timestampUs: 9_250_000n, records: [{ slot: 10, components: [{ index: 2, a: 2, b: 0 }] }] },
@@ -63,14 +86,14 @@ describe("scanStatRecords", () => {
   });
 
   it("merges chunks in timestamp order", () => {
-    const later = aReplicationChunkWith(
+    const later = aFakeReplicationChunkWith(
       [{ timestampUs: 1n, records: [{ slot: 10, components: [{ index: 2, a: 5, b: 0 }] }] }],
       {
         index: 2,
         startMs: 20_000,
       },
     );
-    const earlier = aReplicationChunkWith(
+    const earlier = aFakeReplicationChunkWith(
       [{ timestampUs: 1n, records: [{ slot: 12, components: [{ index: 2, a: 1, b: 0 }] }] }],
       {
         index: 1,

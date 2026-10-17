@@ -109,14 +109,22 @@ function matchRecordHeader(payload: Uint8Array, bitPos: number): RecordHeader | 
   return { slot, componentIndices, firstComponentBit: indicesStart + COMPONENT_INDEX_BITS * componentCount };
 }
 
-function decodeComponents(payload: Uint8Array, header: RecordHeader): Map<number, StatValue> {
+interface DecodedComponents {
+  components: Map<number, StatValue>;
+  endBit: number;
+}
+
+// Only the first component's two zero headers are enforced: measured at 99.1% of real
+// components, which is enough to reject chance header matches without dropping the real
+// records whose later components carry a non-zero header.
+function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedComponents {
   const components = new Map<number, StatValue>();
   const { firstComponentBit } = header;
   if (
     readBitsBE(payload, firstComponentBit, COMPONENT_HEADER_BITS) !== 0 ||
     readBitsBE(payload, firstComponentBit + COMPONENT_HEADER_BITS, COMPONENT_HEADER_BITS) !== 0
   ) {
-    return components;
+    return { components, endBit: firstComponentBit };
   }
   let cursor = firstComponentBit;
   for (const index of header.componentIndices) {
@@ -127,7 +135,7 @@ function decodeComponents(payload: Uint8Array, header: RecordHeader): Map<number
     components.set(index, component.value);
     cursor += component.bitsConsumed;
   }
-  return components;
+  return { components, endBit: cursor };
 }
 
 export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number): StatRecord[] {
@@ -138,9 +146,10 @@ export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number
     if (header == null) {
       continue;
     }
-    const components = decodeComponents(payload, header);
+    const { components, endBit } = decodeComponents(payload, header);
     if (components.size > 0) {
       records.push({ timestampMs, slot: header.slot, components });
+      bitPos = endBit - 1;
     }
   }
   return records;

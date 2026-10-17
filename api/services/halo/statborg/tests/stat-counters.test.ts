@@ -53,9 +53,19 @@ describe("counterIncrementTimes", () => {
   it("ignores a trailing parasite jump larger than any real counter step", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 22: { a: 1, b: 0 } } }),
-      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 22: { a: 5000, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 22: { a: 64, b: 0 } } }),
     ];
     expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([100]);
+  });
+
+  it("dates units gained before the first emission to that emission", () => {
+    const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 12, b: 0 } } })];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toHaveLength(12);
+  });
+
+  it("ignores a first emission beyond any plausible counter", () => {
+    const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 5000, b: 0 } } })];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([]);
   });
 
   it("returns an empty map when no record carries the component", () => {

@@ -160,6 +160,16 @@ export interface ReplicationChunk {
   data: Uint8Array;
 }
 
+export interface SkippedReplicationChunk {
+  index: number;
+  startMs: number;
+}
+
+export interface ReplicationChunkLoad {
+  chunks: ReplicationChunk[];
+  skippedChunks: SkippedReplicationChunk[];
+}
+
 export interface FilmMetadataResponse {
   AssetId: string;
   BlobStoragePathPrefix: string;

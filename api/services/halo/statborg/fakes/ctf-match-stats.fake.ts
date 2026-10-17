@@ -12,8 +12,7 @@ export interface CtfPlayerOverride {
 // The CTF fixture has eight players with distinct (kills, deaths, assists) triplets; overrides
 // adjust individual players (by unwrapped xuid) to build ambiguous rosters.
 export function aFakeCtfMatchStatsWith(overridesByXuid = new Map<string, CtfPlayerOverride>()): MatchStats {
-  const base = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
-  const match = structuredClone(base);
+  const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
   for (const player of match.Players) {
     const override = overridesByXuid.get(unwrapXuid(player.PlayerId));
     if (override == null) {

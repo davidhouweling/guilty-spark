@@ -10,6 +10,8 @@ import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+import { aFakeCtfMatchStatsWith } from "../statborg/fakes/ctf-match-stats.fake";
+import { buildReplicationChunkBytes } from "../statborg/fakes/replication-chunk.fake";
 import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
 
 interface CacheContainer {
@@ -2278,5 +2280,125 @@ describe("HaloFilmService", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(callsAfterFirst).toBeGreaterThan(0);
     });
+  });
+});
+
+describe("HaloFilmService replication chunks", () => {
+  beforeEach(() => {
+    installInMemoryDefaultCache();
+  });
+
+  afterEach(() => {
+    restoreDefaultCache();
+    vi.restoreAllMocks();
+  });
+
+  function aChunkMetadata(chunks: { Index: number; ChunkType: number; DurationMilliseconds: number }[]): unknown {
+    return {
+      AssetId: "asset-id",
+      BlobStoragePathPrefix: "https://blob.example/",
+      CustomData: {
+        MatchId: "match-ctf",
+        FilmMajorVersion: 42,
+        FilmLength: 600,
+        Chunks: chunks.map((chunk) => ({
+          ...chunk,
+          ChunkSize: 1,
+          FileRelativePath: `/chunk-${String(chunk.Index)}.bin`,
+        })),
+      },
+    };
+  }
+
+  async function aServiceWithFilm(
+    metadata: unknown,
+    chunkBytesByIndex: Map<number, Uint8Array>,
+  ): Promise<HaloFilmService> {
+    const env = aFakeCacheBackedEnvWith();
+    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService: aFakeXboxServiceWith({ env }) });
+    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
+    await env.APP_DATA.put("film:clearance", "test-clearance-token");
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
+      await Promise.resolve();
+      const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (requestUrl.includes("/spectate")) {
+        return new Response(JSON.stringify(metadata), { status: 200 });
+      }
+      const index = Number(/chunk-(\d+)\.bin/u.exec(requestUrl)?.[1]);
+      return new Response(Preconditions.checkExists(chunkBytesByIndex.get(index)), { status: 200 });
+    });
+    return new HaloFilmService({ env, spartanTokenProvider });
+  }
+
+  const identityFrames = [
+    {
+      timestampUs: 1_000_000n,
+      records: [
+        { slot: 10, components: [{ index: 2, a: 16, b: 17 }] },
+        { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+      ],
+    },
+    { timestampUs: 3_500_000n, records: [{ slot: 10, components: [{ index: 24, a: 1, b: 0 }] }] },
+  ];
+
+  it("inflates type-2 chunks with start offsets accumulated across every chunk type and reports malformed chunks", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 2, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 3, ChunkType: 3, DurationMilliseconds: 500 },
+    ]);
+    const encoded = buildReplicationChunkBytes(identityFrames);
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([
+        [1, deflateSync(encoded)],
+        [2, Uint8Array.of(1, 2, 3)],
+      ]),
+    );
+
+    const load = await service.getReplicationChunks("match-ctf");
+
+    expect(load.chunks.map(({ index, startMs, durationMs }) => ({ index, startMs, durationMs }))).toEqual([
+      { index: 1, startMs: 1000, durationMs: 20_000 },
+    ]);
+    expect(load.chunks[0]?.data).toEqual(new Uint8Array(encoded));
+    expect(load.skippedChunks).toEqual([{ index: 2, startMs: 21_000 }]);
+  });
+
+  it("decodes flag events from the fetched film, dated from the chunk start offset", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([[1, deflateSync(buildReplicationChunkBytes(identityFrames))]]),
+    );
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
+
+    expect(events).toEqual([{ timestampMs: 3500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
+    expect(unresolvedSlots).toEqual([]);
+  });
+
+  it("refuses to build flag events when a replication chunk is malformed", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 2, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([
+        [1, deflateSync(buildReplicationChunkBytes(identityFrames))],
+        [2, Uint8Array.of(9, 9, 9)],
+      ]),
+    );
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("malformed replication chunks: 2");
   });
 });

@@ -1,10 +1,11 @@
 import type { StatRecord, StatSlotKey } from "./types";
 
 const TEAM_SLOT_MAX = 8;
-// A stat counter never jumps by more than a handful per emission; a larger step is a
-// parasite emission that slipped through the monotone filter (observed: 64 on a slot
-// whose real value was 1).
-const MAX_COUNTER_STEP = 1_000;
+// The first emission may carry units gained before the slot was first replicated, but a
+// later emission only ever adds a handful; a larger step is a parasite that slipped through
+// the monotone filter (observed: 64 on a slot whose real value was 1).
+const MAX_INITIAL_COUNTER = 1_000;
+const MAX_COUNTER_STEP = 10;
 
 interface CounterPoint {
   timestampMs: number;
@@ -75,8 +76,8 @@ function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): 
 function incrementTimes(series: readonly CounterPoint[]): number[] {
   const times: number[] = [];
   let previous = 0;
-  for (const point of series) {
-    if (point.value - previous > MAX_COUNTER_STEP) {
+  for (const [index, point] of series.entries()) {
+    if (point.value - previous > (index === 0 ? MAX_INITIAL_COUNTER : MAX_COUNTER_STEP)) {
       continue;
     }
     for (; previous < point.value; previous++) {
