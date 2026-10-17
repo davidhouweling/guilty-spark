@@ -256,36 +256,44 @@ export class HaloFilmService {
     yield* this.iterateReplicationChunks(matchId, filmMetadata, authResolver);
   }
 
-  // Compressed bytes are fetched together, but each chunk is inflated only as it is yielded so
-  // scanning consumers never hold the whole decompressed film at once.
   private async *iterateReplicationChunks(
     matchId: string,
     filmMetadata: FilmMetadataResponse,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): AsyncGenerator<ReplicationChunkEntry> {
     const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
-    // every download starts at once; chunks are consumed in film order as each arrives, and a
-    // failure is surfaced when its chunk is reached rather than left as an unhandled rejection
-    const downloads = chunks.map(async ({ chunk }) =>
-      this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
-        (bytes): ChunkDownload => ({ bytes }),
-        (error: unknown): ChunkDownload => ({ error: error instanceof Error ? error : new Error(String(error)) }),
-      ),
-    );
+    const downloads = this.startChunkDownloads(matchId, filmMetadata, authResolver, chunks);
     for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
       const download = await Preconditions.checkExists(downloads[chunkIndex]);
       downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
       if ("error" in download) {
         throw download.error;
       }
+      let data: Uint8Array;
       try {
-        const data = new Uint8Array(inflateSync(download.bytes));
-        yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
+        data = new Uint8Array(inflateSync(download.bytes));
       } catch {
-        // malformed chunk — reported so each consumer decides whether a gap is tolerable
         yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
+        continue;
       }
+      yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
     }
+  }
+
+  // Every download starts at once; a failure is held until its chunk is reached so it is
+  // surfaced in film order instead of becoming an unhandled rejection.
+  private startChunkDownloads(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+    chunks: { chunk: FilmMetadataResponse["CustomData"]["Chunks"][number]; startMs: number }[],
+  ): Promise<ChunkDownload>[] {
+    return chunks.map(async ({ chunk }) =>
+      this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
+        (bytes): ChunkDownload => ({ bytes }),
+        (error: unknown): ChunkDownload => ({ error: error instanceof Error ? error : new Error(String(error)) }),
+      ),
+    );
   }
 
   private createAuthResolver(): () => Promise<{ spartanToken: string; clearanceToken: string }> {
