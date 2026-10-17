@@ -58,6 +58,17 @@ describe("counterIncrementTimes", () => {
     expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([100]);
   });
 
+  it("resumes emitting after an implausible jump without dating the skipped units", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 22: { a: 1, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 22: { a: 2, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 22: { a: 14, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 400, slot: 10, components: { 22: { a: 15, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 500, slot: 10, components: { 22: { a: 16, b: 0 } } }),
+    ];
+    expect(counterIncrementTimes(records, GRABS).get(10)).toEqual([100, 200, 400, 500]);
+  });
+
   it("dates units gained before the first emission to that emission", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 900, slot: 10, components: { 22: { a: 12, b: 0 } } })];
     expect(counterIncrementTimes(records, GRABS).get(10)).toHaveLength(12);

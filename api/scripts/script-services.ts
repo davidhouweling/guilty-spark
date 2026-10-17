@@ -20,7 +20,7 @@ if (typeof caches === "undefined") {
 import { fileURLToPath } from "node:url";
 import { authenticate } from "@xboxreplay/xboxlive-auth";
 import type { MatchStats } from "halo-infinite-api";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { ParsedHighlightEvent } from "../services/halo/types";
 import { aFakeEnvWith } from "../base/fakes/env.fake";
 import { aFakeDatabaseServiceWith } from "../services/database/fakes/database.fake";
@@ -70,10 +70,7 @@ export function enrichEventsWithTeamIds(
   events: readonly ParsedHighlightEvent[],
   matchStats: MatchStats,
 ): ParsedHighlightEvent[] {
-  const xuidToTeamId = new Map<string, number>();
-  for (const player of matchStats.Players) {
-    xuidToTeamId.set(unwrapXuid(player.PlayerId), player.LastTeamId);
-  }
+  const xuidToTeamId = getTeamIdsByXuid(matchStats);
   return events.map((event) => ({ ...event, teamId: xuidToTeamId.get(event.xuid) ?? null }));
 }
 

@@ -77,18 +77,19 @@ function incrementTimes(series: readonly CounterPoint[]): number[] {
   const times: number[] = [];
   let previous = 0;
   for (const [index, point] of series.entries()) {
-    if (point.value - previous > (index === 0 ? MAX_INITIAL_COUNTER : MAX_COUNTER_STEP)) {
-      continue;
+    const implausibleStep = point.value - previous > (index === 0 ? MAX_INITIAL_COUNTER : MAX_COUNTER_STEP);
+    if (!implausibleStep) {
+      for (; previous < point.value; previous++) {
+        times.push(point.timestampMs);
+      }
     }
-    for (; previous < point.value; previous++) {
-      times.push(point.timestampMs);
-    }
+    // an implausible step is either a parasite or missed emissions: the units it spans get no
+    // timestamp, but later increments resume from the new value
+    previous = Math.max(previous, point.value);
   }
   return times;
 }
 
-// One timestamp per unit a player counter gained, per player slot: the instant each emission
-// raised the counter. Units already acquired before the first emission are dated to it.
 export function counterIncrementTimes(records: readonly StatRecord[], key: StatSlotKey): Map<number, number[]> {
   const result = new Map<number, number[]>();
   for (const [slot, series] of counterSeriesBySlot(records, key)) {
@@ -97,9 +98,7 @@ export function counterIncrementTimes(records: readonly StatRecord[], key: StatS
   return result;
 }
 
-// The final counter value per player slot. Unlike counterIncrementTimes this tolerates missed
-// emissions (a gap only loses event timestamps, not the total), so it is the right input for
-// matching slots against the roster.
+// final values survive missed emissions, which is why slot identity matches on them
 export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number> {
   const totals = new Map<number, number>();
   for (const [slot, series] of counterSeriesBySlot(records, key)) {

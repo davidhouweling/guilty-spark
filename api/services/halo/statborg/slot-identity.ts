@@ -38,10 +38,11 @@ export function resolveSlotIdentities(records: readonly StatRecord[], matchStats
   const lines = playerLinesOf(matchStats);
 
   const claims = new Map<number, string>();
-  for (const [slot, slotKills] of kills) {
+  const observedSlots = new Set([...kills.keys(), ...deaths.keys(), ...assists.keys()]);
+  for (const slot of observedSlots) {
     const candidates = lines.filter(
       (line) =>
-        line.kills === slotKills &&
+        line.kills === (kills.get(slot) ?? 0) &&
         line.deaths === (deaths.get(slot) ?? 0) &&
         line.assists === (assists.get(slot) ?? 0),
     );

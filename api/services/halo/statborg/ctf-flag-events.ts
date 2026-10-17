@@ -1,5 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { ReplicationChunk } from "../types";
 import { resolveSlotIdentities } from "./slot-identity";
 import { counterIncrementTimes } from "./stat-counters";
@@ -25,23 +25,24 @@ const CTF_STAT_SLOTS: readonly CtfStatSlot[] = [
   { key: { component: 22, side: "b" }, kind: "returnerKilled" },
 ];
 
-function teamIdsByXuid(matchStats: MatchStats): Map<string, number> {
-  const teams = new Map<string, number>();
-  for (const player of matchStats.Players) {
-    teams.set(unwrapXuid(player.PlayerId), player.LastTeamId);
-  }
-  return teams;
-}
-
 function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
   return (
     left.timestampMs - right.timestampMs || left.xuid.localeCompare(right.xuid) || left.kind.localeCompare(right.kind)
   );
 }
 
+// The record grammar's slot band (10..24) covers eight players; larger lobbies would decode a
+// credible-looking subset, so they are refused outright.
+const MAX_SUPPORTED_PLAYERS = 8;
+
 export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+  if (matchStats.Players.length > MAX_SUPPORTED_PLAYERS) {
+    throw new Error(
+      `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} has ${String(matchStats.Players.length)}`,
+    );
+  }
   const identities = resolveSlotIdentities(records, matchStats);
-  const teams = teamIdsByXuid(matchStats);
+  const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];
   const unresolvedSlots = new Set<number>();
   for (const { key, kind } of CTF_STAT_SLOTS) {

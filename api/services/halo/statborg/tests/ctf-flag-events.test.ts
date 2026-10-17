@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { buildCtfFlagEvents, buildCtfFlagEventsFromRecords } from "../ctf-flag-events";
 import { aFakeCtfMatchStatsWith } from "../fakes/ctf-match-stats.fake";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
@@ -56,6 +57,12 @@ describe("buildCtfFlagEventsFromRecords", () => {
 });
 
 describe("buildCtfFlagEvents", () => {
+  it("refuses lobbies larger than the eight-player slot band", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.Players.push(structuredClone(Preconditions.checkExists(matchStats.Players[0])));
+    expect(() => buildCtfFlagEventsFromRecords([], matchStats)).toThrow("at most 8 players");
+  });
+
   it("decodes flag events end to end from encoded replication chunks", () => {
     const chunk = aFakeReplicationChunkWith(
       [

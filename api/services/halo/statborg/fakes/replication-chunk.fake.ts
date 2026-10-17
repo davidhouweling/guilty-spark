@@ -52,7 +52,7 @@ class BitWriter {
   }
 }
 
-function writeRecord(writer: BitWriter, record: StatRecordSpec): void {
+function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number): void {
   writer.write(1, 1);
   writer.write(record.slot, 14);
   writer.write(0b10, 2);
@@ -75,13 +75,13 @@ function writeRecord(writer: BitWriter, record: StatRecordSpec): void {
       writer.writeSigned(component.conditionalB);
     }
   }
-  writer.write(0, RECORD_GAP_BITS);
+  writer.write(0, gapBits);
 }
 
-export function buildFramePayload(records: readonly StatRecordSpec[]): Uint8Array {
+export function buildFramePayload(records: readonly StatRecordSpec[], gapBits = RECORD_GAP_BITS): Uint8Array {
   const writer = new BitWriter();
   for (const record of records) {
-    writeRecord(writer, record);
+    writeRecord(writer, record, gapBits);
   }
   writer.write(0, 64);
   return writer.toBytes();

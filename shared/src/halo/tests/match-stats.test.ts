@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPlayerXuid, getTeamPlayersFromMatches, unwrapXuid, wrapXuid } from "../match-stats";
+import { getPlayerXuid, getTeamPlayersFromMatches, unwrapXuid, wrapXuid, getTeamIdsByXuid } from "../match-stats";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
@@ -162,5 +162,20 @@ describe("getTeamPlayersFromMatches", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.PlayerId).toBe("xuid(1111)");
+  });
+});
+
+describe("getTeamIdsByXuid", () => {
+  it("maps each player's unwrapped xuid to their last team", () => {
+    const teamIds = getTeamIdsByXuid({
+      Players: [
+        { PlayerId: "xuid(1000000000000001)", LastTeamId: 0 },
+        { PlayerId: "xuid(1000000000000002)", LastTeamId: 1 },
+      ] as never,
+    });
+    expect([...teamIds]).toEqual([
+      ["1000000000000001", 0],
+      ["1000000000000002", 1],
+    ]);
   });
 });

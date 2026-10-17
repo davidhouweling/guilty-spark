@@ -164,14 +164,14 @@ function decodeRecordAt(
 export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number): StatRecord[] {
   const records: StatRecord[] = [];
   const limit = payload.length * 8 - TAIL_BITS;
-  let resumeBit = 1;
+  let resumeBit = 0;
   for (let byteIndex = 0; byteIndex + 2 < payload.length; byteIndex++) {
     const window =
       ((payload[byteIndex] ?? 0) << 16) | ((payload[byteIndex + 1] ?? 0) << 8) | (payload[byteIndex + 2] ?? 0);
     for (let shift = 0; shift < 8; shift++) {
       const prefixBit = byteIndex * 8 + shift;
       const bitPos = prefixBit + 1;
-      if (bitPos < resumeBit || bitPos >= limit) {
+      if (prefixBit < resumeBit || bitPos >= limit) {
         continue;
       }
       if (((window >>> (24 - PREFIX_WINDOW_BITS - shift)) & PREFIX_WINDOW_MASK) !== PREFIX_WINDOW_VALUE) {
@@ -197,7 +197,9 @@ function scanChunk(chunk: ReplicationChunk): StatRecord[] {
   for (const frame of frames) {
     const timestampMs = chunk.startMs + Number((frame.timestampUs - firstFrame.timestampUs) / MICROS_PER_MILLI);
     const payload = chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize);
-    records.push(...scanFrameForStatRecords(payload, timestampMs));
+    for (const record of scanFrameForStatRecords(payload, timestampMs)) {
+      records.push(record);
+    }
   }
   return records;
 }
@@ -205,7 +207,9 @@ function scanChunk(chunk: ReplicationChunk): StatRecord[] {
 export function scanStatRecords(chunks: readonly ReplicationChunk[]): StatRecord[] {
   const records: StatRecord[] = [];
   for (const chunk of chunks) {
-    records.push(...scanChunk(chunk));
+    for (const record of scanChunk(chunk)) {
+      records.push(record);
+    }
   }
   return records.sort((left, right) => left.timestampMs - right.timestampMs || left.slot - right.slot);
 }

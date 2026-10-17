@@ -73,6 +73,19 @@ describe("scanFrameForStatRecords", () => {
   });
 });
 
+describe("scanFrameForStatRecords back-to-back records", () => {
+  it("accepts a record whose prefix starts exactly where the previous record ended", () => {
+    const payload = buildFramePayload(
+      [
+        { slot: 10, components: [{ index: 2, a: 1, b: 1 }] },
+        { slot: 12, components: [{ index: 2, a: 2, b: 2 }] },
+      ],
+      0,
+    );
+    expect(scanFrameForStatRecords(payload, 0).map((record) => record.slot)).toEqual([10, 12]);
+  });
+});
+
 describe("scanStatRecords", () => {
   it("dates records from the chunk start plus the frame offset from the first frame", () => {
     const chunk = aFakeReplicationChunkWith(
