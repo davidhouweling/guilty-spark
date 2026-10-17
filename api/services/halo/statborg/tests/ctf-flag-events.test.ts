@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { buildCtfFlagEventsFromRecords } from "../ctf-flag-events";
+import { GameVariantCategory } from "halo-infinite-api";
+import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "../ctf-flag-events";
 import { aFakeCtfMatchStatsWith } from "../fakes/ctf-match-stats.fake";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
 import type { StatRecord } from "../types";
@@ -50,13 +51,41 @@ describe("buildCtfFlagEventsFromRecords", () => {
     expect(unresolvedSlots).toEqual([18]);
   });
 
-  it("refuses lobbies larger than the eight-player slot band", () => {
-    const matchStats = aFakeCtfMatchStatsWith();
-    matchStats.Players.push(structuredClone(Preconditions.checkExists(matchStats.Players[0])));
-    expect(() => buildCtfFlagEventsFromRecords([], matchStats)).toThrow("at most 8 players");
-  });
-
   it("returns no events for an empty record set", () => {
     expect(buildCtfFlagEventsFromRecords([], aFakeCtfMatchStatsWith())).toEqual({ events: [], unresolvedSlots: [] });
+  });
+});
+
+describe("assertCtfMatchSupported", () => {
+  it("accepts a CTF match with eight starting players", () => {
+    expect(() => {
+      assertCtfMatchSupported(aFakeCtfMatchStatsWith());
+    }).not.toThrow();
+  });
+
+  it("refuses a match that is not CTF", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchInfo.GameVariantCategory = GameVariantCategory.MultiplayerSlayer;
+    expect(() => {
+      assertCtfMatchSupported(matchStats);
+    }).toThrow("is not CTF");
+  });
+
+  it("refuses lobbies that started with more than eight players", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.Players.push(structuredClone(Preconditions.checkExists(matchStats.Players[0])));
+    expect(() => {
+      assertCtfMatchSupported(matchStats);
+    }).toThrow("at most 8 players");
+  });
+
+  it("tolerates a mid-match substitute who was not present at the start", () => {
+    const matchStats = aFakeCtfMatchStatsWith();
+    const substitute = structuredClone(Preconditions.checkExists(matchStats.Players[0]));
+    substitute.ParticipationInfo.PresentAtBeginning = false;
+    matchStats.Players.push(substitute);
+    expect(() => {
+      assertCtfMatchSupported(matchStats);
+    }).not.toThrow();
   });
 });

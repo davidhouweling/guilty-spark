@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import { resolveSlotIdentities } from "./slot-identity";
@@ -29,20 +30,24 @@ function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
   );
 }
 
-// The record grammar's slot band (10..24) covers eight players; larger lobbies would decode a
-// credible-looking subset, so they are refused outright.
+// The record grammar's slot band (10..24) covers eight concurrent players; larger lobbies
+// would decode a credible-looking subset, so they are refused outright. A mid-match
+// substitute reuses a slot and simply fails identity resolution.
 const MAX_SUPPORTED_PLAYERS = 8;
 
-export function assertCtfLobbySupported(matchStats: MatchStats): void {
-  if (matchStats.Players.length > MAX_SUPPORTED_PLAYERS) {
+export function assertCtfMatchSupported(matchStats: MatchStats): void {
+  if (matchStats.MatchInfo.GameVariantCategory !== GameVariantCategory.MultiplayerCtf) {
+    throw new Error(`Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`);
+  }
+  const startingPlayers = matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
+  if (startingPlayers > MAX_SUPPORTED_PLAYERS) {
     throw new Error(
-      `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} has ${String(matchStats.Players.length)}`,
+      `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} started with ${String(startingPlayers)}`,
     );
   }
 }
 
 export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
-  assertCtfLobbySupported(matchStats);
   const identities = resolveSlotIdentities(records, matchStats);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];

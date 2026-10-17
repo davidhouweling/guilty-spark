@@ -73,6 +73,22 @@ describe("scanFrameForStatRecords", () => {
   });
 });
 
+// A 199-byte FRAME payload captured from match 5e3900a6 (Empyrean, chunk 12): the team entity in
+// slot 6 and the player in slot 10 both re-emit component 23 (flag returns / flag secures).
+const REAL_EMPYREAN_FRAME_HEX =
+  "a00342b80000006400a8570000000481ed0806910e2400115903fef6463d4fa09e37a788000058668889128008aab208108c86baa5a12aff5041000638606dfca68889d2000aac81d723879eae98631c5313ab0f8d3444568806410ab5a9e7504c9a222c48002ab20786ec813a9c2022e7cd490e3e44d1116a4001559039fe647fd4d903b3f2604d7dfc26897e10826ffffff2fe22395fe85aab03a18c271de6dda00de6dda00de6dda000673342d08c201bf44080efb48205bf500826fae020bba00083efcf80";
+
+describe("scanFrameForStatRecords on a real film frame", () => {
+  it("decodes the two component-23 records a real Empyrean frame carries", () => {
+    const payload = Uint8Array.from(Buffer.from(REAL_EMPYREAN_FRAME_HEX, "hex"));
+    const records = scanFrameForStatRecords(payload, 228_486);
+    expect(records.map((record) => [record.slot, [...record.components]])).toEqual([
+      [6, [[23, { a: 0, b: 3 }]]],
+      [10, [[23, { a: 0, b: 1 }]]],
+    ]);
+  });
+});
+
 describe("scanFrameForStatRecords back-to-back records", () => {
   it("accepts a record whose prefix starts exactly where the previous record ended", () => {
     const payload = buildFramePayload(

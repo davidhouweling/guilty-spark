@@ -41,7 +41,7 @@ import type {
   StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
-import { assertCtfLobbySupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
+import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
@@ -50,7 +50,7 @@ interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
 }
-type ChunkDownload = { bytes: Uint8Array } | { error: unknown };
+type ChunkDownload = { bytes: Uint8Array } | { error: Error };
 type ReplicationChunkEntry =
   { kind: "chunk"; chunk: ReplicationChunk } | { kind: "skipped"; skipped: SkippedReplicationChunk };
 interface FilmAttributionData {
@@ -202,7 +202,7 @@ export class HaloFilmService {
   }
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
-    assertCtfLobbySupported(matchStats);
+    assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
     for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
       switch (entry.kind) {
@@ -264,14 +264,14 @@ export class HaloFilmService {
     const downloads = chunks.map(async ({ chunk }) =>
       this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
         (bytes): ChunkDownload => ({ bytes }),
-        (error: unknown): ChunkDownload => ({ error }),
+        (error: unknown): ChunkDownload => ({ error: error instanceof Error ? error : new Error(String(error)) }),
       ),
     );
     for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
       const download = await Preconditions.checkExists(downloads[chunkIndex]);
       downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
       if ("error" in download) {
-        throw download.error instanceof Error ? download.error : new Error(String(download.error));
+        throw download.error;
       }
       try {
         const data = new Uint8Array(inflateSync(download.bytes));
