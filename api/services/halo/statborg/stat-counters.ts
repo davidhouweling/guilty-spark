@@ -49,6 +49,8 @@ function longestNonDecreasingRun(points: readonly CounterPoint[]): CounterPoint[
   return run.reverse();
 }
 
+// A slot that only ever emitted negative (parasite) values keeps an empty series, so its
+// total reads as rejected rather than as never emitted.
 function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): Map<number, CounterPoint[]> {
   const raw = new Map<number, CounterPoint[]>();
   for (const record of records) {
@@ -59,13 +61,12 @@ function counterSeriesBySlot(records: readonly StatRecord[], key: StatSlotKey): 
     if (component == null) {
       continue;
     }
-    const value = component[key.side];
-    if (value < 0) {
-      continue;
-    }
     const series = raw.get(record.slot) ?? [];
-    series.push({ timestampMs: record.timestampMs, value });
     raw.set(record.slot, series);
+    const value = component[key.side];
+    if (value >= 0) {
+      series.push({ timestampMs: record.timestampMs, value });
+    }
   }
   const filtered = new Map<number, CounterPoint[]>();
   for (const [slot, series] of raw) {
@@ -116,7 +117,7 @@ function finalCounterValue(series: readonly CounterPoint[]): number | null {
       total = point.value;
       continue;
     }
-    const next = series[index + 1];
+    const next = series.slice(index + 1).find((later) => later.value !== point.value);
     const continues = next != null && next.value > point.value && next.value - point.value <= MAX_COUNTER_STEP;
     if (!continues) {
       return total;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readBitsBE, walkFramePackets } from "../bit-reader";
+import { readBitsBE, TruncatedPacketError, walkFramePackets } from "../bit-reader";
 import { buildReplicationChunkBytes } from "../fakes/replication-chunk.fake";
 
 describe("readBitsBE", () => {
@@ -32,14 +32,18 @@ describe("walkFramePackets", () => {
     expect(frames[0]?.payloadSize).toBe(8);
   });
 
-  it("returns no frames for empty or truncated data", () => {
+  it("returns no frames for empty data", () => {
     expect(walkFramePackets(new Uint8Array(0))).toEqual([]);
-    expect(walkFramePackets(new Uint8Array(10))).toEqual([]);
   });
 
-  it("ignores a frame whose declared size overruns the data", () => {
+  it("throws when a packet's declared size overruns the data", () => {
     const bytes = buildReplicationChunkBytes([{ timestampUs: 1n, records: [] }]);
-    const truncated = bytes.subarray(0, 20);
-    expect(walkFramePackets(truncated)).toEqual([]);
+    expect(() => walkFramePackets(bytes.subarray(0, 20))).toThrow(TruncatedPacketError);
+  });
+
+  it("throws when the stream ends before its CHUNK_END packet", () => {
+    const bytes = buildReplicationChunkBytes([{ timestampUs: 1n, records: [] }]);
+    expect(() => walkFramePackets(bytes.subarray(0, bytes.length - 16))).toThrow(TruncatedPacketError);
+    expect(() => walkFramePackets(new Uint8Array(10))).toThrow(TruncatedPacketError);
   });
 });

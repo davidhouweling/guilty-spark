@@ -115,6 +115,25 @@ describe("counterTotals", () => {
     expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(2);
   });
 
+  it("looks past unchanged re-emissions to find the increase after a gap", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 4, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 15, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 250, slot: 10, components: { 2: { a: 15, b: 1 } } }),
+      aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 16, b: 1 } } }),
+    ];
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(16);
+  });
+
+  it("reports null for a slot whose every emission was negative", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: -115, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: -3, b: 0 } } }),
+    ];
+    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBeNull();
+    expect(counterIncrementTimes(records, { component: 2, side: "a" }).get(10)).toEqual([]);
+  });
+
   it("falls back to the previous value when the last emission is an implausible jump", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 1, b: 0 } } }),
