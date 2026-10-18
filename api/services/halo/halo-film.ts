@@ -1,7 +1,8 @@
 import { inflateSync } from "node:zlib";
 import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { wrapXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { wrapXuid, unwrapXuid, getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
 import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
@@ -34,15 +35,24 @@ import type {
   KillRaceProgression,
   KillRaceProgressionEvent,
   KothProgression,
+  ReplicationChunk,
+  ReplicationChunkLoad,
+  SkippedReplicationChunk,
   StateByte2Transition,
   HaloFilmServiceOpts,
 } from "./types";
+import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
+import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
   chunkIndex: number;
   startMs: number;
 }
+type ChunkDownload = { bytes: Uint8Array } | { error: Error };
+type ReplicationChunkEntry =
+  { kind: "chunk"; chunk: ReplicationChunk } | { kind: "skipped"; skipped: SkippedReplicationChunk };
 interface FilmAttributionData {
   attributor: WeaponAttributor;
   timeline: WeaponTimeline;
@@ -117,7 +127,7 @@ export class HaloFilmService {
 
   private async loadEnrichedEventsForMatch(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     const events = await this.getHighlightEventsForMatch(matchStats.MatchId);
-    const xuidToTeamId = this.buildXuidToTeamMap(matchStats);
+    const xuidToTeamId = getTeamIdsByXuid(matchStats);
     this.assignTeamIdsToEvents(events, xuidToTeamId);
     return events;
   }
@@ -168,25 +178,17 @@ export class HaloFilmService {
 
   async getStateByte2Transitions(matchId: string): Promise<StateByte2Transition[]> {
     try {
-      const authResolver = this.createAuthResolver();
-      const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
-      const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
-      if (chunks.length === 0) {
-        return [];
-      }
-      const perChunkBytes = await Promise.all(
-        chunks.map(async ({ chunk }) =>
-          this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver),
-        ),
-      );
       // Chunks are scanned in film order so the state byte carries across chunk boundaries —
       // a transition landing exactly on a boundary is otherwise silently dropped.
       const transitions: StateByte2Transition[] = [];
       let carriedValue: number | null = null;
-      for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+      for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
+        if (entry.kind !== "chunk") {
+          continue;
+        }
         try {
-          const chunkData = new Uint8Array(inflateSync(Preconditions.checkExists(perChunkBytes[chunkIndex])));
-          const scanned = scanStateByte2Transitions(chunkData, startMs, chunk.DurationMilliseconds, carriedValue);
+          const { data, startMs, durationMs } = entry.chunk;
+          const scanned = scanStateByte2Transitions(data, startMs, durationMs, carriedValue);
           transitions.push(...scanned.transitions);
           carriedValue = scanned.finalValue;
         } catch {
@@ -197,6 +199,111 @@ export class HaloFilmService {
     } catch {
       return [];
     }
+  }
+
+  async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
+    assertCtfMatchSupported(matchStats);
+    const records: StatRecord[] = [];
+    let chunkCount = 0;
+    for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
+      switch (entry.kind) {
+        case "chunk": {
+          if (entry.chunk.data.length === 0) {
+            throw new Error(
+              `Film for match ${matchStats.MatchId} has an empty replication chunk: ${String(entry.chunk.index)}`,
+            );
+          }
+          chunkCount += 1;
+          for (const record of scanChunkStatRecords(entry.chunk)) {
+            records.push(record);
+          }
+          break;
+        }
+        case "skipped": {
+          throw new Error(
+            `Film for match ${matchStats.MatchId} has a malformed replication chunk: ${String(entry.skipped.index)}`,
+          );
+        }
+        default: {
+          throw new UnreachableError(entry);
+        }
+      }
+    }
+    if (chunkCount === 0) {
+      throw new Error(`Film for match ${matchStats.MatchId} has no replication chunks`);
+    }
+    return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+  }
+
+  async getReplicationChunks(matchId: string): Promise<ReplicationChunkLoad> {
+    const load: ReplicationChunkLoad = { chunks: [], skippedChunks: [] };
+    for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
+      switch (entry.kind) {
+        case "chunk": {
+          load.chunks.push(entry.chunk);
+          break;
+        }
+        case "skipped": {
+          load.skippedChunks.push(entry.skipped);
+          break;
+        }
+        default: {
+          throw new UnreachableError(entry);
+        }
+      }
+    }
+    return load;
+  }
+
+  private async *iterateReplicationChunksForMatch(matchId: string): AsyncGenerator<ReplicationChunkEntry> {
+    const authResolver = this.createAuthResolver();
+    const filmMetadata = await this.getOrFetchFilmMetadata(matchId, authResolver);
+    yield* this.iterateReplicationChunks(matchId, filmMetadata, authResolver);
+  }
+
+  private async *iterateReplicationChunks(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): AsyncGenerator<ReplicationChunkEntry> {
+    const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
+    const downloads = this.startChunkDownloads(matchId, filmMetadata, authResolver, chunks);
+    try {
+      for (const [chunkIndex, { chunk, startMs }] of chunks.entries()) {
+        const download = await Preconditions.checkExists(downloads[chunkIndex]);
+        downloads[chunkIndex] = Promise.resolve({ bytes: new Uint8Array(0) });
+        if ("error" in download) {
+          throw download.error;
+        }
+        let data: Uint8Array;
+        try {
+          data = new Uint8Array(inflateSync(download.bytes));
+        } catch {
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
+          continue;
+        }
+        yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
+      }
+    } finally {
+      // a consumer that stops early must not leave downloads and cache writes orphaned
+      await Promise.all(downloads);
+    }
+  }
+
+  // Every download starts at once; a failure is held until its chunk is reached so it is
+  // surfaced in film order instead of becoming an unhandled rejection.
+  private startChunkDownloads(
+    matchId: string,
+    filmMetadata: FilmMetadataResponse,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+    chunks: { chunk: FilmMetadataResponse["CustomData"]["Chunks"][number]; startMs: number }[],
+  ): Promise<ChunkDownload>[] {
+    return chunks.map(async ({ chunk }) =>
+      this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
+        (bytes): ChunkDownload => ({ bytes }),
+        (error: unknown): ChunkDownload => ({ error: error instanceof Error ? error : new Error(String(error)) }),
+      ),
+    );
   }
 
   private createAuthResolver(): () => Promise<{ spartanToken: string; clearanceToken: string }> {
@@ -307,39 +414,29 @@ export class HaloFilmService {
     filmMetadata: FilmMetadataResponse,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): Promise<{ fireEvents: FireEvent[]; timeline: WeaponTimeline; chunkTimings: ChunkTiming[] } | null> {
-    const chunks = this.findReplicationChunksWithStartMs(filmMetadata);
-    if (chunks.length === 0) {
-      return null;
-    }
-    const chunksWithBytes = await Promise.all(
-      chunks.map(async ({ chunk, startMs }) =>
-        this.fetchReplicationChunkBytes(matchId, chunk, filmMetadata.BlobStoragePathPrefix, authResolver).then(
-          (bytes) => ({ chunk, startMs, bytes }),
-        ),
-      ),
-    );
     const allFireEvents: FireEvent[] = [];
     const timeline: WeaponTimeline = new Map();
     const chunkTimings: ChunkTiming[] = [];
-    for (const { chunk, startMs, bytes } of chunksWithBytes) {
-      let chunkData: Uint8Array;
-      try {
-        chunkData = new Uint8Array(inflateSync(bytes));
-      } catch {
-        chunkTimings.push({ chunkIndex: chunk.Index, startMs });
+    for await (const entry of this.iterateReplicationChunks(matchId, filmMetadata, authResolver)) {
+      if (entry.kind !== "chunk") {
+        chunkTimings.push({ chunkIndex: entry.skipped.index, startMs: entry.skipped.startMs });
         continue;
       }
-      for (const ev of scanFireEvents(chunkData, startMs, chunk.DurationMilliseconds)) {
+      const { index, startMs, durationMs, data } = entry.chunk;
+      chunkTimings.push({ chunkIndex: index, startMs });
+      for (const ev of scanFireEvents(data, startMs, durationMs)) {
         allFireEvents.push(ev);
       }
       const chunkState = new Map<number, { weaponId: string; name: string }>();
-      for (const ev of scanFormulaAEvents(chunkData)) {
+      for (const ev of scanFormulaAEvents(data)) {
         chunkState.set(ev.playerIndex, { weaponId: weaponIdToHex(ev.weaponId), name: ev.weaponName });
       }
       if (chunkState.size > 0) {
-        timeline.set(chunk.Index, chunkState);
+        timeline.set(index, chunkState);
       }
-      chunkTimings.push({ chunkIndex: chunk.Index, startMs });
+    }
+    if (chunkTimings.length === 0) {
+      return null;
     }
     return { fireEvents: allFireEvents, timeline, chunkTimings };
   }
@@ -406,15 +503,6 @@ export class HaloFilmService {
     );
     await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
     return downloadedChunk;
-  }
-
-  private buildXuidToTeamMap(matchStats: MatchStats): Map<string, number> {
-    const map = new Map<string, number>();
-    for (const player of matchStats.Players) {
-      const xuid = unwrapXuid(player.PlayerId);
-      map.set(xuid, player.LastTeamId);
-    }
-    return map;
   }
 
   private assignTeamIdsToEvents(events: ParsedHighlightEvent[], xuidToTeamId: Map<string, number>): void {

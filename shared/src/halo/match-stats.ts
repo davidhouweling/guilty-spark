@@ -17,6 +17,14 @@ export function getPlayerXuid(player: Pick<MatchStats["Players"][0], "PlayerId">
   return unwrapXuid(player.PlayerId);
 }
 
+export function getTeamIdsByXuid(matchStats: Pick<MatchStats, "Players">): Map<string, number> {
+  const teamIds = new Map<string, number>();
+  for (const player of matchStats.Players) {
+    teamIds.set(unwrapXuid(player.PlayerId), player.LastTeamId);
+  }
+  return teamIds;
+}
+
 export function getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
   const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
   for (const match of matches) {
