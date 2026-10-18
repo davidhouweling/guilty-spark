@@ -208,6 +208,11 @@ export class HaloFilmService {
     for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
       switch (entry.kind) {
         case "chunk": {
+          if (entry.chunk.data.length === 0) {
+            throw new Error(
+              `Film for match ${matchStats.MatchId} has an empty replication chunk: ${String(entry.chunk.index)}`,
+            );
+          }
           chunkCount += 1;
           for (const record of scanChunkStatRecords(entry.chunk)) {
             records.push(record);
