@@ -2414,6 +2414,18 @@ describe("HaloFilmService replication chunks", () => {
     await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("packet stream is truncated");
   });
 
+  it("refuses to build flag events when a chunk carries data after its CHUNK_END packet", async () => {
+    const metadata = aChunkMetadata([{ Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 }]);
+    const encoded = buildReplicationChunkBytes(identityFrames);
+    const padded = new Uint8Array(encoded.length + 3);
+    padded.set(encoded);
+    const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(padded)]]));
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("trailing bytes after its CHUNK_END");
+  });
+
   it("refuses to build flag events when a chunk inflates to nothing", async () => {
     const metadata = aChunkMetadata([{ Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 }]);
     const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(new Uint8Array(0))]]));

@@ -22,16 +22,16 @@ export function readBitsBE(data: Uint8Array, bitPos: number, bitCount: number): 
   return result;
 }
 
-export class TruncatedPacketError extends Error {
-  constructor(offset: number) {
-    super(`Film chunk packet stream is truncated at byte ${String(offset)}`);
-    this.name = "TruncatedPacketError";
+export class MalformedPacketStreamError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MalformedPacketStreamError";
   }
 }
 
-// Every replication chunk ends with exactly one CHUNK_END packet (measured on all 28 chunks of
-// the reference film, zero trailing bytes), so a stream that overruns or ends before it is
-// truncated and throws; consumers that need the whole film can then refuse it.
+// Every replication chunk ends with exactly one CHUNK_END packet and nothing after it
+// (measured on all 28 chunks of the reference film), so a stream that overruns, ends early or
+// carries trailing bytes is malformed and throws; consumers that need the whole film refuse it.
 export function walkFramePackets(data: Uint8Array): FramePacket[] {
   const packets: FramePacket[] = [];
   if (data.length === 0) {
@@ -45,15 +45,20 @@ export function walkFramePackets(data: Uint8Array): FramePacket[] {
     const timestampUs = view.getBigUint64(offset + 8, true);
     const payloadOffset = offset + PACKET_HEADER_BYTES;
     if (payloadOffset + size > data.length) {
-      throw new TruncatedPacketError(offset);
+      throw new MalformedPacketStreamError(`Film chunk packet stream is truncated at byte ${String(offset)}`);
     }
     if (type === PACKET_TYPE_FRAME) {
       packets.push({ timestampUs, payloadOffset, payloadSize: size });
     }
     offset = payloadOffset + size;
     if (type === PACKET_TYPE_CHUNK_END) {
+      if (offset !== data.length) {
+        throw new MalformedPacketStreamError(
+          `Film chunk has ${String(data.length - offset)} trailing bytes after its CHUNK_END packet`,
+        );
+      }
       return packets;
     }
   }
-  throw new TruncatedPacketError(offset);
+  throw new MalformedPacketStreamError(`Film chunk packet stream is truncated at byte ${String(offset)}`);
 }
