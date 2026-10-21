@@ -152,6 +152,23 @@ export interface FilmMetadataCustomData {
   Chunks: FilmMetadataChunk[];
 }
 
+export interface ReplicationChunk {
+  index: number;
+  startMs: number;
+  durationMs: number;
+  data: Uint8Array;
+}
+
+export interface SkippedReplicationChunk {
+  index: number;
+  startMs: number;
+}
+
+export interface ReplicationChunkLoad {
+  chunks: ReplicationChunk[];
+  skippedChunks: SkippedReplicationChunk[];
+}
+
 export interface FilmMetadataResponse {
   AssetId: string;
   BlobStoragePathPrefix: string;
