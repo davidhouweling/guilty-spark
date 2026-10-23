@@ -766,7 +766,7 @@ export class StatsCommand extends BaseCommand {
                 type: ComponentType.Button,
                 custom_id: InteractionButton.LoadGames,
                 label: "Load game stats",
-                style: 1,
+                style: ButtonStyle.Primary,
                 emoji: {
                   name: "🎮",
                 },

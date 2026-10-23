@@ -68,10 +68,10 @@ const applicationCommandInteractionStatsMatch: APIApplicationCommandInteraction 
             value: "d81554d7-ddfe-44da-a6cb-000000000ctf",
           },
         ],
-        type: 1,
+        type: ApplicationCommandOptionType.Subcommand,
       },
     ],
-    type: 1,
+    type: ApplicationCommandType.ChatInput,
   },
 };
 
@@ -264,7 +264,7 @@ describe("DiscordService", () => {
           data: [
             {
               name: applicationCommandInteractionStatsMatch.data.name,
-              type: 1,
+              type: ApplicationCommandType.ChatInput,
               options: [],
               description: "some description",
               default_member_permissions: null,
@@ -2692,7 +2692,7 @@ describe("DiscordService", () => {
   describe("updateChannel()", () => {
     const fakeChannel: APIChannel = {
       id: "fake-channel-id",
-      type: 0,
+      type: ChannelType.GuildText,
       name: "updated-channel-name",
       position: 0,
       permission_overwrites: [],

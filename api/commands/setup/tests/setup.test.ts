@@ -692,6 +692,22 @@ describe("SetupCommand", () => {
         expect(updateDeferredReplySpy).toHaveBeenCalled();
       });
 
+      it.each(["post", "playlist", "format"])("rejects invalid maps %s values without saving", async (field) => {
+        const updateConfig = vi.spyOn(services.databaseService, "updateGuildConfig");
+        const reportError = vi
+          .spyOn(services.discordService, "updateDeferredReplyWithError")
+          .mockResolvedValue(apiMessage);
+        const interaction = aWizardStringSelectWith({
+          customId: `setup_neat_queue_informer_maps_${field}`,
+          value: "invalid",
+        });
+        const { jobToComplete: updateMapsJob } = setupCommand.execute(interaction);
+        await Preconditions.checkExists(updateMapsJob)();
+
+        expect(updateConfig).not.toHaveBeenCalled();
+        expect(reportError).toHaveBeenCalledWith("fake-token", expect.any(Error));
+      });
+
       it("updates maps count configuration when count select is changed", async () => {
         const mockConfig = aFakeGuildConfigRow();
 

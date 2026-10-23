@@ -50,12 +50,11 @@ type StoredGuildConfigRow = Omit<GuildConfigRow, "NeatQueueInformerMapsPlaylist"
 };
 
 function normalizeGuildConfig(config: StoredGuildConfigRow): GuildConfigRow {
+  const { NeatQueueInformerMapsPlaylist, ...rest } = config;
   return {
-    ...config,
+    ...rest,
     NeatQueueInformerMapsPlaylist:
-      config.NeatQueueInformerMapsPlaylist === "L"
-        ? MapsPlaylistType.HCS_CURRENT
-        : config.NeatQueueInformerMapsPlaylist,
+      NeatQueueInformerMapsPlaylist === "L" ? MapsPlaylistType.HCS_CURRENT : NeatQueueInformerMapsPlaylist,
   };
 }
 

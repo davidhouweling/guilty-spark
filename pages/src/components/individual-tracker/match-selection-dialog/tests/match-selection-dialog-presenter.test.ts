@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   IndividualTrackerService,
@@ -32,7 +33,7 @@ function aMatch(matchId: string): TrackerMatchHistoryResponse["matches"][number]
     mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
     modeVersionId: `mode-version-${matchId}`,
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",
@@ -371,7 +372,7 @@ describe("MatchSelectionDialogPresenter", () => {
             mapVersionId: "ver",
             modeAssetId: "mode",
             modeVersionId: "ver",
-            gameVariantCategory: 6,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "1m 0s",
             mapName: "Aquarius",
             modeName: "Slayer",
@@ -392,7 +393,7 @@ describe("MatchSelectionDialogPresenter", () => {
             mapVersionId: "ver",
             modeAssetId: "mode",
             modeVersionId: "ver",
-            gameVariantCategory: 6,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "10m 0s",
             mapName: "Bazaar",
             modeName: "Slayer",
@@ -425,7 +426,7 @@ describe("MatchSelectionDialogPresenter", () => {
             mapVersionId: "ver",
             modeAssetId: "mode",
             modeVersionId: "ver",
-            gameVariantCategory: 6,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "1m 0s",
             mapName: "Aquarius",
             modeName: "Slayer",

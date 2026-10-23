@@ -2629,7 +2629,7 @@ export class NeatQueueService {
                 type: ComponentType.Button,
                 custom_id: StatsInteractionButton.LoadGames,
                 label: "Load game stats",
-                style: 1,
+                style: ButtonStyle.Primary,
                 emoji: {
                   name: "🎮",
                 },

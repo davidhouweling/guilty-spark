@@ -63,7 +63,10 @@ export interface ComponentHandlerDefinition<T extends ComponentType | Interactio
 /**
  * Type for the handler map - keys are interaction component IDs
  */
-export type ComponentHandlerMap = Record<string, ComponentHandlerDefinition<ComponentType | InteractionType>>;
+export type ComponentHandlerMap = Record<
+  string,
+  ComponentHandlerDefinition<ComponentType | InteractionType.ModalSubmit>
+>;
 
 export abstract class BaseCommand {
   constructor(

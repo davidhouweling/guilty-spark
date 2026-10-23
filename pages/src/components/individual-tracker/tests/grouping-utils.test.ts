@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
@@ -11,7 +12,7 @@ function aMatchWith(matchId: string, category: TrackerMatchHistoryEntry["categor
     mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
     modeVersionId: `mode-version-${matchId}`,
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",

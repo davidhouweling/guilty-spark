@@ -1,3 +1,4 @@
+import { ApplicationCommandType } from "discord-api-types/v10";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import { BaseCommand } from "../base-command";
@@ -46,7 +47,7 @@ export function aTestCommandWith(
   const defaultCommands: ApplicationCommandData[] = [
     {
       name: "test-command",
-      type: 1,
+      type: ApplicationCommandType.ChatInput,
       options: [],
       description: "A test command",
       default_member_permissions: null,

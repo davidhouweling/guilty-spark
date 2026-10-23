@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +20,7 @@ function aMatchEntryWith(overrides: Partial<TrackerMatchHistoryEntry>): TrackerM
     mapVersionId: "map-version-1",
     modeAssetId: "mode-1",
     modeVersionId: "mode-version-1",
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     startTimeIso: "2026-01-01T00:00:00.000Z",
     endTimeIso: "2026-01-01T00:10:00.000Z",
     duration: "10m 0s",

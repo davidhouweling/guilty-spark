@@ -1,5 +1,3 @@
-import type { MockInstance } from "vitest";
-import { describe, afterEach, beforeEach, vi, it, expect } from "vitest";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -12,6 +10,8 @@ import type {
   RESTPostAPIChannelThreadsResult,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
+import type { MockInstance } from "vitest";
+import { describe, afterEach, beforeEach, vi, it, expect } from "vitest";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -25,6 +25,7 @@ import {
   Locale,
   MessageFlags,
   MessageType,
+  ThreadAutoArchiveDuration,
 } from "discord-api-types/v10";
 import { MatchOutcome } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
@@ -111,7 +112,7 @@ const applicationCommandInteractionStatsNeatQueue: APIApplicationCommandInteract
             value: 1418,
           },
         ],
-        type: 1,
+        type: ApplicationCommandOptionType.Subcommand,
       },
     ],
     resolved: {
@@ -5003,7 +5004,7 @@ describe("StatsCommand", () => {
         id: "1300004385459408960",
         name: "not-found",
         options: [],
-        type: 1,
+        type: ApplicationCommandType.ChatInput,
       },
     };
 
@@ -5210,7 +5211,7 @@ describe("StatsCommand", () => {
         member_count: 2,
         thread_metadata: {
           archived: false,
-          auto_archive_duration: 60,
+          auto_archive_duration: ThreadAutoArchiveDuration.OneHour,
           archive_timestamp: "2024-01-01T00:00:00.000Z",
           locked: false,
         },
@@ -5896,7 +5897,16 @@ describe("StatsCommand", () => {
           custom_id: PLAYER_STATS_WINDOW_SELECT_CONTROL_ID,
           values: [LeaderboardWindow.OneMonth],
         },
-        message: messageWithoutMetadata,
+        message: {
+          ...messageWithoutMetadata,
+          // eslint-disable-next-line @typescript-eslint/no-deprecated -- Exercises compatibility with legacy Discord messages.
+          interaction: {
+            id: "fake-interaction-id",
+            name: "stats",
+            type: InteractionType.ApplicationCommand,
+            user: Preconditions.checkExists(_interaction_metadata).user,
+          },
+        },
       };
 
       const response = statsCommand.execute(interaction);

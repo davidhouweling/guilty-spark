@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { AddTrackerDialogStore } from "../add-tracker-dialog-store";
@@ -89,7 +90,7 @@ describe("AddTrackerDialogPresenter", () => {
             mapVersionId: "map-v-1",
             modeAssetId: "mode-1",
             modeVersionId: "mode-v-1",
-            gameVariantCategory: 6 as const,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "10m 0s",
             mapName: "Aquarius",
             modeName: "Slayer",
@@ -187,7 +188,7 @@ describe("AddTrackerDialogPresenter", () => {
             mapVersionId: "b",
             modeAssetId: "c",
             modeVersionId: "d",
-            gameVariantCategory: 6 as const,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "10m",
             mapName: "A",
             modeName: "Slayer",

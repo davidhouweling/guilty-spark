@@ -9,7 +9,13 @@ import type {
   APISelectMenuOption,
   ChannelType,
 } from "discord-api-types/v10";
-import { ComponentType, InteractionResponseType, MessageFlags, PermissionFlagsBits } from "discord-api-types/v10";
+import {
+  ComponentType,
+  InteractionResponseType,
+  MessageFlags,
+  PermissionFlagsBits,
+  ButtonStyle,
+} from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { EndUserError } from "../../base/end-user-error";
@@ -511,7 +517,7 @@ export class StatsFixHandler {
               type: ComponentType.Button,
               custom_id: InteractionButton.FixCancel,
               label: "Cancel",
-              style: 2,
+              style: ButtonStyle.Secondary,
             },
           ],
         },
@@ -576,7 +582,7 @@ export class StatsFixHandler {
                 type: ComponentType.Button,
                 custom_id: InteractionButton.FixCancel,
                 label: "Cancel",
-                style: 2,
+                style: ButtonStyle.Secondary,
               },
             ],
           },
@@ -763,13 +769,13 @@ export class StatsFixHandler {
               type: ComponentType.Button,
               custom_id: InteractionButton.FixConfirm,
               label: "Confirm",
-              style: 3,
+              style: ButtonStyle.Success,
             },
             {
               type: ComponentType.Button,
               custom_id: InteractionButton.FixCancel,
               label: "Cancel",
-              style: 2,
+              style: ButtonStyle.Secondary,
             },
           ],
         },

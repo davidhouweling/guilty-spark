@@ -4211,7 +4211,7 @@ describe("Halo service", () => {
         MatchInfo: {
           ...baseMatch.MatchInfo,
           Playlist: isMatchmaking
-            ? { AssetKind: 3, AssetId: "test-playlist", VersionId: "test-playlist-version" }
+            ? { AssetKind: AssetKind.Prefab, AssetId: "test-playlist", VersionId: "test-playlist-version" }
             : null,
         },
         Teams: [],
@@ -4450,7 +4450,7 @@ describe("Halo service", () => {
         MatchInfo: {
           ...baseMatch.MatchInfo,
           Playlist: {
-            AssetKind: 3,
+            AssetKind: AssetKind.Prefab,
             AssetId: "ranked-playlist",
             VersionId: "v1",
           },
@@ -4461,7 +4461,7 @@ describe("Halo service", () => {
         MatchInfo: {
           ...baseMatch.MatchInfo,
           Playlist: {
-            AssetKind: 3,
+            AssetKind: AssetKind.Prefab,
             AssetId: "ranked-playlist",
             VersionId: "v1",
           },
@@ -4511,7 +4511,7 @@ describe("Halo service", () => {
         MatchInfo: {
           ...baseMatch.MatchInfo,
           Playlist: {
-            AssetKind: 3,
+            AssetKind: AssetKind.Prefab,
             AssetId: "ranked-playlist",
             VersionId: "v1",
           },

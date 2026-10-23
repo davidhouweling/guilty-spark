@@ -292,11 +292,11 @@ export class MapsEmbed {
   }
 
   private getPlaylistOptions(playlist: MapsPlaylistType): APISelectMenuOption[] {
-    return Object.entries(mapPlaylistLabels).map(([value, label]) => ({
-      label,
+    return Object.values(MapsPlaylistType).map((value) => ({
+      label: mapPlaylistLabels[value],
       value,
-      description: mapPlaylistDescriptions[value as MapsPlaylistType],
-      default: (value as MapsPlaylistType) === playlist,
+      description: mapPlaylistDescriptions[value],
+      default: value === playlist,
     }));
   }
 

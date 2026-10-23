@@ -50,6 +50,7 @@ const fakeDb = (): D1Database => ({
   prepare: () => new FakePreparedStatement(),
   batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
   exec: async () => Promise.resolve({ count: 1, duration: 1 }),
+  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Still required by the D1Database interface.
   dump: async () => Promise.resolve(new ArrayBuffer(1)),
   withSession: () => ({
     prepare: () => new FakePreparedStatement(),

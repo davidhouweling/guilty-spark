@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { shouldHideShortDurationMatch } from "../match-duration-filter";
@@ -15,7 +16,7 @@ function aMatchWith(
     mapVersionId: "map-version-1",
     modeAssetId: "mode-1",
     modeVersionId: "mode-version-1",
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",

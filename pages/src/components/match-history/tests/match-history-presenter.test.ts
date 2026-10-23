@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it, vi } from "vitest";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { MatchHistoryPresenter } from "../match-history-presenter";
@@ -15,7 +16,7 @@ function aMatchEntry(
     mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
     modeVersionId: `mode-version-${matchId}`,
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",
