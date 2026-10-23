@@ -3,6 +3,7 @@ name: copilot-loop
 description: "Process Copilot PR review findings in PR-scope and full-stack context. Fix in-scope issues, pause for explicit human direction on significant approach changes, reply and resolve, then poll until no inline or suppressed comments remain."
 disable-model-invocation: true
 ---
+
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.
 
 Keep the loop quiet except when human direction is required. Each `/after` invocation runs in a fresh stateless context. Polling state persists in `/tmp/copilot-loop-{PR}.txt` (line 1: `pollingStartedAt` ISO timestamp; line 2: `lastProcessedReviewId`); a pending human decision persists separately in `/tmp/copilot-loop-{PR}.paused.md`. The findings ledger lives in session memory and is lost between invocations; rebuild it from git log if needed. Emit the final report only when the review is clean — meaning zero inline comments AND zero suppressed comments — or report **awaiting human direction** when blocked. Poll every 1 minute for up to 15 minutes, then fall back to 10 minutes. Never poll or reschedule while paused.
