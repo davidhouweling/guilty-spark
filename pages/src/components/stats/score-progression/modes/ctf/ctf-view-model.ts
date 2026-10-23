@@ -13,10 +13,6 @@ function toSignedPercent(progress: number, direction: RunDirection): number {
   return Math.round(progress * FULL_PROGRESS) * direction;
 }
 
-export function progressAt(points: readonly FlagRunPoint[], timestampMs: number): number | null {
-  return interpolateSeriesAt(points, timestampMs, (point) => point.progress);
-}
-
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
   const ordered = [...run.samples]
     .filter((sample) => sample.timestampMs > run.startMs && sample.timestampMs <= endMs)
@@ -48,7 +44,11 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
       continue;
     }
     const timestampMs = Math.min(event.timestampMs, endMs);
-    markers.push({ timestampMs, progress: Math.round(progressAt(points, timestampMs) ?? 0), kind: event.kind });
+    markers.push({
+      timestampMs,
+      progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
+      kind: event.kind,
+    });
   }
   return markers;
 }
@@ -115,36 +115,15 @@ export function buildFlagRunLegend(
   return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
 }
 
-// one forward pass per run over the sorted timestamps; the cursor only ever advances
-function fillRunColumn(rows: Record<string, number | null>[], timestamps: readonly number[], run: FlagRunData): void {
-  const { points } = run;
-  let cursor = 0;
-  for (const [index, timestampMs] of timestamps.entries()) {
-    const row = Preconditions.checkExists(rows[index]);
-    if (points.length === 0) {
-      row[run.seriesKey] = null;
-      continue;
-    }
-    while (cursor < points.length - 1 && points[cursor].timestampMs < timestampMs) {
-      cursor += 1;
-    }
-    const upper = points[cursor];
-    const lower = cursor > 0 ? points[cursor - 1] : upper;
-    if (timestampMs < lower.timestampMs || timestampMs > upper.timestampMs) {
-      row[run.seriesKey] = null;
-      continue;
-    }
-    row[run.seriesKey] = interpolateSeriesAt([lower, upper], timestampMs, (point) => point.progress);
-  }
-}
-
 export function buildFlagRunsChartPoints(runs: readonly FlagRunData[]): FlagRunsChartPoint[] {
   const timestamps = [...new Set(runs.flatMap((run) => run.points.map((point) => point.timestampMs)))].sort(
     (left, right) => left - right,
   );
-  const rows: Record<string, number | null>[] = timestamps.map(() => ({}));
-  for (const run of runs) {
-    fillRunColumn(rows, timestamps, run);
-  }
-  return rows.map((row, index) => ({ ...row, timestampMs: Preconditions.checkExists(timestamps[index]) }));
+  return timestamps.map((timestampMs) => {
+    const row: Record<string, number | null> = {};
+    for (const run of runs) {
+      row[run.seriesKey] = interpolateSeriesAt(run.points, timestampMs, (point) => point.progress);
+    }
+    return { ...row, timestampMs };
+  });
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
@@ -810,6 +811,27 @@ describe("formatScoreProgression ctf", () => {
     });
     const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
     expect(result?.kind).toBe("score-lines");
+  });
+
+  it("resolves the teams from the captures even when a run names a team outside the match", () => {
+    const base = aFakeCtfTimelineWith();
+    const [first] = base.runs;
+    const timeline = aFakeCtfTimelineWith({
+      runs: [...base.runs, { ...Preconditions.checkExists(first), carrierTeamId: 3 }],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+  });
+
+  it("returns null for a 0-0 timeline whose runs do not agree on two teams", () => {
+    const base = aFakeCtfTimelineWith();
+    const [first] = base.runs;
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [...base.runs, { ...Preconditions.checkExists(first), carrierTeamId: 3 }],
+    });
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
   });
 
   it("returns null when the timeline has neither captures nor runs", () => {

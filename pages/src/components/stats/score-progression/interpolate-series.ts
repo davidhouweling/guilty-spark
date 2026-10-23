@@ -2,7 +2,6 @@ export interface TimedValue {
   readonly timestampMs: number;
 }
 
-// linear interpolation along a time-ordered polyline; null when the timestamp lies outside it
 export function interpolateSeriesAt<T extends TimedValue>(
   points: readonly T[],
   timestampMs: number,
@@ -14,7 +13,8 @@ export function interpolateSeriesAt<T extends TimedValue>(
     return null;
   }
   let previous = first;
-  for (const point of points.slice(1)) {
+  for (let index = 1; index < points.length; index++) {
+    const point = points[index];
     if (point.timestampMs >= timestampMs) {
       const span = point.timestampMs - previous.timestampMs;
       if (span === 0 || timestampMs === point.timestampMs) {
@@ -26,6 +26,5 @@ export function interpolateSeriesAt<T extends TimedValue>(
     }
     previous = point;
   }
-  // only a single-point series reaches here, with the timestamp on that point
   return getValue(first);
 }

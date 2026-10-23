@@ -1,8 +1,6 @@
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MatchAnalyticsService } from "../match-analytics-types";
 
-// A short CTF match so fake mode exercises the flag-run chart: Cobra captures Eagle's flag,
-// Eagle's one pull of Cobra's flag is returned, Cobra pulls again and the match ends on it.
 export function aFakeCtfScoreProgressionWith(
   overrides: Partial<NonNullable<MatchAnalytics["scoreProgression"]>> = {},
 ): NonNullable<MatchAnalytics["scoreProgression"]> {
@@ -93,7 +91,6 @@ function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): Match
   };
 }
 
-// fake-mode screens opt into the CTF progression so the flag-run chart is visible without the api
 export function aFakeCtfMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
   return aFakeMatchAnalyticsWith({
     requestedModules: ["killMatrix", "scoreProgression"],

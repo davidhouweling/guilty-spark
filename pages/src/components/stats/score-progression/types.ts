@@ -176,7 +176,6 @@ export interface FlagRunLegendEntry {
   readonly text: string;
 }
 
-// a run's column is null outside its span so the shared tooltip lists only the active runs
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
 export interface CtfViewData {

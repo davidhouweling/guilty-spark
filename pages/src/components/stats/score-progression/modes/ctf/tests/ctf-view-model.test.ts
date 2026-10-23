@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
-import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints, progressAt } from "../ctf-view-model";
+import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "../ctf-view-model";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -178,27 +178,6 @@ describe("buildFlagRunLegend", () => {
   });
 });
 
-describe("progressAt", () => {
-  const points = [
-    { timestampMs: 0, progress: 0 },
-    { timestampMs: 100, progress: 60 },
-    { timestampMs: 200, progress: 100 },
-  ];
-
-  it("interpolates linearly between points and returns a point's own value on it", () => {
-    expect(progressAt(points, 50)).toBe(30);
-    expect(progressAt(points, 100)).toBe(60);
-    expect(progressAt(points, 150)).toBe(80);
-    expect(progressAt(points, 200)).toBe(100);
-  });
-
-  it("returns null outside the run's span", () => {
-    expect(progressAt(points, -1)).toBeNull();
-    expect(progressAt(points, 201)).toBeNull();
-    expect(progressAt([], 0)).toBeNull();
-  });
-});
-
 describe("buildFlagRunsChartPoints", () => {
   it("unions the timestamps of every run and leaves a run null outside its span", () => {
     const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
@@ -207,5 +186,26 @@ describe("buildFlagRunsChartPoints", () => {
     expect(points[0]).toEqual({ timestampMs: 20000, run1: 0, run2: null });
     expect(points[3]).toEqual({ timestampMs: 60000, run1: 100, run2: null });
     expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: -50 });
+  });
+
+  it("interpolates a run at the other run's sample times while both flags are out", () => {
+    const [first, second] = aFakeCtfTimelineWith().runs;
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        Preconditions.checkExists(first),
+        { ...Preconditions.checkExists(second), startMs: 40000, endMs: 50000, samples: [], events: [] },
+      ],
+    });
+    const points = buildFlagRunsChartPoints(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS));
+    expect(points.find((point) => point.timestampMs === 40000)).toEqual({
+      timestampMs: 40000,
+      run1: 25 + ((40000 - 30000) / 15000) * 35,
+      run2: 0,
+    });
+    expect(points.find((point) => point.timestampMs === 50000)).toEqual({
+      timestampMs: 50000,
+      run1: 60 + ((50000 - 45000) / 15000) * 40,
+      run2: 0,
+    });
   });
 });

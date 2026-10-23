@@ -195,14 +195,17 @@ function mergeRunningScores(records: readonly Record<string, number>[]): Record<
   return merged;
 }
 
-// a match can end 0-0, so the flag runs name the teams as well as the capture events
-function mergeCtfTeamScores(timeline: CtfTimeline): Record<string, number> {
-  const runTeams: Record<string, number> = {};
-  for (const run of timeline.runs) {
-    runTeams[String(run.flagTeamId)] = 0;
-    runTeams[String(run.carrierTeamId)] = 0;
+// captures name the teams; a 0-0 match falls back to the runs, but only when every run agrees
+// on the same two teams so one malformed run cannot inflate the roster
+function mergeCtfTeamScores(timeline: CtfTimeline): Record<string, number> | undefined {
+  if (timeline.events.length > 0) {
+    return mergeRunningScores(timeline.events.map((event) => event.runningScores));
   }
-  return mergeRunningScores([runTeams, ...timeline.events.map((event) => event.runningScores)]);
+  const runTeamIds = new Set(timeline.runs.flatMap((run) => [run.flagTeamId, run.carrierTeamId]));
+  if (runTeamIds.size !== 2) {
+    return undefined;
+  }
+  return Object.fromEntries([...runTeamIds].map((teamId) => [String(teamId), 0]));
 }
 
 interface ResolvedTeams {
@@ -351,8 +354,7 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      // the producer clamps server-side; kept as boundary defense because a film clock can stamp
-      // the final capture a few ms past the duration and a 3-cap is how most matches end
+      // boundary defense: a film clock can stamp the final capture a few ms past the duration
       const captureEvents = timeline.events.map((event) => ({
         ...event,
         timestampMs: Math.min(event.timestampMs, durationMs),
