@@ -833,14 +833,16 @@ describe("formatScoreProgression ctf", () => {
     expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
   });
 
-  it("returns null for a 0-0 timeline whose runs do not agree on two teams", () => {
+  it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
     const base = aFakeCtfTimelineWith();
     const [first] = base.runs;
     const timeline = aFakeCtfTimelineWith({
       events: [],
       runs: [...base.runs, { ...Preconditions.checkExists(first), carrierTeamId: 3 }],
     });
-    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines).toBeNull();
   });
 
   it("returns null when the timeline has neither captures nor runs", () => {

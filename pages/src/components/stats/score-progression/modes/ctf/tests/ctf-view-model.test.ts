@@ -164,6 +164,23 @@ describe("buildFlagRuns", () => {
     expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
   });
 
+  it("drops an event stamped well outside its run instead of clamping it", () => {
+    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        {
+          ...base,
+          events: [
+            { timestampMs: 95000, kind: "grab" },
+            { timestampMs: 60500, kind: "capture" },
+          ],
+        },
+      ],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.markers).toEqual([{ timestampMs: 60000, progress: 100, kind: "capture" }]);
+  });
+
   it("returns nothing for a match that is not two teams", () => {
     expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
   });

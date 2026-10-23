@@ -35,16 +35,26 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   return points;
 }
 
-// an event stamped a few ms outside the run by film-clock skew is clamped onto it, not lost
+// film-clock skew can stamp an event a little outside its run; anything further out is bad data
+const MARKER_SKEW_TOLERANCE_MS = 1_000;
+
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
-  return run.events.map((event) => {
+  const markers: FlagRunMarkerData[] = [];
+  for (const event of run.events) {
+    if (
+      event.timestampMs < run.startMs - MARKER_SKEW_TOLERANCE_MS ||
+      event.timestampMs > endMs + MARKER_SKEW_TOLERANCE_MS
+    ) {
+      continue;
+    }
     const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
-    return {
+    markers.push({
       timestampMs,
       progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
       kind: event.kind,
-    };
-  });
+    });
+  }
+  return markers;
 }
 
 function buildRunReset(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunData["reset"] {

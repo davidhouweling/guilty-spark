@@ -186,7 +186,6 @@ function buildTeamLines(
   return teamLines;
 }
 
-// sparse records may omit a team, so team resolution unions the scores across every record
 function mergeRunningScores(records: readonly Record<string, number>[]): Record<string, number> {
   const merged: Record<string, number> = {};
   for (const record of records) {
@@ -267,15 +266,21 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-// capture records name the scoring team and may be sparse, so the runs complete the roster;
-// runs only count when they agree on exactly two teams, so one malformed run cannot inflate it
+// capture records name the scoring team and may be sparse, so the runs complete the roster: the
+// two teams most runs name, so one malformed run cannot inflate it
 function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]): ResolvedTeams | null {
   const teamIds = new Set(
     Object.keys(mergeRunningScores(timeline.events.map((event) => event.runningScores))).map(Number),
   );
-  const runTeamIds = new Set(timeline.runs.flatMap((run) => [run.flagTeamId, run.carrierTeamId]));
-  if (runTeamIds.size === 2) {
-    for (const teamId of runTeamIds) {
+  const runCounts = new Map<number, number>();
+  for (const run of timeline.runs) {
+    for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
+      runCounts.set(teamId, (runCounts.get(teamId) ?? 0) + 1);
+    }
+  }
+  const runTeamIds = [...runCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
+  if (runTeamIds.length >= 2) {
+    for (const teamId of runTeamIds.slice(0, 2)) {
       teamIds.add(teamId);
     }
   }
