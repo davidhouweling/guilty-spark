@@ -176,8 +176,7 @@ export interface FlagRunLegendEntry {
   readonly text: string;
 }
 
-// one row per distinct timestamp across all runs; a run's column is null outside its span so
-// the shared tooltip only lists the runs active at the hovered time
+// a run's column is null outside its span so the shared tooltip lists only the active runs
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
 export interface CtfViewData {

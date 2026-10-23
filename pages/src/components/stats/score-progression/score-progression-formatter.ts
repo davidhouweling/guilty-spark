@@ -1,5 +1,10 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { DeathOverlay, KillRaceEvent, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type {
+  CtfTimeline,
+  DeathOverlay,
+  KillRaceEvent,
+  MatchAnalytics,
+} from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
@@ -182,14 +187,21 @@ function buildTeamLines(
 }
 
 // sparse records may omit a team, so team resolution unions the scores across every record
-function mergeRunningScores(
-  records: readonly { readonly runningScores: Record<string, number> }[],
-): Record<string, number> {
+function mergeRunningScores(records: readonly Record<string, number>[]): Record<string, number> {
   const merged: Record<string, number> = {};
   for (const record of records) {
-    Object.assign(merged, record.runningScores);
+    Object.assign(merged, record);
   }
   return merged;
+}
+
+// a match can end 0-0, so the flag runs name the teams as well as the capture events
+function mergeCtfTeamScores(timeline: CtfTimeline): Record<string, number> {
+  const runTeams = timeline.runs.flatMap((run) => [
+    { [String(run.flagTeamId)]: 0 },
+    { [String(run.carrierTeamId)]: 0 },
+  ]);
+  return mergeRunningScores([...runTeams, ...timeline.events.map((event) => event.runningScores)]);
 }
 
 interface ResolvedTeams {
@@ -297,8 +309,7 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      const mergedRoundScores = mergeRunningScores(timeline.rounds.map((round) => ({ runningScores: round.scores })));
-      const teams = resolveTeams(timeline.rounds.length > 0 ? mergedRoundScores : undefined, teamColors);
+      const teams = resolveTeams(mergeRunningScores(timeline.rounds.map((round) => round.scores)), teamColors);
       if (teams == null) {
         return null;
       }
@@ -311,8 +322,7 @@ export function formatScoreProgression(
       };
     }
     case "strongholds": {
-      const mergedScores = mergeRunningScores(timeline.events);
-      const teams = resolveTeams(timeline.events.length > 0 ? mergedScores : undefined, teamColors);
+      const teams = resolveTeams(mergeRunningScores(timeline.events.map((event) => event.runningScores)), teamColors);
       if (teams == null) {
         return null;
       }
@@ -336,23 +346,20 @@ export function formatScoreProgression(
       };
     }
     case "ctf": {
-      // a match can end 0-0, so the teams come from the flag runs as well as the capture events
-      const mergedScores = mergeRunningScores(timeline.events);
-      for (const run of timeline.runs) {
-        mergedScores[String(run.flagTeamId)] ??= 0;
-        mergedScores[String(run.carrierTeamId)] ??= 0;
-      }
-      const teams = resolveTeams(Object.keys(mergedScores).length > 0 ? mergedScores : undefined, teamColors);
+      const teams = resolveTeams(mergeCtfTeamScores(timeline), teamColors);
       if (teams == null) {
         return null;
       }
-      const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
+      // a film clock can stamp the final capture a few ms past the duration; it is clamped onto
+      // the axis rather than dropped, since a 3-cap is how most matches end
+      const captureEvents = timeline.events.map((event) => ({
+        ...event,
+        timestampMs: Math.min(event.timestampMs, durationMs),
+      }));
       const scoreLines =
-        inMatchEvents.length > 0 ? buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize) : null;
+        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
       const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
-      // the mirrored chart needs exactly two teams and at least one drawable run; anything else
-      // falls back to the score lines
-      if (teams.teamIds.length !== 2 || runs.length === 0) {
+      if (runs.length === 0) {
         return scoreLines;
       }
       return {

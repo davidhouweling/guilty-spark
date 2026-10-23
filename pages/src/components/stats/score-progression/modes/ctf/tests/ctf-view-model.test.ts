@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
 import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints, progressAt } from "../ctf-view-model";
+import { interpolateSeriesAt } from "../../../interpolate-series";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -70,24 +71,24 @@ describe("buildFlagRuns", () => {
     expect(cutOff.points.at(-1)).toEqual({ timestampMs: 120000, progress: -30 });
   });
 
-  it("clamps a run that outlives the match to the match end without a capture or reset", () => {
+  it("keeps a capture stamped just past the match duration by clamping it onto the axis", () => {
     const timeline = aFakeCtfTimelineWith({
       runs: [
         {
           flagTeamId: 0,
           carrierTeamId: 1,
           startMs: 100000,
-          endMs: 130000,
+          endMs: 120040,
           outcome: "capture",
           samples: [{ timestampMs: 110000, progress: 0.4 }],
-          events: [{ timestampMs: 130000, kind: "capture" }],
+          events: [{ timestampMs: 120040, kind: "capture" }],
         },
       ],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: 40 });
-    expect(run.reset).toBeNull();
-    expect(run.markers).toEqual([]);
+    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: 100 });
+    expect(run.markers).toEqual([{ timestampMs: 120000, progress: 100, kind: "capture" }]);
+    expect(run.reset).toEqual({ timestampMs: 120000, fromProgress: 100 });
   });
 
   it("drops runs that start after the match, belong to unknown teams or have no span", () => {
@@ -196,6 +197,18 @@ describe("progressAt", () => {
     expect(progressAt(points, -1)).toBeNull();
     expect(progressAt(points, 201)).toBeNull();
     expect(progressAt([], 0)).toBeNull();
+  });
+});
+
+describe("interpolateSeriesAt", () => {
+  it("returns a point's own value at a repeated timestamp", () => {
+    const points = [
+      { timestampMs: 0, progress: 0 },
+      { timestampMs: 100, progress: 50 },
+      { timestampMs: 100, progress: 60 },
+    ];
+    expect(interpolateSeriesAt(points, 100, (point) => point.progress)).toBe(50);
+    expect(interpolateSeriesAt(points, 50, (point) => point.progress)).toBe(25);
   });
 });
 

@@ -783,6 +783,15 @@ describe("formatScoreProgression ctf", () => {
     expect(result.runs).toHaveLength(2);
   });
 
+  it("clamps a capture stamped past the match duration onto the score line's end", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 120040, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    const cobra = result.scoreLines?.teamLines.find((line) => line.teamId === 1);
+    expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
+  });
+
   it("exposes the shared chart rows alongside the runs", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });

@@ -42,12 +42,16 @@
   flex-wrap: wrap;
   font-size: 12px;
   gap: 4px 12px;
-  justify-content: flex-start;
+  justify-content: flex-end;
   padding: 4px 8px 0;
 }
 
+.flagLegend {
+  justify-content: flex-start;
+}
+
 @media (--tablet-viewport) {
-  .markerLegend {
+  .flagLegend {
     justify-content: flex-end;
   }
 }

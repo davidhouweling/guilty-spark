@@ -1,6 +1,8 @@
 import type { CtfFlagRun, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { TICK_FILL } from "../../chart-constants";
+import { interpolateSeriesAt } from "../../interpolate-series";
 import type { FlagRunData, FlagRunLegendEntry, FlagRunMarkerData, FlagRunPoint, FlagRunsChartPoint } from "../../types";
 
 const FULL_PROGRESS = 100;
@@ -11,29 +13,10 @@ function toSignedPercent(progress: number, direction: RunDirection): number {
   return Math.round(progress * FULL_PROGRESS) * direction;
 }
 
-// the drawn line is linear between points, so a position between two points is interpolated
 export function progressAt(points: readonly FlagRunPoint[], timestampMs: number): number | null {
-  const first = points.at(0);
-  const last = points.at(-1);
-  if (first == null || last == null || timestampMs < first.timestampMs || timestampMs > last.timestampMs) {
-    return null;
-  }
-  let previous = first;
-  for (const point of points) {
-    if (point.timestampMs >= timestampMs) {
-      const span = point.timestampMs - previous.timestampMs;
-      if (span === 0) {
-        return point.progress;
-      }
-      return previous.progress + ((point.progress - previous.progress) * (timestampMs - previous.timestampMs)) / span;
-    }
-    previous = point;
-  }
-  return last.progress;
+  return interpolateSeriesAt(points, timestampMs, (point) => point.progress);
 }
 
-// samples are ordered and deduped by timestamp (the last one wins) so the line never doubles
-// back and every timestamp maps to one progress
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
   const ordered = [...run.samples]
     .filter((sample) => sample.timestampMs > run.startMs && sample.timestampMs <= endMs)
@@ -46,8 +29,8 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   for (const [timestampMs, progress] of orderedSamplesWithin(run, endMs)) {
     points.push({ timestampMs, progress: toSignedPercent(progress, direction) });
   }
-  const last = points.at(-1) ?? { timestampMs: run.startMs, progress: 0 };
-  const endProgress = run.outcome === "capture" && endMs === run.endMs ? FULL_PROGRESS * direction : last.progress;
+  const last = Preconditions.checkExists(points.at(-1), "a run always has its start point");
+  const endProgress = run.outcome === "capture" ? FULL_PROGRESS * direction : last.progress;
   if (last.timestampMs === endMs) {
     points[points.length - 1] = { timestampMs: endMs, progress: endProgress };
   } else {
@@ -56,23 +39,22 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   return points;
 }
 
+// an event stamped past the axis (a film clock can place the final capture a few ms after the
+// match duration) is clamped onto it rather than lost
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
   const markers: FlagRunMarkerData[] = [];
   for (const event of run.events) {
-    if (event.timestampMs < run.startMs || event.timestampMs > endMs) {
+    if (event.timestampMs < run.startMs) {
       continue;
     }
-    markers.push({
-      timestampMs: event.timestampMs,
-      progress: Math.round(progressAt(points, event.timestampMs) ?? 0),
-      kind: event.kind,
-    });
+    const timestampMs = Math.min(event.timestampMs, endMs);
+    markers.push({ timestampMs, progress: Math.round(progressAt(points, timestampMs) ?? 0), kind: event.kind });
   }
   return markers;
 }
 
 function buildRunReset(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunData["reset"] {
-  if (run.outcome === "matchEnd" || endMs < run.endMs) {
+  if (run.outcome === "matchEnd") {
     return null;
   }
   return { timestampMs: endMs, fromProgress: points.at(-1)?.progress ?? 0 };
@@ -133,8 +115,6 @@ export function buildFlagRunLegend(
   return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
 }
 
-// every run shares one time axis; a run contributes its interpolated progress inside its span
-// and null outside it
 export function buildFlagRunsChartPoints(runs: readonly FlagRunData[]): FlagRunsChartPoint[] {
   const timestamps = [...new Set(runs.flatMap((run) => run.points.map((point) => point.timestampMs)))].sort(
     (left, right) => left - right,

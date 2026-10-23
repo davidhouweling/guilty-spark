@@ -3,6 +3,7 @@ import type {
   StrongholdsZoneEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { extendToDuration } from "../../extend-to-duration";
+import { interpolateSeriesAt } from "../../interpolate-series";
 import { tileSegments } from "../../timeline-segments";
 import type { OccupiedInterval } from "../../timeline-segments";
 import type {
@@ -17,20 +18,16 @@ import type {
 // Every ranked strongholds map plays three zones, so the advantage axis is fixed at ±3.
 const ZONE_ADVANTAGE_DOMAIN = 3;
 
-// Scoring is continuous, so a marker between two line points sits on the linear interpolation.
+// Scoring is continuous, so a marker between two line points sits on the linear interpolation;
+// a marker outside the line clamps to its nearest end.
 function sampleLineAt(points: readonly ScoreProgressionPoint[], timestampMs: number): number {
-  let previous: ScoreProgressionPoint | null = null;
-  for (const point of points) {
-    if (point.timestampMs >= timestampMs) {
-      if (previous == null || point.timestampMs === previous.timestampMs) {
-        return point.score;
-      }
-      const span = point.timestampMs - previous.timestampMs;
-      return previous.score + ((point.score - previous.score) * (timestampMs - previous.timestampMs)) / span;
-    }
-    previous = point;
+  const first = points.at(0);
+  const last = points.at(-1);
+  if (first == null || last == null) {
+    return 0;
   }
-  return previous?.score ?? 0;
+  const clampedMs = Math.min(Math.max(timestampMs, first.timestampMs), last.timestampMs);
+  return interpolateSeriesAt(points, clampedMs, (point) => point.score) ?? 0;
 }
 
 export function buildStrongholdsMarkers(

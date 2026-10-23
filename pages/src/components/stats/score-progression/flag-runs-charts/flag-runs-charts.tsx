@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import { ChartTypeSelect } from "../chart-type-select/chart-type-select";
 import { FlagRunsChart } from "../flag-runs-chart/flag-runs-chart";
 import type { FlagRunsViewModel } from "../types";
@@ -24,7 +25,7 @@ export function FlagRunsCharts({
       <div role="img" aria-label={ariaLabel}>
         <FlagRunsChart {...chart} />
       </div>
-      <div className={styles.markerLegend}>
+      <div className={classNames(styles.markerLegend, styles.flagLegend)}>
         {legend.map((entry) => (
           <span key={entry.key} className={styles.markerLegendItem}>
             <svg width="10" height="10" aria-hidden="true">
@@ -34,7 +35,7 @@ export function FlagRunsCharts({
           </span>
         ))}
       </div>
-      <div className={styles.markerLegend}>
+      <div className={classNames(styles.markerLegend, styles.flagLegend)}>
         {markerLegend.map((entry) => (
           <span key={entry.kind} className={styles.markerLegendItem}>
             <span aria-hidden="true">{entry.symbol}</span>

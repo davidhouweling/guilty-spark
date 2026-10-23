@@ -79,7 +79,7 @@ export function aFakeCtfScoreProgressionWith(
   };
 }
 
-export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
+function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
   return {
     requestedModules: ["killMatrix"],
     killMatrix: {
