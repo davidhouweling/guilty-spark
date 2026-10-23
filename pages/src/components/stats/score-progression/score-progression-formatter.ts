@@ -195,19 +195,6 @@ function mergeRunningScores(records: readonly Record<string, number>[]): Record<
   return merged;
 }
 
-// captures name the teams; a 0-0 match falls back to the runs, but only when every run agrees
-// on the same two teams so one malformed run cannot inflate the roster
-function mergeCtfTeamScores(timeline: CtfTimeline): Record<string, number> | undefined {
-  if (timeline.events.length > 0) {
-    return mergeRunningScores(timeline.events.map((event) => event.runningScores));
-  }
-  const runTeamIds = new Set(timeline.runs.flatMap((run) => [run.flagTeamId, run.carrierTeamId]));
-  if (runTeamIds.size !== 2) {
-    return undefined;
-  }
-  return Object.fromEntries([...runTeamIds].map((teamId) => [String(teamId), 0]));
-}
-
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -256,6 +243,20 @@ function buildSampledScoreLines(
   };
 }
 
+function resolveTeamsFromIds(teamIds: readonly number[], teamColors: readonly TeamColor[]): ResolvedTeams | null {
+  if (teamIds.length === 0) {
+    return null;
+  }
+  const sortedTeamIds = [...teamIds].sort((a, b) => a - b);
+  const teamColorByTeamId = new Map(
+    sortedTeamIds.map((teamId, slotIndex) => [
+      teamId,
+      teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+    ]),
+  );
+  return { teamIds: sortedTeamIds, teamColorByTeamId };
+}
+
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
@@ -263,19 +264,22 @@ function resolveTeams(
   if (scoresByTeamId == null) {
     return null;
   }
-  const teamIds = Object.keys(scoresByTeamId)
-    .map(Number)
-    .sort((a, b) => a - b);
-  if (teamIds.length === 0) {
-    return null;
-  }
-  const teamColorByTeamId = new Map(
-    teamIds.map((teamId, slotIndex) => [
-      teamId,
-      teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
-    ]),
+  return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
+}
+
+// capture records name the scoring team and may be sparse, so the runs complete the roster;
+// runs only count when they agree on exactly two teams, so one malformed run cannot inflate it
+function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]): ResolvedTeams | null {
+  const teamIds = new Set(
+    Object.keys(mergeRunningScores(timeline.events.map((event) => event.runningScores))).map(Number),
   );
-  return { teamIds, teamColorByTeamId };
+  const runTeamIds = new Set(timeline.runs.flatMap((run) => [run.flagTeamId, run.carrierTeamId]));
+  if (runTeamIds.size === 2) {
+    for (const teamId of runTeamIds) {
+      teamIds.add(teamId);
+    }
+  }
+  return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
 export function formatScoreProgression(
@@ -350,7 +354,7 @@ export function formatScoreProgression(
       };
     }
     case "ctf": {
-      const teams = resolveTeams(mergeCtfTeamScores(timeline), teamColors);
+      const teams = resolveCtfTeams(timeline, teamColors);
       if (teams == null) {
         return null;
       }

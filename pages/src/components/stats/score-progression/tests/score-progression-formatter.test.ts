@@ -813,6 +813,15 @@ describe("formatScoreProgression ctf", () => {
     expect(result?.kind).toBe("score-lines");
   });
 
+  it("completes the roster from the runs when a sparse capture record names only the scorer", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+  });
+
   it("resolves the teams from the captures even when a run names a team outside the match", () => {
     const base = aFakeCtfTimelineWith();
     const [first] = base.runs;

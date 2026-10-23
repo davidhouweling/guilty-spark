@@ -77,7 +77,6 @@ export function FlagRunsChart({
               key={`marker-${String(run.runIndex)}-${String(markerIndex)}`}
               x={marker.timestampMs}
               y={marker.progress}
-              r={5}
               shape={<FlagRunMarker kind={marker.kind} color={run.color} />}
             />
           )),

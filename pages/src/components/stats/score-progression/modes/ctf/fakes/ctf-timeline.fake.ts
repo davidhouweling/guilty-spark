@@ -1,6 +1,5 @@
 import type { CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 
-// Team 1 captures team 0's flag once; team 0's pull of team 1's flag is returned at 86%.
 export function aFakeCtfTimelineWith(overrides: Partial<CtfTimeline> = {}): CtfTimeline {
   return {
     type: "ctf",

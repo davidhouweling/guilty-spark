@@ -35,22 +35,16 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   return points;
 }
 
-// an event stamped past the axis (a film clock can place the final capture a few ms after the
-// match duration) is clamped onto it rather than lost
+// an event stamped a few ms outside the run by film-clock skew is clamped onto it, not lost
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
-  const markers: FlagRunMarkerData[] = [];
-  for (const event of run.events) {
-    if (event.timestampMs < run.startMs) {
-      continue;
-    }
-    const timestampMs = Math.min(event.timestampMs, endMs);
-    markers.push({
+  return run.events.map((event) => {
+    const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
+    return {
       timestampMs,
       progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
       kind: event.kind,
-    });
-  }
-  return markers;
+    };
+  });
 }
 
 function buildRunReset(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunData["reset"] {

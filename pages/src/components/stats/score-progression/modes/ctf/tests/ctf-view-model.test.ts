@@ -103,7 +103,7 @@ describe("buildFlagRuns", () => {
     expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
   });
 
-  it("orders samples by time and ignores events stamped before the pull", () => {
+  it("orders samples by time and clamps an event stamped just before the pull onto its start", () => {
     const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
     const timeline = aFakeCtfTimelineWith({
       runs: [
@@ -119,7 +119,11 @@ describe("buildFlagRuns", () => {
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(run.points.map((point) => point.timestampMs)).toEqual([20000, 30000, 45000, 60000]);
-    expect(run.markers.map((marker) => marker.kind)).toEqual(["grab", "capture"]);
+    expect(run.markers.map((marker) => [marker.kind, marker.timestampMs])).toEqual([
+      ["steal", 20000],
+      ["grab", 30000],
+      ["capture", 60000],
+    ]);
   });
 
   it("interpolates a marker that falls between two samples onto the drawn line", () => {
