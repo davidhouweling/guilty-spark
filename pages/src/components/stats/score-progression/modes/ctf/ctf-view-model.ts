@@ -32,17 +32,27 @@ export function progressAt(points: readonly FlagRunPoint[], timestampMs: number)
   return last.progress;
 }
 
+// samples are ordered and deduped by timestamp (the last one wins) so the line never doubles
+// back and every timestamp maps to one progress
+function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
+  const ordered = [...run.samples]
+    .filter((sample) => sample.timestampMs > run.startMs && sample.timestampMs <= endMs)
+    .sort((left, right) => left.timestampMs - right.timestampMs);
+  return new Map(ordered.map((sample) => [sample.timestampMs, sample.progress]));
+}
+
 function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection): FlagRunPoint[] {
   const points: FlagRunPoint[] = [{ timestampMs: run.startMs, progress: 0 }];
-  const orderedSamples = [...run.samples].sort((left, right) => left.timestampMs - right.timestampMs);
-  for (const sample of orderedSamples) {
-    if (sample.timestampMs > run.startMs && sample.timestampMs < endMs) {
-      points.push({ timestampMs: sample.timestampMs, progress: toSignedPercent(sample.progress, direction) });
-    }
+  for (const [timestampMs, progress] of orderedSamplesWithin(run, endMs)) {
+    points.push({ timestampMs, progress: toSignedPercent(progress, direction) });
   }
-  const lastProgress = points.at(-1)?.progress ?? 0;
-  const endProgress = run.outcome === "capture" && endMs === run.endMs ? FULL_PROGRESS * direction : lastProgress;
-  points.push({ timestampMs: endMs, progress: endProgress });
+  const last = points.at(-1) ?? { timestampMs: run.startMs, progress: 0 };
+  const endProgress = run.outcome === "capture" && endMs === run.endMs ? FULL_PROGRESS * direction : last.progress;
+  if (last.timestampMs === endMs) {
+    points[points.length - 1] = { timestampMs: endMs, progress: endProgress };
+  } else {
+    points.push({ timestampMs: endMs, progress: endProgress });
+  }
   return points;
 }
 
@@ -81,7 +91,13 @@ export function buildFlagRuns(
   const runs: FlagRunData[] = [];
   for (const run of timeline.runs) {
     const color = teamColorByTeamId.get(run.carrierTeamId);
-    if (color == null || !teamIds.includes(run.flagTeamId) || run.startMs >= durationMs || run.endMs <= run.startMs) {
+    if (
+      color == null ||
+      !teamIds.includes(run.flagTeamId) ||
+      run.carrierTeamId === run.flagTeamId ||
+      run.startMs >= durationMs ||
+      run.endMs <= run.startMs
+    ) {
       continue;
     }
     const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;

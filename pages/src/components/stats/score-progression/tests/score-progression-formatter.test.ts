@@ -783,6 +783,18 @@ describe("formatScoreProgression ctf", () => {
     expect(result.runs).toHaveLength(2);
   });
 
+  it("exposes the shared chart rows alongside the runs", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
+    expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
+    expect(result.points).toHaveLength(8);
+  });
+
+  it("falls back to the capture score lines when no run can be drawn", () => {
+    const timeline = aFakeCtfTimelineWith({ runs: [] });
+    const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
+    expect(result?.kind).toBe("score-lines");
+  });
+
   it("falls back to the capture score lines when the records carry more than two teams", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1, "2": 0 } }],

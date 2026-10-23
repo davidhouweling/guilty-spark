@@ -1,6 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
-import { buildFlagRunsChartPoints } from "./modes/ctf/ctf-view-model";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -149,11 +148,8 @@ export class ScoreProgressionPresenter {
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points: buildFlagRunsChartPoints(viewData.runs),
-        tooltipFormatter: (
-          value: number | string | readonly (number | string)[] | undefined,
-          name: string | number | undefined,
-        ): [string, string] => this.formatFlagProgressTooltip(value, name),
+        points: viewData.points,
+        tooltipFormatter: (value, name): [string, string] => this.formatFlagProgressTooltip(value, name),
       },
       onChartTypeChange: this.onChartTypeChange,
     };
@@ -163,11 +159,15 @@ export class ScoreProgressionPresenter {
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
   ): [string, string] {
-    const label = typeof name === "string" ? name : String(name ?? "");
+    const label = this.toTooltipLabel(name);
     if (typeof value !== "number" || Number.isNaN(value)) {
       return [String(value ?? ""), label];
     }
     return [`${String(Math.abs(Math.round(value)))}% ${FLAG_PROGRESS_LABEL}`, label];
+  }
+
+  private toTooltipLabel(name: string | number | undefined): string {
+    return typeof name === "string" ? name : String(name ?? "");
   }
 
   // an unset chart type resolves to the mode's default, whose option group leads the select
@@ -404,7 +404,7 @@ export class ScoreProgressionPresenter {
   ): [string, string] {
     return this.formatSeriesTooltip(value, name, team0Name, team1Name, () => [
       String(value ?? ""),
-      typeof name === "string" ? name : String(name ?? ""),
+      this.toTooltipLabel(name),
     ]);
   }
 

@@ -131,6 +131,35 @@ describe("buildFlagRuns", () => {
     expect(run.markers).toEqual([{ timestampMs: 52500, progress: 80, kind: "grab" }]);
   });
 
+  it("uses a sample stamped at the run end and keeps the last of duplicate timestamps", () => {
+    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[1]);
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        {
+          ...base,
+          samples: [
+            { timestampMs: 80000, progress: 0.4 },
+            { timestampMs: 80000, progress: 0.5 },
+            { timestampMs: 100000, progress: 0.9 },
+          ],
+        },
+      ],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.points).toEqual([
+      { timestampMs: 70000, progress: 0 },
+      { timestampMs: 80000, progress: -50 },
+      { timestampMs: 100000, progress: -90 },
+    ]);
+    expect(run.reset).toEqual({ timestampMs: 100000, fromProgress: -90 });
+  });
+
+  it("drops a run whose carrier is the flag's own team", () => {
+    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const timeline = aFakeCtfTimelineWith({ runs: [{ ...base, carrierTeamId: base.flagTeamId }] });
+    expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
+  });
+
   it("returns nothing for a match that is not two teams", () => {
     expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
   });
@@ -152,14 +181,13 @@ describe("buildFlagRunLegend", () => {
 describe("progressAt", () => {
   const points = [
     { timestampMs: 0, progress: 0 },
-    { timestampMs: 100, progress: 50 },
     { timestampMs: 100, progress: 60 },
     { timestampMs: 200, progress: 100 },
   ];
 
-  it("interpolates between points and takes the later value at a repeated timestamp", () => {
-    expect(progressAt(points, 50)).toBe(25);
-    expect(progressAt(points, 100)).toBe(50);
+  it("interpolates linearly between points and returns a point's own value on it", () => {
+    expect(progressAt(points, 50)).toBe(30);
+    expect(progressAt(points, 100)).toBe(60);
     expect(progressAt(points, 150)).toBe(80);
     expect(progressAt(points, 200)).toBe(100);
   });

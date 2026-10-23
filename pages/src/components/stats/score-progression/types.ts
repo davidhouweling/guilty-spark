@@ -176,10 +176,15 @@ export interface FlagRunLegendEntry {
   readonly text: string;
 }
 
+// one row per distinct timestamp across all runs; a run's column is null outside its span so
+// the shared tooltip only lists the runs active at the hovered time
+export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
+
 export interface CtfViewData {
   readonly kind: "ctf";
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
+  readonly points: readonly FlagRunsChartPoint[];
   readonly legend: readonly FlagRunLegendEntry[];
   readonly scoreLines: ScoreLinesViewData | null;
 }
@@ -188,6 +193,11 @@ export type ScoreProgressionViewData =
   ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData | CtfViewData;
 
 export type ChartType = "timeline" | "progression" | "delta";
+
+export type TooltipFormatter = (
+  value: number | string | readonly (number | string)[] | undefined,
+  name: string | number | undefined,
+) => [string, string];
 
 export interface ChartTypeOption {
   readonly value: ChartType;
@@ -203,10 +213,7 @@ export interface ScoreProgressionDeltaViewModel {
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
   readonly roundBoundaries: readonly number[];
-  readonly tooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ) => [string, string];
+  readonly tooltipFormatter: TooltipFormatter;
 }
 
 export interface ScoreProgressionProgressionViewModel {
@@ -217,10 +224,7 @@ export interface ScoreProgressionProgressionViewModel {
   readonly advantageDomain: readonly [number, number] | null;
   readonly markers: readonly ScoreMarkerData[] | null;
   readonly roundBoundaries: readonly number[];
-  readonly tooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ) => [string, string];
+  readonly tooltipFormatter: TooltipFormatter;
 }
 
 export interface ScoreLinesViewModel {
@@ -254,18 +258,11 @@ export interface TimelineGanttChartViewModel {
   readonly onChartTypeChange: (value: string) => void;
 }
 
-// one row per distinct timestamp across all runs; a run's column is null outside its span so
-// the shared tooltip only lists the runs active at the hovered time
-export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
-
 export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
-  readonly tooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ) => [string, string];
+  readonly tooltipFormatter: TooltipFormatter;
 }
 
 export interface FlagRunMarkerLegendEntry {

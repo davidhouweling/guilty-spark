@@ -4,7 +4,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
-import { buildFlagRunLegend, buildFlagRuns } from "./modes/ctf/ctf-view-model";
+import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "./modes/ctf/ctf-view-model";
 import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
@@ -349,14 +349,17 @@ export function formatScoreProgression(
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
       const scoreLines =
         inMatchEvents.length > 0 ? buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize) : null;
-      // the mirrored chart needs exactly two teams; anything else falls back to the score lines
-      if (teams.teamIds.length !== 2) {
+      const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      // the mirrored chart needs exactly two teams and at least one drawable run; anything else
+      // falls back to the score lines
+      if (teams.teamIds.length !== 2 || runs.length === 0) {
         return scoreLines;
       }
       return {
         kind: "ctf",
         durationMs,
-        runs: buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        runs,
+        points: buildFlagRunsChartPoints(runs),
         legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
         scoreLines,
       };
