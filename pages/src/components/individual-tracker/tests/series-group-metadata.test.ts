@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import { buildSeriesGroupKey } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
@@ -20,7 +21,7 @@ function aMatchEntryWith(
     startTimeIso: overrides.startTimeIso,
     mapAssetId: overrides.mapAssetId ?? "map-1",
     mapVersionId: overrides.mapVersionId ?? "map-version-1",
-    gameVariantCategory: overrides.gameVariantCategory ?? 6,
+    gameVariantCategory: overrides.gameVariantCategory ?? GameVariantCategory.MultiplayerSlayer,
     outcome: overrides.outcome ?? "Win",
   };
 }

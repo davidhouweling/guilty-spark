@@ -107,8 +107,8 @@ describe("ManualSeriesDialogPresenter", () => {
   });
 
   describe("backfill discovery", () => {
-    it("loads tracker matches from individualTrackerViewService.getView", async () => {
-      const match = aFakeTrackerMatchSummaryWith({ matchId: "tracker-match-1" });
+    it("loads tracker matches including unknown game modes from individualTrackerViewService.getView", async () => {
+      const match = aFakeTrackerMatchSummaryWith({ matchId: "tracker-match-1", gameVariantCategory: 999 });
       const viewService = aFakeIndividualTrackerViewServiceWith({
         view: aFakeTrackerViewStateWith({ matches: [match] }),
       });
@@ -128,6 +128,8 @@ describe("ManualSeriesDialogPresenter", () => {
       expect(store.getSnapshot().backfillState).toBe("done");
       expect(store.getSnapshot().backfillMatches).toHaveLength(1);
       expect(store.getSnapshot().backfillMatches[0].matchId).toBe("tracker-match-1");
+      expect(store.getSnapshot().backfillMatches[0].gameVariantCategory).toBe(999);
+      expect(store.getSnapshot().backfillMatches[0].modeName).toBe("Unknown");
     });
 
     it("filters out matchmaking matches", async () => {

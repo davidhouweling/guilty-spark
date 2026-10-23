@@ -1,9 +1,9 @@
-import { describe, beforeEach, vi, it, expect } from "vitest";
 import type {
   APIApplicationCommandInteraction,
   APIEmbed,
   APIUserApplicationCommandGuildInteraction,
 } from "discord-api-types/v10";
+import { describe, beforeEach, vi, it, expect } from "vitest";
 import {
   GuildMemberFlags,
   ApplicationCommandOptionType,
@@ -11,6 +11,7 @@ import {
   InteractionType,
   Locale,
   InteractionResponseType,
+  ChannelType,
 } from "discord-api-types/v10";
 import type { PlaylistCsr } from "halo-infinite-api";
 import { ServiceRecordCommand } from "../service-record";
@@ -47,7 +48,7 @@ const userContextMenuInteraction: APIUserApplicationCommandGuildInteraction = {
   authorizing_integration_owners: {},
   channel: {
     id: "fake-channel-id",
-    type: 0,
+    type: ChannelType.GuildText,
   },
   entitlements: [],
   locale: Locale.EnglishUS,

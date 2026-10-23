@@ -1,3 +1,4 @@
+import { ChannelType } from "discord-api-types/v10";
 import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LEADERBOARD_MAX_PAGE_SIZE, leaderboardContract } from "@guilty-spark/shared/contracts/leaderboard/leaderboard";
@@ -31,8 +32,8 @@ describe("/api/leaderboard", () => {
     const services = installFakeServicesWith({ env });
     vi.spyOn(services.databaseService, "getLeaderboardQueueChannelIds").mockResolvedValue(["queue-a", "queue-b"]);
     vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([
-      { id: "queue-a", name: "alpha-queue", type: 0, position: 0 },
-      { id: "queue-b", name: "beta-queue", type: 0, position: 1 },
+      { id: "queue-a", name: "alpha-queue", type: ChannelType.GuildText, position: 0 },
+      { id: "queue-b", name: "beta-queue", type: ChannelType.GuildText, position: 1 },
     ]);
     const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => services);
     leaderboardRoutesRegisterHandler(router, localInstallServices);

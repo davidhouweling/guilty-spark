@@ -1,4 +1,6 @@
 import { GameVariantCategory } from "halo-infinite-api";
+import { z } from "zod";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import type { DiscordService } from "../../services/discord/discord";
 import type { HaloService } from "../../services/halo/halo";
@@ -27,7 +29,7 @@ interface EmbedCreateOpts {
   discordService: DiscordService;
   haloService: HaloService;
   guildConfig: GuildConfigRow;
-  gameVariantCategory: GameVariantCategory;
+  gameVariantCategory: number;
   locale: string;
 }
 
@@ -45,7 +47,8 @@ export function create({
     locale,
   };
 
-  switch (gameVariantCategory) {
+  const category = z.enum(GameVariantCategory).safeParse(gameVariantCategory).data;
+  switch (category) {
     case GameVariantCategory.MultiplayerAttrition: {
       return new AttritionMatchEmbed(opts);
     }
@@ -100,8 +103,11 @@ export function create({
     case GameVariantCategory.MultiplayerVIP: {
       return new VIPMatchEmbed(opts);
     }
-    default: {
+    case undefined: {
       return new UnknownMatchEmbed(opts);
+    }
+    default: {
+      throw new UnreachableError(category);
     }
   }
 }

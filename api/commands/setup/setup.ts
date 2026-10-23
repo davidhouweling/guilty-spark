@@ -27,6 +27,7 @@ import {
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { z } from "zod";
 import type {
   BaseInteraction,
   ExecuteResponse,
@@ -442,7 +443,7 @@ export class SetupCommand extends BaseCommand {
         return this.deferReply(async () => this.handleApplicationCommand(interaction), true);
       }
       case InteractionType.MessageComponent: {
-        const customId = interaction.data.custom_id as InteractionComponent;
+        const customId = z.enum(InteractionComponent).parse(interaction.data.custom_id);
 
         // Special handling for WizardNext which can be button or select menu
         if (customId === InteractionComponent.WizardNext) {
@@ -458,7 +459,7 @@ export class SetupCommand extends BaseCommand {
         return this.executeComponentHandler(handler, interaction);
       }
       case InteractionType.ModalSubmit: {
-        const customId = interaction.data.custom_id as InteractionComponent;
+        const customId = z.enum(InteractionComponent).parse(interaction.data.custom_id);
 
         // Special handling for WizardNext modal submissions
         if (customId === InteractionComponent.WizardNext) {
@@ -558,12 +559,12 @@ export class SetupCommand extends BaseCommand {
       }
 
       const { custom_id, value } = Preconditions.checkExists(submission.components[0]);
-      formData.set(custom_id as WizardStepKey, value);
+      formData.set(z.enum(WizardStepKey).parse(custom_id), value);
       return undefined;
     }
 
     const componentType = interaction.data.component_type as ComponentType;
-    const customId = interaction.data.custom_id as InteractionComponent;
+    const customId = z.enum(InteractionComponent).parse(interaction.data.custom_id);
 
     if (customId === InteractionComponent.WizardNext) {
       switch (componentType) {
@@ -745,9 +746,9 @@ export class SetupCommand extends BaseCommand {
       );
       const queueChannelId = Preconditions.checkExists(formData.get(WizardStepKey.QueueChannel));
       const resultsChannelId = formData.get(WizardStepKey.ResultsChannel) ?? queueChannelId;
-      let postSeriesMode = Preconditions.checkExists(
-        formData.get(WizardStepKey.DisplayMode),
-      ) as NeatQueuePostSeriesDisplayMode;
+      let postSeriesMode = z
+        .enum(NeatQueuePostSeriesDisplayMode)
+        .parse(Preconditions.checkExists(formData.get(WizardStepKey.DisplayMode)));
       let postSeriesChannelId = formData.get(WizardStepKey.ResultsPostChannel) ?? null;
 
       // If posting to same channel as results, simplify to MESSAGE mode
@@ -792,7 +793,7 @@ export class SetupCommand extends BaseCommand {
             "An unexpected error occurred trying to access this channel (it has been logged and will be investigated), try again later or try a different channel.";
 
           if (error instanceof DiscordError) {
-            const errorMessages = new Map<RESTJSONErrorCodes, string>([
+            const errorMessages = new Map<number, string>([
               [RESTJSONErrorCodes.UnknownChannel, `Channel does not exist.`],
               [
                 RESTJSONErrorCodes.MissingAccess,
@@ -1344,7 +1345,9 @@ export class SetupCommand extends BaseCommand {
     );
 
     try {
-      const newMode = Preconditions.checkExists(interaction.data.values[0]) as NeatQueuePostSeriesDisplayMode;
+      const newMode = z
+        .enum(NeatQueuePostSeriesDisplayMode)
+        .parse(Preconditions.checkExists(interaction.data.values[0]));
       const config = await databaseService.getNeatQueueConfig(guildId, channelId);
       config.PostSeriesMode = newMode;
 
@@ -1570,7 +1573,7 @@ export class SetupCommand extends BaseCommand {
         type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueIntegrationAdd,
         label: "Add NeatQueue integration",
-        style: 1,
+        style: ButtonStyle.Primary,
         emoji: { name: "➕" },
       },
     ];
@@ -1590,7 +1593,7 @@ export class SetupCommand extends BaseCommand {
         type: ComponentType.Button,
         custom_id: InteractionComponent.NeatQueueIntegrationEdit,
         label: "Edit existing NeatQueue integration",
-        style: 2,
+        style: ButtonStyle.Secondary,
         emoji: { name: "🛠️" },
       });
     }
@@ -1660,21 +1663,21 @@ export class SetupCommand extends BaseCommand {
                 type: ComponentType.Button,
                 custom_id: InteractionComponent.NeatQueueInformerPlayersOnStart,
                 label: "Toggle Player Connections",
-                style: 1,
+                style: ButtonStyle.Primary,
                 emoji: { name: "🔌" },
               },
               {
                 type: ComponentType.Button,
                 custom_id: InteractionComponent.NeatQueueInformerLiveTracking,
                 label: "Configure Live Tracking",
-                style: 1,
+                style: ButtonStyle.Primary,
                 emoji: { name: "📊" },
               },
               {
                 type: ComponentType.Button,
                 custom_id: InteractionComponent.NeatQueueInformerMaps,
                 label: "Configure maps generation",
-                style: 1,
+                style: ButtonStyle.Primary,
                 emoji: { name: "🗺️" },
               },
             ],
@@ -2002,24 +2005,26 @@ export class SetupCommand extends BaseCommand {
       const config: Partial<GuildConfigRow> = {};
 
       const value = Preconditions.checkExists(interaction.data.values[0]);
-      type SupportedMapsConfigComponent =
-        | InteractionComponent.NeatQueueInformerMapsPost
-        | InteractionComponent.NeatQueueInformerMapsPlaylist
-        | InteractionComponent.NeatQueueInformerMapsFormat
-        | InteractionComponent.NeatQueueInformerMapsCount;
-      const customId = interaction.data.custom_id as SupportedMapsConfigComponent;
+      const customId = z
+        .enum([
+          InteractionComponent.NeatQueueInformerMapsPost,
+          InteractionComponent.NeatQueueInformerMapsPlaylist,
+          InteractionComponent.NeatQueueInformerMapsFormat,
+          InteractionComponent.NeatQueueInformerMapsCount,
+        ])
+        .parse(interaction.data.custom_id);
 
       switch (customId) {
         case InteractionComponent.NeatQueueInformerMapsPost: {
-          config.NeatQueueInformerMapsPost = value as MapsPostType;
+          config.NeatQueueInformerMapsPost = z.enum(MapsPostType).parse(value);
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsPlaylist: {
-          config.NeatQueueInformerMapsPlaylist = value as MapsPlaylistType;
+          config.NeatQueueInformerMapsPlaylist = z.enum(MapsPlaylistType).parse(value);
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsFormat: {
-          config.NeatQueueInformerMapsFormat = value as MapsFormatType;
+          config.NeatQueueInformerMapsFormat = z.enum(MapsFormatType).parse(value);
           break;
         }
         case InteractionComponent.NeatQueueInformerMapsCount: {

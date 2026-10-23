@@ -1,6 +1,7 @@
 ---
-agent: agent
+name: copilot-loop
 description: "Process Copilot PR review findings in PR-scope and full-stack context. Fix in-scope issues, pause for explicit human direction on significant approach changes, reply and resolve, then poll until no inline or suppressed comments remain."
+disable-model-invocation: true
 ---
 
 Run one iteration of the Copilot review loop on the current PR in the GitHub Copilot CLI interactive session. From the VS Code integrated terminal, start that session with `copilot`. Experimental scheduling must be enabled first with `/experimental on` or `--experimental`.

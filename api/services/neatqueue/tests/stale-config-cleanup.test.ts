@@ -1,3 +1,4 @@
+import { ChannelType } from "discord-api-types/v10";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { APIChannel } from "discord-api-types/v10";
@@ -15,7 +16,7 @@ function aChannel(id: string): APIChannel {
   return {
     id,
     name: "queue-channel",
-    type: 0,
+    type: ChannelType.GuildText,
     position: 0,
   };
 }

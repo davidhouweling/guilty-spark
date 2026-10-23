@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import type {
   TrackerProfile,
   TrackerProfileResponse,
@@ -106,7 +107,7 @@ export function aFakeMatchHistoryEntryWith(
     mapVersionId: "fake-map-version-id",
     modeAssetId: "fake-mode-asset-id",
     modeVersionId: "fake-mode-version-id",
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     startTimeIso: "2026-01-01T00:00:00.000Z",
     endTimeIso: "2026-01-01T00:10:00.000Z",
     duration: "10m 0s",

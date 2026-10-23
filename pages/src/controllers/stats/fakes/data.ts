@@ -1,3 +1,4 @@
+import { MatchOutcome, GameVariantCategory, AssetKind } from "halo-infinite-api";
 import type { MatchStats, Stats } from "halo-infinite-api";
 
 export function aFakeCoreStatsWith(overrides?: Partial<Stats["CoreStats"]>): Stats["CoreStats"] {
@@ -51,7 +52,7 @@ export function aFakePlayerWith(overrides?: Partial<MatchStats["Players"][0]>): 
     PlayerType: 1,
     BotAttributes: {},
     LastTeamId: 1,
-    Outcome: 2,
+    Outcome: MatchOutcome.Win,
     Rank: 1,
     ParticipationInfo: {
       FirstJoinedTime: "2024-11-26T11:05:39.587Z",
@@ -114,15 +115,15 @@ export function aFakeMatchStatsWith(overrides?: Partial<MatchStats>): MatchStats
       EndTime: "2024-11-26T11:14:25.091Z",
       Duration: "PT8M45.5042357S",
       LifecycleMode: 1,
-      GameVariantCategory: 6,
+      GameVariantCategory: GameVariantCategory.MultiplayerSlayer,
       LevelId: "19dfcede-dcd1-45a8-8a77-2b58ce65484f",
       MapVariant: {
-        AssetKind: 2,
+        AssetKind: AssetKind.Playlist,
         AssetId: "e23ea388-9bcb-4180-a0dc-fbe987751b9e",
         VersionId: "26d77007-363e-4acf-9a7c-f437a42ecda3",
       },
       UgcGameVariant: {
-        AssetKind: 6,
+        AssetKind: AssetKind.MapModePair,
         AssetId: "c2d20d44-8606-4669-b894-afae15b3524f",
         VersionId: "0091d411-f90d-44a7-aac3-ccc7ff2b131f",
       },

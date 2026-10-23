@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
@@ -50,7 +51,7 @@ function aFakeMatch(matchId: string): TrackerMatchHistoryEntry {
     mapVersionId: "map-v-1",
     modeAssetId: "mode-1",
     modeVersionId: "mode-v-1",
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",

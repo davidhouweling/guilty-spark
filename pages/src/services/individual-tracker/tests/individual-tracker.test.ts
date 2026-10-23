@@ -1,3 +1,4 @@
+import { MatchOutcome } from "halo-infinite-api";
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -298,7 +299,7 @@ describe("RealIndividualTrackerService", () => {
         {
           MatchId: matchStats.MatchId,
           LastTeamId: 0,
-          Outcome: 2,
+          Outcome: MatchOutcome.Win,
           Rank: 1,
           PresentAtEndOfMatch: true,
           MatchInfo: matchStats.MatchInfo,

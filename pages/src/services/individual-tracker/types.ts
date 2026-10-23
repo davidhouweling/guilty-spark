@@ -11,7 +11,7 @@ import type {
 } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import type { TrackerLiveView } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
-import type { GameVariantCategory, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
+import type { MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
 
 export interface TrackerSearchResult {
   readonly gamertag: string;
@@ -44,7 +44,7 @@ export interface TrackerMatchHistoryEntry {
   readonly mapVersionId: string;
   readonly modeAssetId: string;
   readonly modeVersionId: string;
-  readonly gameVariantCategory: GameVariantCategory;
+  readonly gameVariantCategory: number;
   readonly startTimeIso?: string | undefined;
   readonly endTimeIso?: string | undefined;
   readonly duration: string;

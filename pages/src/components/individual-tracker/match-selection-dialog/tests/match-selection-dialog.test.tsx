@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -30,7 +31,7 @@ function aMatch(
     mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
     modeVersionId: `mode-version-${matchId}`,
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName: "Slayer",
@@ -144,7 +145,7 @@ describe("MatchSelectionDialogSection", () => {
             mapVersionId: "map-version-short",
             modeAssetId: "mode-short",
             modeVersionId: "mode-version-short",
-            gameVariantCategory: 6,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "1m 30s",
             mapName: "Aquarius",
             modeName: "Slayer",
@@ -165,7 +166,7 @@ describe("MatchSelectionDialogSection", () => {
             mapVersionId: "map-version-long",
             modeAssetId: "mode-long",
             modeVersionId: "mode-version-long",
-            gameVariantCategory: 6,
+            gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
             duration: "10m 0s",
             mapName: "Bazaar",
             modeName: "Capture the Flag",

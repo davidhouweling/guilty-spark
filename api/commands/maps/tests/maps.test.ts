@@ -1,5 +1,3 @@
-import type { MockInstance } from "vitest";
-import { describe, it, beforeEach, expect, vi } from "vitest";
 import type {
   APIInteractionResponse,
   APIApplicationCommandInteraction,
@@ -12,7 +10,10 @@ import type {
   APIStringSelectComponent,
   APIEmbed,
   APIMessage,
+  APIApplicationCommandInteractionDataOption,
 } from "discord-api-types/v10";
+import type { MockInstance } from "vitest";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import {
   ApplicationCommandOptionType,
   ApplicationCommandType,
@@ -21,6 +22,7 @@ import {
   ComponentType,
   MessageFlags,
   InteractionResponseType,
+  ButtonStyle,
 } from "discord-api-types/v10";
 import type { MapMode } from "../../../services/halo/hcs";
 import { MapsCommand } from "../maps";
@@ -38,7 +40,7 @@ import {
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
 
 function aFakeMapsInteractionWith(
-  options: { name: string; value: unknown; type: number }[] = [],
+  options: APIApplicationCommandInteractionDataOption[] = [],
 ): APIApplicationCommandInteraction {
   return {
     ...fakeBaseAPIApplicationCommandInteraction,
@@ -198,12 +200,12 @@ function aFakeMapsMessage({
           {
             type: ComponentType.Button,
             custom_id: InteractionComponent.Regenerate,
-            style: 1,
+            style: ButtonStyle.Primary,
           },
           {
             type: ComponentType.Button,
             custom_id: InteractionComponent.Repost,
-            style: 2,
+            style: ButtonStyle.Secondary,
           },
         ],
       },

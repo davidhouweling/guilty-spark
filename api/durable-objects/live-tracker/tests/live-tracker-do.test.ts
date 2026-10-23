@@ -2175,7 +2175,7 @@ describe("LiveTrackerDO", () => {
       const mockChannel: APIChannel = {
         id: "channel-456",
         name: "test-queue",
-        type: 0,
+        type: ChannelType.GuildText,
         position: 0,
       };
       vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
@@ -2788,11 +2788,12 @@ describe("LiveTrackerDO", () => {
       });
       vi.spyOn(services.discordService, "deleteMessage").mockResolvedValue(undefined);
 
-      const mockChannel = {
+      const mockChannel: APIChannel = {
         id: "channel-456",
         name: "test-queue",
-        type: 0,
-      } as APIChannel;
+        type: ChannelType.GuildText,
+        position: 0,
+      };
       vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
       vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
 
@@ -2850,10 +2851,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
@@ -2924,10 +2926,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
@@ -2998,10 +3001,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
@@ -3065,10 +3069,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel┊0﹕1",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
@@ -3166,10 +3171,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
@@ -3224,10 +3230,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel (1:0)",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");
@@ -3309,10 +3316,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel (2:1)",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel").mockResolvedValue(mockChannel);
@@ -3335,10 +3343,11 @@ describe("LiveTrackerDO", () => {
         });
         storageGetSpy.mockResolvedValue(trackerState);
 
-        const mockChannel = {
+        const mockChannel: APIChannel = {
           id: "test-channel-id",
           name: "my-queue-channel",
-          type: 0,
+          position: 0,
+          type: ChannelType.GuildText,
         };
         const getChannelSpy = vi.spyOn(services.discordService, "getChannel").mockResolvedValue(mockChannel);
         const updateChannelSpy = vi.spyOn(services.discordService, "updateChannel");

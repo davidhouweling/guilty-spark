@@ -260,7 +260,7 @@ describe("create", () => {
       discordService,
       haloService,
       guildConfig,
-      gameVariantCategory: 999 as GameVariantCategory,
+      gameVariantCategory: 999,
       locale,
     });
 

@@ -1,3 +1,4 @@
+import { GameVariantCategory } from "halo-infinite-api";
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -25,7 +26,7 @@ function aMatchWith(
     mapVersionId: `map-version-${matchId}`,
     modeAssetId: `mode-${matchId}`,
     modeVersionId: `mode-version-${matchId}`,
-    gameVariantCategory: 6,
+    gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
     duration: "10m 0s",
     mapName: "Aquarius",
     modeName,

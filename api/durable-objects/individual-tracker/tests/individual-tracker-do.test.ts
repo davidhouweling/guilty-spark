@@ -1,3 +1,4 @@
+import { AssetKind, MatchType, RequestError, GameVariantCategory, MatchOutcome } from "halo-infinite-api";
 import { describe, beforeEach, it, expect, vi, afterEach } from "vitest";
 import type { MockInstance } from "vitest";
 import { addSeconds } from "date-fns";
@@ -10,7 +11,6 @@ import {
   aFakePlayerWith,
   aFakeTeamWith,
 } from "@guilty-spark/shared/halo/fakes/data";
-import { AssetKind, MatchType, RequestError } from "halo-infinite-api";
 import type { HaloInfiniteClient, PlayerMatchHistory } from "halo-infinite-api";
 import type { MockProxy } from "vitest-mock-extended";
 import { mock } from "vitest-mock-extended";
@@ -56,7 +56,7 @@ import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/dat
 
 const aFakeWinMatchStats = (): ReturnType<typeof aFakeMatchStatsWith> =>
   aFakeMatchStatsWith({
-    MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 },
+    MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerSlayer },
     Teams: [
       aFakeTeamWith({
         TeamId: 0,
@@ -343,7 +343,7 @@ describe("IndividualTrackerDO", () => {
               ...aFakeMatchStatsWith().MatchInfo,
               StartTime: startTime,
             },
-            Players: [aFakePlayerWith({ PlayerId: "test-xuid", Outcome: 2 })],
+            Players: [aFakePlayerWith({ PlayerId: "test-xuid", Outcome: MatchOutcome.Win })],
           }),
         );
       });
@@ -1086,7 +1086,7 @@ describe("IndividualTrackerDO", () => {
               Players: [
                 aFakePlayerWith({
                   PlayerId: "fake-xuid",
-                  Outcome: 2,
+                  Outcome: MatchOutcome.Win,
                 }),
               ],
             }),
@@ -1104,7 +1104,7 @@ describe("IndividualTrackerDO", () => {
               Players: [
                 aFakePlayerWith({
                   PlayerId: "fake-xuid",
-                  Outcome: 2,
+                  Outcome: MatchOutcome.Win,
                 }),
               ],
             }),
@@ -1180,7 +1180,7 @@ describe("IndividualTrackerDO", () => {
           Players: [
             aFakePlayerWith({
               PlayerId: "fake-xuid",
-              Outcome: 2,
+              Outcome: MatchOutcome.Win,
             }),
           ],
         }),
@@ -1208,7 +1208,7 @@ describe("IndividualTrackerDO", () => {
           Players: [
             aFakePlayerWith({
               PlayerId: "fake-xuid",
-              Outcome: 2,
+              Outcome: MatchOutcome.Win,
             }),
           ],
         }),
@@ -2310,7 +2310,7 @@ describe("IndividualTrackerDO", () => {
         .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockResolvedValueOnce(
         aFakeMatchStatsWith({
-          MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 },
+          MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerSlayer },
           Teams: [
             aFakeTeamWith({
               TeamId: 0,
@@ -3075,7 +3075,10 @@ describe("IndividualTrackerDO", () => {
         .mockResolvedValueOnce([aFakePlayerMatch("match-new", "2024-11-26T11:30:00.000Z", 2)])
         .mockResolvedValueOnce([]);
       ownerClient.getMatchStats.mockResolvedValue(
-        aFakeMatchStatsWith({ MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: 6 }, Teams: [] }),
+        aFakeMatchStatsWith({
+          MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerSlayer },
+          Teams: [],
+        }),
       );
       const state = aFakeIndividualTrackerInternalStateWith({
         startTime: now.toISOString(),

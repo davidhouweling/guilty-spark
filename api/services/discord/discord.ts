@@ -45,6 +45,7 @@ import {
   PermissionFlagsBits,
   OverwriteType,
   GuildMemberFlags,
+  ThreadAutoArchiveDuration,
 } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
@@ -1471,7 +1472,7 @@ export class DiscordService {
     channelId: string,
     message: string,
     name: string,
-    autoArchiveDuration: 60 | 1440 | 4320 | 10080 = 60,
+    autoArchiveDuration: ThreadAutoArchiveDuration = ThreadAutoArchiveDuration.OneHour,
   ): Promise<RESTPostAPIChannelThreadsResult> {
     if (name.length > 100) {
       return Promise.reject(new Error("Thread name must be 100 characters or fewer"));
