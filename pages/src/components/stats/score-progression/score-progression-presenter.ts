@@ -281,7 +281,6 @@ export class ScoreProgressionPresenter {
       showPlayerAdvantage,
       showMarkers,
       showZoneAdvantage,
-      showToolbar: showChartTypeSelect || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,

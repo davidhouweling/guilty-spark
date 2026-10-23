@@ -1,5 +1,3 @@
-import type { CtfFlagRunEvent } from "@guilty-spark/shared/contracts/stats/match-analytics";
-
 export interface ScoreProgressionPoint {
   readonly timestampMs: number;
   readonly score: number;
@@ -142,7 +140,7 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type FlagRunMarkerKind = CtfFlagRunEvent["kind"];
+export type FlagRunMarkerKind = "steal" | "grab" | "drop" | "return" | "capture";
 
 // progress is a signed percentage: positive for the first team's flag (carried by the second
 // team), negative for the second team's flag, so the two flags mirror around the home line
@@ -239,7 +237,6 @@ export interface ScoreLinesViewModel {
   readonly showPlayerAdvantage: boolean;
   readonly showMarkers: boolean;
   readonly showZoneAdvantage: boolean;
-  readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
   readonly onChartTypeChange: (value: string) => void;

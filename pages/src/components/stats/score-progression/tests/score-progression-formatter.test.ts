@@ -833,6 +833,19 @@ describe("formatScoreProgression ctf", () => {
     expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
   });
 
+  it("ignores run teams once the captures already name two teams", () => {
+    const base = aFakeCtfTimelineWith();
+    const [first] = base.runs;
+    const malformed = { ...Preconditions.checkExists(first), carrierTeamId: 5 };
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [Preconditions.checkExists(first), malformed, malformed],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(1);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
   it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
     const base = aFakeCtfTimelineWith();
     const [first] = base.runs;

@@ -1,9 +1,17 @@
-import type { CtfFlagRun, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { TICK_FILL } from "../../chart-constants";
 import { interpolateSeriesAt } from "../../interpolate-series";
-import type { FlagRunData, FlagRunLegendEntry, FlagRunMarkerData, FlagRunPoint, FlagRunsChartPoint } from "../../types";
+import type {
+  FlagRunData,
+  FlagRunLegendEntry,
+  FlagRunMarkerData,
+  FlagRunMarkerKind,
+  FlagRunPoint,
+  FlagRunsChartPoint,
+} from "../../types";
 
 const FULL_PROGRESS = 100;
 
@@ -38,12 +46,35 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
 // film-clock skew can stamp an event a little outside its run; anything further out is bad data
 const MARKER_SKEW_TOLERANCE_MS = 1_000;
 
+function toMarkerKind(kind: CtfFlagRunEvent["kind"]): FlagRunMarkerKind {
+  switch (kind) {
+    case "steal": {
+      return "steal";
+    }
+    case "grab": {
+      return "grab";
+    }
+    case "drop": {
+      return "drop";
+    }
+    case "return": {
+      return "return";
+    }
+    case "capture": {
+      return "capture";
+    }
+    default: {
+      throw new UnreachableError(kind);
+    }
+  }
+}
+
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
   const markers: FlagRunMarkerData[] = [];
   for (const event of run.events) {
     if (
       event.timestampMs < run.startMs - MARKER_SKEW_TOLERANCE_MS ||
-      event.timestampMs > endMs + MARKER_SKEW_TOLERANCE_MS
+      event.timestampMs > run.endMs + MARKER_SKEW_TOLERANCE_MS
     ) {
       continue;
     }
@@ -51,7 +82,7 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     markers.push({
       timestampMs,
       progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
-      kind: event.kind,
+      kind: toMarkerKind(event.kind),
     });
   }
   return markers;

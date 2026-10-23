@@ -49,7 +49,6 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     showPlayerAdvantage: false,
     showMarkers: true,
     showZoneAdvantage: false,
-    showToolbar: false,
     deltaViewModel: null,
     progressionViewModel: {
       durationMs: 600000,

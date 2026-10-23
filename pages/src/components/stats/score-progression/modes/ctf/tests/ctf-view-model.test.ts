@@ -181,6 +181,24 @@ describe("buildFlagRuns", () => {
     expect(run.markers).toEqual([{ timestampMs: 60000, progress: 100, kind: "capture" }]);
   });
 
+  it("keeps a capture marker whose run overran the match by more than the skew tolerance", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        {
+          flagTeamId: 0,
+          carrierTeamId: 1,
+          startMs: 100000,
+          endMs: 121500,
+          outcome: "capture",
+          samples: [],
+          events: [{ timestampMs: 121500, kind: "capture" }],
+        },
+      ],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.markers).toEqual([{ timestampMs: 120000, progress: 100, kind: "capture" }]);
+  });
+
   it("returns nothing for a match that is not two teams", () => {
     expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
   });

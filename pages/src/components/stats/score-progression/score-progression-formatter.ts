@@ -266,8 +266,8 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-// capture records name the scoring team and may be sparse, so the runs complete the roster: the
-// two teams most runs name, so one malformed run cannot inflate it
+// capture records name the scoring team and may be sparse; when they leave the roster short of
+// two teams the runs fill it, most-named first, so one malformed run cannot inflate it
 function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]): ResolvedTeams | null {
   const teamIds = new Set(
     Object.keys(mergeRunningScores(timeline.events.map((event) => event.runningScores))).map(Number),
@@ -279,10 +279,11 @@ function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]
     }
   }
   const runTeamIds = [...runCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
-  if (runTeamIds.length >= 2) {
-    for (const teamId of runTeamIds.slice(0, 2)) {
-      teamIds.add(teamId);
+  for (const teamId of runTeamIds) {
+    if (teamIds.size >= 2) {
+      break;
     }
+    teamIds.add(teamId);
   }
   return resolveTeamsFromIds([...teamIds], teamColors);
 }

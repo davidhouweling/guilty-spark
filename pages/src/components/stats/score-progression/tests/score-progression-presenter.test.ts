@@ -250,30 +250,6 @@ describe("ScoreProgressionPresenter", () => {
     });
   });
 
-  describe("showToolbar", () => {
-    it("sets showToolbar true when scoreDelta is non-null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(
-        presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
-      );
-      expect(model.showToolbar).toBe(true);
-    });
-
-    it("sets showToolbar true when playerAdvantage is non-null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(
-        presenter.present(store.getSnapshot(), aScoreLinesInput({ playerAdvantage: aFakePlayerAdvantageData() })),
-      );
-      expect(model.showToolbar).toBe(true);
-    });
-
-    it("sets showToolbar false when both scoreDelta and playerAdvantage are null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(presenter.present(store.getSnapshot(), aScoreLinesInput()));
-      expect(model.showToolbar).toBe(false);
-    });
-  });
-
   describe("player advantage", () => {
     it("sets hasPlayerAdvantage true when playerAdvantage is non-null", () => {
       const { store, presenter } = makePresenter();
@@ -364,7 +340,6 @@ describe("ScoreProgressionPresenter", () => {
       );
       expect(model.hasZoneAdvantage).toBe(true);
       expect(model.hasMarkers).toBe(true);
-      expect(model.showToolbar).toBe(true);
     });
 
     it("passes null zoneAdvantage to the charts until the toggle is enabled", () => {
