@@ -3,9 +3,10 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Checkbox } from "../../checkbox/checkbox";
 import { ChartTypeSelect } from "./chart-type-select/chart-type-select";
 import { DeltaChart } from "./delta-chart/delta-chart";
+import { FlagRunsChart } from "./flag-runs-chart/flag-runs-chart";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
-import type { ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
+import type { FlagRunsViewModel, ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
 import styles from "./score-progression.module.css";
 
 function ScoreLinesCharts({
@@ -74,10 +75,62 @@ function ScoreLinesCharts({
   );
 }
 
+const FLAG_MARKER_LEGEND = [
+  { key: "steal", symbol: "●", text: "Steal" },
+  { key: "grab", symbol: "○", text: "Pickup" },
+  { key: "drop", symbol: "✕", text: "Carrier killed" },
+  { key: "return", symbol: "◆", text: "Returned" },
+  { key: "capture", symbol: "▲", text: "Captured" },
+] as const;
+
+function FlagRunsCharts({
+  ariaLabel,
+  effectiveChartType,
+  chartTypeOptions,
+  showChartTypeSelect,
+  legend,
+  chart,
+  onChartTypeChange,
+}: FlagRunsViewModel): React.ReactElement {
+  return (
+    <div className={styles.container}>
+      {showChartTypeSelect && (
+        <div className={styles.toolbar}>
+          <ChartTypeSelect value={effectiveChartType} options={chartTypeOptions} onChange={onChartTypeChange} />
+        </div>
+      )}
+      <div role="img" aria-label={ariaLabel}>
+        <FlagRunsChart {...chart} />
+      </div>
+      <div className={styles.markerLegend}>
+        {legend.map((entry) => (
+          <span key={entry.key} className={styles.markerLegendItem}>
+            <svg width="10" height="10" aria-hidden="true">
+              <rect width="10" height="10" rx="2" fill={entry.color} />
+            </svg>
+            {entry.text}
+          </span>
+        ))}
+      </div>
+      <div className={styles.markerLegend}>
+        {FLAG_MARKER_LEGEND.map((entry) => (
+          <span key={entry.key} className={styles.markerLegendItem}>
+            <span aria-hidden="true">{entry.symbol}</span>
+            {entry.text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ScoreProgression(props: ScoreProgressionViewModel): React.ReactElement {
   switch (props.kind) {
     case "score-lines": {
       return <ScoreLinesCharts {...props} />;
+    }
+    case "flag-runs": {
+      return <FlagRunsCharts {...props} />;
     }
     case "timeline-gantt": {
       return (

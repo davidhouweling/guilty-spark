@@ -4,7 +4,8 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ScoreProgression } from "../score-progression";
-import type { ScoreLinesViewModel, ScoreMarkerData } from "../types";
+import type { FlagRunsViewModel, ScoreLinesViewModel, ScoreMarkerData } from "../types";
+import { aFakeFlagRunDataWith } from "../fakes/flag-run-data.fake";
 
 afterEach(() => {
   cleanup();
@@ -20,6 +21,10 @@ vi.mock("../delta-chart/delta-chart", () => ({
 
 vi.mock("../timeline-gantt-chart/timeline-gantt-chart", () => ({
   TimelineGanttChart: (): React.ReactElement => <div data-testid="timeline-gantt-chart" />,
+}));
+
+vi.mock("../flag-runs-chart/flag-runs-chart", () => ({
+  FlagRunsChart: (): React.ReactElement => <div data-testid="flag-runs-chart" />,
 }));
 
 const aFakeMarker = (): ScoreMarkerData => ({
@@ -115,5 +120,51 @@ describe("ScoreProgression", () => {
       />,
     );
     expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
+  });
+});
+
+describe("ScoreProgression flag runs", () => {
+  function aFlagRunsViewModelWith(overrides: Partial<FlagRunsViewModel> = {}): FlagRunsViewModel {
+    return {
+      kind: "flag-runs",
+      ariaLabel: "flag chart",
+      effectiveChartType: "timeline",
+      chartTypeOptions: [{ value: "timeline", label: "Flag Runs" }],
+      showChartTypeSelect: false,
+      legend: [{ key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" }],
+      chart: {
+        durationMs: 120000,
+        runs: [aFakeFlagRunDataWith()],
+        tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
+      },
+      onChartTypeChange: (): void => undefined,
+      ...overrides,
+    };
+  }
+
+  it("renders the flag runs chart with its legends", () => {
+    render(<ScoreProgression {...aFlagRunsViewModelWith()} />);
+
+    expect(screen.getByTestId("flag-runs-chart")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "flag chart" })).toBeInTheDocument();
+    expect(screen.getByText("Above: Eagle's flag, carried by Cobra")).toBeInTheDocument();
+    expect(screen.getByText("Carrier killed")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
+  });
+
+  it("shows the chart type select when score charts are available", () => {
+    render(
+      <ScoreProgression
+        {...aFlagRunsViewModelWith({
+          showChartTypeSelect: true,
+          chartTypeOptions: [
+            { value: "timeline", label: "Flag Runs" },
+            { value: "progression", label: "Score Progression" },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText("Chart type")).toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
 import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
+import { aFakeCtfViewDataWith } from "../fakes/ctf-view-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -817,5 +818,69 @@ describe("ScoreProgressionPresenter", () => {
         { key: "1", color: null, text: "Cobra: 0" },
       ]);
     });
+  });
+});
+
+describe("ScoreProgressionPresenter ctf", () => {
+  function asFlagRuns(model: ScoreProgressionViewModel): Extract<ScoreProgressionViewModel, { kind: "flag-runs" }> {
+    if (model.kind !== "flag-runs") {
+      throw new Error("expected flag-runs view model");
+    }
+    return model;
+  }
+
+  it("presents the flag runs by default with the legend and the runs passed through", () => {
+    const { store, presenter } = makePresenter();
+    const viewData = aFakeCtfViewDataWith();
+
+    const model = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "flags" }));
+
+    expect(model.ariaLabel).toBe("flags");
+    expect(model.effectiveChartType).toBe("timeline");
+    expect(model.chart.runs).toBe(viewData.runs);
+    expect(model.chart.durationMs).toBe(120000);
+    expect(model.legend).toBe(viewData.legend);
+  });
+
+  it("hides the chart type select when no capture happened", () => {
+    const { store, presenter } = makePresenter();
+    const model = asFlagRuns(
+      presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+    );
+
+    expect(model.showChartTypeSelect).toBe(false);
+    expect(model.chartTypeOptions).toEqual([{ value: "timeline", label: "Flag Runs" }]);
+  });
+
+  it("offers the score charts after the flag runs when captures exist, and switches to them", () => {
+    const { store, presenter } = makePresenter();
+    const viewData = aFakeCtfViewDataWith({
+      scoreLines: aFakeScoreLinesViewDataWith({ scoreDelta: aFakeScoreDeltaData() }),
+    });
+
+    const flagRuns = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+    expect(flagRuns.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+    expect(flagRuns.showChartTypeSelect).toBe(true);
+
+    flagRuns.onChartTypeChange("progression");
+    const scoreLines = presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" });
+    expect(scoreLines.kind).toBe("score-lines");
+    expect(scoreLines.effectiveChartType).toBe("progression");
+
+    scoreLines.onChartTypeChange("timeline");
+    expect(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }).kind).toBe("flag-runs");
+  });
+
+  it("formats the tooltip as unsigned progress toward the capture point", () => {
+    const { store, presenter } = makePresenter();
+    const model = asFlagRuns(
+      presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+    );
+
+    expect(model.chart.tooltipFormatter(-86, "Cobra flag · Eagle carrying")).toEqual([
+      "86% of the way to the capture point",
+      "Cobra flag · Eagle carrying",
+    ]);
+    expect(model.chart.tooltipFormatter(undefined, "x")).toEqual(["", "x"]);
   });
 });

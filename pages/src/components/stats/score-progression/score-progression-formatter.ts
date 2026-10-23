@@ -4,6 +4,7 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
+import { buildFlagRunLegend, buildFlagRuns } from "./modes/ctf/ctf-view-model";
 import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
@@ -331,6 +332,31 @@ export function formatScoreProgression(
           zoneAdvantage: buildZoneAdvantage(zoneWindows, durationMs),
           roundBoundaries: [],
         },
+      };
+    }
+    case "ctf": {
+      // a match can end 0-0, so the teams come from the flag runs as well as the capture events
+      const mergedScores: Record<string, number> = {};
+      for (const event of timeline.events) {
+        Object.assign(mergedScores, event.runningScores);
+      }
+      for (const run of timeline.runs) {
+        mergedScores[String(run.flagTeamId)] ??= 0;
+        mergedScores[String(run.carrierTeamId)] ??= 0;
+      }
+      const teams = resolveTeams(Object.keys(mergedScores).length > 0 ? mergedScores : undefined, teamColors);
+      if (teams == null) {
+        return null;
+      }
+      const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
+      return {
+        kind: "ctf",
+        durationMs,
+        runs: buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
+        // without a capture there is no score curve to offer beside the flag runs
+        scoreLines:
+          inMatchEvents.length > 0 ? buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize) : null,
       };
     }
     default: {

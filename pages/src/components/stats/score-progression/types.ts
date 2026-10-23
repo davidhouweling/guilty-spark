@@ -140,7 +140,54 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type ScoreProgressionViewData = ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData;
+export type FlagRunOutcome = "capture" | "return" | "autoReturn" | "matchEnd";
+
+export type FlagRunMarkerKind = "steal" | "grab" | "drop" | "return" | "capture";
+
+// progress is a signed percentage: positive for the first team's flag (carried by the second
+// team), negative for the second team's flag, so the two flags mirror around the home line
+export interface FlagRunPoint {
+  readonly timestampMs: number;
+  readonly progress: number;
+}
+
+export interface FlagRunMarkerData {
+  readonly timestampMs: number;
+  readonly progress: number;
+  readonly kind: FlagRunMarkerKind;
+}
+
+export interface FlagRunResetData {
+  readonly timestampMs: number;
+  readonly fromProgress: number;
+}
+
+export interface FlagRunData {
+  readonly runIndex: number;
+  readonly seriesName: string;
+  readonly color: string;
+  readonly outcome: FlagRunOutcome;
+  readonly points: readonly FlagRunPoint[];
+  readonly markers: readonly FlagRunMarkerData[];
+  readonly reset: FlagRunResetData | null;
+}
+
+export interface FlagRunLegendEntry {
+  readonly key: string;
+  readonly color: string;
+  readonly text: string;
+}
+
+export interface CtfViewData {
+  readonly kind: "ctf";
+  readonly durationMs: number;
+  readonly runs: readonly FlagRunData[];
+  readonly legend: readonly FlagRunLegendEntry[];
+  readonly scoreLines: ScoreLinesViewData | null;
+}
+
+export type ScoreProgressionViewData =
+  ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData | CtfViewData;
 
 export type ChartType = "timeline" | "progression" | "delta";
 
@@ -209,4 +256,24 @@ export interface TimelineGanttChartViewModel {
   readonly onChartTypeChange: (value: string) => void;
 }
 
-export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel;
+export interface FlagRunsChartViewModel {
+  readonly durationMs: number;
+  readonly runs: readonly FlagRunData[];
+  readonly tooltipFormatter: (
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+  ) => [string, string];
+}
+
+export interface FlagRunsViewModel {
+  readonly kind: "flag-runs";
+  readonly ariaLabel: string;
+  readonly effectiveChartType: ChartType;
+  readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
+  readonly legend: readonly FlagRunLegendEntry[];
+  readonly chart: FlagRunsChartViewModel;
+  readonly onChartTypeChange: (value: string) => void;
+}
+
+export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel | FlagRunsViewModel;

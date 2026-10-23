@@ -4,6 +4,8 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   ChartTypeOption,
+  CtfViewData,
+  FlagRunsViewModel,
   KothHillData,
   OddballRoundData,
   PlayerAdvantageData,
@@ -33,6 +35,8 @@ const DELTA_LABEL = "Score Delta";
 const TIMELINE_OPTION: ChartTypeOption = { value: "timeline", label: "Objective Timeline" };
 const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Score Progression" };
 const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
+const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
+const FLAG_PROGRESS_LABEL = "of the way to the capture point";
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
@@ -86,10 +90,62 @@ export class ScoreProgressionPresenter {
           defaultChartType: "timeline",
         });
       }
+      case "ctf": {
+        return this.presentCtf(snapshot, viewData, ariaLabel);
+      }
       default: {
         throw new UnreachableError(viewData);
       }
     }
+  }
+
+  // the flag runs are the mode's timeline chart; captures double as a step score line
+  private presentCtf(
+    snapshot: ScoreProgressionSnapshot,
+    viewData: CtfViewData,
+    ariaLabel: string,
+  ): ScoreProgressionViewModel {
+    const chartTypeOptions = [FLAG_RUNS_OPTION, ...this.buildChartTypeOptions(viewData.scoreLines)];
+    const wantsFlagRuns = (snapshot.chartType ?? "timeline") === "timeline";
+    if (viewData.scoreLines == null || wantsFlagRuns) {
+      return this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions);
+    }
+    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+  }
+
+  private presentFlagRuns(
+    viewData: CtfViewData,
+    ariaLabel: string,
+    chartTypeOptions: readonly ChartTypeOption[],
+  ): FlagRunsViewModel {
+    return {
+      kind: "flag-runs",
+      ariaLabel,
+      effectiveChartType: "timeline",
+      chartTypeOptions,
+      showChartTypeSelect: chartTypeOptions.length > 1,
+      legend: viewData.legend,
+      chart: {
+        durationMs: viewData.durationMs,
+        runs: viewData.runs,
+        tooltipFormatter: (
+          value: number | string | readonly (number | string)[] | undefined,
+          name: string | number | undefined,
+        ): [string, string] => this.formatFlagProgressTooltip(value, name),
+      },
+      onChartTypeChange: this.onChartTypeChange,
+    };
+  }
+
+  private formatFlagProgressTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+  ): [string, string] {
+    const label = typeof name === "string" ? name : String(name ?? "");
+    if (typeof value !== "number" || Number.isNaN(value)) {
+      return [String(value ?? ""), label];
+    }
+    return [`${String(Math.abs(Math.round(value)))}% ${FLAG_PROGRESS_LABEL}`, label];
   }
 
   // an unset chart type resolves to the mode's default, whose option group leads the select

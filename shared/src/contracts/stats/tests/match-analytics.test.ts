@@ -247,3 +247,68 @@ describe("matchAnalyticsSchema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("ctf timeline", () => {
+  it("parses a ctf score progression with capture events and flag runs", () => {
+    const analytics: MatchAnalytics = {
+      ...aValidAnalytics(),
+      requestedModules: ["scoreProgression"],
+      scoreProgression: {
+        mode: 15,
+        durationMs: 536800,
+        teamCount: 2,
+        timeline: {
+          type: "ctf",
+          events: [{ timestampMs: 243087, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+          runs: [
+            {
+              flagTeamId: 0,
+              carrierTeamId: 1,
+              startMs: 202229,
+              endMs: 243087,
+              outcome: "capture",
+              samples: [{ timestampMs: 220000, progress: 0.42 }],
+              events: [
+                { timestampMs: 202229, kind: "steal" },
+                { timestampMs: 243087, kind: "capture" },
+              ],
+            },
+          ],
+          deathTimeline: [{ timestampMs: 217280, teamId: 1 }],
+          respawnDurationMs: 8000,
+        },
+      },
+    };
+    const result = matchAnalyticsSchema.safeParse(analytics);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a flag run sample outside the unit interval", () => {
+    const analytics: MatchAnalytics = {
+      ...aValidAnalytics(),
+      scoreProgression: {
+        mode: 15,
+        durationMs: 1000,
+        teamCount: 2,
+        timeline: {
+          type: "ctf",
+          events: [],
+          runs: [
+            {
+              flagTeamId: 0,
+              carrierTeamId: 1,
+              startMs: 0,
+              endMs: 1000,
+              outcome: "matchEnd",
+              samples: [{ timestampMs: 500, progress: 1.5 }],
+              events: [],
+            },
+          ],
+          deathTimeline: [],
+          respawnDurationMs: null,
+        },
+      },
+    };
+    expect(matchAnalyticsSchema.safeParse(analytics).success).toBe(false);
+  });
+});
