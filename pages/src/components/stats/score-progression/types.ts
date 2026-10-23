@@ -266,7 +266,6 @@ export interface FlagRunsChartViewModel {
 
 export interface FlagRunMarkerLegendEntry {
   readonly kind: FlagRunMarkerKind;
-  readonly symbol: string;
   readonly text: string;
 }
 

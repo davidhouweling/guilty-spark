@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { interpolateSeriesAt } from "../interpolate-series";
+
+const points = [
+  { timestampMs: 0, value: 0 },
+  { timestampMs: 100, value: 50 },
+  { timestampMs: 100, value: 60 },
+  { timestampMs: 300, value: 100 },
+];
+const valueOf = (point: { value: number }): number => point.value;
+
+describe("interpolateSeriesAt", () => {
+  it("interpolates linearly between neighbouring points", () => {
+    expect(interpolateSeriesAt(points, 50, valueOf)).toBe(25);
+    expect(interpolateSeriesAt(points, 200, valueOf)).toBe(80);
+  });
+
+  it("returns a point's own value on it, the first of two at a repeated timestamp", () => {
+    expect(interpolateSeriesAt(points, 0, valueOf)).toBe(0);
+    expect(interpolateSeriesAt(points, 100, valueOf)).toBe(50);
+    expect(interpolateSeriesAt(points, 300, valueOf)).toBe(100);
+  });
+
+  it("returns null before the first point, after the last, and for an empty series", () => {
+    expect(interpolateSeriesAt(points, -1, valueOf)).toBeNull();
+    expect(interpolateSeriesAt(points, 301, valueOf)).toBeNull();
+    expect(interpolateSeriesAt([], 0, valueOf)).toBeNull();
+  });
+
+  it("returns the only point's value for a single-point series", () => {
+    expect(interpolateSeriesAt([{ timestampMs: 5, value: 7 }], 5, valueOf)).toBe(7);
+  });
+});

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
 import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints, progressAt } from "../ctf-view-model";
-import { interpolateSeriesAt } from "../../../interpolate-series";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -197,18 +196,6 @@ describe("progressAt", () => {
     expect(progressAt(points, -1)).toBeNull();
     expect(progressAt(points, 201)).toBeNull();
     expect(progressAt([], 0)).toBeNull();
-  });
-});
-
-describe("interpolateSeriesAt", () => {
-  it("returns a point's own value at a repeated timestamp", () => {
-    const points = [
-      { timestampMs: 0, progress: 0 },
-      { timestampMs: 100, progress: 50 },
-      { timestampMs: 100, progress: 60 },
-    ];
-    expect(interpolateSeriesAt(points, 100, (point) => point.progress)).toBe(50);
-    expect(interpolateSeriesAt(points, 50, (point) => point.progress)).toBe(25);
   });
 });
 

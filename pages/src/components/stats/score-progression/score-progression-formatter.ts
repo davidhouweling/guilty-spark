@@ -197,11 +197,12 @@ function mergeRunningScores(records: readonly Record<string, number>[]): Record<
 
 // a match can end 0-0, so the flag runs name the teams as well as the capture events
 function mergeCtfTeamScores(timeline: CtfTimeline): Record<string, number> {
-  const runTeams = timeline.runs.flatMap((run) => [
-    { [String(run.flagTeamId)]: 0 },
-    { [String(run.carrierTeamId)]: 0 },
-  ]);
-  return mergeRunningScores([...runTeams, ...timeline.events.map((event) => event.runningScores)]);
+  const runTeams: Record<string, number> = {};
+  for (const run of timeline.runs) {
+    runTeams[String(run.flagTeamId)] = 0;
+    runTeams[String(run.carrierTeamId)] = 0;
+  }
+  return mergeRunningScores([runTeams, ...timeline.events.map((event) => event.runningScores)]);
 }
 
 interface ResolvedTeams {
@@ -350,8 +351,8 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      // a film clock can stamp the final capture a few ms past the duration; it is clamped onto
-      // the axis rather than dropped, since a 3-cap is how most matches end
+      // the producer clamps server-side; kept as boundary defense because a film clock can stamp
+      // the final capture a few ms past the duration and a 3-cap is how most matches end
       const captureEvents = timeline.events.map((event) => ({
         ...event,
         timestampMs: Math.min(event.timestampMs, durationMs),

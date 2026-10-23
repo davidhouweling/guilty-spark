@@ -39,11 +39,11 @@ const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
 const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
 const FLAG_PROGRESS_LABEL = "of the way to the capture point";
 const FLAG_MARKER_LEGEND: readonly FlagRunMarkerLegendEntry[] = [
-  { kind: "steal", symbol: "●", text: "Steal" },
-  { kind: "grab", symbol: "○", text: "Pickup" },
-  { kind: "drop", symbol: "✕", text: "Carrier killed" },
-  { kind: "return", symbol: "◆", text: "Returned" },
-  { kind: "capture", symbol: "▲", text: "Captured" },
+  { kind: "steal", text: "Steal" },
+  { kind: "grab", text: "Pickup" },
+  { kind: "drop", text: "Carrier killed" },
+  { kind: "return", text: "Returned" },
+  { kind: "capture", text: "Captured" },
 ];
 
 export class ScoreProgressionPresenter {

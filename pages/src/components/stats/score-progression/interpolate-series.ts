@@ -14,10 +14,10 @@ export function interpolateSeriesAt<T extends TimedValue>(
     return null;
   }
   let previous = first;
-  for (const point of points) {
+  for (const point of points.slice(1)) {
     if (point.timestampMs >= timestampMs) {
       const span = point.timestampMs - previous.timestampMs;
-      if (span === 0) {
+      if (span === 0 || timestampMs === point.timestampMs) {
         return getValue(point);
       }
       return (
@@ -26,5 +26,6 @@ export function interpolateSeriesAt<T extends TimedValue>(
     }
     previous = point;
   }
-  return getValue(last);
+  // only a single-point series reaches here, with the timestamp on that point
+  return getValue(first);
 }
