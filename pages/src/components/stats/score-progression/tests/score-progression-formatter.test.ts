@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
 import { aFakeStrongholdsTimelineWith } from "../modes/strongholds/fakes/strongholds-timeline.fake";
+import { aFakeCtfFlagRunWith } from "../modes/ctf/fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../modes/ctf/fakes/ctf-timeline.fake";
 import type {
   CtfViewData,
@@ -793,6 +793,18 @@ describe("formatScoreProgression ctf", () => {
     expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
   });
 
+  it("drops a capture stamped well past the match duration from the score line", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [
+        { timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+        { timestampMs: 300000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    const cobra = result.scoreLines?.teamLines.find((line) => line.teamId === 1);
+    expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
+  });
+
   it("exposes the shared chart rows alongside the runs", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
@@ -823,10 +835,8 @@ describe("formatScoreProgression ctf", () => {
   });
 
   it("resolves the teams from the captures even when a run names a team outside the match", () => {
-    const base = aFakeCtfTimelineWith();
-    const [first] = base.runs;
     const timeline = aFakeCtfTimelineWith({
-      runs: [...base.runs, { ...Preconditions.checkExists(first), carrierTeamId: 3 }],
+      runs: [...aFakeCtfTimelineWith().runs, aFakeCtfFlagRunWith({ carrierTeamId: 3 })],
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(2);
@@ -834,12 +844,10 @@ describe("formatScoreProgression ctf", () => {
   });
 
   it("ignores run teams once the captures already name two teams", () => {
-    const base = aFakeCtfTimelineWith();
-    const [first] = base.runs;
-    const malformed = { ...Preconditions.checkExists(first), carrierTeamId: 5 };
+    const malformed = aFakeCtfFlagRunWith({ carrierTeamId: 5 });
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
-      runs: [Preconditions.checkExists(first), malformed, malformed],
+      runs: [aFakeCtfFlagRunWith(), malformed, malformed],
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(1);
@@ -847,11 +855,9 @@ describe("formatScoreProgression ctf", () => {
   });
 
   it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
-    const base = aFakeCtfTimelineWith();
-    const [first] = base.runs;
     const timeline = aFakeCtfTimelineWith({
       events: [],
-      runs: [...base.runs, { ...Preconditions.checkExists(first), carrierTeamId: 3 }],
+      runs: [...aFakeCtfTimelineWith().runs, aFakeCtfFlagRunWith({ carrierTeamId: 3 })],
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(2);

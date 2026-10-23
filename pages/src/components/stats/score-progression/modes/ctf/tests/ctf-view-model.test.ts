@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { aFakeCtfFlagRunWith } from "../fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
 import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "../ctf-view-model";
 
@@ -52,7 +53,7 @@ describe("buildFlagRuns", () => {
   it("draws a reset to the home line when the flag goes home but not when the match ends", () => {
     const timeline = aFakeCtfTimelineWith({
       runs: [
-        { ...Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]), outcome: "autoReturn" },
+        { ...aFakeCtfFlagRunWith(), outcome: "autoReturn" },
         {
           flagTeamId: 1,
           carrierTeamId: 0,
@@ -91,7 +92,7 @@ describe("buildFlagRuns", () => {
   });
 
   it("drops runs that start after the match, belong to unknown teams or have no span", () => {
-    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const base = aFakeCtfFlagRunWith();
     const timeline = aFakeCtfTimelineWith({
       runs: [
         { ...base, startMs: 120000, endMs: 130000 },
@@ -104,7 +105,7 @@ describe("buildFlagRuns", () => {
   });
 
   it("orders samples by time and clamps an event stamped just before the pull onto its start", () => {
-    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const base = aFakeCtfFlagRunWith();
     const timeline = aFakeCtfTimelineWith({
       runs: [
         {
@@ -127,7 +128,7 @@ describe("buildFlagRuns", () => {
   });
 
   it("interpolates a marker that falls between two samples onto the drawn line", () => {
-    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const base = aFakeCtfFlagRunWith();
     const timeline = aFakeCtfTimelineWith({
       runs: [{ ...base, events: [{ timestampMs: 52500, kind: "grab" }] }],
     });
@@ -159,13 +160,13 @@ describe("buildFlagRuns", () => {
   });
 
   it("drops a run whose carrier is the flag's own team", () => {
-    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const base = aFakeCtfFlagRunWith();
     const timeline = aFakeCtfTimelineWith({ runs: [{ ...base, carrierTeamId: base.flagTeamId }] });
     expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
   });
 
   it("drops an event stamped well outside its run instead of clamping it", () => {
-    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const base = aFakeCtfFlagRunWith();
     const timeline = aFakeCtfTimelineWith({
       runs: [
         {
@@ -197,6 +198,26 @@ describe("buildFlagRuns", () => {
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(run.markers).toEqual([{ timestampMs: 120000, progress: 100, kind: "capture" }]);
+  });
+
+  it("orders runs by start time regardless of payload order", () => {
+    const [first, second] = aFakeCtfTimelineWith().runs;
+    const timeline = aFakeCtfTimelineWith({
+      runs: [Preconditions.checkExists(second), Preconditions.checkExists(first)],
+    });
+    const runs = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(runs.map((run) => [run.seriesKey, run.points[0].timestampMs])).toEqual([
+      ["run1", 20000],
+      ["run2", 70000],
+    ]);
+  });
+
+  it("never emits negative zero for a below-axis flag at its stand", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [aFakeCtfFlagRunWith({ flagTeamId: 1, carrierTeamId: 0, samples: [{ timestampMs: 30000, progress: 0 }] })],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(Object.is(run.points[1].progress, 0)).toBe(true);
   });
 
   it("returns nothing for a match that is not two teams", () => {

@@ -27,6 +27,15 @@ describe("interpolateSeriesAt", () => {
     expect(interpolateSeriesAt([], 0, valueOf)).toBeNull();
   });
 
+  it("returns the first of two points sharing the series start", () => {
+    const doubled = [
+      { timestampMs: 0, value: 0 },
+      { timestampMs: 0, value: 5 },
+      { timestampMs: 300, value: 100 },
+    ];
+    expect(interpolateSeriesAt(doubled, 0, valueOf)).toBe(0);
+  });
+
   it("returns the only point's value for a single-point series", () => {
     expect(interpolateSeriesAt([{ timestampMs: 5, value: 7 }], 5, valueOf)).toBe(7);
   });

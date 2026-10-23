@@ -4,6 +4,7 @@ import { Checkbox } from "../../checkbox/checkbox";
 import { ChartFrame } from "./chart-frame/chart-frame";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { FlagRunsCharts } from "./flag-runs-charts/flag-runs-charts";
+import { LegendItem } from "./legend-item/legend-item";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
 import type { ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
@@ -50,18 +51,11 @@ function ScoreLinesCharts({
       footer={
         progressionViewModel.markers != null ? (
           <div className={styles.markerLegend}>
-            <span className={styles.markerLegendItem}>
-              <svg width="10" height="10" aria-hidden="true">
-                <circle cx="5" cy="5" r="4" fill="currentColor" />
-              </svg>
-              Capture
-            </span>
-            <span className={styles.markerLegendItem}>
-              <svg width="10" height="10" aria-hidden="true">
-                <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-              Secure
-            </span>
+            <LegendItem swatch={<circle cx="7" cy="7" r="4" fill="currentColor" />} text="Capture" />
+            <LegendItem
+              swatch={<circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth="1.5" />}
+              text="Secure"
+            />
           </div>
         ) : undefined
       }

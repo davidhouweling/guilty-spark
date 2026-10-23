@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { ChartFrame } from "../chart-frame/chart-frame";
 import { FlagRunMarker } from "../flag-runs-chart/flag-run-marker/flag-run-marker";
 import { FlagRunsChart } from "../flag-runs-chart/flag-runs-chart";
+import { LegendItem } from "../legend-item/legend-item";
 import type { FlagRunsViewModel } from "../types";
 import styles from "../score-progression.module.css";
 
@@ -26,22 +27,20 @@ export function FlagRunsCharts({
         <>
           <div className={classNames(styles.markerLegend, styles.flagLegend)}>
             {legend.map((entry) => (
-              <span key={entry.key} className={styles.markerLegendItem}>
-                <svg width="10" height="10" aria-hidden="true">
-                  <rect width="10" height="10" rx="2" fill={entry.color} />
-                </svg>
-                {entry.text}
-              </span>
+              <LegendItem
+                key={entry.key}
+                swatch={<rect x="2" y="2" width="10" height="10" rx="2" fill={entry.color} />}
+                text={entry.text}
+              />
             ))}
           </div>
           <div className={classNames(styles.markerLegend, styles.flagLegend)}>
             {markerLegend.map((entry) => (
-              <span key={entry.kind} className={styles.markerLegendItem}>
-                <svg width="14" height="14" aria-hidden="true">
-                  <FlagRunMarker kind={entry.kind} color="currentColor" cx={7} cy={7} />
-                </svg>
-                {entry.text}
-              </span>
+              <LegendItem
+                key={entry.kind}
+                swatch={<FlagRunMarker kind={entry.kind} color="currentColor" cx={7} cy={7} />}
+                text={entry.text}
+              />
             ))}
           </div>
         </>

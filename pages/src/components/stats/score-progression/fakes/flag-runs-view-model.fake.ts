@@ -10,7 +10,7 @@ export function aFakeFlagRunsChartViewModelWith(
     durationMs: 120000,
     runs,
     points: buildFlagRunsChartPoints(runs),
-    tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
+    tooltipFormatter: (value): [string, string] => [String(value ?? ""), ""],
     ...overrides,
   };
 }

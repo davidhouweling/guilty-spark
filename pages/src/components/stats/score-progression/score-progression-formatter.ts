@@ -194,6 +194,16 @@ function mergeRunningScores(records: readonly Record<string, number>[]): Record<
   return merged;
 }
 
+// boundary defense: a film clock can stamp the final capture a little past the duration, which
+// is clamped onto the axis; anything further out is bad data and dropped
+const EVENT_SKEW_TOLERANCE_MS = 1_000;
+
+function clampEventsToDuration(events: readonly KillRaceEvent[], durationMs: number): KillRaceEvent[] {
+  return events
+    .filter((event) => event.timestampMs <= durationMs + EVENT_SKEW_TOLERANCE_MS)
+    .map((event) => ({ ...event, timestampMs: Math.min(event.timestampMs, durationMs) }));
+}
+
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -266,8 +276,6 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-// capture records name the scoring team and may be sparse; when they leave the roster short of
-// two teams the runs fill it, most-named first, so one malformed run cannot inflate it
 function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]): ResolvedTeams | null {
   const teamIds = new Set(
     Object.keys(mergeRunningScores(timeline.events.map((event) => event.runningScores))).map(Number),
@@ -364,11 +372,7 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      // boundary defense: a film clock can stamp the final capture a few ms past the duration
-      const captureEvents = timeline.events.map((event) => ({
-        ...event,
-        timestampMs: Math.min(event.timestampMs, durationMs),
-      }));
+      const captureEvents = clampEventsToDuration(timeline.events, durationMs);
       const scoreLines =
         captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
       const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);

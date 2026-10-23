@@ -1,5 +1,4 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { TICK_FILL } from "../../chart-constants";
@@ -18,7 +17,8 @@ const FULL_PROGRESS = 100;
 type RunDirection = 1 | -1;
 
 function toSignedPercent(progress: number, direction: RunDirection): number {
-  return Math.round(progress * FULL_PROGRESS) * direction;
+  const percent = Math.round(progress * FULL_PROGRESS);
+  return percent === 0 ? 0 : percent * direction;
 }
 
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
@@ -28,7 +28,12 @@ function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, numbe
   return new Map(ordered.map((sample) => [sample.timestampMs, sample.progress]));
 }
 
-function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection): FlagRunPoint[] {
+interface RunPoints {
+  readonly points: FlagRunPoint[];
+  readonly endProgress: number;
+}
+
+function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection): RunPoints {
   const points: FlagRunPoint[] = [{ timestampMs: run.startMs, progress: 0 }];
   for (const [timestampMs, progress] of orderedSamplesWithin(run, endMs)) {
     points.push({ timestampMs, progress: toSignedPercent(progress, direction) });
@@ -40,34 +45,19 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   } else {
     points.push({ timestampMs: endMs, progress: endProgress });
   }
-  return points;
+  return { points, endProgress };
 }
 
 // film-clock skew can stamp an event a little outside its run; anything further out is bad data
 const MARKER_SKEW_TOLERANCE_MS = 1_000;
 
-function toMarkerKind(kind: CtfFlagRunEvent["kind"]): FlagRunMarkerKind {
-  switch (kind) {
-    case "steal": {
-      return "steal";
-    }
-    case "grab": {
-      return "grab";
-    }
-    case "drop": {
-      return "drop";
-    }
-    case "return": {
-      return "return";
-    }
-    case "capture": {
-      return "capture";
-    }
-    default: {
-      throw new UnreachableError(kind);
-    }
-  }
-}
+const MARKER_KIND_BY_EVENT: Record<CtfFlagRunEvent["kind"], FlagRunMarkerKind> = {
+  steal: "steal",
+  grab: "grab",
+  drop: "drop",
+  return: "return",
+  capture: "capture",
+};
 
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
   const markers: FlagRunMarkerData[] = [];
@@ -82,17 +72,14 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     markers.push({
       timestampMs,
       progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
-      kind: toMarkerKind(event.kind),
+      kind: MARKER_KIND_BY_EVENT[event.kind],
     });
   }
   return markers;
 }
 
-function buildRunReset(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunData["reset"] {
-  if (run.outcome === "matchEnd") {
-    return null;
-  }
-  return { timestampMs: endMs, fromProgress: points.at(-1)?.progress ?? 0 };
+function buildRunReset(run: CtfFlagRun, endMs: number, endProgress: number): FlagRunData["reset"] {
+  return run.outcome === "matchEnd" ? null : { timestampMs: endMs, fromProgress: endProgress };
 }
 
 export function buildFlagRuns(
@@ -106,7 +93,8 @@ export function buildFlagRuns(
   }
   const [firstTeamId] = teamIds;
   const runs: FlagRunData[] = [];
-  for (const run of timeline.runs) {
+  const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
+  for (const run of orderedRuns) {
     const color = teamColorByTeamId.get(run.carrierTeamId);
     if (
       color == null ||
@@ -119,7 +107,7 @@ export function buildFlagRuns(
     }
     const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;
     const endMs = Math.min(run.endMs, durationMs);
-    const points = buildRunPoints(run, endMs, direction);
+    const { points, endProgress } = buildRunPoints(run, endMs, direction);
     const runIndex = runs.length + 1;
     runs.push({
       runIndex,
@@ -128,7 +116,7 @@ export function buildFlagRuns(
       color,
       points,
       markers: buildRunMarkers(run, points, endMs),
-      reset: buildRunReset(run, points, endMs),
+      reset: buildRunReset(run, endMs, endProgress),
     });
   }
   return runs;
