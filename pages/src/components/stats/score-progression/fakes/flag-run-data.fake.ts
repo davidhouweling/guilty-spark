@@ -3,6 +3,7 @@ import type { FlagRunData } from "../types";
 export function aFakeFlagRunDataWith(overrides: Partial<FlagRunData> = {}): FlagRunData {
   return {
     runIndex: 1,
+    seriesKey: "run1",
     seriesName: "Eagle flag · Cobra carrying",
     color: "#ff0000",
     points: [

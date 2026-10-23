@@ -4,7 +4,8 @@ import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ScoreProgression } from "../score-progression";
-import type { FlagRunsViewModel, ScoreLinesViewModel, ScoreMarkerData } from "../types";
+import type { ScoreLinesViewModel, ScoreMarkerData } from "../types";
+import { aFakeFlagRunsViewModelWith } from "../fakes/flag-runs-view-model.fake";
 
 afterEach(() => {
   cleanup();
@@ -124,22 +125,7 @@ describe("ScoreProgression", () => {
 
 describe("ScoreProgression flag runs", () => {
   it("delegates a flag-runs view model to the flag runs charts", () => {
-    const viewModel: FlagRunsViewModel = {
-      kind: "flag-runs",
-      ariaLabel: "flag chart",
-      effectiveChartType: "timeline",
-      chartTypeOptions: [{ value: "timeline", label: "Flag Runs" }],
-      showChartTypeSelect: false,
-      legend: [],
-      markerLegend: [],
-      chart: {
-        durationMs: 1000,
-        runs: [],
-        tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
-      },
-      onChartTypeChange: (): void => undefined,
-    };
-    render(<ScoreProgression {...viewModel} />);
+    render(<ScoreProgression {...aFakeFlagRunsViewModelWith()} />);
 
     expect(screen.getByTestId("flag-runs-charts")).toBeInTheDocument();
   });

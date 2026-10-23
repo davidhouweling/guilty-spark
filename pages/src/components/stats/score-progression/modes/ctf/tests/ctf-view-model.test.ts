@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
-import { buildFlagRunLegend, buildFlagRuns } from "../ctf-view-model";
+import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints, progressAt } from "../ctf-view-model";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -122,6 +122,15 @@ describe("buildFlagRuns", () => {
     expect(run.markers.map((marker) => marker.kind)).toEqual(["grab", "capture"]);
   });
 
+  it("interpolates a marker that falls between two samples onto the drawn line", () => {
+    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const timeline = aFakeCtfTimelineWith({
+      runs: [{ ...base, events: [{ timestampMs: 52500, kind: "grab" }] }],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.markers).toEqual([{ timestampMs: 52500, progress: 80, kind: "grab" }]);
+  });
+
   it("returns nothing for a match that is not two teams", () => {
     expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
   });
@@ -137,5 +146,38 @@ describe("buildFlagRunLegend", () => {
 
   it("returns nothing without two teams", () => {
     expect(buildFlagRunLegend([0], COLORS)).toEqual([]);
+  });
+});
+
+describe("progressAt", () => {
+  const points = [
+    { timestampMs: 0, progress: 0 },
+    { timestampMs: 100, progress: 50 },
+    { timestampMs: 100, progress: 60 },
+    { timestampMs: 200, progress: 100 },
+  ];
+
+  it("interpolates between points and takes the later value at a repeated timestamp", () => {
+    expect(progressAt(points, 50)).toBe(25);
+    expect(progressAt(points, 100)).toBe(50);
+    expect(progressAt(points, 150)).toBe(80);
+    expect(progressAt(points, 200)).toBe(100);
+  });
+
+  it("returns null outside the run's span", () => {
+    expect(progressAt(points, -1)).toBeNull();
+    expect(progressAt(points, 201)).toBeNull();
+    expect(progressAt([], 0)).toBeNull();
+  });
+});
+
+describe("buildFlagRunsChartPoints", () => {
+  it("unions the timestamps of every run and leaves a run null outside its span", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+    const points = buildFlagRunsChartPoints(runs);
+    expect(points.map((point) => point.timestampMs)).toEqual([20000, 30000, 45000, 60000, 70000, 80000, 90000, 100000]);
+    expect(points[0]).toEqual({ timestampMs: 20000, run1: 0, run2: null });
+    expect(points[3]).toEqual({ timestampMs: 60000, run1: 100, run2: null });
+    expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: -50 });
   });
 });

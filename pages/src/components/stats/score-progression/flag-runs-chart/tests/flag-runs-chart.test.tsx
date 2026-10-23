@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { FlagRunsChart } from "../flag-runs-chart";
 import { aFakeFlagRunDataWith } from "../../fakes/flag-run-data.fake";
-import type { FlagRunsChartViewModel } from "../../types";
+import { aFakeFlagRunsChartViewModelWith } from "../../fakes/flag-runs-view-model.fake";
 
 afterEach(() => {
   cleanup();
@@ -13,7 +13,11 @@ afterEach(() => {
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }): React.ReactElement => <div>{children}</div>,
-  AreaChart: ({ children }: { children: React.ReactNode }): React.ReactElement => <div>{children}</div>,
+  AreaChart: ({ children, data }: { children: React.ReactNode; data?: readonly unknown[] }): React.ReactElement => (
+    <div data-testid="area-chart" data-rows={data?.length}>
+      {children}
+    </div>
+  ),
   CartesianGrid: (): null => null,
   ReferenceLine: ({
     y,
@@ -25,7 +29,7 @@ vi.mock("recharts", () => ({
     <div
       data-testid="reference-line"
       data-y={y}
-      data-segment={segment?.map((p) => `${String(p.x)}:${String(p.y)}`).join(" ")}
+      data-segment={segment?.map((point) => `${String(point.x)}:${String(point.y)}`).join(" ")}
     />
   ),
   ReferenceDot: ({ x, y }: { x: number; y: number }): React.ReactElement => (
@@ -36,53 +40,49 @@ vi.mock("recharts", () => ({
     <div data-testid="y-axis" data-domain={domain?.join(",")} />
   ),
   Tooltip: (): null => null,
-  Area: ({ name, stroke }: { name: string; stroke: string }): React.ReactElement => (
-    <div data-testid="area" data-stroke={stroke}>
+  Area: ({ name, stroke, dataKey }: { name: string; stroke: string; dataKey: string }): React.ReactElement => (
+    <div data-testid="area" data-stroke={stroke} data-key={dataKey}>
       {name}
     </div>
   ),
 }));
 
-function aChartModelWith(overrides: Partial<FlagRunsChartViewModel> = {}): FlagRunsChartViewModel {
-  return {
-    durationMs: 120000,
-    runs: [aFakeFlagRunDataWith()],
-    tooltipFormatter: (value: unknown): [string, string] => [String(value), ""],
-    ...overrides,
-  };
+function resetSegments(): string[] {
+  return screen
+    .getAllByTestId("reference-line")
+    .map((line) => line.getAttribute("data-segment"))
+    .filter((segment): segment is string => segment != null);
 }
 
 describe("FlagRunsChart", () => {
-  it("renders one area per run in the carrier colour on a mirrored axis", () => {
-    render(<FlagRunsChart {...aChartModelWith()} />);
+  it("renders one area per run over the shared rows, in the carrier colour on a mirrored axis", () => {
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
 
     const areas = screen.getAllByTestId("area");
     expect(areas).toHaveLength(1);
     expect(areas[0]).toHaveTextContent("Eagle flag · Cobra carrying");
     expect(areas[0]).toHaveAttribute("data-stroke", "#ff0000");
+    expect(areas[0]).toHaveAttribute("data-key", "run1");
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "4");
     expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
   });
 
   it("renders a marker per flag event and a reset segment back to the home line", () => {
-    render(<FlagRunsChart {...aChartModelWith()} />);
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
 
     const dots = screen.getAllByTestId("reference-dot");
     expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "25", "100"]);
-    const segments = screen
-      .getAllByTestId("reference-line")
-      .map((line) => line.getAttribute("data-segment"))
-      .filter((segment) => segment != null);
-    expect(segments).toEqual(["60000:100 60000:0"]);
+    expect(resetSegments()).toEqual(["60000:100 60000:0"]);
   });
 
-  it("renders no reset segment for a run cut off by the match end", () => {
-    render(<FlagRunsChart {...aChartModelWith({ runs: [aFakeFlagRunDataWith({ reset: null, markers: [] })] })} />);
+  it("renders no reset segment or markers for a run cut off by the match end", () => {
+    render(
+      <FlagRunsChart
+        {...aFakeFlagRunsChartViewModelWith({ runs: [aFakeFlagRunDataWith({ reset: null, markers: [] })] })}
+      />,
+    );
 
-    const segments = screen
-      .getAllByTestId("reference-line")
-      .map((line) => line.getAttribute("data-segment"))
-      .filter((segment) => segment != null);
-    expect(segments).toEqual([]);
+    expect(resetSegments()).toEqual([]);
     expect(screen.queryAllByTestId("reference-dot")).toHaveLength(0);
   });
 });

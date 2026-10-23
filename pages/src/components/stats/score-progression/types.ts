@@ -162,6 +162,7 @@ export interface FlagRunResetData {
 
 export interface FlagRunData {
   readonly runIndex: number;
+  readonly seriesKey: string;
   readonly seriesName: string;
   readonly color: string;
   readonly points: readonly FlagRunPoint[];
@@ -253,9 +254,14 @@ export interface TimelineGanttChartViewModel {
   readonly onChartTypeChange: (value: string) => void;
 }
 
+// one row per distinct timestamp across all runs; a run's column is null outside its span so
+// the shared tooltip only lists the runs active at the hovered time
+export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
+
 export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
+  readonly points: readonly FlagRunsChartPoint[];
   readonly tooltipFormatter: (
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,

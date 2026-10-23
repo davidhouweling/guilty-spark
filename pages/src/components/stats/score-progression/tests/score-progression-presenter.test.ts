@@ -839,6 +839,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     expect(model.effectiveChartType).toBe("timeline");
     expect(model.chart.runs).toBe(viewData.runs);
     expect(model.chart.durationMs).toBe(120000);
+    expect(model.chart.points.map((point) => point.run1)).toEqual([0, 25, 60, 100]);
     expect(model.legend).toBe(viewData.legend);
     expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "drop", "return", "capture"]);
   });

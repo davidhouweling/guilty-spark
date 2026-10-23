@@ -25,10 +25,15 @@ import {
 import type { FlagRunsChartViewModel } from "../types";
 import { FlagRunMarker } from "./flag-run-marker/flag-run-marker";
 
-export function FlagRunsChart({ durationMs, runs, tooltipFormatter }: FlagRunsChartViewModel): React.ReactElement {
+export function FlagRunsChart({
+  durationMs,
+  runs,
+  points,
+  tooltipFormatter,
+}: FlagRunsChartViewModel): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-      <AreaChart margin={CHART_MARGIN}>
+      <AreaChart data={points} margin={CHART_MARGIN}>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis {...flagAxisProps()} stroke={AXIS_STROKE} tick={TICK_STYLE} />
@@ -41,9 +46,8 @@ export function FlagRunsChart({ durationMs, runs, tooltipFormatter }: FlagRunsCh
         />
         {runs.map((run) => (
           <Area
-            key={run.runIndex}
-            data={run.points}
-            dataKey="progress"
+            key={run.seriesKey}
+            dataKey={run.seriesKey}
             name={run.seriesName}
             stroke={run.color}
             strokeWidth={2}
