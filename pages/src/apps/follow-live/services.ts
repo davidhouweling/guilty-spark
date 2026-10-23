@@ -24,7 +24,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     const [
       { aFakeFollowLiveServiceWith },
       { aFakeIndividualTrackerViewServiceWith },
-      { aFakeMatchAnalyticsServiceWith },
+      { aFakeCtfMatchAnalyticsWith, aFakeMatchAnalyticsServiceWith },
       { aFakeSeriesMatchesServiceWith },
       { aFakeHaloClientWith },
     ] = await Promise.all([
@@ -39,7 +39,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     return {
       followLiveService: aFakeFollowLiveServiceWith(),
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),

@@ -146,7 +146,6 @@ export function zoneAdvantageAreaProps(): AdvantageAreaProps {
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
 
-// the flag axis mirrors around the home line, so both halves read as distance to the capture
 function formatFlagAxisTick(value: number): string {
   return value === 0 ? "home" : `${String(Math.abs(value))}%`;
 }

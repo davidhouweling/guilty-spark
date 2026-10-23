@@ -79,18 +79,27 @@ export function aFakeCtfScoreProgressionWith(
   };
 }
 
-function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
+export function aFakeMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
   return {
-    requestedModules: ["killMatrix", "scoreProgression"],
+    requestedModules: ["killMatrix"],
     killMatrix: {
       "2533274844642438:2533274881185517": {
         count: 2,
         perfects: 0,
       },
     },
-    scoreProgression: aFakeCtfScoreProgressionWith(),
+    scoreProgression: null,
     ...overrides,
   };
+}
+
+// fake-mode screens opt into the CTF progression so the flag-run chart is visible without the api
+export function aFakeCtfMatchAnalyticsWith(overrides: Partial<MatchAnalytics> = {}): MatchAnalytics {
+  return aFakeMatchAnalyticsWith({
+    requestedModules: ["killMatrix", "scoreProgression"],
+    scoreProgression: aFakeCtfScoreProgressionWith(),
+    ...overrides,
+  });
 }
 
 interface FakeMatchAnalyticsServiceOptions {

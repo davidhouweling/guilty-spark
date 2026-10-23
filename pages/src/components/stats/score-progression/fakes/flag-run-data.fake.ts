@@ -5,7 +5,6 @@ export function aFakeFlagRunDataWith(overrides: Partial<FlagRunData> = {}): Flag
     runIndex: 1,
     seriesName: "Eagle flag · Cobra carrying",
     color: "#ff0000",
-    outcome: "capture",
     points: [
       { timestampMs: 20000, progress: 0 },
       { timestampMs: 30000, progress: 25 },

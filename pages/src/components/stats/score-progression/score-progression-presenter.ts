@@ -5,6 +5,7 @@ import type {
   ChartType,
   ChartTypeOption,
   CtfViewData,
+  FlagRunMarkerLegendEntry,
   FlagRunsViewModel,
   KothHillData,
   OddballRoundData,
@@ -37,6 +38,13 @@ const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Scor
 const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
 const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
 const FLAG_PROGRESS_LABEL = "of the way to the capture point";
+const FLAG_MARKER_LEGEND: readonly FlagRunMarkerLegendEntry[] = [
+  { kind: "steal", symbol: "●", text: "Steal" },
+  { kind: "grab", symbol: "○", text: "Pickup" },
+  { kind: "drop", symbol: "✕", text: "Carrier killed" },
+  { kind: "return", symbol: "◆", text: "Returned" },
+  { kind: "capture", symbol: "▲", text: "Captured" },
+];
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
@@ -70,28 +78,34 @@ export class ScoreProgressionPresenter {
         if (zoneStrip == null) {
           return this.presentScoreLines(snapshot, scoreLines, ariaLabel, this.buildChartTypeOptions(scoreLines));
         }
-        return this.presentMode(snapshot, ariaLabel, scoreLines.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, scoreLines.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)],
           scoreLines,
           defaultChartType: "progression",
         });
       }
       case "koth": {
-        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
       }
       case "oddball": {
-        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
       }
       case "ctf": {
-        return this.presentCtf(snapshot, viewData, ariaLabel);
+        return this.presentMode(snapshot, ariaLabel, {
+          timelineOption: FLAG_RUNS_OPTION,
+          presentTimeline: (chartTypeOptions): FlagRunsViewModel =>
+            this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions),
+          scoreLines: viewData.scoreLines,
+          defaultChartType: "timeline",
+        });
       }
       default: {
         throw new UnreachableError(viewData);
@@ -99,18 +113,23 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // the flag runs are the mode's timeline chart; captures double as a step score line
-  private presentCtf(
+  private presentGanttMode(
     snapshot: ScoreProgressionSnapshot,
-    viewData: CtfViewData,
     ariaLabel: string,
+    durationMs: number,
+    mode: {
+      buildRows: () => readonly TimelineGanttRowViewModel[];
+      scoreLines: ScoreLinesViewData | null;
+      defaultChartType: ChartType;
+    },
   ): ScoreProgressionViewModel {
-    const chartTypeOptions = [FLAG_RUNS_OPTION, ...this.buildChartTypeOptions(viewData.scoreLines)];
-    const wantsFlagRuns = (snapshot.chartType ?? "timeline") === "timeline";
-    if (viewData.scoreLines == null || wantsFlagRuns) {
-      return this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions);
-    }
-    return this.presentScoreLines(snapshot, viewData.scoreLines, ariaLabel, chartTypeOptions);
+    return this.presentMode(snapshot, ariaLabel, {
+      timelineOption: TIMELINE_OPTION,
+      presentTimeline: (chartTypeOptions): TimelineGanttChartViewModel =>
+        this.presentTimelineGantt(ariaLabel, durationMs, mode.buildRows(), chartTypeOptions),
+      scoreLines: mode.scoreLines,
+      defaultChartType: mode.defaultChartType,
+    });
   }
 
   private presentFlagRuns(
@@ -125,6 +144,7 @@ export class ScoreProgressionPresenter {
       chartTypeOptions,
       showChartTypeSelect: chartTypeOptions.length > 1,
       legend: viewData.legend,
+      markerLegend: FLAG_MARKER_LEGEND,
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
@@ -152,20 +172,20 @@ export class ScoreProgressionPresenter {
   private presentMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
-    durationMs: number,
     mode: {
-      buildRows: () => readonly TimelineGanttRowViewModel[];
+      timelineOption: ChartTypeOption;
+      presentTimeline: (chartTypeOptions: readonly ChartTypeOption[]) => ScoreProgressionViewModel;
       scoreLines: ScoreLinesViewData | null;
       defaultChartType: ChartType;
     },
   ): ScoreProgressionViewModel {
-    const { buildRows, scoreLines, defaultChartType } = mode;
+    const { timelineOption, presentTimeline, scoreLines, defaultChartType } = mode;
     const scoreOptions = this.buildChartTypeOptions(scoreLines);
     const chartTypeOptions =
-      defaultChartType === "timeline" ? [TIMELINE_OPTION, ...scoreOptions] : [...scoreOptions, TIMELINE_OPTION];
+      defaultChartType === "timeline" ? [timelineOption, ...scoreOptions] : [...scoreOptions, timelineOption];
     const wantsTimeline = (snapshot.chartType ?? defaultChartType) === "timeline";
     if (scoreLines == null || wantsTimeline) {
-      return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
+      return presentTimeline(chartTypeOptions);
     }
     return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }

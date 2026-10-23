@@ -10,7 +10,6 @@ function toSignedPercent(progress: number, direction: RunDirection): number {
   return Math.round(progress * FULL_PROGRESS) * direction;
 }
 
-// the flag sits where it was last seen until the next sample moves it
 function progressAt(points: readonly FlagRunPoint[], timestampMs: number): number {
   let latest: FlagRunPoint | undefined;
   for (const point of points) {
@@ -24,7 +23,8 @@ function progressAt(points: readonly FlagRunPoint[], timestampMs: number): numbe
 
 function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection): FlagRunPoint[] {
   const points: FlagRunPoint[] = [{ timestampMs: run.startMs, progress: 0 }];
-  for (const sample of run.samples) {
+  const orderedSamples = [...run.samples].sort((left, right) => left.timestampMs - right.timestampMs);
+  for (const sample of orderedSamples) {
     if (sample.timestampMs > run.startMs && sample.timestampMs < endMs) {
       points.push({ timestampMs: sample.timestampMs, progress: toSignedPercent(sample.progress, direction) });
     }
@@ -38,7 +38,7 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
 function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunMarkerData[] {
   const markers: FlagRunMarkerData[] = [];
   for (const event of run.events) {
-    if (event.timestampMs > endMs) {
+    if (event.timestampMs < run.startMs || event.timestampMs > endMs) {
       continue;
     }
     markers.push({ timestampMs: event.timestampMs, progress: progressAt(points, event.timestampMs), kind: event.kind });
@@ -46,8 +46,6 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
   return markers;
 }
 
-// a run that ends with the flag going home draws a reset back to the home line; a run cut off
-// by the match end does not
 function buildRunReset(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs: number): FlagRunData["reset"] {
   if (run.outcome === "matchEnd" || endMs < run.endMs) {
     return null;
@@ -78,7 +76,6 @@ export function buildFlagRuns(
       runIndex: runs.length + 1,
       seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
       color,
-      outcome: run.outcome,
       points,
       markers: buildRunMarkers(run, points, endMs),
       reset: buildRunReset(run, points, endMs),

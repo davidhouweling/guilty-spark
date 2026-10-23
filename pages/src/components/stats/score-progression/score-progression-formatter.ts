@@ -181,6 +181,17 @@ function buildTeamLines(
   return teamLines;
 }
 
+// sparse records may omit a team, so team resolution unions the scores across every record
+function mergeRunningScores(
+  records: readonly { readonly runningScores: Record<string, number> }[],
+): Record<string, number> {
+  const merged: Record<string, number> = {};
+  for (const record of records) {
+    Object.assign(merged, record.runningScores);
+  }
+  return merged;
+}
+
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -286,12 +297,7 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      // round score records may be sparse, so a team missing from one round must still resolve —
-      // union the scores across all rounds
-      const mergedRoundScores: Record<string, number> = {};
-      for (const round of timeline.rounds) {
-        Object.assign(mergedRoundScores, round.scores);
-      }
+      const mergedRoundScores = mergeRunningScores(timeline.rounds.map((round) => ({ runningScores: round.scores })));
       const teams = resolveTeams(timeline.rounds.length > 0 ? mergedRoundScores : undefined, teamColors);
       if (teams == null) {
         return null;
@@ -305,12 +311,7 @@ export function formatScoreProgression(
       };
     }
     case "strongholds": {
-      // strongholds records may be sparse, so a team missing from the first sample must still
-      // resolve — union the scores across all samples
-      const mergedScores: Record<string, number> = {};
-      for (const event of timeline.events) {
-        Object.assign(mergedScores, event.runningScores);
-      }
+      const mergedScores = mergeRunningScores(timeline.events);
       const teams = resolveTeams(timeline.events.length > 0 ? mergedScores : undefined, teamColors);
       if (teams == null) {
         return null;
@@ -336,10 +337,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       // a match can end 0-0, so the teams come from the flag runs as well as the capture events
-      const mergedScores: Record<string, number> = {};
-      for (const event of timeline.events) {
-        Object.assign(mergedScores, event.runningScores);
-      }
+      const mergedScores = mergeRunningScores(timeline.events);
       for (const run of timeline.runs) {
         mergedScores[String(run.flagTeamId)] ??= 0;
         mergedScores[String(run.carrierTeamId)] ??= 0;
@@ -349,14 +347,18 @@ export function formatScoreProgression(
         return null;
       }
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
+      const scoreLines =
+        inMatchEvents.length > 0 ? buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize) : null;
+      // the mirrored chart needs exactly two teams; anything else falls back to the score lines
+      if (teams.teamIds.length !== 2) {
+        return scoreLines;
+      }
       return {
         kind: "ctf",
         durationMs,
         runs: buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
         legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
-        // without a capture there is no score curve to offer beside the flag runs
-        scoreLines:
-          inMatchEvents.length > 0 ? buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize) : null,
+        scoreLines,
       };
     }
     default: {

@@ -840,6 +840,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     expect(model.chart.runs).toBe(viewData.runs);
     expect(model.chart.durationMs).toBe(120000);
     expect(model.legend).toBe(viewData.legend);
+    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "drop", "return", "capture"]);
   });
 
   it("hides the chart type select when no capture happened", () => {

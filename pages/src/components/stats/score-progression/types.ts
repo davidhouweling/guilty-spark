@@ -140,8 +140,6 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type FlagRunOutcome = "capture" | "return" | "autoReturn" | "matchEnd";
-
 export type FlagRunMarkerKind = "steal" | "grab" | "drop" | "return" | "capture";
 
 // progress is a signed percentage: positive for the first team's flag (carried by the second
@@ -166,7 +164,6 @@ export interface FlagRunData {
   readonly runIndex: number;
   readonly seriesName: string;
   readonly color: string;
-  readonly outcome: FlagRunOutcome;
   readonly points: readonly FlagRunPoint[];
   readonly markers: readonly FlagRunMarkerData[];
   readonly reset: FlagRunResetData | null;
@@ -265,6 +262,12 @@ export interface FlagRunsChartViewModel {
   ) => [string, string];
 }
 
+export interface FlagRunMarkerLegendEntry {
+  readonly kind: FlagRunMarkerKind;
+  readonly symbol: string;
+  readonly text: string;
+}
+
 export interface FlagRunsViewModel {
   readonly kind: "flag-runs";
   readonly ariaLabel: string;
@@ -272,6 +275,7 @@ export interface FlagRunsViewModel {
   readonly chartTypeOptions: readonly ChartTypeOption[];
   readonly showChartTypeSelect: boolean;
   readonly legend: readonly FlagRunLegendEntry[];
+  readonly markerLegend: readonly FlagRunMarkerLegendEntry[];
   readonly chart: FlagRunsChartViewModel;
   readonly onChartTypeChange: (value: string) => void;
 }

@@ -13,9 +13,9 @@ const DURATION_MS = 120000;
 describe("buildFlagRuns", () => {
   it("builds one run per flag pull, coloured by the carrying team", () => {
     const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
-    expect(runs.map((run) => [run.runIndex, run.seriesName, run.color, run.outcome])).toEqual([
-      [1, "Eagle flag · Cobra carrying", "#ff0000", "capture"],
-      [2, "Cobra flag · Eagle carrying", "#0000ff", "return"],
+    expect(runs.map((run) => [run.runIndex, run.seriesName, run.color])).toEqual([
+      [1, "Eagle flag · Cobra carrying", "#ff0000"],
+      [2, "Cobra flag · Eagle carrying", "#0000ff"],
     ]);
   });
 
@@ -101,6 +101,25 @@ describe("buildFlagRuns", () => {
       ],
     });
     expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
+  });
+
+  it("orders samples by time and ignores events stamped before the pull", () => {
+    const base = Preconditions.checkExists(aFakeCtfTimelineWith().runs[0]);
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        {
+          ...base,
+          samples: [
+            { timestampMs: 45000, progress: 0.6 },
+            { timestampMs: 30000, progress: 0.25 },
+          ],
+          events: [{ timestampMs: 19500, kind: "steal" }, ...base.events.slice(1)],
+        },
+      ],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.points.map((point) => point.timestampMs)).toEqual([20000, 30000, 45000, 60000]);
+    expect(run.markers.map((marker) => marker.kind)).toEqual(["grab", "capture"]);
   });
 
   it("returns nothing for a match that is not two teams", () => {
