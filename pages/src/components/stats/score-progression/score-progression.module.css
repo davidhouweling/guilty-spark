@@ -39,10 +39,21 @@
   align-items: center;
   color: #8fa3b0;
   display: flex;
+  flex-wrap: wrap;
   font-size: 12px;
-  gap: 12px;
+  gap: 4px 12px;
   justify-content: flex-end;
   padding: 4px 8px 0;
+}
+
+.flagLegend {
+  justify-content: flex-start;
+}
+
+@media (--tablet-viewport) {
+  .flagLegend {
+    justify-content: flex-end;
+  }
 }
 
 .markerLegendItem {

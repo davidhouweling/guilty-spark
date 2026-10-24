@@ -39,7 +39,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     const [
       { FakeAuthService },
       { aFakeIndividualTrackerViewServiceWith },
-      { aFakeMatchAnalyticsServiceWith },
+      { aFakeCtfMatchAnalyticsWith, aFakeMatchAnalyticsServiceWith },
       { aFakeSeriesMatchesServiceWith },
       { aFakeHaloClientWith },
     ] = await Promise.all([
@@ -58,7 +58,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       settingsService: aFakeIndividualTrackerSettingsServiceWith(),
       overlayPreviewService: await installOverlayPreviewService(apiHost),
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
