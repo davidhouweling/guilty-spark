@@ -72,6 +72,12 @@ describe("scanBipedRecords", () => {
     expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([]);
   });
 
+  it("returns no records without a slot band", () => {
+    const payload = buildBipedFramePayload([{ slot: 512, q: [12_000, 12_000, 70_000] }]);
+
+    expect(scanBipedRecords(payload, new Set(), FAKE_AXIS_LAYOUT)).toEqual([]);
+  });
+
   it("returns no records for an empty payload", () => {
     expect(scanBipedRecords(new Uint8Array(0), slots, FAKE_AXIS_LAYOUT)).toEqual([]);
   });

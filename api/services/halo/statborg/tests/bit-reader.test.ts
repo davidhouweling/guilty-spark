@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  datedFrames,
   earliestTimestampUs,
   readBitsBE,
   MalformedPacketStreamError,
@@ -10,7 +11,11 @@ import {
   walkFramePackets,
   walkPackets,
 } from "../bit-reader";
-import { buildChunkBytes, buildReplicationChunkBytes } from "../fakes/replication-chunk.fake";
+import {
+  aFakeReplicationChunkWith,
+  buildChunkBytes,
+  buildReplicationChunkBytes,
+} from "../fakes/replication-chunk.fake";
 
 describe("readBitsBE", () => {
   it("reads big-endian bit fields across byte boundaries", () => {
@@ -101,5 +106,26 @@ describe("packetTimestampMs", () => {
     const packet = { timestampUs: 1_250_500n, payloadOffset: 0, payloadSize: 0 };
 
     expect(packetTimestampMs(5000, 1_000_000n, packet)).toBe(5250);
+  });
+});
+
+describe("datedFrames", () => {
+  it("dates every frame payload from the chunk start by its distance to the earliest frame", () => {
+    const chunk = aFakeReplicationChunkWith(
+      [
+        { timestampUs: 1_200_000n, records: [] },
+        { timestampUs: 1_000_000n, records: [] },
+      ],
+      { startMs: 5000 },
+    );
+
+    const frames = datedFrames(chunk);
+
+    expect(frames.map((frame) => frame.timestampMs)).toEqual([5200, 5000]);
+    expect(frames[0]?.payload).toEqual(chunk.data.subarray(16, 24));
+  });
+
+  it("returns no frames for a chunk without frame packets", () => {
+    expect(datedFrames(aFakeReplicationChunkWith([]))).toEqual([]);
   });
 });

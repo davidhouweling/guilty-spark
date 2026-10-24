@@ -129,6 +129,9 @@ export function forEachCandidateBit(
 // an absolute position is a record whose gate bits are all zero; a saturated axis is a clipped
 // value, not a position, and is skipped
 export function scanBipedRecords(payload: Uint8Array, slots: ReadonlySet<number>, layout: AxisLayout): ScannedBiped[] {
+  if (slots.size === 0) {
+    return [];
+  }
   const totalBits = payload.length * 8;
   const componentBits = layoutBits(layout);
   const minRecordBits = BIPED_HEADER_BITS + BIPED_INDEX_BITS * MIN_MASK_COUNT + componentBits;

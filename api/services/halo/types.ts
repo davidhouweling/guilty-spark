@@ -159,9 +159,12 @@ export interface ReplicationChunk {
   data: Uint8Array;
 }
 
+export type SkippedReplicationChunkReason = "malformed" | "empty";
+
 export interface SkippedReplicationChunk {
   index: number;
   startMs: number;
+  reason: SkippedReplicationChunkReason;
 }
 
 export interface ReplicationChunkLoad {

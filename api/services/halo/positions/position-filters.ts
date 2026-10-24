@@ -1,4 +1,5 @@
 import { groupBySlot } from "./group-by-slot";
+import { LIFE_GAP_MS } from "./lives";
 import type { BipedPosition } from "./types";
 
 // A live biped replicates continuously, so a sample more than this far from its nearest
@@ -36,15 +37,23 @@ function axisSpeed(from: BipedPosition, to: BipedPosition): number {
   return distance / elapsedS;
 }
 
+function isTeleport(anchor: BipedPosition | null, position: BipedPosition, streak: number): boolean {
+  if (anchor == null || streak >= MAX_REJECT_STREAK || position.timestampMs - anchor.timestampMs > LIFE_GAP_MS) {
+    return false;
+  }
+  return axisSpeed(anchor, position) > MAX_AXIS_QUANTA_PER_SECOND;
+}
+
 // after a few consecutive rejections the anchor re-seats on the current sample so a wrong
-// anchor cannot condemn the rest of its slot
+// anchor cannot condemn the rest of its slot; a silence long enough to open a new life
+// re-seats it too, since a respawn lands anywhere on the map
 export function dropTeleports(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];
   for (const list of groupBySlot(positions).values()) {
     let anchor: BipedPosition | null = null;
     let streak = 0;
     for (const position of list) {
-      if (anchor != null && streak < MAX_REJECT_STREAK && axisSpeed(anchor, position) > MAX_AXIS_QUANTA_PER_SECOND) {
+      if (isTeleport(anchor, position, streak)) {
         streak += 1;
         continue;
       }

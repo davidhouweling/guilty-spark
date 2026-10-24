@@ -299,7 +299,6 @@ function respawnWait(lives: readonly BipedLife[], member: RosterMember, life: Bi
   return wait >= MIN_RESPAWN_MS && wait <= MAX_RESPAWN_MS ? wait : null;
 }
 
-// two players dead for exactly as long cannot be told apart, so neither is named
 function longestWaitingPlayer(
   lives: readonly BipedLife[],
   roster: readonly RosterMember[],

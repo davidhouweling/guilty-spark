@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeBipedPositionWith } from "../fakes/biped-position.fake";
+import { LIFE_GAP_MS } from "../lives";
 import { dropIsolated, dropTeleports } from "../position-filters";
 
 describe("dropIsolated", () => {
@@ -59,6 +60,14 @@ describe("dropTeleports", () => {
     const conflicting = aFakeBipedPositionWith({ timestampMs: 1000, q: [1001, 1000, 1000] });
 
     expect(dropTeleports([anchor, duplicate, conflicting])).toEqual([anchor, duplicate]);
+  });
+
+  it("re-seats the anchor across a silence long enough to open a new life", () => {
+    const lastOfLife = aFakeBipedPositionWith({ timestampMs: 1000, q: [1000, 1000, 1000] });
+    const respawn = aFakeBipedPositionWith({ timestampMs: 1000 + LIFE_GAP_MS + 1, q: [30_000, 1000, 1000] });
+    const next = aFakeBipedPositionWith({ timestampMs: 1000 + LIFE_GAP_MS + 101, q: [30_010, 1000, 1000] });
+
+    expect(dropTeleports([lastOfLife, respawn, next])).toEqual([lastOfLife, respawn, next]);
   });
 
   it("keeps movement within the speed limit", () => {

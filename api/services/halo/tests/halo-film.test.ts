@@ -2366,7 +2366,7 @@ describe("HaloFilmService replication chunks", () => {
       { index: 1, startMs: 1000, durationMs: 20_000 },
     ]);
     expect(load.chunks[0]?.data).toEqual(new Uint8Array(encoded));
-    expect(load.skippedChunks).toEqual([{ index: 2, startMs: 21_000 }]);
+    expect(load.skippedChunks).toEqual([{ index: 2, startMs: 21_000, reason: "malformed" }]);
   });
 
   it("decodes flag events from the fetched film, dated from the chunk start offset", async () => {

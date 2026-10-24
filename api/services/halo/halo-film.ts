@@ -43,7 +43,7 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
-import { emptyReplicationChunkError, malformedReplicationChunkError, noReplicationChunksError } from "./film-errors";
+import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import type { PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
@@ -206,10 +206,8 @@ export class HaloFilmService {
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
-    const load = await this.getReplicationChunks(matchStats.MatchId);
-    this.assertCompleteFilm(load, matchStats.MatchId);
     const records: StatRecord[] = [];
-    for (const chunk of load.chunks) {
+    for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
       for (const record of scanChunkStatRecords(chunk)) {
         records.push(record);
       }
@@ -218,33 +216,43 @@ export class HaloFilmService {
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
-    const [load, events] = await Promise.all([
-      this.getReplicationChunks(matchStats.MatchId),
+    const [chunks, events] = await Promise.all([
+      this.getCompleteReplicationChunks(matchStats.MatchId),
       this.loadEnrichedEventsForMatch(matchStats),
     ]);
-    this.assertCompleteFilm(load, matchStats.MatchId);
     const deaths = events
       .filter((event) => event.eventType === "death")
       .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-    return buildPlayerPositions(load.chunks, matchStats, deaths);
+    return buildPlayerPositions(chunks, matchStats, deaths);
   }
 
-  // the first problem in film order is reported, whichever list it sits in
-  private assertCompleteFilm(load: ReplicationChunkLoad, matchId: string): void {
-    const problems = [
-      ...load.skippedChunks.map((chunk) => ({
-        index: chunk.index,
-        error: malformedReplicationChunkError(matchId, chunk.index),
-      })),
-      ...load.chunks
-        .filter((chunk) => chunk.data.length === 0)
-        .map((chunk) => ({ index: chunk.index, error: emptyReplicationChunkError(matchId, chunk.index) })),
-    ].sort((a, b) => a.index - b.index);
-    const [first] = problems;
-    if (first != null) {
-      throw first.error;
+  async getCompleteReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {
+    const chunks: ReplicationChunk[] = [];
+    for await (const chunk of this.iterateCompleteReplicationChunks(matchId)) {
+      chunks.push(chunk);
     }
-    if (load.chunks.length === 0) {
+    return chunks;
+  }
+
+  // a decoder that needs the whole match clock refuses the film at the first skipped chunk
+  private async *iterateCompleteReplicationChunks(matchId: string): AsyncGenerator<ReplicationChunk> {
+    let chunkCount = 0;
+    for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
+      switch (entry.kind) {
+        case "chunk": {
+          chunkCount += 1;
+          yield entry.chunk;
+          break;
+        }
+        case "skipped": {
+          throw skippedReplicationChunkError(matchId, entry.skipped);
+        }
+        default: {
+          throw new UnreachableError(entry);
+        }
+      }
+    }
+    if (chunkCount === 0) {
       throw noReplicationChunksError(matchId);
     }
   }
@@ -293,7 +301,11 @@ export class HaloFilmService {
         try {
           data = new Uint8Array(inflateSync(download.bytes));
         } catch {
-          yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs, reason: "malformed" } };
+          continue;
+        }
+        if (data.length === 0) {
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs, reason: "empty" } };
           continue;
         }
         yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };

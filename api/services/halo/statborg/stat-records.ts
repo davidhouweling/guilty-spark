@@ -1,5 +1,5 @@
 import type { ReplicationChunk } from "../types";
-import { readBitsBE, earliestTimestampUs, packetTimestampMs, walkFramePackets } from "./bit-reader";
+import { readBitsBE, datedFrames } from "./bit-reader";
 import type { StatRecord, StatValue } from "./types";
 
 // Entity-record grammar of the replication FRAME packets, measured by LevelUp against a
@@ -191,15 +191,8 @@ export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number
 }
 
 export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
-  const frames = walkFramePackets(chunk.data);
-  const originUs = earliestTimestampUs(frames);
-  if (originUs == null) {
-    return [];
-  }
   const records: StatRecord[] = [];
-  for (const frame of frames) {
-    const timestampMs = packetTimestampMs(chunk.startMs, originUs, frame);
-    const payload = chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize);
+  for (const { timestampMs, payload } of datedFrames(chunk)) {
     for (const record of scanFrameForStatRecords(payload, timestampMs)) {
       records.push(record);
     }

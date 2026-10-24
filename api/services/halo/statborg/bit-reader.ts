@@ -1,3 +1,5 @@
+import type { ReplicationChunk } from "../types";
+
 export const PACKET_HEADER_BYTES = 16;
 export const PACKET_TYPE_FRAME = 0;
 export const PACKET_TYPE_CHUNK_END = 7;
@@ -15,7 +17,6 @@ export interface FilmPacket extends FramePacket {
   type: number;
 }
 
-// reads byte by byte and stops at the end of the data, returning what was read so far
 export function readBitsBE(data: Uint8Array, bitPos: number, bitCount: number): number {
   let result = 0;
   let position = bitPos;
@@ -90,4 +91,21 @@ export function packetTimestampMs(chunkStartMs: number, originUs: bigint, packet
 
 export function walkFramePackets(data: Uint8Array): FramePacket[] {
   return walkPackets(data).filter((packet) => packet.type === PACKET_TYPE_FRAME);
+}
+
+export interface DatedFrame {
+  timestampMs: number;
+  payload: Uint8Array;
+}
+
+export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
+  const frames = walkFramePackets(chunk.data);
+  const originUs = earliestTimestampUs(frames);
+  if (originUs == null) {
+    return [];
+  }
+  return frames.map((frame) => ({
+    timestampMs: packetTimestampMs(chunk.startMs, originUs, frame),
+    payload: chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize),
+  }));
 }

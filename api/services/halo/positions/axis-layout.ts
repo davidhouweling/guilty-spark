@@ -129,6 +129,9 @@ export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout 
 }
 
 export function detectAxisLayout(chunks: readonly ReplicationChunk[], slots: ReadonlySet<number>): AxisLayout {
+  if (slots.size === 0) {
+    throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
+  }
   const samples: LayoutSample[] = [];
   for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {
     for (const [packetIndex, packet] of walkPackets(chunk.data).entries()) {

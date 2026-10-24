@@ -105,7 +105,6 @@ function writePacket(packet: PacketSpec): Uint8Array {
   return bytes;
 }
 
-// terminates the stream with the CHUNK_END packet every real chunk ends with
 export function buildChunkBytes(packets: readonly PacketSpec[]): Uint8Array {
   const encoded = packets.map((packet) => writePacket(packet));
   encoded.push(writePacket({ type: PACKET_TYPE_CHUNK_END, timestampUs: 0n, payload: new Uint8Array(0) }));

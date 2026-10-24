@@ -1,6 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { ReplicationChunk } from "../types";
-import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../statborg/bit-reader";
+import { datedFrames } from "../statborg/bit-reader";
 import { detectAxisLayout } from "./axis-layout";
 import { scanBipedRecords } from "./biped-records";
 import { bipedSlotBand } from "./keyframe-slots";
@@ -35,15 +35,8 @@ export function scanChunkPositions(
   slots: ReadonlySet<number>,
   layout: AxisLayout,
 ): BipedPosition[] {
-  const frames = walkFramePackets(chunk.data);
-  const originUs = earliestTimestampUs(frames);
-  if (originUs == null) {
-    return [];
-  }
   const positions: BipedPosition[] = [];
-  for (const frame of frames) {
-    const timestampMs = packetTimestampMs(chunk.startMs, originUs, frame);
-    const payload = chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize);
+  for (const { timestampMs, payload } of datedFrames(chunk)) {
     for (const record of scanBipedRecords(payload, slots, layout)) {
       positions.push({ slot: record.slot, timestampMs, q: record.q });
     }
