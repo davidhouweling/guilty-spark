@@ -9,10 +9,7 @@ import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata
 import type { DiscordSeriesStatsResult } from "../../../services/stats/discord-series-types";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
-import {
-  aFakeCtfMatchAnalyticsWith,
-  aFakeMatchAnalyticsServiceWith,
-} from "../../../services/stats/fakes/match-analytics.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { Services } from "../services";
 
 export function aFakeResolvedDiscordSeriesStatsWith(
@@ -108,7 +105,7 @@ export function aFakeDiscordSeriesStatsAppServicesWith(response: DiscordSeriesSt
   const haloClient = aFakeHaloClientWith();
   return {
     discordSeriesStatsService: aFakeDiscordSeriesStatsServiceWith({ result: toFakeResult(response) }),
-    matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
+    matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };
 }
