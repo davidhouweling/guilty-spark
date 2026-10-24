@@ -134,6 +134,8 @@ export function walkChunk(chunk: ReplicationChunk): WalkedChunk {
       keyframe == null
         ? null
         : chunk.data.subarray(keyframe.payloadOffset, keyframe.payloadOffset + keyframe.payloadSize),
-    frames: dateFrames(chunk, frames).sort((a, b) => a.timestampMs - b.timestampMs),
+    frames: dateFrames(chunk, frames).sort((a, b) =>
+      a.timestampUs < b.timestampUs ? -1 : a.timestampUs > b.timestampUs ? 1 : 0,
+    ),
   };
 }

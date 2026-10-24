@@ -139,7 +139,8 @@ describe("walkChunk", () => {
     const data = buildChunkBytes([
       { type: PACKET_TYPE_KEYFRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(7, 7) },
       { type: PACKET_TYPE_FRAME, timestampUs: 1_200_000n, payload: Uint8Array.of(2) },
-      { type: PACKET_TYPE_FRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(1) },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_000_900n, payload: Uint8Array.of(1) },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_000_100n, payload: Uint8Array.of(0) },
     ]);
 
     const walked = walkChunk({ index: 3, startMs: 5000, durationMs: 20_000, data });
@@ -147,8 +148,9 @@ describe("walkChunk", () => {
     expect(walked.index).toBe(3);
     expect(walked.keyframePayload).toEqual(Uint8Array.of(7, 7));
     expect(walked.frames.map((frame) => [frame.timestampMs, frame.payload[0]])).toEqual([
+      [5000, 0],
       [5000, 1],
-      [5200, 2],
+      [5199, 2],
     ]);
   });
 

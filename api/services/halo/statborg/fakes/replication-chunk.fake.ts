@@ -39,10 +39,6 @@ export class BitWriter {
     this.write(value < 0 ? value + 2 ** width : value, width);
   }
 
-  get length(): number {
-    return this.bits.length;
-  }
-
   toBytes(): Uint8Array {
     const bytes = new Uint8Array(Math.ceil(this.bits.length / 8));
     for (const [position, bit] of this.bits.entries()) {

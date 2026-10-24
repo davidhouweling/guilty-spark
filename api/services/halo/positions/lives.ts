@@ -222,24 +222,26 @@ function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
   return owners;
 }
 
-// a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
-// one name a slot's lives agree on extends to the slot's unnamed lives
 // a name extends to another life only where the owner may be present and has no other biped
 function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
   const member = roster.find((candidate) => candidate.xuid === owner);
   return member != null && mayBePresent(member, life.startMs) && !overlapsNamedLife(lives, owner, life);
 }
 
+// a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
+// one name a slot's lives agree on extends to the slot's unnamed lives, each checked against
+// the names already extended
 export function nameLivesBySlot(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
   const owners = slotOwners(lives);
-  return lives.map((life) => {
+  const named = [...lives];
+  for (const [index, life] of named.entries()) {
     const set = owners.get(life.slot);
     const [owner] = set ?? [];
-    if (life.xuid != null || set?.size !== 1 || owner == null || !canOwn(lives, roster, owner, life)) {
-      return life;
+    if (life.xuid == null && set?.size === 1 && owner != null && canOwn(named, roster, owner, life)) {
+      named[index] = { ...life, xuid: owner };
     }
-    return { ...life, xuid: owner };
-  });
+  }
+  return named;
 }
 
 function covers(life: BipedLife, atMs: number): boolean {

@@ -321,6 +321,17 @@ describe("nameLivesBySlot", () => {
     expect(nameLivesBySlot(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
   });
 
+  it("does not extend one owner onto two overlapping fragments in different slots", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 520, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 521, startMs: 20_000, endMs: 30_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 40_000, endMs: 50_000 }),
+      aFakeBipedLifeWith({ slot: 521, startMs: 45_000, endMs: 55_000 }),
+    ];
+
+    expect(nameLivesBySlot(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, A, null]);
+  });
+
   it("does not extend a slot's owner onto a life before the owner joined", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 520, startMs: 100_000, endMs: 150_000 }),

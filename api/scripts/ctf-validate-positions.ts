@@ -23,8 +23,10 @@ if (matchStats == null) {
 }
 
 const startedAt = performance.now();
-const deaths = await haloFilmService.getDeathEvents(MATCH_ID);
-const chunks = await haloFilmService.getCompleteReplicationChunks(MATCH_ID);
+const [chunks, deaths] = await Promise.all([
+  haloFilmService.getCompleteReplicationChunks(MATCH_ID),
+  haloFilmService.getDeathEvents(MATCH_ID),
+]);
 const walked = chunks.map(walkChunk);
 const decoded = decodePositions(walked, MATCH_ID);
 const positions = namePositions(decoded, matchStats, deaths);

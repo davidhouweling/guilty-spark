@@ -99,7 +99,7 @@ function nameLives(
     before = namedCount(named);
     named = namingRound(named, filmDeaths, filmRoster);
   }
-  return nameLivesBySlot(named, filmRoster);
+  return named;
 }
 
 export function namePositions(

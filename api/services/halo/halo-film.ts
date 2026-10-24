@@ -72,6 +72,7 @@ export class HaloFilmService {
   private readonly spartanTokenProvider: SpartanTokenProvider;
   private readonly fetchFn: typeof globalThis.fetch | undefined;
   private readonly clearanceCacheKey: string;
+  private readonly filmMetadataLoads = new Map<string, Promise<FilmMetadataResponse>>();
 
   constructor({ env, spartanTokenProvider, fetch: fetchFn, kvKeyNamespace }: HaloFilmServiceOpts) {
     this.env = env;
@@ -215,10 +216,11 @@ export class HaloFilmService {
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
-  // the death feed is read first so a cold film metadata cache is filled once, not twice
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
-    const deaths = await this.getDeathEvents(matchStats.MatchId);
-    const chunks = await this.getCompleteReplicationChunks(matchStats.MatchId);
+    const [chunks, deaths] = await Promise.all([
+      this.getCompleteReplicationChunks(matchStats.MatchId),
+      this.getDeathEvents(matchStats.MatchId),
+    ]);
     return buildPlayerPositions(chunks, matchStats, deaths);
   }
 
@@ -470,7 +472,23 @@ export class HaloFilmService {
     return { fireEvents: allFireEvents, timeline, chunkTimings };
   }
 
+  // concurrent callers for one match share a single load so a cold cache is filled once
   private async getOrFetchFilmMetadata(
+    matchId: string,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): Promise<FilmMetadataResponse> {
+    const inFlight = this.filmMetadataLoads.get(matchId);
+    if (inFlight != null) {
+      return inFlight;
+    }
+    const load = this.loadFilmMetadata(matchId, authResolver).finally(() => {
+      this.filmMetadataLoads.delete(matchId);
+    });
+    this.filmMetadataLoads.set(matchId, load);
+    return load;
+  }
+
+  private async loadFilmMetadata(
     matchId: string,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): Promise<FilmMetadataResponse> {
