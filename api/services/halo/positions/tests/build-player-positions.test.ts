@@ -4,10 +4,12 @@ import { walkChunk } from "../../statborg/bit-reader";
 import { aFakeCtfMatchStatsWith } from "../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeReplicationChunkWith } from "../../statborg/fakes/replication-chunk.fake";
 import { BipedRecordScanner } from "../biped-records";
+import { BIPED_ARCHETYPE } from "../keyframe-slots";
 import { buildPlayerPositions, PositionDecodeError, scanChunkPositions } from "../build-player-positions";
 import { aFakeDeathEventWith } from "../fakes/biped-position.fake";
 import {
   aFakeBipedFrameChunkWith,
+  aFakeKeyframeChunkWith,
   aFakePositionFilmWith,
   FAKE_AXIS_LAYOUT,
   FAKE_ORIGIN,
@@ -128,6 +130,17 @@ describe("buildPlayerPositions", () => {
 
     expect(positions.unnamedLives).toEqual([]);
     expect(positions.tracks.flatMap((track) => track.lives)).toHaveLength(xuids.length * 2);
+  });
+
+  it("throws when the keyframes span more biped slots than a match can allocate", () => {
+    const chunks = [
+      aFakeKeyframeChunkWith([
+        { slot: 512, archetype: BIPED_ARCHETYPE },
+        { slot: 4000, archetype: BIPED_ARCHETYPE },
+      ]),
+    ];
+
+    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow("3489 biped slots");
   });
 
   it("throws when the film lists no biped slots", () => {

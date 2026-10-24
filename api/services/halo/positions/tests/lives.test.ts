@@ -83,6 +83,20 @@ describe("bestDeathOffset", () => {
     expect(bestDeathOffset(lives, deaths)).toBe(100);
   });
 
+  it("counts each death once so a cluster of lives cannot pull the offset", () => {
+    const lives = [
+      ...[...Array(8).keys()].map((index) => aFakeBipedLifeWith({ slot: 600 + index, endMs: 10_500 + index * 10 })),
+      ...[20_000, 30_000, 40_000, 50_000, 60_000, 70_000].map((endMs, index) =>
+        aFakeBipedLifeWith({ slot: 700 + index, endMs }),
+      ),
+    ];
+    const deaths = [10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000].map((timestampMs, index) =>
+      aFakeDeathEventWith({ timestampMs, xuid: `0${String(index + 1)}00000000000000` }),
+    );
+
+    expect(bestDeathOffset(lives, deaths)).toBe(0);
+  });
+
   it("returns zero without deaths", () => {
     expect(bestDeathOffset([aFakeBipedLifeWith()], [])).toBe(0);
   });
@@ -108,7 +122,11 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_020, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
+      A,
+      B,
+      null,
+    ]);
   });
 
   it("settles two deaths at the same instant when a previous death leaves one of them a single option", () => {
@@ -125,7 +143,12 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_000, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).map((life) => life.xuid)).toEqual([A, B, A, B]);
+    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
+      A,
+      B,
+      A,
+      B,
+    ]);
   });
 
   it("does not pair a death with a life that began before the owner's previous death", () => {
@@ -138,7 +161,10 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: A }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).map((life) => life.xuid)).toEqual([A, null]);
+    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
+      A,
+      null,
+    ]);
   });
 
   it("leaves two deaths at the same instant unnamed when nothing tells them apart", () => {
@@ -153,13 +179,17 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: C }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).map((life) => life.xuid)).toEqual([null, null, C]);
+    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
+      null,
+      null,
+      C,
+    ]);
   });
 
   it("leaves lives untouched without deaths", () => {
     const lives = [aFakeBipedLifeWith()];
 
-    expect(nameLivesByDeaths(lives, [])).toEqual(lives);
+    expect(nameLivesByDeaths(lives, [], 0)).toEqual(lives);
   });
 });
 
@@ -212,6 +242,19 @@ describe("nameLivesByElimination", () => {
     ];
 
     expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
+  });
+
+  it("does not give one player two overlapping lives in two slots", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 30_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 6000, endMs: 12_000 }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 10_000, endMs: 20_000 }),
+    ];
+
+    const named = nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid);
+
+    expect(named[0]).toBe(A);
+    expect(named.filter((xuid) => xuid === B)).toHaveLength(1);
   });
 
   it("does not name a life after a player who died less than a respawn before it began", () => {

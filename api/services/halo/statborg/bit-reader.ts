@@ -98,8 +98,7 @@ export interface DatedFrame {
   payload: Uint8Array;
 }
 
-export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
-  const frames = walkFramePackets(chunk.data);
+function dateFrames(chunk: ReplicationChunk, frames: readonly FramePacket[]): DatedFrame[] {
   const originUs = earliestTimestampUs(frames);
   if (originUs == null) {
     return [];
@@ -108,6 +107,10 @@ export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
     timestampMs: packetTimestampMs(chunk.startMs, originUs, frame),
     payload: chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize),
   }));
+}
+
+export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
+  return dateFrames(chunk, walkFramePackets(chunk.data));
 }
 
 export interface WalkedChunk {
@@ -119,7 +122,9 @@ export interface WalkedChunk {
 
 // one walk per chunk serves every decoder stage; frames come out in clock order
 export function walkChunk(chunk: ReplicationChunk): WalkedChunk {
-  const keyframe = walkPackets(chunk.data).find((packet) => packet.type === PACKET_TYPE_KEYFRAME);
+  const packets = walkPackets(chunk.data);
+  const keyframe = packets.find((packet) => packet.type === PACKET_TYPE_KEYFRAME);
+  const frames = packets.filter((packet) => packet.type === PACKET_TYPE_FRAME);
   return {
     index: chunk.index,
     startMs: chunk.startMs,
@@ -127,6 +132,6 @@ export function walkChunk(chunk: ReplicationChunk): WalkedChunk {
       keyframe == null
         ? null
         : chunk.data.subarray(keyframe.payloadOffset, keyframe.payloadOffset + keyframe.payloadSize),
-    frames: datedFrames(chunk).sort((a, b) => a.timestampMs - b.timestampMs),
+    frames: dateFrames(chunk, frames).sort((a, b) => a.timestampMs - b.timestampMs),
   };
 }

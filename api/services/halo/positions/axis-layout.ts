@@ -43,6 +43,20 @@ export class AxisLayoutError extends Error {
   }
 }
 
+const WINDOW_WORD_BITS = 28;
+
+function readWindowBits(payload: Uint8Array, fromBit: number): Uint8Array {
+  const bits = new Uint8Array(DETECT_WINDOW_BITS);
+  for (let wordStart = 0; wordStart < DETECT_WINDOW_BITS; wordStart += WINDOW_WORD_BITS) {
+    const width = Math.min(WINDOW_WORD_BITS, DETECT_WINDOW_BITS - wordStart);
+    const word = readBitsBE(payload, fromBit + wordStart, width);
+    for (let bit = 0; bit < width; bit++) {
+      bits[wordStart + bit] = Math.floor(word / 2 ** (width - 1 - bit)) % 2;
+    }
+  }
+  return bits;
+}
+
 function collectSamples(
   payload: Uint8Array,
   slots: ReadonlySet<number>,
@@ -58,11 +72,7 @@ function collectSamples(
     if (header == null || readBitsBE(payload, header.positionBit, DEFAULT_GATE_BITS) !== 0) {
       return null;
     }
-    const bits = new Uint8Array(DETECT_WINDOW_BITS);
-    for (let bit = 0; bit < DETECT_WINDOW_BITS; bit++) {
-      bits[bit] = readBitsBE(payload, header.positionBit + bit, 1);
-    }
-    samples.push({ slot: header.slot, chunk, packet, bits });
+    samples.push({ slot: header.slot, chunk, packet, bits: readWindowBits(payload, header.positionBit) });
     return header.positionBit + DETECT_WINDOW_BITS / 2;
   });
   return samples;
@@ -127,9 +137,6 @@ export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout 
 }
 
 export function detectAxisLayout(chunks: readonly WalkedChunk[], slots: ReadonlySet<number>): AxisLayout {
-  if (slots.size === 0) {
-    throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
-  }
   const prefilter = slotPrefilter(slots);
   const samples: LayoutSample[] = [];
   for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {

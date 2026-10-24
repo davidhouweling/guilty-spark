@@ -55,12 +55,6 @@ describe("detectAxisLayout", () => {
     );
   });
 
-  it("throws when there is no biped slot to profile", () => {
-    expect(() => detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith([]))], new Set())).toThrow(
-      "needs at least one biped slot",
-    );
-  });
-
   it("throws when no chunk carries biped records", () => {
     expect(() => detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith([]))], new Set([512]))).toThrow(
       "0 record pairs, 0 samples",

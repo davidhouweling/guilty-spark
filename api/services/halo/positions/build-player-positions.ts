@@ -26,6 +26,9 @@ import type {
   RosterMember,
 } from "./types";
 
+// one slot per spawn: a full lobby of 24 dying every 15 seconds for 15 minutes stays well below
+const MAX_BIPED_SLOTS = 2048;
+
 export class PositionDecodeError extends Error {
   constructor(message: string) {
     super(message);
@@ -54,6 +57,11 @@ export function decodePositions(chunks: readonly WalkedChunk[], matchId: string)
   if (slots.size === 0) {
     throw new PositionDecodeError(`Film for match ${matchId} lists no biped slots in its keyframes`);
   }
+  if (slots.size > MAX_BIPED_SLOTS) {
+    throw new PositionDecodeError(
+      `Film for match ${matchId} spans ${String(slots.size)} biped slots, more than a match can allocate`,
+    );
+  }
   const layout = detectAxisLayout(chunks, slots);
   const scanner = new BipedRecordScanner(slots, layout);
   return { layout, slots, scanned: chunks.flatMap((chunk) => scanChunkPositions(chunk, scanner)) };
@@ -70,10 +78,6 @@ function groupTracks(lives: readonly BipedLife[], roster: readonly RosterMember[
   return tracks.sort((a, b) => a.xuid.localeCompare(b.xuid));
 }
 
-function settle(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
-  return nameLivesByElimination(nameLivesBySlot(lives), roster);
-}
-
 function nameLives(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
@@ -82,8 +86,8 @@ function nameLives(
   const offsetMs = bestDeathOffset(lives, deaths);
   const filmDeaths = alignDeathsToFilm(deaths, offsetMs);
   const filmRoster = alignRosterToFilm(roster, offsetMs);
-  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths), filmRoster);
-  return settle(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
+  const byDeaths = nameLivesByElimination(nameLivesBySlot(nameLivesByDeaths(lives, filmDeaths, 0)), filmRoster);
+  return nameLivesByElimination(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
 }
 
 export function namePositions(

@@ -1,6 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import { differenceInMilliseconds } from "date-fns";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { RosterMember } from "./types";
 
 // join and leave times are wall-clock stamps against the match start while lives run on the
@@ -25,7 +25,7 @@ function presentToMs(player: MatchStats["Players"][number], startedAt: Date): nu
 export function buildRoster(matchStats: MatchStats): RosterMember[] {
   const startedAt = new Date(matchStats.MatchInfo.StartTime);
   return matchStats.Players.map((player) => ({
-    xuid: unwrapXuid(player.PlayerId),
+    xuid: getPlayerXuid(player),
     teamId: player.LastTeamId,
     presentFromMs: presentFromMs(player, startedAt),
     presentToMs: presentToMs(player, startedAt),
