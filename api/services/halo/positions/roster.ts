@@ -41,3 +41,13 @@ export function isPresent(member: RosterMember, atMs: number): boolean {
 export function mayBePresent(member: RosterMember, atMs: number): boolean {
   return member.presentFromMs - PRESENCE_TOLERANCE_MS <= atMs && atMs <= member.presentToMs + PRESENCE_TOLERANCE_MS;
 }
+
+// join and leave stamps sit on the match clock like the death feed, so the offset measured
+// for the deaths carries the presence windows onto the film clock too
+export function alignRosterToFilm(roster: readonly RosterMember[], offsetMs: number): RosterMember[] {
+  return roster.map((member) => ({
+    ...member,
+    presentFromMs: member.presentFromMs + offsetMs,
+    presentToMs: member.presentToMs + offsetMs,
+  }));
+}

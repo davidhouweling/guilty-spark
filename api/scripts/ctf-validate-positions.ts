@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../services/halo/statborg/bit-reader";
 import { detectAxisLayout } from "../services/halo/positions/axis-layout";
-import { scanChunkPositions } from "../services/halo/positions/build-player-positions";
+import { buildPlayerPositions, scanChunkPositions } from "../services/halo/positions/build-player-positions";
 import { bipedSlotBand } from "../services/halo/positions/keyframe-slots";
 import { dropIsolated } from "../services/halo/positions/position-filters";
 import { createScriptServices, fmtMs } from "./script-services";
@@ -25,11 +25,17 @@ if (matchStats == null) {
 }
 
 const startedAt = performance.now();
-const positions = await haloFilmService.buildPlayerPositions(matchStats);
+const [chunks, highlightEvents] = await Promise.all([
+  haloFilmService.getCompleteReplicationChunks(MATCH_ID),
+  haloFilmService.getHighlightEventsForMatch(MATCH_ID),
+]);
+const deaths = highlightEvents
+  .filter((event) => event.eventType === "death")
+  .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+const positions = buildPlayerPositions(chunks, matchStats, deaths);
 console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,
 );
-const highlightEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
 const gamertags = new Map(highlightEvents.map((event) => [event.xuid, event.gamertag]));
 for (const track of positions.tracks) {
   const samples = track.lives.reduce((sum, life) => sum + life.samples.length, 0);
@@ -45,7 +51,6 @@ for (const life of positions.unnamedLives) {
 }
 
 if (LEVELUP_CSV != null) {
-  const { chunks } = await haloFilmService.getReplicationChunks(MATCH_ID);
   const slots = bipedSlotBand(chunks);
   const layout = detectAxisLayout(chunks, slots);
   const ours = dropIsolated(chunks.flatMap((chunk) => scanChunkPositions(chunk, slots, layout)));

@@ -1,5 +1,5 @@
 import type { ReplicationChunk } from "../types";
-import { PACKET_TYPE_FRAME, readBitsBE, walkPackets } from "../statborg/bit-reader";
+import { datedFrames, readBitsBE } from "../statborg/bit-reader";
 import {
   BIPED_HEADER_BITS,
   BIPED_INDEX_BITS,
@@ -134,12 +134,8 @@ export function detectAxisLayout(chunks: readonly ReplicationChunk[], slots: Rea
   }
   const samples: LayoutSample[] = [];
   for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {
-    for (const [packetIndex, packet] of walkPackets(chunk.data).entries()) {
-      if (packet.type !== PACKET_TYPE_FRAME) {
-        continue;
-      }
-      const payload = chunk.data.subarray(packet.payloadOffset, packet.payloadOffset + packet.payloadSize);
-      samples.push(...collectSamples(payload, slots, chunk.index, packetIndex));
+    for (const [frameIndex, frame] of datedFrames(chunk).entries()) {
+      samples.push(...collectSamples(frame.payload, slots, chunk.index, frameIndex));
     }
   }
   const profile = profileFlips(samples);

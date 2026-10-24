@@ -10,7 +10,6 @@ export const ISOLATION_GAP_MS = 15_000;
 export const MAX_AXIS_QUANTA_PER_SECOND = 12_000;
 const MAX_REJECT_STREAK = 3;
 
-// the kept samples come back slot by slot in time order
 export function dropIsolated(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];
   for (const list of groupBySlot(positions).values()) {

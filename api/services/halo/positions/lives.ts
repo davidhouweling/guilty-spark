@@ -167,12 +167,18 @@ export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly De
   return plateauCentre(nearbyPairs(lives, deaths, previousDeathByIndex(deaths)));
 }
 
+// the death feed runs on the match clock and lives on the film clock; the measured offset
+// moves the feed onto the film clock so every later comparison is between like times
+export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
+  return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
+}
+
 export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): BipedLife[] {
   if (deaths.length === 0 || lives.length === 0) {
     return [...lives];
   }
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
-  const named = lives.map((life) => ({ ...life }));
+  const named = [...lives];
   for (const pairing of pairDeathsToLives(pairs, plateauCentre(pairs))) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
@@ -243,12 +249,14 @@ function decisiveInstants(lives: readonly BipedLife[], life: BipedLife): number[
   return instants;
 }
 
+type OwnerAt = (atMs: number) => string | null;
+
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
 // life is named only when every decisive instant along its span agrees
-function eliminatedOwner(lives: readonly BipedLife[], roster: readonly RosterMember[], life: BipedLife): string | null {
+function eliminatedOwner(lives: readonly BipedLife[], ownerAt: OwnerAt, life: BipedLife): string | null {
   const owners = new Set<string>();
   for (const atMs of decisiveInstants(lives, life)) {
-    const owner = soleMissingPlayer(lives, roster, atMs);
+    const owner = ownerAt(atMs);
     if (owner != null) {
       owners.add(owner);
     }
@@ -257,24 +265,41 @@ function eliminatedOwner(lives: readonly BipedLife[], roster: readonly RosterMem
   return owners.size === 1 && only != null ? only : null;
 }
 
+// neighbouring lives share most decisive instants, so each instant is judged once per pass
+function memoisedOwnerAt(lives: readonly BipedLife[], roster: readonly RosterMember[]): OwnerAt {
+  const memo = new Map<number, string | null>();
+  return (atMs) => {
+    const known = memo.get(atMs);
+    if (known !== undefined) {
+      return known;
+    }
+    const owner = soleMissingPlayer(lives, roster, atMs);
+    memo.set(atMs, owner);
+    return owner;
+  };
+}
+
 // every present player has exactly one live biped at any instant, so an unnamed life whose span
 // leaves exactly one roster member unaccounted for belongs to that member; naming one life can
 // settle the next, so the pass repeats until nothing changes
 export function nameLivesByElimination(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
-  const named = [...lives];
+  let named = [...lives];
   let changed = true;
   while (changed) {
     changed = false;
+    const ownerAt = memoisedOwnerAt(named, roster);
+    const next = [...named];
     for (const [index, life] of named.entries()) {
       if (life.xuid != null) {
         continue;
       }
-      const owner = eliminatedOwner(named, roster, life);
+      const owner = eliminatedOwner(named, ownerAt, life);
       if (owner != null) {
-        named[index] = { ...life, xuid: owner };
+        next[index] = { ...life, xuid: owner };
         changed = true;
       }
     }
+    named = next;
   }
   return named;
 }
@@ -382,6 +407,7 @@ export function nameLivesByRespawnOrder(
     const owner = longestWaitingPlayer(named, deaths, roster, life);
     if (owner != null) {
       named[index] = { ...life, xuid: owner };
+      ownedSlots.add(life.slot);
     }
   }
   return named;

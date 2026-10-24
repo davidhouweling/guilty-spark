@@ -5,6 +5,8 @@ import { detectAxisLayout } from "./axis-layout";
 import { scanBipedRecords } from "./biped-records";
 import { bipedSlotBand } from "./keyframe-slots";
 import {
+  alignDeathsToFilm,
+  bestDeathOffset,
   buildLives,
   nameLivesByDeaths,
   nameLivesByElimination,
@@ -12,7 +14,7 @@ import {
   nameLivesBySlot,
 } from "./lives";
 import { dropIsolated, dropTeleports } from "./position-filters";
-import { buildRoster } from "./roster";
+import { alignRosterToFilm, buildRoster } from "./roster";
 import type {
   AxisLayout,
   BipedLife,
@@ -55,13 +57,20 @@ function groupTracks(lives: readonly BipedLife[], roster: readonly RosterMember[
   return tracks.sort((a, b) => a.xuid.localeCompare(b.xuid));
 }
 
+function settle(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
+  return nameLivesByElimination(nameLivesBySlot(lives), roster);
+}
+
 function nameLives(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const byDeaths = nameLivesByElimination(nameLivesBySlot(nameLivesByDeaths(lives, deaths)), roster);
-  return nameLivesByElimination(nameLivesBySlot(nameLivesByRespawnOrder(byDeaths, deaths, roster)), roster);
+  const offsetMs = bestDeathOffset(lives, deaths);
+  const filmDeaths = alignDeathsToFilm(deaths, offsetMs);
+  const filmRoster = alignRosterToFilm(roster, offsetMs);
+  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths), filmRoster);
+  return settle(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
 }
 
 export function buildPlayerPositions(

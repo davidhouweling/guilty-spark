@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aFakeCtfMatchStatsWith } from "../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeRosterMemberWith } from "../fakes/biped-position.fake";
-import { buildRoster, isPresent, mayBePresent, PRESENCE_TOLERANCE_MS } from "../roster";
+import { alignRosterToFilm, buildRoster, isPresent, mayBePresent, PRESENCE_TOLERANCE_MS } from "../roster";
 
 describe("buildRoster", () => {
   it("lists every player with their team and an open presence window when they played throughout", () => {
@@ -78,5 +78,21 @@ describe("mayBePresent", () => {
     expect(mayBePresent(member, 10_000 - PRESENCE_TOLERANCE_MS - 1)).toBe(false);
     expect(mayBePresent(member, 60_000 + PRESENCE_TOLERANCE_MS)).toBe(true);
     expect(mayBePresent(member, 60_000 + PRESENCE_TOLERANCE_MS + 1)).toBe(false);
+  });
+});
+
+describe("alignRosterToFilm", () => {
+  it("shifts both ends of each presence window and keeps an open end open", () => {
+    const roster = [
+      aFakeRosterMemberWith({ presentFromMs: 10_000, presentToMs: 60_000 }),
+      aFakeRosterMemberWith({ xuid: "0400000000000000" }),
+    ];
+
+    expect(
+      alignRosterToFilm(roster, 1500).map(({ presentFromMs, presentToMs }) => [presentFromMs, presentToMs]),
+    ).toEqual([
+      [11_500, 61_500],
+      [1500, Number.POSITIVE_INFINITY],
+    ]);
   });
 });

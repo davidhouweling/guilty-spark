@@ -6,6 +6,7 @@ import {
   aFakeRosterMemberWith,
 } from "../fakes/biped-position.fake";
 import {
+  alignDeathsToFilm,
   bestDeathOffset,
   buildLives,
   nameLivesByDeaths,
@@ -84,6 +85,14 @@ describe("bestDeathOffset", () => {
 
   it("returns zero without deaths", () => {
     expect(bestDeathOffset([aFakeBipedLifeWith()], [])).toBe(0);
+  });
+});
+
+describe("alignDeathsToFilm", () => {
+  it("moves the death feed onto the film clock by the given offset", () => {
+    const deaths = [aFakeDeathEventWith({ timestampMs: 9900, xuid: A })];
+
+    expect(alignDeathsToFilm(deaths, 100)).toEqual([aFakeDeathEventWith({ timestampMs: 10_000, xuid: A })]);
   });
 });
 
@@ -327,6 +336,17 @@ describe("nameLivesByRespawnOrder", () => {
     const roster = [...rosterOf(A, B), aFakeRosterMemberWith({ xuid: C, presentFromMs: 20_000 })];
 
     expect(nameLivesByRespawnOrder(lives, [], roster).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
+  it("leaves later lives of a slot it has just named to the slot pass", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 29_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 30_000 }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 40_000, endMs: 50_000 }),
+    ];
+
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, null]);
   });
 
   it("does not hand a respawn to a player who has left the match", () => {
