@@ -282,6 +282,10 @@ function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]
   );
   const runCounts = new Map<number, number>();
   for (const run of timeline.runs) {
+    // a run carried by the flag's own team is malformed and cannot vouch for a roster
+    if (run.carrierTeamId === run.flagTeamId) {
+      continue;
+    }
     for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
       runCounts.set(teamId, (runCounts.get(teamId) ?? 0) + 1);
     }

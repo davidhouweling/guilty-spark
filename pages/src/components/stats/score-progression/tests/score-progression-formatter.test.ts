@@ -854,6 +854,16 @@ describe("formatScoreProgression ctf", () => {
     expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
   });
 
+  it("ignores a same-team run when inferring the roster of a 0-0 match", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [aFakeCtfFlagRunWith(), aFakeCtfFlagRunWith({ flagTeamId: 2, carrierTeamId: 2 })],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(1);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
   it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [],
