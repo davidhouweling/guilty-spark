@@ -5,6 +5,7 @@ import { Server } from "./server";
 import { StaleNeatQueueConfigCleanup } from "./services/neatqueue/stale-config-cleanup";
 import { LeaderboardDataReaper } from "./services/leaderboard/leaderboard-data-reaper";
 import { LeaderboardPostReaper } from "./services/leaderboard/leaderboard-post-reaper";
+import { FilmAnalyticsQueueConsumer } from "./services/analytics/film-analytics-queue-consumer";
 
 // Export Durable Object classes
 export { LiveTrackerDO } from "./durable-objects/live-tracker/live-tracker-do";
@@ -71,6 +72,11 @@ export default Sentry.withSentry(
   }),
   {
     fetch: server.router.fetch,
+    queue: async (batch: MessageBatch, env: Env): Promise<void> => {
+      const { analyticsService, haloService, logService } = installServices({ env });
+      const consumer = new FilmAnalyticsQueueConsumer({ analyticsService, haloService, logService });
+      await consumer.processBatch(batch);
+    },
     scheduled: async (controller: ScheduledController, env: Env): Promise<void> => {
       const { databaseService, discordService, logService } = installServices({ env });
       switch (controller.cron) {

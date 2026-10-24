@@ -46,6 +46,15 @@
     ],
   },
 
+  // Film kill-matrix analytics, processed outside the NeatQueue waitUntil budget
+  "queues": {
+    "producers": [{ "queue": "guilty-spark-film-analytics-dev", "binding": "FILM_ANALYTICS_QUEUE" }],
+    // One match per invocation keeps film parsing within CPU limits and isolates retries.
+    "consumers": [
+      { "queue": "guilty-spark-film-analytics-dev", "max_batch_size": 1, "max_retries": 3, "max_concurrency": 2 },
+    ],
+  },
+
   // Migrations for Durable Objects
   "migrations": [
     {
@@ -127,6 +136,17 @@
           },
         ],
       },
+      "queues": {
+        "producers": [{ "queue": "guilty-spark-staging-film-analytics", "binding": "FILM_ANALYTICS_QUEUE" }],
+        "consumers": [
+          {
+            "queue": "guilty-spark-staging-film-analytics",
+            "max_batch_size": 1,
+            "max_retries": 3,
+            "max_concurrency": 2,
+          },
+        ],
+      },
       "vars": {
         "HOST_URL": "https://staging-api.guilty-spark.app",
         "PAGES_URL": "https://staging.guilty-spark.app",
@@ -166,6 +186,12 @@
             "name": "USER_TRACKER_DO",
             "class_name": "UserTrackerDO",
           },
+        ],
+      },
+      "queues": {
+        "producers": [{ "queue": "guilty-spark-film-analytics", "binding": "FILM_ANALYTICS_QUEUE" }],
+        "consumers": [
+          { "queue": "guilty-spark-film-analytics", "max_batch_size": 1, "max_retries": 3, "max_concurrency": 2 },
         ],
       },
       "vars": {

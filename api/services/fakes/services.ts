@@ -43,7 +43,6 @@ export function installFakeServicesWith(opts: Partial<Services & { env: Env }> =
       discordService,
       haloService,
       leaderboardService,
-      analyticsService,
       liveTrackerService,
     });
   const individualTrackerService =
