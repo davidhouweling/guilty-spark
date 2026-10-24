@@ -2,7 +2,7 @@ import type { MatchStats } from "halo-infinite-api";
 import type { ReplicationChunk } from "../types";
 import { datedFrames } from "../statborg/bit-reader";
 import { detectAxisLayout } from "./axis-layout";
-import { scanBipedRecords } from "./biped-records";
+import { BipedRecordScanner } from "./biped-records";
 import { bipedSlotBand } from "./keyframe-slots";
 import {
   alignDeathsToFilm,
@@ -15,15 +15,7 @@ import {
 } from "./lives";
 import { dropIsolated, dropTeleports } from "./position-filters";
 import { alignRosterToFilm, buildRoster } from "./roster";
-import type {
-  AxisLayout,
-  BipedLife,
-  BipedPosition,
-  DeathEvent,
-  PlayerPositions,
-  PlayerPositionTrack,
-  RosterMember,
-} from "./types";
+import type { BipedLife, BipedPosition, DeathEvent, PlayerPositions, PlayerPositionTrack, RosterMember } from "./types";
 
 export class PositionDecodeError extends Error {
   constructor(message: string) {
@@ -32,14 +24,10 @@ export class PositionDecodeError extends Error {
   }
 }
 
-export function scanChunkPositions(
-  chunk: ReplicationChunk,
-  slots: ReadonlySet<number>,
-  layout: AxisLayout,
-): BipedPosition[] {
+export function scanChunkPositions(chunk: ReplicationChunk, scanner: BipedRecordScanner): BipedPosition[] {
   const positions: BipedPosition[] = [];
   for (const { timestampMs, payload } of datedFrames(chunk)) {
-    for (const record of scanBipedRecords(payload, slots, layout)) {
+    for (const record of scanner.scan(payload)) {
       positions.push({ slot: record.slot, timestampMs, q: record.q });
     }
   }
@@ -69,7 +57,7 @@ function nameLives(
   const offsetMs = bestDeathOffset(lives, deaths);
   const filmDeaths = alignDeathsToFilm(deaths, offsetMs);
   const filmRoster = alignRosterToFilm(roster, offsetMs);
-  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths), filmRoster);
+  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths, 0), filmRoster);
   return settle(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
 }
 
@@ -83,9 +71,10 @@ export function buildPlayerPositions(
     throw new PositionDecodeError(`Film for match ${matchStats.MatchId} lists no biped slots in its keyframes`);
   }
   const layout = detectAxisLayout(chunks, slots);
+  const scanner = new BipedRecordScanner(slots, layout);
   const raw: BipedPosition[] = [];
   for (const chunk of chunks) {
-    for (const position of scanChunkPositions(chunk, slots, layout)) {
+    for (const position of scanChunkPositions(chunk, scanner)) {
       raw.push(position);
     }
   }

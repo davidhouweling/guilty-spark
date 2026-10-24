@@ -7,6 +7,8 @@ import {
   matchBipedHeader,
   slotPrefilter,
 } from "./biped-records";
+import type { SlotPrefilter } from "./biped-records";
+import { groupBySlot } from "./group-by-slot";
 import type { AxisLayout } from "./types";
 
 // The axis widths of the position component are a per-map constant that never travels in the
@@ -18,13 +20,14 @@ const SPINE_BITS = 3;
 const USE_DEFAULT_BITS = 1;
 const REGION_INDEX_BITS = 1;
 export const DEFAULT_GATE_BITS = SPINE_BITS + USE_DEFAULT_BITS + REGION_INDEX_BITS;
-const DETECT_WINDOW_BITS = 72;
 const DETECT_MAX_CHUNKS = 6;
 const DETECT_MAX_PACKET_GAP = 3;
 const BOUNDARY_SATURATION = 0.1;
 const BOUNDARY_DROP = 8;
 const MIN_AXIS_BITS = 8;
 const MAX_AXIS_BITS = 26;
+// wide enough to hold the collapse after the widest allowed Z axis
+const DETECT_WINDOW_BITS = DEFAULT_GATE_BITS + 3 * MAX_AXIS_BITS + 1;
 
 interface LayoutSample {
   readonly slot: number;
@@ -43,13 +46,14 @@ export class AxisLayoutError extends Error {
 function collectSamples(
   payload: Uint8Array,
   slots: ReadonlySet<number>,
+  prefilter: SlotPrefilter,
   chunk: number,
   packet: number,
 ): LayoutSample[] {
   const totalBits = payload.length * 8;
   const samples: LayoutSample[] = [];
   const limitBit = totalBits - (BIPED_HEADER_BITS + BIPED_INDEX_BITS * 2 + DETECT_WINDOW_BITS) + 1;
-  forEachCandidateBit(payload, slotPrefilter(slots), limitBit, (bitPos) => {
+  forEachCandidateBit(payload, prefilter, limitBit, (bitPos) => {
     const header = matchBipedHeader(payload, bitPos, totalBits, slots, DETECT_WINDOW_BITS);
     if (header == null || readBitsBE(payload, header.positionBit, DEFAULT_GATE_BITS) !== 0) {
       return null;
@@ -74,14 +78,8 @@ export interface FlipProfile {
 export function profileFlips(samples: readonly LayoutSample[]): FlipProfile {
   const flips = new Array<number>(DETECT_WINDOW_BITS).fill(0);
   let pairs = 0;
-  const bySlot = new Map<number, LayoutSample[]>();
-  for (const sample of samples) {
-    const list = bySlot.get(sample.slot) ?? [];
-    list.push(sample);
-    bySlot.set(sample.slot, list);
-  }
+  const bySlot = groupBySlot(samples, (a, b) => a.chunk - b.chunk || a.packet - b.packet);
   for (const list of bySlot.values()) {
-    list.sort((a, b) => a.chunk - b.chunk || a.packet - b.packet);
     for (let index = 1; index < list.length; index++) {
       const previous = list[index - 1];
       const current = list[index];
@@ -132,10 +130,11 @@ export function detectAxisLayout(chunks: readonly ReplicationChunk[], slots: Rea
   if (slots.size === 0) {
     throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
   }
+  const prefilter = slotPrefilter(slots);
   const samples: LayoutSample[] = [];
   for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {
     for (const [frameIndex, frame] of datedFrames(chunk).entries()) {
-      samples.push(...collectSamples(frame.payload, slots, chunk.index, frameIndex));
+      samples.push(...collectSamples(frame.payload, slots, prefilter, chunk.index, frameIndex));
     }
   }
   const profile = profileFlips(samples);

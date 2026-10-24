@@ -218,7 +218,7 @@ export class HaloFilmService {
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
     const [chunks, events] = await Promise.all([
       this.getCompleteReplicationChunks(matchStats.MatchId),
-      this.loadEnrichedEventsForMatch(matchStats),
+      this.getHighlightEventsForMatch(matchStats.MatchId),
     ]);
     const deaths = events
       .filter((event) => event.eventType === "death")

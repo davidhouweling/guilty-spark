@@ -32,12 +32,10 @@ export function buildRoster(matchStats: MatchStats): RosterMember[] {
   }));
 }
 
-// a biped is expected from a member only well inside their window
 export function isPresent(member: RosterMember, atMs: number): boolean {
   return member.presentFromMs + PRESENCE_TOLERANCE_MS <= atMs && atMs <= member.presentToMs - PRESENCE_TOLERANCE_MS;
 }
 
-// a biped may belong to a member anywhere near their window
 export function mayBePresent(member: RosterMember, atMs: number): boolean {
   return member.presentFromMs - PRESENCE_TOLERANCE_MS <= atMs && atMs <= member.presentToMs + PRESENCE_TOLERANCE_MS;
 }

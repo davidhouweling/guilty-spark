@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { aFakeCtfMatchStatsWith } from "../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeReplicationChunkWith } from "../../statborg/fakes/replication-chunk.fake";
+import { BipedRecordScanner } from "../biped-records";
 import { buildPlayerPositions, PositionDecodeError, scanChunkPositions } from "../build-player-positions";
 import { aFakeDeathEventWith } from "../fakes/biped-position.fake";
 import {
@@ -24,7 +25,7 @@ describe("scanChunkPositions", () => {
       { startMs: 5000 },
     );
 
-    expect(scanChunkPositions(chunk, new Set([512]), FAKE_AXIS_LAYOUT)).toEqual([
+    expect(scanChunkPositions(chunk, new BipedRecordScanner(new Set([512]), FAKE_AXIS_LAYOUT))).toEqual([
       { slot: 512, timestampMs: 5000, q: [12_000, 12_000, 70_000] },
       { slot: 512, timestampMs: 5100, q: [12_001, 12_000, 70_000] },
     ]);
@@ -40,13 +41,17 @@ describe("scanChunkPositions", () => {
       { startMs: 5000 },
     );
 
-    expect(scanChunkPositions(chunk, new Set([512]), FAKE_AXIS_LAYOUT).map((position) => position.timestampMs)).toEqual(
-      [5200, 5000],
-    );
+    expect(
+      scanChunkPositions(chunk, new BipedRecordScanner(new Set([512]), FAKE_AXIS_LAYOUT)).map(
+        (position) => position.timestampMs,
+      ),
+    ).toEqual([5200, 5000]);
   });
 
   it("returns nothing for a chunk without frames", () => {
-    expect(scanChunkPositions(aFakeBipedFrameChunkWith([]), new Set([512]), FAKE_AXIS_LAYOUT)).toEqual([]);
+    expect(
+      scanChunkPositions(aFakeBipedFrameChunkWith([]), new BipedRecordScanner(new Set([512]), FAKE_AXIS_LAYOUT)),
+    ).toEqual([]);
   });
 });
 
@@ -72,6 +77,7 @@ describe("buildPlayerPositions", () => {
 
     const positions = buildPlayerPositions(aFakePositionFilmWith({ lives }), matchStats, deaths);
 
+    expect.assertions(3 + xuids.length * 2);
     expect(positions.layout).toEqual(FAKE_AXIS_LAYOUT);
     expect(positions.unnamedLives).toEqual([]);
     expect(positions.tracks.map((track) => track.xuid)).toEqual([...xuids].sort((a, b) => a.localeCompare(b)));

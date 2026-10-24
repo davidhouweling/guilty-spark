@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scanBipedRecords, slotPrefilter } from "../biped-records";
+import { BipedRecordScanner, slotPrefilter } from "../biped-records";
 import { buildBipedFramePayload, FAKE_AXIS_LAYOUT } from "../fakes/position-film.fake";
 
 const slots = new Set([512, 513, 514, 515]);
@@ -23,14 +23,16 @@ describe("slotPrefilter", () => {
   });
 });
 
-describe("scanBipedRecords", () => {
+describe("BipedRecordScanner", () => {
+  const scanner = new BipedRecordScanner(slots, FAKE_AXIS_LAYOUT);
+
   it("decodes the slot and quanta of every record in payload order", () => {
     const payload = buildBipedFramePayload([
       { slot: 512, q: [12_000, 11_999, 70_001] },
       { slot: 515, q: [1, 32_766, 131_070], maskCount: 7 },
     ]);
 
-    expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([
+    expect(scanner.scan(payload)).toEqual([
       { slot: 512, q: [12_000, 11_999, 70_001] },
       { slot: 515, q: [1, 32_766, 131_070] },
     ]);
@@ -42,7 +44,7 @@ describe("scanBipedRecords", () => {
       { slot: 513, q: [12_000, 12_000, 70_000] },
     ]);
 
-    expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([{ slot: 513, q: [12_000, 12_000, 70_000] }]);
+    expect(scanner.scan(payload)).toEqual([{ slot: 513, q: [12_000, 12_000, 70_000] }]);
   });
 
   it("skips records with a saturated axis", () => {
@@ -53,13 +55,13 @@ describe("scanBipedRecords", () => {
       { slot: 515, q: [12_000, 12_000, 70_000] },
     ]);
 
-    expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([{ slot: 515, q: [12_000, 12_000, 70_000] }]);
+    expect(scanner.scan(payload)).toEqual([{ slot: 515, q: [12_000, 12_000, 70_000] }]);
   });
 
   it("ignores records of slots outside the band", () => {
     const payload = buildBipedFramePayload([{ slot: 600, q: [12_000, 12_000, 70_000] }]);
 
-    expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([]);
+    expect(scanner.scan(payload)).toEqual([]);
   });
 
   it("ignores headers whose component mask is malformed", () => {
@@ -69,16 +71,16 @@ describe("scanBipedRecords", () => {
       { slot: 514, q: [12_000, 12_000, 70_000], componentIndices: [0, 0] },
     ]);
 
-    expect(scanBipedRecords(payload, slots, FAKE_AXIS_LAYOUT)).toEqual([]);
+    expect(scanner.scan(payload)).toEqual([]);
   });
 
   it("returns no records without a slot band", () => {
     const payload = buildBipedFramePayload([{ slot: 512, q: [12_000, 12_000, 70_000] }]);
 
-    expect(scanBipedRecords(payload, new Set(), FAKE_AXIS_LAYOUT)).toEqual([]);
+    expect(new BipedRecordScanner(new Set(), FAKE_AXIS_LAYOUT).scan(payload)).toEqual([]);
   });
 
   it("returns no records for an empty payload", () => {
-    expect(scanBipedRecords(new Uint8Array(0), slots, FAKE_AXIS_LAYOUT)).toEqual([]);
+    expect(scanner.scan(new Uint8Array(0))).toEqual([]);
   });
 });

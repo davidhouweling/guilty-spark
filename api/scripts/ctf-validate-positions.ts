@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../services/halo/statborg/bit-reader";
 import { detectAxisLayout } from "../services/halo/positions/axis-layout";
+import { BipedRecordScanner } from "../services/halo/positions/biped-records";
 import { buildPlayerPositions, scanChunkPositions } from "../services/halo/positions/build-player-positions";
 import { bipedSlotBand } from "../services/halo/positions/keyframe-slots";
 import { dropIsolated } from "../services/halo/positions/position-filters";
@@ -53,19 +54,25 @@ for (const life of positions.unnamedLives) {
 if (LEVELUP_CSV != null) {
   const slots = bipedSlotBand(chunks);
   const layout = detectAxisLayout(chunks, slots);
-  const ours = dropIsolated(chunks.flatMap((chunk) => scanChunkPositions(chunk, slots, layout)));
+  const scanner = new BipedRecordScanner(slots, layout);
+  const ours = dropIsolated(chunks.flatMap((chunk) => scanChunkPositions(chunk, scanner)));
   const key = (slot: number, ms: number, q: readonly number[]): string =>
     `${String(slot)}|${String(ms)}|${q.join(",")}`;
   const ourKeys = new Set(ours.map((position) => key(position.slot, position.timestampMs, position.q)));
   const msByUs = new Map<bigint, number>();
+  let clockCollisions = 0;
   for (const chunk of chunks) {
     const frames = walkFramePackets(chunk.data);
     const originUs = earliestTimestampUs(frames);
     for (const frame of frames) {
       if (originUs != null) {
+        clockCollisions += msByUs.has(frame.timestampUs) ? 1 : 0;
         msByUs.set(frame.timestampUs, packetTimestampMs(chunk.startMs, originUs, frame));
       }
     }
+  }
+  if (clockCollisions > 0) {
+    console.log(`WARNING: ${String(clockCollisions)} frame clocks repeat across chunks; parity keys may collide`);
   }
   const theirs = readFileSync(LEVELUP_CSV, "utf8").trim().split("\n").slice(1);
   const theirKeys = new Set<string>();

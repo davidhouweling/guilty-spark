@@ -45,7 +45,7 @@ export interface PositionFilmSpec {
 }
 
 const DEFAULT_STATE_BITS = 40;
-const DEFAULT_TRAILING_BITS = 32;
+const DEFAULT_TRAILING_BITS = 48;
 const PAYLOAD_TAIL_BITS = 64;
 const SENTINEL_BITS = 32;
 const WALK_STEPS = [-3, -2, -1, 0, 1, 2, 3];

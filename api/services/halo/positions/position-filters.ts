@@ -1,4 +1,4 @@
-import { groupBySlot } from "./group-by-slot";
+import { byTimestamp, groupBySlot } from "./group-by-slot";
 import { LIFE_GAP_MS } from "./lives";
 import type { BipedPosition } from "./types";
 
@@ -12,7 +12,7 @@ const MAX_REJECT_STREAK = 3;
 
 export function dropIsolated(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];
-  for (const list of groupBySlot(positions).values()) {
+  for (const list of groupBySlot(positions, byTimestamp).values()) {
     for (const [index, position] of list.entries()) {
       const before = list[index - 1];
       const after = list[index + 1];
@@ -49,7 +49,7 @@ function isTeleport(anchor: BipedPosition | null, position: BipedPosition, strea
 // re-seats it too, since a respawn lands anywhere on the map
 export function dropTeleports(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];
-  for (const list of groupBySlot(positions).values()) {
+  for (const list of groupBySlot(positions, byTimestamp).values()) {
     let anchor: BipedPosition | null = null;
     let streak = 0;
     for (const position of list) {

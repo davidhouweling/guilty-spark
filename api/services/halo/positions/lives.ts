@@ -1,4 +1,4 @@
-import { groupBySlot } from "./group-by-slot";
+import { byTimestamp, groupBySlot } from "./group-by-slot";
 import { isPresent, mayBePresent } from "./roster";
 import type { BipedLife, BipedPosition, DeathEvent, RosterMember } from "./types";
 
@@ -20,7 +20,7 @@ interface MutableLife {
 
 export function buildLives(positions: readonly BipedPosition[]): BipedLife[] {
   const lives: MutableLife[] = [];
-  for (const [slot, list] of groupBySlot(positions)) {
+  for (const [slot, list] of groupBySlot(positions, byTimestamp)) {
     let current: MutableLife | null = null;
     for (const position of list) {
       if (current == null || position.timestampMs - current.endMs > LIFE_GAP_MS) {
@@ -173,13 +173,17 @@ export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: numbe
   return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
 }
 
-export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): BipedLife[] {
+export function nameLivesByDeaths(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  offsetMs?: number,
+): BipedLife[] {
   if (deaths.length === 0 || lives.length === 0) {
     return [...lives];
   }
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
   const named = [...lives];
-  for (const pairing of pairDeathsToLives(pairs, plateauCentre(pairs))) {
+  for (const pairing of pairDeathsToLives(pairs, offsetMs ?? plateauCentre(pairs))) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
     if (life != null && death != null) {
@@ -340,7 +344,6 @@ function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: Bipe
   return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
 }
 
-// a member who may be present but has neither spawned nor died yet could own any new life
 function hasNeverSpawned(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],

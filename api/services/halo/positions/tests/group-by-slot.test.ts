@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeBipedPositionWith } from "../fakes/biped-position.fake";
-import { groupBySlot } from "../group-by-slot";
+import { byTimestamp, groupBySlot } from "../group-by-slot";
 
 describe("groupBySlot", () => {
   it("groups samples by slot in slot order with each slot's samples in time order", () => {
@@ -11,7 +11,7 @@ describe("groupBySlot", () => {
       aFakeBipedPositionWith({ slot: 512, timestampMs: 1000 }),
     ];
 
-    const grouped = groupBySlot(positions);
+    const grouped = groupBySlot(positions, byTimestamp);
 
     expect([...grouped.keys()]).toEqual([512, 513]);
     expect(grouped.get(512)?.map((position) => position.timestampMs)).toEqual([1000, 3000]);
@@ -19,6 +19,6 @@ describe("groupBySlot", () => {
   });
 
   it("returns an empty map without samples", () => {
-    expect(groupBySlot([]).size).toBe(0);
+    expect(groupBySlot([], byTimestamp).size).toBe(0);
   });
 });

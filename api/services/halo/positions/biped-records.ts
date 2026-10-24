@@ -128,28 +128,47 @@ export function forEachCandidateBit(
 
 // an absolute position is a record whose gate bits are all zero; a saturated axis is a clipped
 // value, not a position, and is skipped
-export function scanBipedRecords(payload: Uint8Array, slots: ReadonlySet<number>, layout: AxisLayout): ScannedBiped[] {
-  if (slots.size === 0) {
-    return [];
+export class BipedRecordScanner {
+  private readonly prefilter: SlotPrefilter | null;
+  private readonly componentBits: number;
+  private readonly axisOffsets: readonly [number, number, number];
+
+  constructor(
+    private readonly slots: ReadonlySet<number>,
+    private readonly layout: AxisLayout,
+  ) {
+    this.prefilter = slots.size === 0 ? null : slotPrefilter(slots);
+    this.componentBits = layoutBits(layout);
+    this.axisOffsets = [axisOffset(layout, 0), axisOffset(layout, 1), axisOffset(layout, 2)];
   }
-  const totalBits = payload.length * 8;
-  const componentBits = layoutBits(layout);
-  const minRecordBits = BIPED_HEADER_BITS + BIPED_INDEX_BITS * MIN_MASK_COUNT + componentBits;
-  const records: ScannedBiped[] = [];
-  forEachCandidateBit(payload, slotPrefilter(slots), totalBits - minRecordBits + 1, (bitPos) => {
-    const header = matchBipedHeader(payload, bitPos, totalBits, slots, componentBits);
-    if (header == null || readBitsBE(payload, header.positionBit, layout.gateBits) !== 0) {
-      return null;
+
+  scan(payload: Uint8Array): ScannedBiped[] {
+    const { prefilter } = this;
+    if (prefilter == null) {
+      return [];
     }
-    const q: Quantum3 = [
-      readBitsBE(payload, header.positionBit + axisOffset(layout, 0), layout.axisWidths[0]),
-      readBitsBE(payload, header.positionBit + axisOffset(layout, 1), layout.axisWidths[1]),
-      readBitsBE(payload, header.positionBit + axisOffset(layout, 2), layout.axisWidths[2]),
+    const totalBits = payload.length * 8;
+    const minRecordBits = BIPED_HEADER_BITS + BIPED_INDEX_BITS * MIN_MASK_COUNT + this.componentBits;
+    const records: ScannedBiped[] = [];
+    forEachCandidateBit(payload, prefilter, totalBits - minRecordBits + 1, (bitPos) => {
+      const header = matchBipedHeader(payload, bitPos, totalBits, this.slots, this.componentBits);
+      if (header == null || readBitsBE(payload, header.positionBit, this.layout.gateBits) !== 0) {
+        return null;
+      }
+      const q = this.readQuanta(payload, header.positionBit);
+      if (!isSaturated(q, this.layout)) {
+        records.push({ slot: header.slot, q });
+      }
+      return header.positionBit + this.componentBits;
+    });
+    return records;
+  }
+
+  private readQuanta(payload: Uint8Array, positionBit: number): Quantum3 {
+    return [
+      readBitsBE(payload, positionBit + this.axisOffsets[0], this.layout.axisWidths[0]),
+      readBitsBE(payload, positionBit + this.axisOffsets[1], this.layout.axisWidths[1]),
+      readBitsBE(payload, positionBit + this.axisOffsets[2], this.layout.axisWidths[2]),
     ];
-    if (!isSaturated(q, layout)) {
-      records.push({ slot: header.slot, q });
-    }
-    return header.positionBit + componentBits;
-  });
-  return records;
+  }
 }
