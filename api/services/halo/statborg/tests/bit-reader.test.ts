@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { readBitsBE, MalformedPacketStreamError, walkFramePackets } from "../bit-reader";
-import { buildReplicationChunkBytes } from "../fakes/replication-chunk.fake";
+import {
+  readBitsBE,
+  MalformedPacketStreamError,
+  PACKET_TYPE_CHUNK_END,
+  PACKET_TYPE_FRAME,
+  PACKET_TYPE_KEYFRAME,
+  walkFramePackets,
+  walkPackets,
+} from "../bit-reader";
+import { buildChunkBytes, buildReplicationChunkBytes } from "../fakes/replication-chunk.fake";
 
 describe("readBitsBE", () => {
   it("reads big-endian bit fields across byte boundaries", () => {
@@ -17,6 +25,21 @@ describe("readBitsBE", () => {
 
   it("stops at the end of the data", () => {
     expect(readBitsBE(Uint8Array.of(0b1000_0000), 0, 12)).toBe(0b1000_0000);
+  });
+});
+
+describe("walkPackets", () => {
+  it("returns every packet with its type, including the keyframe and the CHUNK_END", () => {
+    const bytes = buildChunkBytes([
+      { type: PACKET_TYPE_KEYFRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(1, 2, 3) },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_016_000n, payload: Uint8Array.of(4) },
+    ]);
+
+    expect(walkPackets(bytes)).toEqual([
+      { type: PACKET_TYPE_KEYFRAME, timestampUs: 1_000_000n, payloadOffset: 16, payloadSize: 3 },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_016_000n, payloadOffset: 35, payloadSize: 1 },
+      { type: PACKET_TYPE_CHUNK_END, timestampUs: 0n, payloadOffset: 52, payloadSize: 0 },
+    ]);
   });
 });
 

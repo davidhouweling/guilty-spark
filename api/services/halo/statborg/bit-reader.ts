@@ -2,10 +2,16 @@ export const PACKET_HEADER_BYTES = 16;
 export const PACKET_TYPE_FRAME = 0;
 export const PACKET_TYPE_CHUNK_END = 7;
 
+export const PACKET_TYPE_KEYFRAME = 2;
+
 export interface FramePacket {
   timestampUs: bigint;
   payloadOffset: number;
   payloadSize: number;
+}
+
+export interface FilmPacket extends FramePacket {
+  type: number;
 }
 
 export function readBitsBE(data: Uint8Array, bitPos: number, bitCount: number): number {
@@ -32,8 +38,8 @@ export class MalformedPacketStreamError extends Error {
 // Every replication chunk ends with exactly one CHUNK_END packet and nothing after it
 // (measured on all 28 chunks of the reference film), so a stream that overruns, ends early or
 // carries trailing bytes is malformed and throws; consumers that need the whole film refuse it.
-export function walkFramePackets(data: Uint8Array): FramePacket[] {
-  const packets: FramePacket[] = [];
+export function walkPackets(data: Uint8Array): FilmPacket[] {
+  const packets: FilmPacket[] = [];
   if (data.length === 0) {
     return packets;
   }
@@ -47,9 +53,7 @@ export function walkFramePackets(data: Uint8Array): FramePacket[] {
     if (payloadOffset + size > data.length) {
       throw new MalformedPacketStreamError(`Film chunk packet stream is truncated at byte ${String(offset)}`);
     }
-    if (type === PACKET_TYPE_FRAME) {
-      packets.push({ timestampUs, payloadOffset, payloadSize: size });
-    }
+    packets.push({ type, timestampUs, payloadOffset, payloadSize: size });
     offset = payloadOffset + size;
     if (type === PACKET_TYPE_CHUNK_END) {
       if (offset !== data.length) {
@@ -61,4 +65,10 @@ export function walkFramePackets(data: Uint8Array): FramePacket[] {
     }
   }
   throw new MalformedPacketStreamError(`Film chunk packet stream is truncated at byte ${String(offset)}`);
+}
+
+export function walkFramePackets(data: Uint8Array): FramePacket[] {
+  return walkPackets(data)
+    .filter((packet) => packet.type === PACKET_TYPE_FRAME)
+    .map(({ timestampUs, payloadOffset, payloadSize }) => ({ timestampUs, payloadOffset, payloadSize }));
 }

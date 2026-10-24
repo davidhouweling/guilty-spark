@@ -43,6 +43,8 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { buildPlayerPositions } from "./positions/build-player-positions";
+import type { PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
@@ -233,6 +235,22 @@ export class HaloFilmService {
       throw new Error(`Film for match ${matchStats.MatchId} has no replication chunks`);
     }
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+  }
+
+  async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
+    const [{ chunks, skippedChunks }, events] = await Promise.all([
+      this.getReplicationChunks(matchStats.MatchId),
+      this.loadEnrichedEventsForMatch(matchStats),
+    ]);
+    if (skippedChunks.length > 0) {
+      throw new Error(
+        `Film for match ${matchStats.MatchId} has malformed replication chunks: ${skippedChunks.map((chunk) => chunk.index).join(", ")}`,
+      );
+    }
+    const deaths = events
+      .filter((event) => event.eventType === "death")
+      .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+    return buildPlayerPositions(chunks, matchStats, deaths);
   }
 
   async getReplicationChunks(matchId: string): Promise<ReplicationChunkLoad> {
