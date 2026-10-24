@@ -2,6 +2,7 @@ import { aFakeLiveTrackerDOWith } from "../../durable-objects/live-tracker/fakes
 import { aFakeIndividualTrackerDOWith } from "../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeUserTrackerDOWith } from "../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
 import { aFakeDurableObjectNamespaceWith } from "./do.fake";
+import { aFakeQueueWith } from "./queue.fake";
 
 const fakeNamespace = (): KVNamespace =>
   ({
@@ -89,6 +90,7 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     LIVE_TRACKER_DO: aFakeDurableObjectNamespaceWith(liveTrackerGet),
     INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(individualTrackerGet),
     USER_TRACKER_DO: aFakeDurableObjectNamespaceWith(userTrackerGet),
+    FILM_ANALYTICS_QUEUE: aFakeQueueWith(),
   };
 
   return {

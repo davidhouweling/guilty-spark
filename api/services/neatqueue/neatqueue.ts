@@ -27,7 +27,7 @@ import type { HaloService } from "../halo/halo";
 import type { MatchPlayer, UserInfo, PlayerEsraData } from "../halo/types";
 import type { LiveTrackerService } from "../live-tracker/live-tracker";
 import type { LeaderboardService } from "../leaderboard/leaderboard";
-import type { AnalyticsService } from "../analytics/analytics";
+import type { FilmAnalyticsMessage } from "../analytics/film-analytics-queue-consumer";
 import type {
   SeriesOverviewEmbedSubstitution,
   SeriesOverviewEmbedOutput,
@@ -78,7 +78,6 @@ export interface NeatQueueServiceOpts {
   discordService: DiscordService;
   haloService: HaloService;
   leaderboardService: LeaderboardService;
-  analyticsService: AnalyticsService;
   liveTrackerService: LiveTrackerService;
   individualTrackerService: IndividualTrackerService;
 }
@@ -92,7 +91,6 @@ export class NeatQueueService {
   private readonly discordService: DiscordService;
   private readonly haloService: HaloService;
   private readonly leaderboardService: LeaderboardService;
-  private readonly analyticsService: AnalyticsService;
   private readonly liveTrackerService: LiveTrackerService;
   private readonly individualTrackerService: IndividualTrackerService;
   private readonly queueStateCache = new Map<string, NeatQueueState>();
@@ -104,7 +102,6 @@ export class NeatQueueService {
     discordService,
     haloService,
     leaderboardService,
-    analyticsService,
     liveTrackerService,
     individualTrackerService,
   }: NeatQueueServiceOpts) {
@@ -114,7 +111,6 @@ export class NeatQueueService {
     this.discordService = discordService;
     this.haloService = haloService;
     this.leaderboardService = leaderboardService;
-    this.analyticsService = analyticsService;
     this.liveTrackerService = liveTrackerService;
     this.individualTrackerService = individualTrackerService;
   }
@@ -150,15 +146,18 @@ export class NeatQueueService {
     }
   }
 
-  private async persistFilmAnalyticsAtTail(series: MatchStats[]): Promise<void> {
-    const progress = new JobProgressLogger(this.logService, "Persist film analytics");
-    for (const match of series) {
-      try {
-        await this.analyticsService.persistMatchKillMatrix(match);
-      } catch {
-        // AnalyticsService already logs extraction/persistence failures with match context.
-      }
-      progress.step("match processed", new Map([["matchId", match.MatchId]]));
+  private async enqueueFilmAnalytics(series: MatchStats[]): Promise<void> {
+    const messages = series.map((match) => ({ body: { matchId: match.MatchId } satisfies FilmAnalyticsMessage }));
+    try {
+      await this.env.FILM_ANALYTICS_QUEUE.sendBatch(messages);
+    } catch (error) {
+      this.logService.warn(
+        error,
+        new Map([
+          ["context", "Failed to enqueue film analytics"],
+          ["matchIds", series.map((match) => match.MatchId).join(", ")],
+        ]),
+      );
     }
   }
 
@@ -2409,8 +2408,8 @@ export class NeatQueueService {
         this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
       progress.step("series details posted and persisted");
-      await this.persistFilmAnalyticsAtTail(series);
-      progress.step("film analytics persisted");
+      await this.enqueueFilmAnalytics(series);
+      progress.step("film analytics enqueued");
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 
