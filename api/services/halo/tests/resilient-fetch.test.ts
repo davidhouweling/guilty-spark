@@ -54,7 +54,10 @@ describe("createResilientFetch", () => {
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://halostats.svc.halowaypoint.com/test",
+        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
+      );
     });
 
     it("makes direct request in production when master toggle is false and no circuit breaker", async () => {
@@ -173,7 +176,10 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://halostats.svc.halowaypoint.com/test",
+        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
+      );
     });
 
     it("does not use proxy when master toggle is disabled even if circuit breaker is active", async () => {
@@ -197,7 +203,10 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(fetchSpy).toHaveBeenCalledWith("https://halostats.svc.halowaypoint.com/test", undefined);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://halostats.svc.halowaypoint.com/test",
+        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
+      );
     });
   });
 
@@ -1046,6 +1055,66 @@ describe("createResilientFetch", () => {
         expect.stringContaining("halo:responses:"),
         expect.anything(),
         expect.anything(),
+      );
+    });
+  });
+
+  describe("request timeout", () => {
+    function aNeverRespondingFetch(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+      return async (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+          });
+        });
+    }
+
+    it("rejects and logs the url when a direct request does not respond within the timeout", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockImplementation(aNeverRespondingFetch());
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+        requestTimeoutMs: 5,
+      });
+
+      await expect(resilientFetch("https://halostats.svc.halowaypoint.com/test")).rejects.toHaveProperty(
+        "name",
+        "TimeoutError",
+      );
+      expect(logServiceErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "TimeoutError" }),
+        new Map([
+          ["url", "https://halostats.svc.halowaypoint.com/test"],
+          ["timeoutMs", "5"],
+        ]),
+      );
+    });
+
+    it("rejects when a proxied request does not respond within the timeout", async () => {
+      kvGetSpy.mockImplementation(async (key) => {
+        if (key === KV_KEYS.PROXY_ENABLED) {
+          return Promise.resolve("true");
+        }
+        if (key === KV_KEYS.CIRCUIT_BREAKER) {
+          return Promise.resolve(aFakeCircuitBreakerStateWith());
+        }
+        return Promise.resolve(null);
+      });
+      fetchSpy.mockImplementation(aNeverRespondingFetch());
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "https://haloquery.com/proxy",
+        requestTimeoutMs: 5,
+      });
+
+      await expect(resilientFetch("https://halostats.svc.halowaypoint.com/test")).rejects.toHaveProperty(
+        "name",
+        "TimeoutError",
       );
     });
   });
