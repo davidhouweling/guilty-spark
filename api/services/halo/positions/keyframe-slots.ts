@@ -101,43 +101,66 @@ function scanNextAnchor(payload: Uint8Array, from: number, previousSlot: number,
   return at;
 }
 
+// a record's state width is fixed per archetype; it is learned when two records of the same
+// archetype agree and forgotten the moment one disagrees
+class ArchetypeWidths {
+  private readonly seen = new Map<number, number>();
+  private readonly trusted = new Map<number, number>();
+
+  learn(archetype: number, width: number): void {
+    const seenWidth = this.seen.get(archetype);
+    if (seenWidth == null) {
+      this.seen.set(archetype, width);
+    } else if (seenWidth === width) {
+      this.trusted.set(archetype, width);
+    } else {
+      this.trusted.delete(archetype);
+    }
+  }
+
+  trustedWidth(archetype: number): number | null {
+    return this.trusted.get(archetype) ?? null;
+  }
+}
+
+// a known archetype width is only trusted onto an unambiguous generation-1 record
+function nextAnchorBit(
+  payload: Uint8Array,
+  anchor: KeyframeAnchor,
+  stateStart: number,
+  widths: ArchetypeWidths,
+  totalBits: number,
+): number {
+  const knownWidth = widths.trustedWidth(anchor.archetype);
+  if (knownWidth != null && readAnchor(payload, stateStart + knownWidth, anchor.slot, totalBits)?.generation === 1) {
+    return stateStart + knownWidth;
+  }
+  return scanNextAnchor(payload, stateStart, anchor.slot, totalBits);
+}
+
+function firstAnchorBit(payload: Uint8Array, totalBits: number): number {
+  return readAnchor(payload, 1, -1, totalBits) == null ? scanNextAnchor(payload, 1, -1, totalBits) : 1;
+}
+
 export function walkKeyframeRecords(payload: Uint8Array): KeyframeAnchor[] {
   const totalBits = payload.length * 8;
-  const widthByArchetype = new Map<number, number>();
-  const seenWidthByArchetype = new Map<number, number>();
+  const widths = new ArchetypeWidths();
   const records: KeyframeAnchor[] = [];
-  let bitPos = 1;
+  let bitPos = firstAnchorBit(payload, totalBits);
   let previousSlot = -1;
-  if (readAnchor(payload, bitPos, previousSlot, totalBits) == null) {
-    bitPos = scanNextAnchor(payload, bitPos, previousSlot, totalBits);
-  }
   while (bitPos >= 0) {
     const anchor = readAnchor(payload, bitPos, previousSlot, totalBits);
     if (anchor == null) {
       break;
     }
-    const stateStart = bitPos + RECORD_HEADER_BITS;
-    const knownWidth = widthByArchetype.get(anchor.archetype);
-    const jumped = knownWidth == null ? null : readAnchor(payload, stateStart + knownWidth, anchor.slot, totalBits);
-    // a known archetype width is only trusted onto an unambiguous generation-1 record
-    const next =
-      knownWidth != null && jumped?.generation === 1
-        ? stateStart + knownWidth
-        : scanNextAnchor(payload, stateStart, anchor.slot, totalBits);
     records.push(anchor);
     previousSlot = anchor.slot;
+    const stateStart = bitPos + RECORD_HEADER_BITS;
+    const next = nextAnchorBit(payload, anchor, stateStart, widths, totalBits);
     if (next < 0) {
       break;
     }
-    const width = next - stateStart;
-    const seenWidth = seenWidthByArchetype.get(anchor.archetype);
-    if (seenWidth == null) {
-      seenWidthByArchetype.set(anchor.archetype, width);
-    } else if (seenWidth === width) {
-      widthByArchetype.set(anchor.archetype, width);
-    } else {
-      widthByArchetype.delete(anchor.archetype);
-    }
+    widths.learn(anchor.archetype, next - stateStart);
     bitPos = next;
   }
   return records;

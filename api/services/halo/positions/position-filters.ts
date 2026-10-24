@@ -1,3 +1,4 @@
+import { groupBySlot } from "./group-by-slot";
 import type { BipedPosition } from "./types";
 
 // A live biped replicates continuously, so a sample more than this far from its nearest
@@ -7,19 +8,6 @@ export const ISOLATION_GAP_MS = 15_000;
 // any axis: far above a Spartan, grapple or vehicle, and well below a teleporting false match.
 export const MAX_AXIS_QUANTA_PER_SECOND = 12_000;
 const MAX_REJECT_STREAK = 3;
-
-function groupBySlot(positions: readonly BipedPosition[]): Map<number, BipedPosition[]> {
-  const bySlot = new Map<number, BipedPosition[]>();
-  for (const position of positions) {
-    const list = bySlot.get(position.slot) ?? [];
-    list.push(position);
-    bySlot.set(position.slot, list);
-  }
-  for (const list of bySlot.values()) {
-    list.sort((a, b) => a.timestampMs - b.timestampMs);
-  }
-  return bySlot;
-}
 
 export function dropIsolated(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];

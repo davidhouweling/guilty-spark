@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  earliestTimestampUs,
   readBitsBE,
   MalformedPacketStreamError,
+  packetTimestampMs,
   PACKET_TYPE_CHUNK_END,
   PACKET_TYPE_FRAME,
   PACKET_TYPE_KEYFRAME,
@@ -75,5 +77,29 @@ describe("walkFramePackets", () => {
     const bytes = buildReplicationChunkBytes([{ timestampUs: 1n, records: [] }]);
     expect(() => walkFramePackets(bytes.subarray(0, bytes.length - 16))).toThrow(MalformedPacketStreamError);
     expect(() => walkFramePackets(new Uint8Array(10))).toThrow(MalformedPacketStreamError);
+  });
+});
+
+describe("earliestTimestampUs", () => {
+  it("returns the smallest frame clock regardless of packet order", () => {
+    const frames = [1_200_000n, 1_000_000n, 1_100_000n].map((timestampUs) => ({
+      timestampUs,
+      payloadOffset: 0,
+      payloadSize: 0,
+    }));
+
+    expect(earliestTimestampUs(frames)).toBe(1_000_000n);
+  });
+
+  it("returns null without frames", () => {
+    expect(earliestTimestampUs([])).toBeNull();
+  });
+});
+
+describe("packetTimestampMs", () => {
+  it("dates a packet from the chunk start by its clock distance to the origin", () => {
+    const packet = { timestampUs: 1_250_500n, payloadOffset: 0, payloadSize: 0 };
+
+    expect(packetTimestampMs(5000, 1_000_000n, packet)).toBe(5250);
   });
 });

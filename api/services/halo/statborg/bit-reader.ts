@@ -3,6 +3,7 @@ export const PACKET_TYPE_FRAME = 0;
 export const PACKET_TYPE_CHUNK_END = 7;
 
 export const PACKET_TYPE_KEYFRAME = 2;
+const MICROS_PER_MILLI = 1000n;
 
 export interface FramePacket {
   timestampUs: bigint;
@@ -65,6 +66,20 @@ export function walkPackets(data: Uint8Array): FilmPacket[] {
     }
   }
   throw new MalformedPacketStreamError(`Film chunk packet stream is truncated at byte ${String(offset)}`);
+}
+
+// frames inside a chunk are not guaranteed to arrive in clock order, so the chunk's start is
+// pinned to its earliest frame rather than its first
+export function earliestTimestampUs(packets: readonly FramePacket[]): bigint | null {
+  let earliest: bigint | null = null;
+  for (const packet of packets) {
+    earliest = earliest == null || packet.timestampUs < earliest ? packet.timestampUs : earliest;
+  }
+  return earliest;
+}
+
+export function packetTimestampMs(chunkStartMs: number, originUs: bigint, packet: FramePacket): number {
+  return chunkStartMs + Number((packet.timestampUs - originUs) / MICROS_PER_MILLI);
 }
 
 export function walkFramePackets(data: Uint8Array): FramePacket[] {

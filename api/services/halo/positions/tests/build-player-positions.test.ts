@@ -30,6 +30,21 @@ describe("scanChunkPositions", () => {
     ]);
   });
 
+  it("pins the chunk start to the earliest frame when frames arrive out of clock order", () => {
+    const chunk = aFakeBipedFrameChunkWith(
+      [
+        { timestampUs: 1_200_000n, records: [{ slot: 512, q: [12_002, 12_000, 70_000] }] },
+        { timestampUs: 1_000_000n, records: [{ slot: 512, q: [12_000, 12_000, 70_000] }] },
+      ],
+      FAKE_AXIS_LAYOUT,
+      { startMs: 5000 },
+    );
+
+    expect(scanChunkPositions(chunk, new Set([512]), FAKE_AXIS_LAYOUT).map((position) => position.timestampMs)).toEqual(
+      [5200, 5000],
+    );
+  });
+
   it("returns nothing for a chunk without frames", () => {
     expect(scanChunkPositions(aFakeBipedFrameChunkWith([]), new Set([512]), FAKE_AXIS_LAYOUT)).toEqual([]);
   });
@@ -90,6 +105,34 @@ describe("buildPlayerPositions", () => {
 
     expect(positions.tracks).toEqual([]);
     expect(positions.unnamedLives).toHaveLength(xuids.length * 2);
+  });
+
+  it("ignores deaths of players outside the roster", () => {
+    const { lives, deaths, xuids } = aRosterFilm();
+    const foreign = aFakeDeathEventWith({ timestampMs: 10_000, xuid: "9900000000000000" });
+
+    const positions = buildPlayerPositions(aFakePositionFilmWith({ lives }), aFakeCtfMatchStatsWith(), [
+      foreign,
+      ...deaths,
+    ]);
+
+    expect(positions.unnamedLives).toEqual([]);
+    expect(positions.tracks.flatMap((track) => track.lives)).toHaveLength(xuids.length * 2);
+  });
+
+  it("throws when the film has no replication chunks", () => {
+    expect(() => buildPlayerPositions([], aFakeCtfMatchStatsWith(), [])).toThrow("has no replication chunks");
+  });
+
+  it("throws when a replication chunk is empty", () => {
+    const chunks = [
+      ...aFakePositionFilmWith({ lives: [{ slot: 512, startMs: 1000, endMs: 5000 }] }),
+      { index: 2, startMs: 21_000, durationMs: 20_000, data: new Uint8Array(0) },
+    ];
+
+    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow(
+      "has an empty replication chunk: 2",
+    );
   });
 
   it("throws when the film lists no biped slots", () => {

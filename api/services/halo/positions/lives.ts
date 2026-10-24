@@ -1,3 +1,4 @@
+import { groupBySlot } from "./group-by-slot";
 import type { BipedLife, BipedPosition, DeathEvent } from "./types";
 
 // a gap this long inside one slot opens a new life: far above the replication cadence and
@@ -17,15 +18,8 @@ interface MutableLife {
 }
 
 export function buildLives(positions: readonly BipedPosition[]): BipedLife[] {
-  const bySlot = new Map<number, BipedPosition[]>();
-  for (const position of positions) {
-    const list = bySlot.get(position.slot) ?? [];
-    list.push(position);
-    bySlot.set(position.slot, list);
-  }
   const lives: MutableLife[] = [];
-  for (const [slot, list] of [...bySlot.entries()].sort((a, b) => a[0] - b[0])) {
-    list.sort((a, b) => a.timestampMs - b.timestampMs);
+  for (const [slot, list] of groupBySlot(positions)) {
     let current: MutableLife | null = null;
     for (const position of list) {
       if (current == null || position.timestampMs - current.endMs > LIFE_GAP_MS) {
@@ -48,7 +42,9 @@ interface Pairing {
   readonly delta: number;
 }
 
-function previousDeathByIndex(deaths: readonly DeathEvent[]): (number | null)[] {
+type PreviousDeaths = readonly (number | null)[];
+
+function previousDeathByIndex(deaths: readonly DeathEvent[]): PreviousDeaths {
   const lastSeen = new Map<string, number>();
   const previous: (number | null)[] = [];
   const order = [...deaths.keys()].sort(
@@ -68,8 +64,12 @@ function previousDeathByIndex(deaths: readonly DeathEvent[]): (number | null)[] 
 // two deaths at the same instant end two lives at the same instant, so timing alone cannot
 // tell them apart; a life that began before its owner's previous death is impossible, which
 // settles it. Greedy by increasing delta, so the result does not depend on iteration order.
-function pairDeathsToLives(lives: readonly BipedLife[], deaths: readonly DeathEvent[], offsetMs: number): Pairing[] {
-  const previousDeaths = previousDeathByIndex(deaths);
+function pairDeathsToLives(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  previousDeaths: PreviousDeaths,
+  offsetMs: number,
+): Pairing[] {
   const candidates: Pairing[] = [];
   for (const [deathIndex, death] of deaths.entries()) {
     const target = death.timestampMs + offsetMs;
@@ -99,10 +99,11 @@ function pairDeathsToLives(lives: readonly BipedLife[], deaths: readonly DeathEv
 
 // the match count is a plateau across the acceptance window, so the plateau's centre is kept
 export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): number {
+  const previousDeaths = previousDeathByIndex(deaths);
   let bestCount = -1;
   let plateau: number[] = [];
   for (let offset = -OFFSET_SEARCH_MS; offset <= OFFSET_SEARCH_MS; offset += OFFSET_STEP_MS) {
-    const count = pairDeathsToLives(lives, deaths, offset).length;
+    const count = pairDeathsToLives(lives, deaths, previousDeaths, offset).length;
     if (count > bestCount) {
       bestCount = count;
       plateau = [offset];
@@ -119,7 +120,7 @@ export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly 
   }
   const offsetMs = bestDeathOffset(lives, deaths);
   const named = lives.map((life) => ({ ...life }));
-  for (const pairing of pairDeathsToLives(lives, deaths, offsetMs)) {
+  for (const pairing of pairDeathsToLives(lives, deaths, previousDeathByIndex(deaths), offsetMs)) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
     if (life != null && death != null) {
