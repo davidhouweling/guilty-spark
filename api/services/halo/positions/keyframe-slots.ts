@@ -66,13 +66,28 @@ function isBetter(candidate: Candidate, best: Candidate): boolean {
   return candidate.bit < best.bit;
 }
 
+function bitAt(payload: Uint8Array, bitPos: number): number {
+  return ((payload[bitPos >> 3] ?? 0) >> (7 - (bitPos & 7))) & 1;
+}
+
+// the two 32-bit words of a record header slide one bit per step, so each candidate is judged
+// with a few integer operations instead of a fresh read
 function scanNextAnchor(payload: Uint8Array, from: number, previousSlot: number, totalBits: number): number {
+  const end = Math.min(from + SCAN_WINDOW_BITS, totalBits);
+  if (from + RECORD_HEADER_BITS > end) {
+    return -1;
+  }
+  let id = readBitsBE(payload, from, 32);
+  let field = readBitsBE(payload, from + 32, 32);
   let at = -1;
   let best: Candidate = { consecutive: -1, generation: 2 ** 30, slot: 2 ** 30, bit: 2 ** 30 };
-  const end = Math.min(from + SCAN_WINDOW_BITS, totalBits);
   let sentinelStreak = 0;
   for (let bitPos = from; bitPos + RECORD_HEADER_BITS <= end; bitPos++) {
-    if (readBitsBE(payload, bitPos, 32) === SENTINEL_ID) {
+    if (bitPos > from) {
+      id = ((id << 1) | (field >>> 31)) >>> 0;
+      field = ((field << 1) | bitAt(payload, bitPos + RECORD_HEADER_BITS - 1)) >>> 0;
+    }
+    if (id === SENTINEL_ID) {
       sentinelStreak += 1;
       if (sentinelStreak >= MAX_SENTINEL_STREAK) {
         break;
@@ -80,19 +95,15 @@ function scanNextAnchor(payload: Uint8Array, from: number, previousSlot: number,
       continue;
     }
     sentinelStreak = 0;
-    const anchor = readAnchor(payload, bitPos, previousSlot, totalBits);
-    if (anchor == null) {
+    const generation = id >>> 30;
+    const slot = id & 0x3fff_ffff;
+    if (generation === 0 || slot <= previousSlot || slot >= SLOT_CAP || field >= ARCHETYPE_CAP) {
       continue;
     }
-    if (anchor.slot === previousSlot + 1 && anchor.generation === 1) {
+    if (slot === previousSlot + 1 && generation === 1) {
       return bitPos;
     }
-    const candidate: Candidate = {
-      consecutive: anchor.slot === previousSlot + 1 ? 1 : 0,
-      generation: anchor.generation,
-      slot: anchor.slot,
-      bit: bitPos,
-    };
+    const candidate: Candidate = { consecutive: slot === previousSlot + 1 ? 1 : 0, generation, slot, bit: bitPos };
     if (at < 0 || isBetter(candidate, best)) {
       at = bitPos;
       best = candidate;

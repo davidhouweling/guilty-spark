@@ -43,6 +43,7 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { emptyReplicationChunkError, malformedReplicationChunkError, noReplicationChunksError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import type { PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
@@ -211,9 +212,7 @@ export class HaloFilmService {
       switch (entry.kind) {
         case "chunk": {
           if (entry.chunk.data.length === 0) {
-            throw new Error(
-              `Film for match ${matchStats.MatchId} has an empty replication chunk: ${String(entry.chunk.index)}`,
-            );
+            throw emptyReplicationChunkError(matchStats.MatchId, entry.chunk.index);
           }
           chunkCount += 1;
           for (const record of scanChunkStatRecords(entry.chunk)) {
@@ -222,9 +221,7 @@ export class HaloFilmService {
           break;
         }
         case "skipped": {
-          throw new Error(
-            `Film for match ${matchStats.MatchId} has a malformed replication chunk: ${String(entry.skipped.index)}`,
-          );
+          throw malformedReplicationChunkError(matchStats.MatchId, entry.skipped.index);
         }
         default: {
           throw new UnreachableError(entry);
@@ -232,25 +229,35 @@ export class HaloFilmService {
       }
     }
     if (chunkCount === 0) {
-      throw new Error(`Film for match ${matchStats.MatchId} has no replication chunks`);
+      throw noReplicationChunksError(matchStats.MatchId);
     }
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
-    const [{ chunks, skippedChunks }, events] = await Promise.all([
+    const [load, events] = await Promise.all([
       this.getReplicationChunks(matchStats.MatchId),
       this.loadEnrichedEventsForMatch(matchStats),
     ]);
-    if (skippedChunks.length > 0) {
-      throw new Error(
-        `Film for match ${matchStats.MatchId} has malformed replication chunks: ${skippedChunks.map((chunk) => chunk.index).join(", ")}`,
-      );
-    }
+    this.assertCompleteFilm(load, matchStats.MatchId);
     const deaths = events
       .filter((event) => event.eventType === "death")
       .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-    return buildPlayerPositions(chunks, matchStats, deaths);
+    return buildPlayerPositions(load.chunks, matchStats, deaths);
+  }
+
+  private assertCompleteFilm(load: ReplicationChunkLoad, matchId: string): void {
+    const [skipped] = load.skippedChunks;
+    if (skipped != null) {
+      throw malformedReplicationChunkError(matchId, skipped.index);
+    }
+    const empty = load.chunks.find((chunk) => chunk.data.length === 0);
+    if (empty != null) {
+      throw emptyReplicationChunkError(matchId, empty.index);
+    }
+    if (load.chunks.length === 0) {
+      throw noReplicationChunksError(matchId);
+    }
   }
 
   async getReplicationChunks(matchId: string): Promise<ReplicationChunkLoad> {

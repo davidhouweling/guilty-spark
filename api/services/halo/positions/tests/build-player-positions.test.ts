@@ -25,8 +25,8 @@ describe("scanChunkPositions", () => {
     );
 
     expect(scanChunkPositions(chunk, new Set([512]), FAKE_AXIS_LAYOUT)).toEqual([
-      { slot: 512, timestampMs: 5000, timestampUs: 1_000_000n, q: [12_000, 12_000, 70_000] },
-      { slot: 512, timestampMs: 5100, timestampUs: 1_100_000n, q: [12_001, 12_000, 70_000] },
+      { slot: 512, timestampMs: 5000, q: [12_000, 12_000, 70_000] },
+      { slot: 512, timestampMs: 5100, q: [12_001, 12_000, 70_000] },
     ]);
   });
 
@@ -118,21 +118,6 @@ describe("buildPlayerPositions", () => {
 
     expect(positions.unnamedLives).toEqual([]);
     expect(positions.tracks.flatMap((track) => track.lives)).toHaveLength(xuids.length * 2);
-  });
-
-  it("throws when the film has no replication chunks", () => {
-    expect(() => buildPlayerPositions([], aFakeCtfMatchStatsWith(), [])).toThrow("has no replication chunks");
-  });
-
-  it("throws when a replication chunk is empty", () => {
-    const chunks = [
-      ...aFakePositionFilmWith({ lives: [{ slot: 512, startMs: 1000, endMs: 5000 }] }),
-      { index: 2, startMs: 21_000, durationMs: 20_000, data: new Uint8Array(0) },
-    ];
-
-    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow(
-      "has an empty replication chunk: 2",
-    );
   });
 
   it("throws when the film lists no biped slots", () => {

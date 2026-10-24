@@ -1,12 +1,15 @@
-import type { BipedLife, BipedPosition, DeathEvent, PositionSample } from "../types";
+import type { BipedLife, BipedPosition, DeathEvent, PositionSample, RosterMember } from "../types";
 
 export function aFakeBipedPositionWith(overrides: Partial<BipedPosition> = {}): BipedPosition {
-  const timestampMs = overrides.timestampMs ?? 1000;
+  return { slot: 512, timestampMs: 1000, q: [12_000, 12_000, 70_000], ...overrides };
+}
+
+export function aFakeRosterMemberWith(overrides: Partial<RosterMember> = {}): RosterMember {
   return {
-    slot: 512,
-    timestampMs,
-    timestampUs: BigInt(timestampMs) * 1000n,
-    q: [12_000, 12_000, 70_000],
+    xuid: "0100000000000000",
+    teamId: 0,
+    presentFromMs: 0,
+    presentToMs: Number.POSITIVE_INFINITY,
     ...overrides,
   };
 }

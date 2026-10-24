@@ -9,7 +9,6 @@ export interface AxisLayout {
 export interface BipedPosition {
   readonly slot: number;
   readonly timestampMs: number;
-  readonly timestampUs: bigint;
   readonly q: Quantum3;
 }
 
@@ -41,4 +40,12 @@ export interface PlayerPositions {
 export interface DeathEvent {
   readonly timestampMs: number;
   readonly xuid: string;
+}
+
+// the window on the match clock in which a player is expected to own a biped
+export interface RosterMember {
+  readonly xuid: string;
+  readonly teamId: number;
+  readonly presentFromMs: number;
+  readonly presentToMs: number;
 }

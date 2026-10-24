@@ -1,5 +1,6 @@
 import { groupBySlot } from "./group-by-slot";
-import type { BipedLife, BipedPosition, DeathEvent } from "./types";
+import { isPresent } from "./roster";
+import type { BipedLife, BipedPosition, DeathEvent, RosterMember } from "./types";
 
 // a gap this long inside one slot opens a new life: far above the replication cadence and
 // well below the respawn time
@@ -39,7 +40,6 @@ export function buildLives(positions: readonly BipedPosition[]): BipedLife[] {
 interface Pairing {
   readonly deathIndex: number;
   readonly lifeIndex: number;
-  readonly delta: number;
 }
 
 type PreviousDeaths = readonly (number | null)[];
@@ -61,40 +61,76 @@ function previousDeathByIndex(deaths: readonly DeathEvent[]): PreviousDeaths {
   return previous;
 }
 
-// two deaths at the same instant end two lives at the same instant, so timing alone cannot
-// tell them apart; a life that began before its owner's previous death is impossible, which
-// settles it. Greedy by increasing delta, so the result does not depend on iteration order.
+// a death can end a life whose end falls inside the window; a life that began before its
+// owner's previous death is impossible
+function feasiblePairs(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  previousDeaths: PreviousDeaths,
+  offsetMs: number,
+): Pairing[] {
+  const pairs: Pairing[] = [];
+  for (const [deathIndex, death] of deaths.entries()) {
+    const target = death.timestampMs + offsetMs;
+    const previousDeath = previousDeaths[deathIndex] ?? null;
+    for (const [lifeIndex, life] of lives.entries()) {
+      const startsAfterPreviousDeath = previousDeath == null || life.startMs > previousDeath + offsetMs;
+      if (Math.abs(life.endMs - target) <= DEATH_MATCH_WINDOW_MS && startsAfterPreviousDeath) {
+        pairs.push({ deathIndex, lifeIndex });
+      }
+    }
+  }
+  return pairs;
+}
+
+function countBy(pairs: readonly Pairing[], key: (pair: Pairing) => number): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const pair of pairs) {
+    counts.set(key(pair), (counts.get(key(pair)) ?? 0) + 1);
+  }
+  return counts;
+}
+
+// a pair is forced when one side has no other option and the other side is nobody else's
+// only option; a death whose only life is also another death's only life stays open
+function forcedPairs(open: readonly Pairing[]): Pairing[] {
+  const deathOptions = countBy(open, (pair) => pair.deathIndex);
+  const lifeOptions = countBy(open, (pair) => pair.lifeIndex);
+  const soleLifeClaims = countBy(
+    open.filter((pair) => deathOptions.get(pair.deathIndex) === 1),
+    (pair) => pair.lifeIndex,
+  );
+  const soleDeathClaims = countBy(
+    open.filter((pair) => lifeOptions.get(pair.lifeIndex) === 1),
+    (pair) => pair.deathIndex,
+  );
+  return open.filter(
+    (pair) =>
+      (deathOptions.get(pair.deathIndex) === 1 && soleLifeClaims.get(pair.lifeIndex) === 1) ||
+      (lifeOptions.get(pair.lifeIndex) === 1 && soleDeathClaims.get(pair.deathIndex) === 1),
+  );
+}
+
+// two deaths at the same instant end two lives at the same instant, and the few milliseconds
+// between their last samples carry no information, so pairs are only settled when forced;
+// settling one pair can force the next, and whatever stays open is left to the later passes
 function pairDeathsToLives(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   previousDeaths: PreviousDeaths,
   offsetMs: number,
 ): Pairing[] {
-  const candidates: Pairing[] = [];
-  for (const [deathIndex, death] of deaths.entries()) {
-    const target = death.timestampMs + offsetMs;
-    const previousDeath = previousDeaths[deathIndex] ?? null;
-    for (const [lifeIndex, life] of lives.entries()) {
-      const delta = Math.abs(life.endMs - target);
-      const startsAfterPreviousDeath = previousDeath == null || life.startMs > previousDeath + offsetMs;
-      if (delta <= DEATH_MATCH_WINDOW_MS && startsAfterPreviousDeath) {
-        candidates.push({ deathIndex, lifeIndex, delta });
-      }
-    }
+  let open = feasiblePairs(lives, deaths, previousDeaths, offsetMs);
+  const settled: Pairing[] = [];
+  let forced = forcedPairs(open);
+  while (forced.length > 0) {
+    settled.push(...forced);
+    const usedDeaths = new Set(forced.map((pair) => pair.deathIndex));
+    const usedLives = new Set(forced.map((pair) => pair.lifeIndex));
+    open = open.filter((pair) => !usedDeaths.has(pair.deathIndex) && !usedLives.has(pair.lifeIndex));
+    forced = forcedPairs(open);
   }
-  candidates.sort((a, b) => a.delta - b.delta || a.lifeIndex - b.lifeIndex);
-  const usedDeaths = new Set<number>();
-  const usedLives = new Set<number>();
-  const pairings: Pairing[] = [];
-  for (const candidate of candidates) {
-    if (usedDeaths.has(candidate.deathIndex) || usedLives.has(candidate.lifeIndex)) {
-      continue;
-    }
-    usedDeaths.add(candidate.deathIndex);
-    usedLives.add(candidate.lifeIndex);
-    pairings.push(candidate);
-  }
-  return pairings;
+  return settled;
 }
 
 // the match count is a plateau across the acceptance window, so the plateau's centre is kept
@@ -130,20 +166,43 @@ export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly 
   return named;
 }
 
+function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
+  const owners = new Map<number, Set<string>>();
+  for (const life of lives) {
+    if (life.xuid != null) {
+      const set = owners.get(life.slot) ?? new Set<string>();
+      set.add(life.xuid);
+      owners.set(life.slot, set);
+    }
+  }
+  return owners;
+}
+
+// a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
+// one name a slot's lives agree on extends to the slot's unnamed lives
+export function nameLivesBySlot(lives: readonly BipedLife[]): BipedLife[] {
+  const owners = slotOwners(lives);
+  return lives.map((life) => {
+    const set = owners.get(life.slot);
+    const [owner] = set ?? [];
+    return life.xuid == null && set?.size === 1 && owner != null ? { ...life, xuid: owner } : life;
+  });
+}
+
 const ELIMINATION_STEP_MS = 500;
 
-function soleMissingPlayer(lives: readonly BipedLife[], roster: readonly string[], atMs: number): string | null {
+function soleMissingPlayer(lives: readonly BipedLife[], roster: readonly RosterMember[], atMs: number): string | null {
   const alive = new Set(
     lives.filter((life) => life.xuid != null && life.startMs <= atMs && life.endMs >= atMs).map((life) => life.xuid),
   );
-  const missing = roster.filter((xuid) => !alive.has(xuid));
+  const missing = roster.filter((member) => isPresent(member, atMs) && !alive.has(member.xuid));
   const [only] = missing;
-  return missing.length === 1 && only != null ? only : null;
+  return missing.length === 1 && only != null ? only.xuid : null;
 }
 
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
 // life is sampled along its span and named only when every decisive instant agrees
-function eliminatedOwner(lives: readonly BipedLife[], roster: readonly string[], life: BipedLife): string | null {
+function eliminatedOwner(lives: readonly BipedLife[], roster: readonly RosterMember[], life: BipedLife): string | null {
   const owners = new Set<string>();
   for (let atMs = life.startMs; atMs <= life.endMs; atMs += ELIMINATION_STEP_MS) {
     const owner = soleMissingPlayer(lives, roster, atMs);
@@ -155,10 +214,10 @@ function eliminatedOwner(lives: readonly BipedLife[], roster: readonly string[],
   return owners.size === 1 && only != null ? only : null;
 }
 
-// every player has exactly one live biped at any instant, so an unnamed life whose span leaves
-// exactly one roster member unaccounted for belongs to that member; naming one life can settle
-// the next, so the pass repeats until nothing changes
-export function nameLivesByElimination(lives: readonly BipedLife[], roster: readonly string[]): BipedLife[] {
+// every present player has exactly one live biped at any instant, so an unnamed life whose span
+// leaves exactly one roster member unaccounted for belongs to that member; naming one life can
+// settle the next, so the pass repeats until nothing changes
+export function nameLivesByElimination(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
   const named = [...lives];
   let changed = true;
   while (changed) {
@@ -202,29 +261,43 @@ function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: Bipe
   return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
 }
 
-function longestWaitingPlayer(lives: readonly BipedLife[], roster: readonly string[], life: BipedLife): string | null {
-  let owner: string | null = null;
-  let longestWait = 0;
-  for (const xuid of roster) {
-    const lastEnd = lastDeathBefore(lives, xuid, life.startMs);
-    if (lastEnd == null || overlapsNamedLife(lives, xuid, life)) {
-      continue;
-    }
-    const wait = life.startMs - lastEnd;
-    if (wait >= MIN_RESPAWN_MS && wait <= MAX_RESPAWN_MS && wait > longestWait) {
-      owner = xuid;
-      longestWait = wait;
-    }
+function respawnWait(lives: readonly BipedLife[], member: RosterMember, life: BipedLife): number | null {
+  if (!isPresent(member, life.startMs) || overlapsNamedLife(lives, member.xuid, life)) {
+    return null;
   }
-  return owner;
+  const lastEnd = lastDeathBefore(lives, member.xuid, life.startMs);
+  if (lastEnd == null) {
+    return null;
+  }
+  const wait = life.startMs - lastEnd;
+  return wait >= MIN_RESPAWN_MS && wait <= MAX_RESPAWN_MS ? wait : null;
 }
 
-export function nameLivesByRespawnOrder(lives: readonly BipedLife[], roster: readonly string[]): BipedLife[] {
+// two players dead for exactly as long cannot be told apart, so neither is named
+function longestWaitingPlayer(
+  lives: readonly BipedLife[],
+  roster: readonly RosterMember[],
+  life: BipedLife,
+): string | null {
+  const waits = roster
+    .map((member) => ({ xuid: member.xuid, wait: respawnWait(lives, member, life) }))
+    .filter((entry): entry is { xuid: string; wait: number } => entry.wait != null)
+    .sort((a, b) => b.wait - a.wait);
+  const [longest, runnerUp] = waits;
+  if (longest == null || runnerUp?.wait === longest.wait) {
+    return null;
+  }
+  return longest.xuid;
+}
+
+// lives in a slot that already has an owner are left to the slot pass
+export function nameLivesByRespawnOrder(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
   const named = [...lives];
+  const ownedSlots = new Set(slotOwners(lives).keys());
   const order = [...named.keys()].sort((a, b) => (named[a]?.startMs ?? 0) - (named[b]?.startMs ?? 0));
   for (const index of order) {
     const life = named[index];
-    if (life == null || life.xuid != null) {
+    if (life == null || life.xuid != null || ownedSlots.has(life.slot)) {
       continue;
     }
     const owner = longestWaitingPlayer(named, roster, life);

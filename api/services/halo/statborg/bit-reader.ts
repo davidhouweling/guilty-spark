@@ -15,16 +15,22 @@ export interface FilmPacket extends FramePacket {
   type: number;
 }
 
+// reads byte by byte and stops at the end of the data, returning what was read so far
 export function readBitsBE(data: Uint8Array, bitPos: number, bitCount: number): number {
   let result = 0;
-  for (let i = 0; i < bitCount; i++) {
-    const position = bitPos + i;
+  let position = bitPos;
+  let remaining = bitCount;
+  while (remaining > 0) {
     const byte = data[position >> 3];
     if (byte == null) {
       return result;
     }
-    const bit = (byte >> (7 - (position & 7))) & 1;
-    result = result * 2 + bit;
+    const offset = position & 7;
+    const take = Math.min(8 - offset, remaining);
+    const bits = (byte >> (8 - offset - take)) & ((1 << take) - 1);
+    result = result * 2 ** take + bits;
+    position += take;
+    remaining -= take;
   }
   return result;
 }
@@ -83,7 +89,5 @@ export function packetTimestampMs(chunkStartMs: number, originUs: bigint, packet
 }
 
 export function walkFramePackets(data: Uint8Array): FramePacket[] {
-  return walkPackets(data)
-    .filter((packet) => packet.type === PACKET_TYPE_FRAME)
-    .map(({ timestampUs, payloadOffset, payloadSize }) => ({ timestampUs, payloadOffset, payloadSize }));
+  return walkPackets(data).filter((packet) => packet.type === PACKET_TYPE_FRAME);
 }

@@ -2527,7 +2527,35 @@ describe("HaloFilmService replication chunks", () => {
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
 
-    await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("malformed replication chunks: 2");
+    await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("has a malformed replication chunk: 2");
+  });
+
+  it("refuses to build player positions when a chunk inflates to nothing", async () => {
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put("halo:film:match:match-ctf", JSON.stringify([]));
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+    const service = await aServiceWithFilm(
+      aChunkMetadata([{ Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 }]),
+      new Map([[1, deflateSync(new Uint8Array(0))]]),
+      env,
+    );
+
+    await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("empty replication chunk: 1");
+  });
+
+  it("refuses to build player positions when the film has no replication chunks", async () => {
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put("halo:film:match:match-ctf", JSON.stringify([]));
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+    const service = await aServiceWithFilm(
+      aChunkMetadata([{ Index: 3, ChunkType: 3, DurationMilliseconds: 500 }]),
+      new Map(),
+      env,
+    );
+
+    await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("has no replication chunks");
   });
 
   it("refuses to build flag events when a replication chunk is malformed", async () => {

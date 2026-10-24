@@ -1,12 +1,14 @@
 /**
  * Validates the film position decoder: decodes player positions for a match, prints the detected
  * axis layout, slot band, life naming and per-player track summary, and when a LevelUp
- * positions.csv (chunk,packet,us,slot,qx,qy,qz) is supplied compares the raw scan against it.
+ * positions.csv (chunk,packet,us,slot,qx,qy,qz) is supplied compares the raw scan against it, keyed on
+ * slot, frame time and quanta.
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/ctf-validate-positions.ts <matchId> [--levelup=<positions.csv>]
  */
 import { readFileSync } from "node:fs";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../services/halo/statborg/bit-reader";
 import { detectAxisLayout } from "../services/halo/positions/axis-layout";
 import { scanChunkPositions } from "../services/halo/positions/build-player-positions";
 import { bipedSlotBand } from "../services/halo/positions/keyframe-slots";
@@ -47,15 +49,26 @@ if (LEVELUP_CSV != null) {
   const slots = bipedSlotBand(chunks);
   const layout = detectAxisLayout(chunks, slots);
   const ours = dropIsolated(chunks.flatMap((chunk) => scanChunkPositions(chunk, slots, layout)));
-  const key = (slot: number, us: bigint, q: readonly number[]): string =>
-    `${String(slot)}|${String(us)}|${q.join(",")}`;
-  const ourKeys = new Set(ours.map((position) => key(position.slot, position.timestampUs, position.q)));
+  const key = (slot: number, ms: number, q: readonly number[]): string =>
+    `${String(slot)}|${String(ms)}|${q.join(",")}`;
+  const ourKeys = new Set(ours.map((position) => key(position.slot, position.timestampMs, position.q)));
+  const msByUs = new Map<bigint, number>();
+  for (const chunk of chunks) {
+    const frames = walkFramePackets(chunk.data);
+    const originUs = earliestTimestampUs(frames);
+    for (const frame of frames) {
+      if (originUs != null) {
+        msByUs.set(frame.timestampUs, packetTimestampMs(chunk.startMs, originUs, frame));
+      }
+    }
+  }
   const theirs = readFileSync(LEVELUP_CSV, "utf8").trim().split("\n").slice(1);
   const theirKeys = new Set<string>();
   for (const line of theirs) {
     const [, , us, slot, qx, qy, qz] = line.split(",");
-    if (us != null && slot != null && qx != null && qy != null && qz != null) {
-      theirKeys.add(key(Number(slot), BigInt(us), [Number(qx), Number(qy), Number(qz)]));
+    const ms = us == null ? undefined : msByUs.get(BigInt(us));
+    if (ms != null && slot != null && qx != null && qy != null && qz != null) {
+      theirKeys.add(key(Number(slot), ms, [Number(qx), Number(qy), Number(qz)]));
     }
   }
   const missing = [...theirKeys].filter((item) => !ourKeys.has(item));
