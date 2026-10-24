@@ -7,11 +7,13 @@
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/ctf-validate-positions.ts <matchId> [--levelup=<positions.csv>]
  */
 import { readFileSync } from "node:fs";
-import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../services/halo/statborg/bit-reader";
-import { detectAxisLayout } from "../services/halo/positions/axis-layout";
-import { BipedRecordScanner } from "../services/halo/positions/biped-records";
-import { buildPlayerPositions, scanChunkPositions } from "../services/halo/positions/build-player-positions";
-import { bipedSlotBand } from "../services/halo/positions/keyframe-slots";
+import {
+  earliestTimestampUs,
+  packetTimestampMs,
+  walkChunk,
+  walkFramePackets,
+} from "../services/halo/statborg/bit-reader";
+import { decodePositions, namePositions } from "../services/halo/positions/build-player-positions";
 import { dropIsolated } from "../services/halo/positions/position-filters";
 import { createScriptServices, fmtMs } from "./script-services";
 
@@ -26,17 +28,16 @@ if (matchStats == null) {
 }
 
 const startedAt = performance.now();
-const [chunks, highlightEvents] = await Promise.all([
+const [chunks, deaths] = await Promise.all([
   haloFilmService.getCompleteReplicationChunks(MATCH_ID),
-  haloFilmService.getHighlightEventsForMatch(MATCH_ID),
+  haloFilmService.getDeathEvents(MATCH_ID),
 ]);
-const deaths = highlightEvents
-  .filter((event) => event.eventType === "death")
-  .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-const positions = buildPlayerPositions(chunks, matchStats, deaths);
+const decoded = decodePositions(chunks.map(walkChunk), MATCH_ID);
+const positions = namePositions(decoded, matchStats, deaths);
 console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,
 );
+const highlightEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
 const gamertags = new Map(highlightEvents.map((event) => [event.xuid, event.gamertag]));
 for (const track of positions.tracks) {
   const samples = track.lives.reduce((sum, life) => sum + life.samples.length, 0);
@@ -52,10 +53,7 @@ for (const life of positions.unnamedLives) {
 }
 
 if (LEVELUP_CSV != null) {
-  const slots = bipedSlotBand(chunks);
-  const layout = detectAxisLayout(chunks, slots);
-  const scanner = new BipedRecordScanner(slots, layout);
-  const ours = dropIsolated(chunks.flatMap((chunk) => scanChunkPositions(chunk, scanner)));
+  const ours = dropIsolated(decoded.scanned);
   const key = (slot: number, ms: number, q: readonly number[]): string =>
     `${String(slot)}|${String(ms)}|${q.join(",")}`;
   const ourKeys = new Set(ours.map((position) => key(position.slot, position.timestampMs, position.q)));
@@ -86,7 +84,7 @@ if (LEVELUP_CSV != null) {
   const missing = [...theirKeys].filter((item) => !ourKeys.has(item));
   const extra = [...ourKeys].filter((item) => !theirKeys.has(item));
   console.log(
-    `\nParity vs LevelUp: slots ${String(Math.min(...slots))}-${String(Math.max(...slots))}, ours ${String(ourKeys.size)} theirs ${String(theirKeys.size)}, missing ${String(missing.length)}, extra ${String(extra.length)}`,
+    `\nParity vs LevelUp: slots ${String(Math.min(...decoded.slots))}-${String(Math.max(...decoded.slots))}, ours ${String(ourKeys.size)} theirs ${String(theirKeys.size)}, missing ${String(missing.length)}, extra ${String(extra.length)}`,
   );
   for (const item of [...missing.slice(0, 5), ...extra.slice(0, 5)]) {
     console.log(`  ${missing.includes(item) ? "missing" : "extra  "} ${item}`);

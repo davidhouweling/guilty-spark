@@ -1,5 +1,5 @@
-import type { ReplicationChunk } from "../types";
-import { datedFrames, readBitsBE } from "../statborg/bit-reader";
+import { readBitsBE } from "../statborg/bit-reader";
+import type { WalkedChunk } from "../statborg/bit-reader";
 import {
   BIPED_HEADER_BITS,
   BIPED_INDEX_BITS,
@@ -126,14 +126,14 @@ export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout 
   return layout.axisWidths.every((width) => width >= MIN_AXIS_BITS && width <= MAX_AXIS_BITS) ? layout : null;
 }
 
-export function detectAxisLayout(chunks: readonly ReplicationChunk[], slots: ReadonlySet<number>): AxisLayout {
+export function detectAxisLayout(chunks: readonly WalkedChunk[], slots: ReadonlySet<number>): AxisLayout {
   if (slots.size === 0) {
     throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
   }
   const prefilter = slotPrefilter(slots);
   const samples: LayoutSample[] = [];
   for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {
-    for (const [frameIndex, frame] of datedFrames(chunk).entries()) {
+    for (const [frameIndex, frame] of chunk.frames.entries()) {
       samples.push(...collectSamples(frame.payload, slots, prefilter, chunk.index, frameIndex));
     }
   }

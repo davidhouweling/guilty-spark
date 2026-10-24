@@ -5,6 +5,8 @@ import type { BipedLife, BipedPosition, DeathEvent, RosterMember } from "./types
 // a gap this long inside one slot opens a new life: far above the replication cadence and
 // well below the respawn time
 export const LIFE_GAP_MS = 5_000;
+const MIN_RESPAWN_MS = 1_000;
+const MAX_RESPAWN_MS = 30_000;
 // the footer death clock and the packet clock share a base; the search covers residual drift
 const DEATH_MATCH_WINDOW_MS = 150;
 const OFFSET_SEARCH_MS = 2_000;
@@ -66,8 +68,6 @@ interface NearbyPair extends Pairing {
   readonly startGap: number | null;
 }
 
-// only pairs that can enter the window somewhere in the offset search are kept, so the search
-// sweeps a sparse list instead of the full deaths x lives product
 function nearbyPairs(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
@@ -146,8 +146,7 @@ function pairDeathsToLives(pairs: readonly NearbyPair[], offsetMs: number): Pair
   return settled;
 }
 
-// the feasible-pair count is a plateau across the acceptance window, so the plateau's centre
-// is kept; the clock alignment does not need the pairs to be settled
+// the plateau's centre is kept: at its edge every pairing delta would be the half-window
 function plateauCentre(pairs: readonly NearbyPair[]): number {
   let bestCount = -1;
   let plateau: number[] = [];
@@ -167,23 +166,17 @@ export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly De
   return plateauCentre(nearbyPairs(lives, deaths, previousDeathByIndex(deaths)));
 }
 
-// the death feed runs on the match clock and lives on the film clock; the measured offset
-// moves the feed onto the film clock so every later comparison is between like times
 export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
   return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
 }
 
-export function nameLivesByDeaths(
-  lives: readonly BipedLife[],
-  deaths: readonly DeathEvent[],
-  offsetMs?: number,
-): BipedLife[] {
+export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): BipedLife[] {
   if (deaths.length === 0 || lives.length === 0) {
     return [...lives];
   }
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
   const named = [...lives];
-  for (const pairing of pairDeathsToLives(pairs, offsetMs ?? plateauCentre(pairs))) {
+  for (const pairing of pairDeathsToLives(pairs, plateauCentre(pairs))) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
     if (life != null && death != null) {
@@ -253,6 +246,26 @@ function decisiveInstants(lives: readonly BipedLife[], life: BipedLife): number[
   return instants;
 }
 
+function lastDeathBefore(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  xuid: string,
+  atMs: number,
+): number | null {
+  let lastEnd: number | null = null;
+  for (const life of lives) {
+    if (life.xuid === xuid && life.endMs < atMs && (lastEnd == null || life.endMs > lastEnd)) {
+      lastEnd = life.endMs;
+    }
+  }
+  for (const death of deaths) {
+    if (death.xuid === xuid && death.timestampMs < atMs && (lastEnd == null || death.timestampMs > lastEnd)) {
+      lastEnd = death.timestampMs;
+    }
+  }
+  return lastEnd;
+}
+
 type OwnerAt = (atMs: number) => string | null;
 
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
@@ -269,7 +282,6 @@ function eliminatedOwner(lives: readonly BipedLife[], ownerAt: OwnerAt, life: Bi
   return owners.size === 1 && only != null ? only : null;
 }
 
-// neighbouring lives share most decisive instants, so each instant is judged once per pass
 function memoisedOwnerAt(lives: readonly BipedLife[], roster: readonly RosterMember[]): OwnerAt {
   const memo = new Map<number, string | null>();
   return (atMs) => {
@@ -286,6 +298,12 @@ function memoisedOwnerAt(lives: readonly BipedLife[], roster: readonly RosterMem
 // every present player has exactly one live biped at any instant, so an unnamed life whose span
 // leaves exactly one roster member unaccounted for belongs to that member; naming one life can
 // settle the next, so the pass repeats until nothing changes
+// a biped cannot belong to a player who died less than a respawn ago
+function couldHaveRespawned(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  const lastEnd = lastDeathBefore(lives, [], xuid, life.startMs);
+  return lastEnd == null || life.startMs - lastEnd >= MIN_RESPAWN_MS;
+}
+
 export function nameLivesByElimination(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
   let named = [...lives];
   let changed = true;
@@ -298,7 +316,7 @@ export function nameLivesByElimination(lives: readonly BipedLife[], roster: read
         continue;
       }
       const owner = eliminatedOwner(named, ownerAt, life);
-      if (owner != null) {
+      if (owner != null && couldHaveRespawned(named, owner, life)) {
         next[index] = { ...life, xuid: owner };
         changed = true;
       }
@@ -311,34 +329,6 @@ export function nameLivesByElimination(lives: readonly BipedLife[], roster: read
 // a player is dead from their last known death, read from the end of a named life or from the
 // death feed, until a biped appears for them again; the respawn delay is shared by every player
 // in a match, so the longest-dead candidate respawns first
-const MIN_RESPAWN_MS = 1_000;
-const MAX_RESPAWN_MS = 30_000;
-
-function lastDeathBefore(
-  lives: readonly BipedLife[],
-  deaths: readonly DeathEvent[],
-  xuid: string,
-  atMs: number,
-): number | null {
-  let lastEnd: number | null = null;
-  for (const life of lives) {
-    if (life.xuid !== xuid) {
-      continue;
-    }
-    if (covers(life, atMs)) {
-      return null;
-    }
-    if (life.endMs < atMs && (lastEnd == null || life.endMs > lastEnd)) {
-      lastEnd = life.endMs;
-    }
-  }
-  for (const death of deaths) {
-    if (death.xuid === xuid && death.timestampMs < atMs && (lastEnd == null || death.timestampMs > lastEnd)) {
-      lastEnd = death.timestampMs;
-    }
-  }
-  return lastEnd;
-}
 
 function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
   return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
@@ -394,23 +384,31 @@ function longestWaitingPlayer(
   return longest.xuid;
 }
 
+function nameSlot(lives: BipedLife[], slot: number, owner: string): void {
+  for (const [index, life] of lives.entries()) {
+    if (life.slot === slot && life.xuid == null) {
+      lives[index] = { ...life, xuid: owner };
+    }
+  }
+}
+
+// slot ownership is applied before and as soon as it is known, so a player's deferred lives
+// count as theirs when later lives are ranked
 export function nameLivesByRespawnOrder(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const named = [...lives];
-  const ownedSlots = new Set(slotOwners(lives).keys());
+  const named = nameLivesBySlot(lives);
   const order = [...named.keys()].sort((a, b) => (named[a]?.startMs ?? 0) - (named[b]?.startMs ?? 0));
   for (const index of order) {
     const life = named[index];
-    if (life == null || life.xuid != null || ownedSlots.has(life.slot)) {
+    if (life == null || life.xuid != null) {
       continue;
     }
     const owner = longestWaitingPlayer(named, deaths, roster, life);
     if (owner != null) {
-      named[index] = { ...life, xuid: owner };
-      ownedSlots.add(life.slot);
+      nameSlot(named, life.slot, owner);
     }
   }
   return named;

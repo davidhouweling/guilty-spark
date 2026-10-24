@@ -2,11 +2,9 @@ import { byTimestamp, groupBySlot } from "./group-by-slot";
 import { LIFE_GAP_MS } from "./lives";
 import type { BipedPosition } from "./types";
 
-// A live biped replicates continuously, so a sample more than this far from its nearest
-// neighbour in the same slot is a chance header match, not part of a life.
+// a lone sample this far from its slot's neighbours is a chance header match, not a life
 export const ISOLATION_GAP_MS = 15_000;
-// A quantum step is between 1/120 and 1/60 of a metre, so this bounds speed near 100 m/s on
-// any axis: far above a Spartan, grapple or vehicle, and well below a teleporting false match.
+// a quantum is 1/120 to 1/60 of a metre, so this is ~100 m/s: above any Spartan or vehicle
 export const MAX_AXIS_QUANTA_PER_SECOND = 12_000;
 const MAX_REJECT_STREAK = 3;
 

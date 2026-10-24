@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { walkChunk } from "../../statborg/bit-reader";
 import { AxisLayoutError, detectAxisLayout, flipBoundaries, layoutFromBoundaries } from "../axis-layout";
 import {
   aFakeBipedFrameChunkWith,
@@ -18,7 +19,10 @@ describe("detectAxisLayout", () => {
       ],
     });
 
-    expect(detectAxisLayout(chunks, new Set([512, 513]))).toEqual({ gateBits: 5, axisWidths: [15, 15, 17] });
+    expect(detectAxisLayout(chunks.map(walkChunk), new Set([512, 513]))).toEqual({
+      gateBits: 5,
+      axisWidths: [15, 15, 17],
+    });
   });
 
   it("recovers a different layout for a map with narrower axes", () => {
@@ -28,7 +32,7 @@ describe("detectAxisLayout", () => {
       lives: [{ slot: 512, startMs: 1000, endMs: 11_000, origin: [3000, 3000, 12_000] }],
     });
 
-    expect(detectAxisLayout(chunks, new Set([512]))).toEqual(layout);
+    expect(detectAxisLayout(chunks.map(walkChunk), new Set([512]))).toEqual(layout);
   });
 
   it("profiles only records in region zero so a toggling region bit cannot fake a boundary", () => {
@@ -37,7 +41,7 @@ describe("detectAxisLayout", () => {
       records: [{ slot: 512, q: walkPosition(FAKE_ORIGIN, 512, step), gate: step % 2 }],
     }));
 
-    expect(detectAxisLayout([aFakeBipedFrameChunkWith(frames)], new Set([512]))).toEqual(FAKE_AXIS_LAYOUT);
+    expect(detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith(frames))], new Set([512]))).toEqual(FAKE_AXIS_LAYOUT);
   });
 
   it("throws when the bipeds hold still and no field boundary shows", () => {
@@ -46,15 +50,21 @@ describe("detectAxisLayout", () => {
       records: [{ slot: 512, q: [12_000, 12_000, 70_000] as const }],
     }));
 
-    expect(() => detectAxisLayout([aFakeBipedFrameChunkWith(frames)], new Set([512]))).toThrow(AxisLayoutError);
+    expect(() => detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith(frames))], new Set([512]))).toThrow(
+      AxisLayoutError,
+    );
   });
 
   it("throws when there is no biped slot to profile", () => {
-    expect(() => detectAxisLayout([aFakeBipedFrameChunkWith([])], new Set())).toThrow("needs at least one biped slot");
+    expect(() => detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith([]))], new Set())).toThrow(
+      "needs at least one biped slot",
+    );
   });
 
   it("throws when no chunk carries biped records", () => {
-    expect(() => detectAxisLayout([aFakeBipedFrameChunkWith([])], new Set([512]))).toThrow("0 record pairs, 0 samples");
+    expect(() => detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith([]))], new Set([512]))).toThrow(
+      "0 record pairs, 0 samples",
+    );
   });
 });
 

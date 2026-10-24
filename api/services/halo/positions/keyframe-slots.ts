@@ -1,5 +1,5 @@
-import type { ReplicationChunk } from "../types";
-import { PACKET_TYPE_KEYFRAME, readBitsBE, walkPackets } from "../statborg/bit-reader";
+import { readBitsBE } from "../statborg/bit-reader";
+import type { WalkedChunk } from "../statborg/bit-reader";
 
 // Keyframe (full-state) packets list every live entity as [id:32][field:26][ti:6]; id>>30 is a
 // generation 1..3 and id & 0x3FFFFFFF the slot. Bipeds are archetype 35 and are allocated in a
@@ -175,21 +175,13 @@ export function walkKeyframeRecords(payload: Uint8Array): KeyframeAnchor[] {
   return records;
 }
 
-function firstKeyframePayload(chunk: ReplicationChunk): Uint8Array | null {
-  const packet = walkPackets(chunk.data).find((candidate) => candidate.type === PACKET_TYPE_KEYFRAME);
-  return packet == null ? null : chunk.data.subarray(packet.payloadOffset, packet.payloadOffset + packet.payloadSize);
-}
-
-// bipeds live in one contiguous slot band, and a biped created then destroyed inside a chunk
-// appears in no keyframe, so the gaps between the lowest and highest seen slots are filled
-export function bipedSlotBand(chunks: readonly ReplicationChunk[]): Set<number> {
+export function bipedSlotBand(chunks: readonly WalkedChunk[]): Set<number> {
   const seen = new Set<number>();
   for (const chunk of chunks) {
-    const payload = firstKeyframePayload(chunk);
-    if (payload == null) {
+    if (chunk.keyframePayload == null) {
       continue;
     }
-    for (const record of walkKeyframeRecords(payload)) {
+    for (const record of walkKeyframeRecords(chunk.keyframePayload)) {
       if (record.archetype === BIPED_ARCHETYPE) {
         seen.add(record.slot);
       }

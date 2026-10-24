@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { walkChunk } from "../../statborg/bit-reader";
 import { aFakeReplicationChunkWith } from "../../statborg/fakes/replication-chunk.fake";
 import { aFakeKeyframeChunkWith, buildKeyframePayload } from "../fakes/position-film.fake";
 import { BIPED_ARCHETYPE, bipedSlotBand, walkKeyframeRecords } from "../keyframe-slots";
@@ -49,16 +50,18 @@ describe("bipedSlotBand", () => {
       aFakeKeyframeChunkWith([{ slot: 516, archetype: BIPED_ARCHETYPE }], { index: 2, startMs: 21_000 }),
     ];
 
-    expect([...bipedSlotBand(chunks)]).toEqual([512, 513, 514, 515, 516]);
+    expect([...bipedSlotBand(chunks.map(walkChunk))]).toEqual([512, 513, 514, 515, 516]);
   });
 
   it("ignores entities of other archetypes", () => {
     const chunks = [aFakeKeyframeChunkWith([{ slot: 100, archetype: 3 }])];
 
-    expect(bipedSlotBand(chunks).size).toBe(0);
+    expect(bipedSlotBand(chunks.map(walkChunk)).size).toBe(0);
   });
 
   it("returns an empty band when no chunk carries a keyframe", () => {
-    expect(bipedSlotBand([aFakeReplicationChunkWith([{ timestampUs: 1_000_000n, records: [] }])]).size).toBe(0);
+    expect(bipedSlotBand([walkChunk(aFakeReplicationChunkWith([{ timestampUs: 1_000_000n, records: [] }]))]).size).toBe(
+      0,
+    );
   });
 });

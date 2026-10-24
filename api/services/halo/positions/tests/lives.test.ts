@@ -214,6 +214,16 @@ describe("nameLivesByElimination", () => {
     expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
   });
 
+  it("does not name a life after a player who died less than a respawn before it began", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 60_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 600, startMs: 10_200, endMs: 10_400 }),
+    ];
+
+    expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
   it("does not name a late joiner's first biped after a dead teammate", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
@@ -298,14 +308,14 @@ describe("nameLivesByRespawnOrder", () => {
     expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
-  it("leaves a life in an owned slot to the slot pass", () => {
+  it("applies a slot's known owner to its unnamed lives before ranking", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
       aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 30_000, xuid: B }),
       aFakeBipedLifeWith({ slot: 513, startMs: 37_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, B]);
   });
 
   it("counts a player's unmatched death from the death feed when ranking who has waited longest", () => {
@@ -338,7 +348,7 @@ describe("nameLivesByRespawnOrder", () => {
     expect(nameLivesByRespawnOrder(lives, [], roster).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
-  it("leaves later lives of a slot it has just named to the slot pass", () => {
+  it("names every life of a slot as soon as its first life is named", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
       aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 29_000, xuid: B }),
@@ -346,7 +356,19 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 40_000, endMs: 50_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, A]);
+  });
+
+  it("counts a slot's deferred lives as its owner's when ranking later lives", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 31_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 30_000 }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 40_000, endMs: 50_000 }),
+      aFakeBipedLifeWith({ slot: 515, startMs: 42_000, endMs: 60_000 }),
+    ];
+
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, A, B]);
   });
 
   it("does not hand a respawn to a player who has left the match", () => {

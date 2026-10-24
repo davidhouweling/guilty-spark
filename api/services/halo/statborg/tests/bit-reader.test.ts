@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   datedFrames,
   earliestTimestampUs,
+  PACKET_TYPE_KEYFRAME as KEYFRAME_TYPE,
   readBitsBE,
   MalformedPacketStreamError,
   packetTimestampMs,
@@ -9,6 +10,7 @@ import {
   PACKET_TYPE_FRAME,
   PACKET_TYPE_KEYFRAME,
   walkFramePackets,
+  walkChunk,
   walkPackets,
 } from "../bit-reader";
 import {
@@ -127,5 +129,28 @@ describe("datedFrames", () => {
 
   it("returns no frames for a chunk without frame packets", () => {
     expect(datedFrames(aFakeReplicationChunkWith([]))).toEqual([]);
+  });
+});
+
+describe("walkChunk", () => {
+  it("keeps the first keyframe payload and the frames in clock order", () => {
+    const data = buildChunkBytes([
+      { type: KEYFRAME_TYPE, timestampUs: 1_000_000n, payload: Uint8Array.of(7, 7) },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_200_000n, payload: Uint8Array.of(2) },
+      { type: PACKET_TYPE_FRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(1) },
+    ]);
+
+    const walked = walkChunk({ index: 3, startMs: 5000, durationMs: 20_000, data });
+
+    expect(walked.index).toBe(3);
+    expect(walked.keyframePayload).toEqual(Uint8Array.of(7, 7));
+    expect(walked.frames.map((frame) => [frame.timestampMs, frame.payload[0]])).toEqual([
+      [5000, 1],
+      [5200, 2],
+    ]);
+  });
+
+  it("has no keyframe payload when the chunk carries none", () => {
+    expect(walkChunk(aFakeReplicationChunkWith([])).keyframePayload).toBeNull();
   });
 });

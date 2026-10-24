@@ -45,7 +45,7 @@ import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statbo
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
-import type { PlayerPositions } from "./positions/types";
+import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
@@ -216,14 +216,18 @@ export class HaloFilmService {
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
-    const [chunks, events] = await Promise.all([
+    const [chunks, deaths] = await Promise.all([
       this.getCompleteReplicationChunks(matchStats.MatchId),
-      this.getHighlightEventsForMatch(matchStats.MatchId),
+      this.getDeathEvents(matchStats.MatchId),
     ]);
-    const deaths = events
+    return buildPlayerPositions(chunks, matchStats, deaths);
+  }
+
+  async getDeathEvents(matchId: string): Promise<DeathEvent[]> {
+    const events = await this.getHighlightEventsForMatch(matchId);
+    return events
       .filter((event) => event.eventType === "death")
       .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-    return buildPlayerPositions(chunks, matchStats, deaths);
   }
 
   async getCompleteReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {

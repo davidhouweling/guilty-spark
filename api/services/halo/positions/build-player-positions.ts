@@ -1,6 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { ReplicationChunk } from "../types";
-import { datedFrames } from "../statborg/bit-reader";
+import { walkChunk } from "../statborg/bit-reader";
+import type { WalkedChunk } from "../statborg/bit-reader";
 import { detectAxisLayout } from "./axis-layout";
 import { BipedRecordScanner } from "./biped-records";
 import { bipedSlotBand } from "./keyframe-slots";
@@ -15,7 +16,15 @@ import {
 } from "./lives";
 import { dropIsolated, dropTeleports } from "./position-filters";
 import { alignRosterToFilm, buildRoster } from "./roster";
-import type { BipedLife, BipedPosition, DeathEvent, PlayerPositions, PlayerPositionTrack, RosterMember } from "./types";
+import type {
+  AxisLayout,
+  BipedLife,
+  BipedPosition,
+  DeathEvent,
+  PlayerPositions,
+  PlayerPositionTrack,
+  RosterMember,
+} from "./types";
 
 export class PositionDecodeError extends Error {
   constructor(message: string) {
@@ -24,14 +33,30 @@ export class PositionDecodeError extends Error {
   }
 }
 
-export function scanChunkPositions(chunk: ReplicationChunk, scanner: BipedRecordScanner): BipedPosition[] {
+export interface DecodedPositions {
+  readonly layout: AxisLayout;
+  readonly slots: ReadonlySet<number>;
+  readonly scanned: readonly BipedPosition[];
+}
+
+export function scanChunkPositions(chunk: WalkedChunk, scanner: BipedRecordScanner): BipedPosition[] {
   const positions: BipedPosition[] = [];
-  for (const { timestampMs, payload } of datedFrames(chunk)) {
+  for (const { timestampMs, payload } of chunk.frames) {
     for (const record of scanner.scan(payload)) {
       positions.push({ slot: record.slot, timestampMs, q: record.q });
     }
   }
   return positions;
+}
+
+export function decodePositions(chunks: readonly WalkedChunk[], matchId: string): DecodedPositions {
+  const slots = bipedSlotBand(chunks);
+  if (slots.size === 0) {
+    throw new PositionDecodeError(`Film for match ${matchId} lists no biped slots in its keyframes`);
+  }
+  const layout = detectAxisLayout(chunks, slots);
+  const scanner = new BipedRecordScanner(slots, layout);
+  return { layout, slots, scanned: chunks.flatMap((chunk) => scanChunkPositions(chunk, scanner)) };
 }
 
 function groupTracks(lives: readonly BipedLife[], roster: readonly RosterMember[]): PlayerPositionTrack[] {
@@ -57,8 +82,25 @@ function nameLives(
   const offsetMs = bestDeathOffset(lives, deaths);
   const filmDeaths = alignDeathsToFilm(deaths, offsetMs);
   const filmRoster = alignRosterToFilm(roster, offsetMs);
-  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths, 0), filmRoster);
+  const byDeaths = settle(nameLivesByDeaths(lives, filmDeaths), filmRoster);
   return settle(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
+}
+
+export function namePositions(
+  decoded: DecodedPositions,
+  matchStats: MatchStats,
+  deaths: readonly DeathEvent[],
+): PlayerPositions {
+  const positions = dropTeleports(dropIsolated(decoded.scanned));
+  const roster = buildRoster(matchStats);
+  const rosterXuids = new Set(roster.map((member) => member.xuid));
+  const rosterDeaths = deaths.filter((death) => rosterXuids.has(death.xuid));
+  const named = nameLives(buildLives(positions), rosterDeaths, roster);
+  return {
+    layout: decoded.layout,
+    tracks: groupTracks(named, roster),
+    unnamedLives: named.filter((life) => life.xuid == null),
+  };
 }
 
 export function buildPlayerPositions(
@@ -66,26 +108,5 @@ export function buildPlayerPositions(
   matchStats: MatchStats,
   deaths: readonly DeathEvent[],
 ): PlayerPositions {
-  const slots = bipedSlotBand(chunks);
-  if (slots.size === 0) {
-    throw new PositionDecodeError(`Film for match ${matchStats.MatchId} lists no biped slots in its keyframes`);
-  }
-  const layout = detectAxisLayout(chunks, slots);
-  const scanner = new BipedRecordScanner(slots, layout);
-  const raw: BipedPosition[] = [];
-  for (const chunk of chunks) {
-    for (const position of scanChunkPositions(chunk, scanner)) {
-      raw.push(position);
-    }
-  }
-  const positions = dropTeleports(dropIsolated(raw));
-  const roster = buildRoster(matchStats);
-  const rosterXuids = new Set(roster.map((member) => member.xuid));
-  const rosterDeaths = deaths.filter((death) => rosterXuids.has(death.xuid));
-  const named = nameLives(buildLives(positions), rosterDeaths, roster);
-  return {
-    layout,
-    tracks: groupTracks(named, roster),
-    unnamedLives: named.filter((life) => life.xuid == null),
-  };
+  return namePositions(decodePositions(chunks.map(walkChunk), matchStats.MatchId), matchStats, deaths);
 }

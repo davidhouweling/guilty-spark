@@ -109,3 +109,24 @@ export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
     payload: chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize),
   }));
 }
+
+export interface WalkedChunk {
+  index: number;
+  startMs: number;
+  keyframePayload: Uint8Array | null;
+  frames: DatedFrame[];
+}
+
+// one walk per chunk serves every decoder stage; frames come out in clock order
+export function walkChunk(chunk: ReplicationChunk): WalkedChunk {
+  const keyframe = walkPackets(chunk.data).find((packet) => packet.type === PACKET_TYPE_KEYFRAME);
+  return {
+    index: chunk.index,
+    startMs: chunk.startMs,
+    keyframePayload:
+      keyframe == null
+        ? null
+        : chunk.data.subarray(keyframe.payloadOffset, keyframe.payloadOffset + keyframe.payloadSize),
+    frames: datedFrames(chunk).sort((a, b) => a.timestampMs - b.timestampMs),
+  };
+}
