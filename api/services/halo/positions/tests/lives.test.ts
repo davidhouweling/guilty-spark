@@ -122,11 +122,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_020, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
-      A,
-      B,
-      null,
-    ]);
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("settles two deaths at the same instant when a previous death leaves one of them a single option", () => {
@@ -143,12 +139,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_000, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
-      A,
-      B,
-      A,
-      B,
-    ]);
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, B, A, B]);
   });
 
   it("does not pair a death with a life that began before the owner's previous death", () => {
@@ -161,10 +152,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: A }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
-      A,
-      null,
-    ]);
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, null]);
   });
 
   it("leaves two deaths at the same instant unnamed when nothing tells them apart", () => {
@@ -179,17 +167,13 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: C }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths, bestDeathOffset(lives, deaths)).map((life) => life.xuid)).toEqual([
-      null,
-      null,
-      C,
-    ]);
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null, null, C]);
   });
 
   it("leaves lives untouched without deaths", () => {
     const lives = [aFakeBipedLifeWith()];
 
-    expect(nameLivesByDeaths(lives, [], 0)).toEqual(lives);
+    expect(nameLivesByDeaths(lives, []).lives).toEqual(lives);
   });
 });
 
@@ -200,7 +184,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 513, startMs: 5000, endMs: 25_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B]);
   });
 
   it("leaves a life unnamed while two roster members are missing", () => {
@@ -209,7 +193,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 513, startMs: 5000, endMs: 25_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, null]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, null]);
   });
 
   it("names a life whose owner only becomes certain once another life is named", () => {
@@ -220,7 +204,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 0, endMs: 30_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([B, A, B, C]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([B, A, B, C]);
   });
 
   it("leaves a life unnamed when its decisive instants disagree", () => {
@@ -231,7 +215,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 515, startMs: 0, endMs: 30_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, B, C, null]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, B, C, null]);
   });
 
   it("names only the life that stands alone as the missing player's biped when unnamed lives overlap", () => {
@@ -241,7 +225,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 513, startMs: 5000, endMs: 25_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
   });
 
   it("does not give one player two overlapping lives in two slots", () => {
@@ -251,7 +235,7 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 10_000, endMs: 20_000 }),
     ];
 
-    const named = nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid);
+    const named = nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid);
 
     expect(named[0]).toBe(A);
     expect(named.filter((xuid) => xuid === B)).toHaveLength(1);
@@ -264,7 +248,27 @@ describe("nameLivesByElimination", () => {
       aFakeBipedLifeWith({ slot: 600, startMs: 10_200, endMs: 10_400 }),
     ];
 
-    expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
+  it("does not name a life after a player whose previous life it named moments earlier in the same pass", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 10_000 }),
+      aFakeBipedLifeWith({ slot: 600, startMs: 10_200, endMs: 10_400 }),
+    ];
+
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
+  it("reads a death known only from the feed when judging whether a respawn is possible", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 600, startMs: 10_300, endMs: 12_000 }),
+    ];
+    const deaths = [aFakeDeathEventWith({ timestampMs: 10_000, xuid: B })];
+
+    expect(nameLivesByElimination(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null]);
   });
 
   it("does not name a late joiner's first biped after a dead teammate", () => {
@@ -275,7 +279,7 @@ describe("nameLivesByElimination", () => {
     ];
     const roster = [...rosterOf(A, B), aFakeRosterMemberWith({ xuid: C, presentFromMs: 20_000 })];
 
-    expect(nameLivesByElimination(lives, roster).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByElimination(lives, [], roster).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("does not expect a biped from a player outside their participation window", () => {
@@ -289,7 +293,7 @@ describe("nameLivesByElimination", () => {
       aFakeRosterMemberWith({ xuid: C, presentToMs: 10_000 }),
     ];
 
-    expect(nameLivesByElimination(lives, roster).map((life) => life.xuid)).toEqual([A, B]);
+    expect(nameLivesByElimination(lives, [], roster).map((life) => life.xuid)).toEqual([A, B]);
   });
 });
 
@@ -299,12 +303,22 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 1000 }),
       aFakeBipedLifeWith({ slot: 512, startMs: 30_000, endMs: 40_000, xuid: A }),
       aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 1000 }),
-      aFakeBipedLifeWith({ slot: 514, startMs: 0, endMs: 1000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 0, endMs: 1000, xuid: C }),
       aFakeBipedLifeWith({ slot: 514, startMs: 30_000, endMs: 40_000, xuid: B }),
       aFakeBipedLifeWith({ slot: 514, startMs: 50_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesBySlot(lives).map((life) => life.xuid)).toEqual([A, A, null, A, B, null]);
+    expect(nameLivesBySlot(lives).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
+  });
+
+  it("does not extend a slot's owner onto a life that overlaps the owner's other life", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 515, startMs: 38_000, endMs: 55_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 10_000, endMs: 20_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 40_000, endMs: 50_000 }),
+    ];
+
+    expect(nameLivesBySlot(lives).map((life) => life.xuid)).toEqual([A, A, null]);
   });
 });
 

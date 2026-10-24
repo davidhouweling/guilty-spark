@@ -20,7 +20,6 @@ const SPINE_BITS = 3;
 const USE_DEFAULT_BITS = 1;
 const REGION_INDEX_BITS = 1;
 export const DEFAULT_GATE_BITS = SPINE_BITS + USE_DEFAULT_BITS + REGION_INDEX_BITS;
-const DETECT_MAX_CHUNKS = 6;
 const DETECT_MAX_PACKET_GAP = 3;
 const BOUNDARY_SATURATION = 0.1;
 const BOUNDARY_DROP = 8;
@@ -136,20 +135,23 @@ export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout 
   return layout.axisWidths.every((width) => width >= MIN_AXIS_BITS && width <= MAX_AXIS_BITS) ? layout : null;
 }
 
+// chunks are profiled one at a time and the layout returned as soon as it shows, so a film
+// whose opening chunks hold still is read from the first chunk in which the bipeds move
 export function detectAxisLayout(chunks: readonly WalkedChunk[], slots: ReadonlySet<number>): AxisLayout {
   const prefilter = slotPrefilter(slots);
   const samples: LayoutSample[] = [];
-  for (const chunk of chunks.slice(0, DETECT_MAX_CHUNKS)) {
+  let profile: FlipProfile = { pairs: 0, flipRates: [] };
+  for (const chunk of chunks) {
     for (const [frameIndex, frame] of chunk.frames.entries()) {
       samples.push(...collectSamples(frame.payload, slots, prefilter, chunk.index, frameIndex));
     }
+    profile = profileFlips(samples);
+    const layout = layoutFromBoundaries(flipBoundaries(profile.flipRates));
+    if (layout != null) {
+      return layout;
+    }
   }
-  const profile = profileFlips(samples);
-  const layout = layoutFromBoundaries(flipBoundaries(profile.flipRates));
-  if (layout == null) {
-    throw new AxisLayoutError(
-      `Position axis layout could not be read from the film (${String(profile.pairs)} record pairs, ${String(samples.length)} samples)`,
-    );
-  }
-  return layout;
+  throw new AxisLayoutError(
+    `Position axis layout could not be read from the film (${String(profile.pairs)} record pairs, ${String(samples.length)} samples)`,
+  );
 }

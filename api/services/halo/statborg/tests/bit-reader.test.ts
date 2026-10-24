@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   datedFrames,
   earliestTimestampUs,
-  PACKET_TYPE_KEYFRAME as KEYFRAME_TYPE,
   readBitsBE,
   MalformedPacketStreamError,
   packetTimestampMs,
@@ -135,7 +134,7 @@ describe("datedFrames", () => {
 describe("walkChunk", () => {
   it("keeps the first keyframe payload and the frames in clock order", () => {
     const data = buildChunkBytes([
-      { type: KEYFRAME_TYPE, timestampUs: 1_000_000n, payload: Uint8Array.of(7, 7) },
+      { type: PACKET_TYPE_KEYFRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(7, 7) },
       { type: PACKET_TYPE_FRAME, timestampUs: 1_200_000n, payload: Uint8Array.of(2) },
       { type: PACKET_TYPE_FRAME, timestampUs: 1_000_000n, payload: Uint8Array.of(1) },
     ]);

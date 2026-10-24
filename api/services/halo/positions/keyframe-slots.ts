@@ -39,10 +39,11 @@ function readAnchor(
   if (slot <= previousSlot || slot >= SLOT_CAP) {
     return null;
   }
-  if (readBitsBE(payload, bitPos + 32, 32) >= ARCHETYPE_CAP) {
+  const archetype = readBitsBE(payload, bitPos + 58, 6);
+  if (readBitsBE(payload, bitPos + 32, 26) !== 0 || archetype >= ARCHETYPE_CAP) {
     return null;
   }
-  return { slot, archetype: readBitsBE(payload, bitPos + 58, 6), generation };
+  return { slot, archetype, generation };
 }
 
 interface Candidate {
@@ -96,6 +97,7 @@ function scanNextAnchor(payload: Uint8Array, from: number, previousSlot: number,
     sentinelStreak = 0;
     const generation = id >>> 30;
     const slot = id & 0x3fff_ffff;
+    // the field word is [field:26][ti:6], so a value under the cap means field 0 and a small ti
     if (generation === 0 || slot <= previousSlot || slot >= SLOT_CAP || field >= ARCHETYPE_CAP) {
       continue;
     }

@@ -44,6 +44,22 @@ describe("detectAxisLayout", () => {
     expect(detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith(frames))], new Set([512]))).toEqual(FAKE_AXIS_LAYOUT);
   });
 
+  it("reads the layout from a later chunk when the opening chunks hold still", () => {
+    const still = [...Array(20).keys()].map((step) => ({
+      timestampUs: BigInt(1_000_000 + step * 100_000),
+      records: [{ slot: 512, q: FAKE_ORIGIN }],
+    }));
+    const moving = aFakePositionFilmWith({
+      lives: [{ slot: 512, startMs: 21_000, endMs: 26_000 }],
+      firstChunkStartMs: 21_000,
+      firstChunkIndex: 2,
+    });
+
+    expect(
+      detectAxisLayout([walkChunk(aFakeBipedFrameChunkWith(still)), ...moving.map(walkChunk)], new Set([512])),
+    ).toEqual(FAKE_AXIS_LAYOUT);
+  });
+
   it("throws when the bipeds hold still and no field boundary shows", () => {
     const frames = [1_000_000n, 1_100_000n, 1_200_000n, 1_300_000n].map((timestampUs) => ({
       timestampUs,

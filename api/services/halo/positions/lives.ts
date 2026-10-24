@@ -188,12 +188,14 @@ export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: numbe
   return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
 }
 
-export function nameLivesByDeaths(
-  lives: readonly BipedLife[],
-  deaths: readonly DeathEvent[],
-  offsetMs: number,
-): BipedLife[] {
+export interface DeathNaming {
+  readonly lives: BipedLife[];
+  readonly offsetMs: number;
+}
+
+export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): DeathNaming {
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
+  const offsetMs = plateauCentre(pairs);
   const named = [...lives];
   for (const pairing of pairDeathsToLives(pairs, offsetMs)) {
     const life = named[pairing.lifeIndex];
@@ -202,7 +204,11 @@ export function nameLivesByDeaths(
       named[pairing.lifeIndex] = { ...life, xuid: death.xuid };
     }
   }
-  return named;
+  return { lives: named, offsetMs };
+}
+
+function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
 }
 
 function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
@@ -224,7 +230,10 @@ export function nameLivesBySlot(lives: readonly BipedLife[]): BipedLife[] {
   return lives.map((life) => {
     const set = owners.get(life.slot);
     const [owner] = set ?? [];
-    return life.xuid == null && set?.size === 1 && owner != null ? { ...life, xuid: owner } : life;
+    if (life.xuid != null || set?.size !== 1 || owner == null || overlapsNamedLife(lives, owner, life)) {
+      return life;
+    }
+    return { ...life, xuid: owner };
   });
 }
 
@@ -285,10 +294,6 @@ function lastDeathBefore(
   return lastEnd;
 }
 
-function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
-  return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
-}
-
 type OwnerAt = (atMs: number) => string | null;
 
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
@@ -319,15 +324,24 @@ function memoisedOwnerAt(lives: readonly BipedLife[], roster: readonly RosterMem
 }
 
 // a biped cannot belong to a player who died less than a respawn ago
-function couldHaveRespawned(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
-  const lastEnd = lastDeathBefore(lives, [], xuid, life.startMs);
+function couldHaveRespawned(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  xuid: string,
+  life: BipedLife,
+): boolean {
+  const lastEnd = lastDeathBefore(lives, deaths, xuid, life.startMs);
   return lastEnd == null || life.startMs - lastEnd >= MIN_RESPAWN_MS;
 }
 
 // every present player has exactly one live biped at any instant, so an unnamed life whose span
 // leaves exactly one roster member unaccounted for belongs to that member; naming one life can
 // settle the next, so the pass repeats until nothing changes
-export function nameLivesByElimination(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
+export function nameLivesByElimination(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+): BipedLife[] {
   let named = [...lives];
   let changed = true;
   while (changed) {
@@ -339,7 +353,7 @@ export function nameLivesByElimination(lives: readonly BipedLife[], roster: read
         continue;
       }
       const owner = eliminatedOwner(named, ownerAt, life);
-      if (owner != null && couldHaveRespawned(named, owner, life) && !overlapsNamedLife(next, owner, life)) {
+      if (owner != null && couldHaveRespawned(next, deaths, owner, life) && !overlapsNamedLife(next, owner, life)) {
         next[index] = { ...life, xuid: owner };
         changed = true;
       }
@@ -401,7 +415,7 @@ function longestWaitingPlayer(
 
 function nameSlot(lives: BipedLife[], slot: number, owner: string): void {
   for (const [index, life] of lives.entries()) {
-    if (life.slot === slot && life.xuid == null) {
+    if (life.slot === slot && life.xuid == null && !overlapsNamedLife(lives, owner, life)) {
       lives[index] = { ...life, xuid: owner };
     }
   }

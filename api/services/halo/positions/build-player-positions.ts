@@ -7,7 +7,6 @@ import { BipedRecordScanner } from "./biped-records";
 import { bipedSlotBand } from "./keyframe-slots";
 import {
   alignDeathsToFilm,
-  bestDeathOffset,
   buildLives,
   nameLivesByDeaths,
   nameLivesByElimination,
@@ -83,11 +82,12 @@ function nameLives(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const offsetMs = bestDeathOffset(lives, deaths);
-  const filmDeaths = alignDeathsToFilm(deaths, offsetMs);
-  const filmRoster = alignRosterToFilm(roster, offsetMs);
-  const byDeaths = nameLivesByElimination(nameLivesBySlot(nameLivesByDeaths(lives, filmDeaths, 0)), filmRoster);
-  return nameLivesByElimination(nameLivesByRespawnOrder(byDeaths, filmDeaths, filmRoster), filmRoster);
+  const byDeaths = nameLivesByDeaths(lives, deaths);
+  const filmDeaths = alignDeathsToFilm(deaths, byDeaths.offsetMs);
+  const filmRoster = alignRosterToFilm(roster, byDeaths.offsetMs);
+  const settled = nameLivesByElimination(nameLivesBySlot(byDeaths.lives), filmDeaths, filmRoster);
+  const byRespawn = nameLivesByRespawnOrder(settled, filmDeaths, filmRoster);
+  return nameLivesBySlot(nameLivesByElimination(byRespawn, filmDeaths, filmRoster));
 }
 
 export function namePositions(
