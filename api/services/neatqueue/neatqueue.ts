@@ -39,7 +39,8 @@ import type { GuildConfigRow } from "../database/types/guild_config";
 import { MapsPostType, StatsReturnType } from "../database/types/guild_config";
 import { InteractionButton as StatsInteractionButton } from "../../commands/stats/stats-interaction-button";
 import type { BaseMatchEmbed } from "../../embeds/stats/base-match-embed";
-import type { LogService } from "../log/types";
+import type { JsonAny, LogService } from "../log/types";
+import { JobProgressLogger } from "../log/job-progress-logger";
 import { EndUserError } from "../../base/end-user-error";
 import { toMissingPermissionsError } from "../../base/missing-permissions-error";
 import { applyRosterSubstitution } from "../../base/roster-substitution";
@@ -150,12 +151,14 @@ export class NeatQueueService {
   }
 
   private async persistFilmAnalyticsAtTail(series: MatchStats[]): Promise<void> {
+    const progress = new JobProgressLogger(this.logService, "Persist film analytics");
     for (const match of series) {
       try {
         await this.analyticsService.persistMatchKillMatrix(match);
       } catch {
         // AnalyticsService already logs extraction/persistence failures with match context.
       }
+      progress.step("match processed", new Map([["matchId", match.MatchId]]));
     }
   }
 
@@ -2353,6 +2356,15 @@ export class NeatQueueService {
     let foundResultsMessage = false;
     let useFallback = true;
     let thread: RESTPostAPIChannelThreadsResult | undefined;
+    const progress = new JobProgressLogger(
+      this.logService,
+      "Post series data by thread",
+      new Map<string, JsonAny>([
+        ["guildId", request.guild],
+        ["queueNumber", request.match_number],
+        ["seriesMatchCount", series.length],
+      ]),
+    );
 
     try {
       const resultsMessage = await discordService.getTeamsFromQueueResult(
@@ -2361,6 +2373,7 @@ export class NeatQueueService {
         request.match_number,
       );
       foundResultsMessage = true;
+      progress.step("results message found");
 
       const { channel_id: channelId, id: messageId } = resultsMessage.message;
       thread = await discordService.startThreadFromMessage(
@@ -2369,6 +2382,7 @@ export class NeatQueueService {
         `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, locale, true)})`,
       );
       useFallback = false;
+      progress.step("thread created", new Map([["threadId", thread.id]]));
 
       const finalTeams = this.getTeams(request);
       const substitutions = this.getSubstitutionsFromTimeline(timeline, finalTeams);
@@ -2382,17 +2396,21 @@ export class NeatQueueService {
         substitutions,
         locale,
       });
+      progress.step("series overview embed built");
       await discordService.createMessage(thread.id, {
         embeds: seriesOverviewEmbed.embeds,
         components: seriesOverviewEmbed.components,
       });
+      progress.step("series overview posted");
 
       await Promise.all([
         this.cacheDiscordSeriesStats(request.guild, request.match_number, series, locale),
         this.leaderboardService.persistSeriesData({ request, neatQueueConfig, series, locale }),
         this.postSeriesDetailsToChannel(thread.id, request.guild, series, locale),
       ]);
+      progress.step("series details posted and persisted");
       await this.persistFilmAnalyticsAtTail(series);
+      progress.step("film analytics persisted");
     } catch (error) {
       this.logService.warn(error, new Map([["reason", "Failed to post series data to thread"]]));
 

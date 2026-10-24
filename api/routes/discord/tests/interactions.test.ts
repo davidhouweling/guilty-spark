@@ -1,8 +1,12 @@
 import type { AutoRouterType } from "itty-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
 import { InteractionType } from "discord-interactions";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { createApiRouter } from "../../../base/router";
 import { installFakeServicesWith } from "../../../services/fakes/services";
+import { aFakeLogServiceWith } from "../../../services/log/fakes/log.fake";
+import type { LogService } from "../../../services/log/types";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { discordInteractionsRoute } from "../interactions";
 import { pingInteraction } from "../../../services/discord/fakes/data";
@@ -151,5 +155,74 @@ describe("POST /interactions", () => {
 
     await router.fetch(req, env, ctx as EventContext<Env, "", unknown>);
     expect(waitUntilSpy).toHaveBeenCalledWith(expect.any(Promise));
+  });
+
+  describe("background job logging", () => {
+    let logService: LogService;
+    let waitUntilSpy: Mock<(promise: Promise<unknown>) => void>;
+
+    function routeWithJob(job: () => Promise<void>): void {
+      const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+        const services = installFakeServicesWith({ env, logService });
+        vi.spyOn(services.discordService, "verifyDiscordRequest").mockResolvedValue({
+          isValid: true,
+          interaction: pingInteraction,
+          rawBody: JSON.stringify(pingInteraction),
+        });
+        vi.spyOn(services.discordService, "handleInteraction").mockReturnValue({
+          response: new Response(JSON.stringify({ type: InteractionType.PING })),
+          jobToComplete: job,
+        });
+        return services;
+      });
+      discordInteractionsRoute(router, localInstallServices);
+    }
+
+    async function getWaitUntilJob(): Promise<{ job: Promise<unknown> }> {
+      const req = new Request("http://localhost/interactions", {
+        method: "POST",
+        body: JSON.stringify(pingInteraction),
+        headers: { "content-type": "application/json" },
+      });
+      const ctx: Partial<EventContext<Env, "", unknown>> = {
+        waitUntil: waitUntilSpy,
+        passThroughOnException: vi.fn(),
+      };
+      await router.fetch(req, env, ctx as EventContext<Env, "", unknown>);
+      return { job: Preconditions.checkExists(waitUntilSpy.mock.calls[0]?.[0]) };
+    }
+
+    beforeEach(() => {
+      logService = aFakeLogServiceWith();
+      waitUntilSpy = vi.fn<(promise: Promise<unknown>) => void>();
+    });
+
+    it("logs started and completed steps with interaction context", async () => {
+      const infoSpy = vi.spyOn(logService, "info");
+      routeWithJob(async () => Promise.resolve());
+
+      await (
+        await getWaitUntilJob()
+      ).job;
+
+      const messages = infoSpy.mock.calls.map(([message]) => message);
+      expect(messages).toContain("Discord interaction background job: started");
+      const [, extra] = Preconditions.checkExists(
+        infoSpy.mock.calls.find(([message]) => message === "Discord interaction background job: completed"),
+      );
+      expect(extra?.get("interactionType")).toBe(pingInteraction.type);
+      expect(extra?.get("step")).toBe("completed");
+    });
+
+    it("logs and rethrows when the background job fails", async () => {
+      const errorSpy = vi.spyOn(logService, "error");
+      const error = new Error("job failed");
+      routeWithJob(async () => Promise.reject(error));
+
+      await expect((await getWaitUntilJob()).job).rejects.toThrow("job failed");
+
+      expect(errorSpy).toHaveBeenCalledWith(error, expect.any(Map));
+      expect(errorSpy.mock.calls[0]?.[1]?.get("step")).toBe("failed");
+    });
   });
 });

@@ -14,6 +14,7 @@ import { NEAT_QUEUE_BOT_USER_ID } from "../../services/discord/discord";
 import type { PreservedMessageContent, QueueData } from "../../services/discord/discord";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
+import { JobProgressLogger } from "../../services/log/job-progress-logger";
 import type { StatsHandlerContext } from "./stats-handler-context";
 
 interface StatsNeatQueueCapabilities {
@@ -155,6 +156,14 @@ export class StatsNeatQueueHandler {
     const { databaseService, discordService, haloService, logService, neatQueueService } = this.services;
     let previousEndUserError: EndUserError | undefined;
     let seriesOverviewContent: PreservedMessageContent | undefined;
+    const progress = new JobProgressLogger(
+      logService,
+      "Stats NeatQueue in thread",
+      new Map([
+        ["guildId", interaction.guild_id ?? null],
+        ["threadId", interaction.channel.id],
+      ]),
+    );
 
     try {
       const guildId = Preconditions.checkExists(interaction.guild_id, "No guild ID found in interaction");
@@ -200,14 +209,24 @@ export class StatsNeatQueueHandler {
       }
 
       [previousEndUserError] = errorMessages;
+      progress.step(
+        "thread messages loaded",
+        new Map([
+          ["threadMessageCount", threadMessages.length],
+          ["previousErrorCount", errorMessages.length],
+        ]),
+      );
       if (
         previousEndUserError?.data["Channel"] != null &&
         previousEndUserError.data["Queue"] != null &&
         previousEndUserError.data["Completed"] != null
       ) {
+        progress.step("retrying from previous error");
         await neatQueueService.handleRetry({ errorEmbed: previousEndUserError, guildId, interaction });
+        progress.step("retry completed");
       } else {
         const queueData = await discordService.getTeamsFromMessage(guildId, queueMessage);
+        progress.step("queue teams resolved", new Map([["queueNumber", queueData.queue]]));
         const locale = interaction.guild_locale ?? interaction.locale;
         const startDateTime = subHours(queueData.timestamp, 6);
         const endDateTime = queueData.timestamp;
@@ -223,6 +242,7 @@ export class StatsNeatQueueHandler {
           startDateTime,
           endDateTime,
         });
+        progress.step("series resolved", new Map([["seriesMatchCount", series.length]]));
         const seriesEmbed = await this.capabilities.createSeriesEmbed({
           guildId,
           channelId: queueMessage.channel_id,
@@ -230,16 +250,20 @@ export class StatsNeatQueueHandler {
           queueData,
           series,
         });
+        progress.step("series overview embed built");
         await discordService.updateDeferredReply(interaction.token, {
           embeds: seriesEmbed.embeds,
           components: seriesEmbed.components,
         });
         seriesOverviewContent = seriesEmbed;
+        progress.step("deferred reply updated");
         await this.capabilities.cacheDiscordSeriesStats(guildId, queueData.queue, series, locale);
         await this.capabilities.postSeriesStatsToThread(threadChannelId, series, guildConfig, locale);
+        progress.step("series stats posted to thread");
         await haloService.updateDiscordAssociations();
       }
     } catch (error) {
+      progress.step("replying with error", new Map([["error", String(error)]]));
       if (error instanceof EndUserError) {
         error.appendData(previousEndUserError?.data ?? {});
       }
