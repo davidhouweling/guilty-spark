@@ -1,12 +1,25 @@
 export const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
-export function withTimeoutSignal(init: RequestInit | undefined, timeoutMs: number): RequestInit {
+function getCallerSignal(input: RequestInfo | URL, init: RequestInit | undefined): AbortSignal | null {
+  if (init?.signal != null) {
+    return init.signal;
+  }
+
+  return input instanceof Request ? input.signal : null;
+}
+
+export function withTimeoutSignal(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  timeoutMs: number,
+): RequestInit {
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = init?.signal != null ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
+  const callerSignal = getCallerSignal(input, init);
+  const signal = callerSignal != null ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
 
   return { ...init, signal };
 }
 
 export function createTimeoutFetch(fetchFn: typeof fetch, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS): typeof fetch {
-  return async (input, init) => fetchFn(input, withTimeoutSignal(init, timeoutMs));
+  return async (input, init) => fetchFn(input, withTimeoutSignal(input, init, timeoutMs));
 }

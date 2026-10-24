@@ -3,7 +3,7 @@ import { createTimeoutFetch, withTimeoutSignal } from "../fetch-timeout";
 
 describe("withTimeoutSignal", () => {
   it("adds a signal that aborts with a TimeoutError after the timeout", async () => {
-    const init = withTimeoutSignal(undefined, 5);
+    const init = withTimeoutSignal("https://example.com", undefined, 5);
 
     await vi.waitFor(() => {
       expect(init.signal?.aborted).toBe(true);
@@ -13,14 +13,24 @@ describe("withTimeoutSignal", () => {
   });
 
   it("preserves existing init properties", () => {
-    const init = withTimeoutSignal({ method: "POST", body: "data" }, 1000);
+    const init = withTimeoutSignal("https://example.com", { method: "POST", body: "data" }, 1000);
 
     expect(init).toMatchObject({ method: "POST", body: "data" });
   });
 
   it("aborts when the caller's signal aborts before the timeout", () => {
     const controller = new AbortController();
-    const init = withTimeoutSignal({ signal: controller.signal }, 60_000);
+    const init = withTimeoutSignal("https://example.com", { signal: controller.signal }, 60_000);
+
+    controller.abort();
+
+    expect(init.signal?.aborted).toBe(true);
+  });
+
+  it("aborts when the signal on a Request input aborts before the timeout", () => {
+    const controller = new AbortController();
+    const request = new Request("https://example.com", { signal: controller.signal });
+    const init = withTimeoutSignal(request, undefined, 60_000);
 
     controller.abort();
 
