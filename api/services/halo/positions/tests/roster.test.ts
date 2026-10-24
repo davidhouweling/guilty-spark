@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aFakeCtfMatchStatsWith } from "../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeRosterMemberWith } from "../fakes/biped-position.fake";
-import { buildRoster, isPresent, PRESENCE_TOLERANCE_MS } from "../roster";
+import { buildRoster, isPresent, mayBePresent, PRESENCE_TOLERANCE_MS } from "../roster";
 
 describe("buildRoster", () => {
   it("lists every player with their team and an open presence window when they played throughout", () => {
@@ -67,5 +67,16 @@ describe("isPresent", () => {
 
   it("treats an open window as present for the rest of the match", () => {
     expect(isPresent(aFakeRosterMemberWith(), 10_000_000)).toBe(true);
+  });
+});
+
+describe("mayBePresent", () => {
+  it("allows presence anywhere within the tolerance around the window", () => {
+    const member = aFakeRosterMemberWith({ presentFromMs: 10_000, presentToMs: 60_000 });
+
+    expect(mayBePresent(member, 10_000 - PRESENCE_TOLERANCE_MS)).toBe(true);
+    expect(mayBePresent(member, 10_000 - PRESENCE_TOLERANCE_MS - 1)).toBe(false);
+    expect(mayBePresent(member, 60_000 + PRESENCE_TOLERANCE_MS)).toBe(true);
+    expect(mayBePresent(member, 60_000 + PRESENCE_TOLERANCE_MS + 1)).toBe(false);
   });
 });

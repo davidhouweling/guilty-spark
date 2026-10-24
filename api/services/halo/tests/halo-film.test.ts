@@ -2477,6 +2477,12 @@ describe("HaloFilmService replication chunks", () => {
     );
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
+    for (const player of matchStats.Players) {
+      if (!["xuid(0100000000000000)", "xuid(0400000000000000)"].includes(player.PlayerId)) {
+        player.ParticipationInfo.LeftInProgress = true;
+        player.ParticipationInfo.LastLeaveTime = matchStats.MatchInfo.StartTime;
+      }
+    }
 
     const positions = await service.buildPlayerPositions(matchStats);
 

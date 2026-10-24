@@ -61,7 +61,7 @@ function nameLives(
   roster: readonly RosterMember[],
 ): BipedLife[] {
   const byDeaths = nameLivesByElimination(nameLivesBySlot(nameLivesByDeaths(lives, deaths)), roster);
-  return nameLivesByElimination(nameLivesBySlot(nameLivesByRespawnOrder(byDeaths, roster)), roster);
+  return nameLivesByElimination(nameLivesBySlot(nameLivesByRespawnOrder(byDeaths, deaths, roster)), roster);
 }
 
 export function buildPlayerPositions(

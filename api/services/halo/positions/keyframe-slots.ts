@@ -52,8 +52,7 @@ interface Candidate {
   readonly bit: number;
 }
 
-// consecutive slot first, then the lowest generation, slot and bit position
-function isBetter(candidate: Candidate, best: Candidate): boolean {
+function prefersConsecutiveThenLowest(candidate: Candidate, best: Candidate): boolean {
   if (candidate.consecutive !== best.consecutive) {
     return candidate.consecutive > best.consecutive;
   }
@@ -104,7 +103,7 @@ function scanNextAnchor(payload: Uint8Array, from: number, previousSlot: number,
       return bitPos;
     }
     const candidate: Candidate = { consecutive: slot === previousSlot + 1 ? 1 : 0, generation, slot, bit: bitPos };
-    if (at < 0 || isBetter(candidate, best)) {
+    if (at < 0 || prefersConsecutiveThenLowest(candidate, best)) {
       at = bitPos;
       best = candidate;
     }
@@ -120,13 +119,12 @@ class ArchetypeWidths {
 
   learn(archetype: number, width: number): void {
     const seenWidth = this.seen.get(archetype);
-    if (seenWidth == null) {
-      this.seen.set(archetype, width);
-    } else if (seenWidth === width) {
+    if (seenWidth === width) {
       this.trusted.set(archetype, width);
-    } else {
-      this.trusted.delete(archetype);
+      return;
     }
+    this.seen.set(archetype, width);
+    this.trusted.delete(archetype);
   }
 
   trustedWidth(archetype: number): number | null {

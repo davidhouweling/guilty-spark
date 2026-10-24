@@ -10,6 +10,7 @@ export const ISOLATION_GAP_MS = 15_000;
 export const MAX_AXIS_QUANTA_PER_SECOND = 12_000;
 const MAX_REJECT_STREAK = 3;
 
+// the kept samples come back slot by slot in time order
 export function dropIsolated(positions: readonly BipedPosition[]): BipedPosition[] {
   const kept: BipedPosition[] = [];
   for (const list of groupBySlot(positions).values()) {
@@ -25,7 +26,7 @@ export function dropIsolated(positions: readonly BipedPosition[]): BipedPosition
       }
     }
   }
-  return kept.sort((a, b) => a.timestampMs - b.timestampMs || a.slot - b.slot);
+  return kept;
 }
 
 function axisSpeed(from: BipedPosition, to: BipedPosition): number {
@@ -62,5 +63,5 @@ export function dropTeleports(positions: readonly BipedPosition[]): BipedPositio
       kept.push(position);
     }
   }
-  return kept.sort((a, b) => a.timestampMs - b.timestampMs || a.slot - b.slot);
+  return kept;
 }

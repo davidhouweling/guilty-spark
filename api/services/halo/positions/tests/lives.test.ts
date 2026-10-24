@@ -205,6 +205,17 @@ describe("nameLivesByElimination", () => {
     expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
   });
 
+  it("does not name a late joiner's first biped after a dead teammate", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 19_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 21_000, endMs: 24_000 }),
+    ];
+    const roster = [...rosterOf(A, B), aFakeRosterMemberWith({ xuid: C, presentFromMs: 20_000 })];
+
+    expect(nameLivesByElimination(lives, roster).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
   it("does not expect a biped from a player outside their participation window", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
@@ -244,7 +255,7 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 40_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, B, A]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, B, A]);
   });
 
   it("skips a player whose named life overlaps the new one", () => {
@@ -255,7 +266,7 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 515, startMs: 20_000, endMs: 30_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, B]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, B]);
   });
 
   it("leaves a life unnamed when nobody has died before it or the wait is implausible", () => {
@@ -265,7 +276,7 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 50_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, null]);
   });
 
   it("leaves a life unnamed when two players have been dead for exactly as long", () => {
@@ -275,7 +286,7 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 40_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("leaves a life in an owned slot to the slot pass", () => {
@@ -285,7 +296,37 @@ describe("nameLivesByRespawnOrder", () => {
       aFakeBipedLifeWith({ slot: 513, startMs: 37_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesByRespawnOrder(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
+  it("counts a player's unmatched death from the death feed when ranking who has waited longest", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 15_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 0, endMs: 12_000 }),
+      aFakeBipedLifeWith({ slot: 515, startMs: 17_000, endMs: 40_000 }),
+      aFakeBipedLifeWith({ slot: 516, startMs: 20_000, endMs: 40_000 }),
+    ];
+    const deaths = [aFakeDeathEventWith({ timestampMs: 12_000, xuid: C })];
+
+    expect(nameLivesByRespawnOrder(lives, deaths, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([
+      A,
+      B,
+      null,
+      A,
+      C,
+    ]);
+  });
+
+  it("does not guess while a member who may be present has neither spawned nor died", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 60_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 21_000, endMs: 40_000 }),
+    ];
+    const roster = [...rosterOf(A, B), aFakeRosterMemberWith({ xuid: C, presentFromMs: 20_000 })];
+
+    expect(nameLivesByRespawnOrder(lives, [], roster).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("does not hand a respawn to a player who has left the match", () => {
@@ -296,6 +337,6 @@ describe("nameLivesByRespawnOrder", () => {
     ];
     const roster = [aFakeRosterMemberWith({ xuid: A, presentToMs: 10_000 }), aFakeRosterMemberWith({ xuid: B })];
 
-    expect(nameLivesByRespawnOrder(lives, roster).map((life) => life.xuid)).toEqual([A, B, B]);
+    expect(nameLivesByRespawnOrder(lives, [], roster).map((life) => life.xuid)).toEqual([A, B, B]);
   });
 });

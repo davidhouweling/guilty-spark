@@ -7,7 +7,6 @@
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/ctf-validate-positions.ts <matchId> [--levelup=<positions.csv>]
  */
 import { readFileSync } from "node:fs";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { earliestTimestampUs, packetTimestampMs, walkFramePackets } from "../services/halo/statborg/bit-reader";
 import { detectAxisLayout } from "../services/halo/positions/axis-layout";
 import { scanChunkPositions } from "../services/halo/positions/build-player-positions";
@@ -30,7 +29,8 @@ const positions = await haloFilmService.buildPlayerPositions(matchStats);
 console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,
 );
-const gamertags = new Map(matchStats.Players.map((player) => [unwrapXuid(player.PlayerId), player.PlayerId]));
+const highlightEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
+const gamertags = new Map(highlightEvents.map((event) => [event.xuid, event.gamertag]));
 for (const track of positions.tracks) {
   const samples = track.lives.reduce((sum, life) => sum + life.samples.length, 0);
   const span = track.lives.map((life) => `${fmtMs(life.startMs)}-${fmtMs(life.endMs)}`).join(" ");

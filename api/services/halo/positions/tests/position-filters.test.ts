@@ -19,19 +19,19 @@ describe("dropIsolated", () => {
     expect(dropIsolated([first, other])).toEqual([]);
   });
 
-  it("orders the kept samples by time then slot", () => {
+  it("returns the kept samples slot by slot in time order", () => {
     const positions = [
-      aFakeBipedPositionWith({ slot: 513, timestampMs: 1000 }),
-      aFakeBipedPositionWith({ slot: 512, timestampMs: 1000 }),
       aFakeBipedPositionWith({ slot: 513, timestampMs: 1100 }),
       aFakeBipedPositionWith({ slot: 512, timestampMs: 1100 }),
+      aFakeBipedPositionWith({ slot: 513, timestampMs: 1000 }),
+      aFakeBipedPositionWith({ slot: 512, timestampMs: 1000 }),
     ];
 
-    expect(dropIsolated(positions).map((position) => [position.timestampMs, position.slot])).toEqual([
-      [1000, 512],
-      [1000, 513],
-      [1100, 512],
-      [1100, 513],
+    expect(dropIsolated(positions).map((position) => [position.slot, position.timestampMs])).toEqual([
+      [512, 1000],
+      [512, 1100],
+      [513, 1000],
+      [513, 1100],
     ]);
   });
 });
