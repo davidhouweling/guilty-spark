@@ -1,5 +1,6 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import { createHaloInfiniteClientProxy } from "@guilty-spark/shared/halo/halo-infinite-client-proxy";
+import { trackerDirectoryEntrySchema } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { installFollowLiveService } from "../../services/follow/install";
 import type { FollowLiveService } from "../../services/follow/follow-types";
@@ -23,7 +24,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   if (getMode() === "FAKE") {
     const [
       { aFakeFollowLiveServiceWith },
-      { aFakeIndividualTrackerViewServiceWith },
+      { aFakeIndividualTrackerViewServiceWith, aFakeTrackerViewStateWith },
       { aFakeCtfMatchAnalyticsWith, aFakeMatchAnalyticsServiceWith },
       { aFakeSeriesMatchesServiceWith },
       { aFakeHaloClientWith },
@@ -35,9 +36,13 @@ export async function installServices(apiHost: string): Promise<Services> {
       import("../../services/fakes/halo-client.fake"),
     ]);
     const haloClient = aFakeHaloClientWith();
+    // the fake directory lists the fake tracker view's own tracker so the viewer can open its matches
+    const fakeTracker = trackerDirectoryEntrySchema.parse(aFakeTrackerViewStateWith());
 
     return {
-      followLiveService: aFakeFollowLiveServiceWith(),
+      followLiveService: aFakeFollowLiveServiceWith({
+        directory: { trackers: [fakeTracker], liveTrackerId: fakeTracker.trackerId, streamerSettings: {} },
+      }),
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
