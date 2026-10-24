@@ -4,6 +4,9 @@ import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-pr
 import type {
   ChartType,
   ChartTypeOption,
+  CtfViewData,
+  FlagRunMarkerLegendEntry,
+  FlagRunsViewModel,
   KothHillData,
   OddballRoundData,
   PlayerAdvantageData,
@@ -33,6 +36,15 @@ const DELTA_LABEL = "Score Delta";
 const TIMELINE_OPTION: ChartTypeOption = { value: "timeline", label: "Objective Timeline" };
 const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Score Progression" };
 const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
+const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
+const FLAG_PROGRESS_LABEL = "of the way to the capture point";
+const FLAG_MARKER_LEGEND: readonly FlagRunMarkerLegendEntry[] = [
+  { kind: "steal", text: "Steal" },
+  { kind: "grab", text: "Pickup" },
+  { kind: "drop", text: "Carrier killed" },
+  { kind: "return", text: "Returned" },
+  { kind: "capture", text: "Captured" },
+];
 
 export class ScoreProgressionPresenter {
   readonly onChartTypeChange: (value: string) => void;
@@ -66,22 +78,31 @@ export class ScoreProgressionPresenter {
         if (zoneStrip == null) {
           return this.presentScoreLines(snapshot, scoreLines, ariaLabel, this.buildChartTypeOptions(scoreLines));
         }
-        return this.presentMode(snapshot, ariaLabel, scoreLines.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, scoreLines.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => [this.buildZoneStripRow(zoneStrip)],
           scoreLines,
           defaultChartType: "progression",
         });
       }
       case "koth": {
-        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
       }
       case "oddball": {
-        return this.presentMode(snapshot, ariaLabel, viewData.durationMs, {
+        return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
+          scoreLines: viewData.scoreLines,
+          defaultChartType: "timeline",
+        });
+      }
+      case "ctf": {
+        return this.presentMode(snapshot, ariaLabel, {
+          timelineOption: FLAG_RUNS_OPTION,
+          presentTimeline: (chartTypeOptions): FlagRunsViewModel =>
+            this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
@@ -92,8 +113,7 @@ export class ScoreProgressionPresenter {
     }
   }
 
-  // an unset chart type resolves to the mode's default, whose option group leads the select
-  private presentMode(
+  private presentGanttMode(
     snapshot: ScoreProgressionSnapshot,
     ariaLabel: string,
     durationMs: number,
@@ -103,13 +123,71 @@ export class ScoreProgressionPresenter {
       defaultChartType: ChartType;
     },
   ): ScoreProgressionViewModel {
-    const { buildRows, scoreLines, defaultChartType } = mode;
+    return this.presentMode(snapshot, ariaLabel, {
+      timelineOption: TIMELINE_OPTION,
+      presentTimeline: (chartTypeOptions): TimelineGanttChartViewModel =>
+        this.presentTimelineGantt(ariaLabel, durationMs, mode.buildRows(), chartTypeOptions),
+      scoreLines: mode.scoreLines,
+      defaultChartType: mode.defaultChartType,
+    });
+  }
+
+  private presentFlagRuns(
+    viewData: CtfViewData,
+    ariaLabel: string,
+    chartTypeOptions: readonly ChartTypeOption[],
+  ): FlagRunsViewModel {
+    return {
+      kind: "flag-runs",
+      ariaLabel,
+      effectiveChartType: "timeline",
+      chartTypeOptions,
+      showChartTypeSelect: chartTypeOptions.length > 1,
+      legend: viewData.legend,
+      markerLegend: FLAG_MARKER_LEGEND,
+      chart: {
+        durationMs: viewData.durationMs,
+        runs: viewData.runs,
+        points: viewData.points,
+        tooltipFormatter: (value, name): [string, string] => this.formatFlagProgressTooltip(value, name),
+      },
+      onChartTypeChange: this.onChartTypeChange,
+    };
+  }
+
+  private formatFlagProgressTooltip(
+    value: number | string | readonly (number | string)[] | undefined,
+    name: string | number | undefined,
+  ): [string, string] {
+    const label = this.toTooltipLabel(name);
+    if (typeof value !== "number" || Number.isNaN(value)) {
+      return [String(value ?? ""), label];
+    }
+    return [`${String(Math.abs(Math.round(value)))}% ${FLAG_PROGRESS_LABEL}`, label];
+  }
+
+  private toTooltipLabel(name: string | number | undefined): string {
+    return typeof name === "string" ? name : String(name ?? "");
+  }
+
+  // an unset chart type resolves to the mode's default, whose option group leads the select
+  private presentMode(
+    snapshot: ScoreProgressionSnapshot,
+    ariaLabel: string,
+    mode: {
+      timelineOption: ChartTypeOption;
+      presentTimeline: (chartTypeOptions: readonly ChartTypeOption[]) => ScoreProgressionViewModel;
+      scoreLines: ScoreLinesViewData | null;
+      defaultChartType: ChartType;
+    },
+  ): ScoreProgressionViewModel {
+    const { timelineOption, presentTimeline, scoreLines, defaultChartType } = mode;
     const scoreOptions = this.buildChartTypeOptions(scoreLines);
     const chartTypeOptions =
-      defaultChartType === "timeline" ? [TIMELINE_OPTION, ...scoreOptions] : [...scoreOptions, TIMELINE_OPTION];
+      defaultChartType === "timeline" ? [timelineOption, ...scoreOptions] : [...scoreOptions, timelineOption];
     const wantsTimeline = (snapshot.chartType ?? defaultChartType) === "timeline";
     if (scoreLines == null || wantsTimeline) {
-      return this.presentTimelineGantt(ariaLabel, durationMs, buildRows(), chartTypeOptions);
+      return presentTimeline(chartTypeOptions);
     }
     return this.presentScoreLines(snapshot, scoreLines, ariaLabel, chartTypeOptions);
   }
@@ -203,7 +281,6 @@ export class ScoreProgressionPresenter {
       showPlayerAdvantage,
       showMarkers,
       showZoneAdvantage,
-      showToolbar: showChartTypeSelect || hasPlayerAdvantage || hasMarkers || hasZoneAdvantage,
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,
@@ -326,7 +403,7 @@ export class ScoreProgressionPresenter {
   ): [string, string] {
     return this.formatSeriesTooltip(value, name, team0Name, team1Name, () => [
       String(value ?? ""),
-      typeof name === "string" ? name : String(name ?? ""),
+      this.toTooltipLabel(name),
     ]);
   }
 

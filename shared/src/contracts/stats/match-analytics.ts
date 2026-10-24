@@ -116,6 +116,44 @@ export type StrongholdsZoneEvent = z.infer<typeof strongholdsZoneEventSchema>;
 export type StrongholdsZoneCountSample = z.infer<typeof strongholdsZoneCountSampleSchema>;
 export type StrongholdsTimeline = z.infer<typeof strongholdsTimelineSchema>;
 
+// CTF scores only on captures, so the score curve is a step series of capture events; the flag
+// itself is described per run (one pull of a flag off its stand until it is captured, returned,
+// auto-returned or the match ends) as its progress toward the capture point over time.
+const ctfCaptureEventSchema = progressionEventSchema;
+
+const ctfFlagRunEventSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  kind: z.enum(["steal", "grab", "drop", "return", "capture"]),
+});
+
+const ctfProgressSampleSchema = z.object({
+  timestampMs: z.number().int().nonnegative(),
+  progress: z.number().min(0).max(1),
+});
+
+const ctfFlagRunSchema = z.object({
+  flagTeamId: z.number().int().nonnegative(),
+  carrierTeamId: z.number().int().nonnegative(),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  outcome: z.enum(["capture", "return", "autoReturn", "matchEnd"]),
+  samples: z.array(ctfProgressSampleSchema),
+  events: z.array(ctfFlagRunEventSchema),
+});
+
+const ctfTimelineSchema = z.object({
+  type: z.literal("ctf"),
+  events: z.array(ctfCaptureEventSchema),
+  runs: z.array(ctfFlagRunSchema),
+  ...deathOverlaySchema.shape,
+});
+
+export type CtfCaptureEvent = z.infer<typeof ctfCaptureEventSchema>;
+export type CtfFlagRunEvent = z.infer<typeof ctfFlagRunEventSchema>;
+export type CtfProgressSample = z.infer<typeof ctfProgressSampleSchema>;
+export type CtfFlagRun = z.infer<typeof ctfFlagRunSchema>;
+export type CtfTimeline = z.infer<typeof ctfTimelineSchema>;
+
 export const killMatrixEntrySchema = z.object({
   count: z.number().int().nonnegative().describe("Total kills for this killer/victim pair"),
   perfects: z.number().int().nonnegative().describe("Perfect medal kill count for this killer/victim pair"),
@@ -161,6 +199,7 @@ export const matchAnalyticsSchema = z.object({
         kothTimelineSchema,
         oddballTimelineSchema,
         strongholdsTimelineSchema,
+        ctfTimelineSchema,
       ]),
     })
     .nullable(),

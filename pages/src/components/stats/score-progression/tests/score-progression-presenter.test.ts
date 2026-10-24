@@ -7,6 +7,7 @@ import { aFakeOddballRoundDataWith } from "../fakes/oddball-round-data.fake";
 import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake";
 import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
+import { aFakeCtfViewDataWith } from "../fakes/ctf-view-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -249,30 +250,6 @@ describe("ScoreProgressionPresenter", () => {
     });
   });
 
-  describe("showToolbar", () => {
-    it("sets showToolbar true when scoreDelta is non-null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(
-        presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
-      );
-      expect(model.showToolbar).toBe(true);
-    });
-
-    it("sets showToolbar true when playerAdvantage is non-null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(
-        presenter.present(store.getSnapshot(), aScoreLinesInput({ playerAdvantage: aFakePlayerAdvantageData() })),
-      );
-      expect(model.showToolbar).toBe(true);
-    });
-
-    it("sets showToolbar false when both scoreDelta and playerAdvantage are null", () => {
-      const { store, presenter } = makePresenter();
-      const model = asScoreLines(presenter.present(store.getSnapshot(), aScoreLinesInput()));
-      expect(model.showToolbar).toBe(false);
-    });
-  });
-
   describe("player advantage", () => {
     it("sets hasPlayerAdvantage true when playerAdvantage is non-null", () => {
       const { store, presenter } = makePresenter();
@@ -363,7 +340,6 @@ describe("ScoreProgressionPresenter", () => {
       );
       expect(model.hasZoneAdvantage).toBe(true);
       expect(model.hasMarkers).toBe(true);
-      expect(model.showToolbar).toBe(true);
     });
 
     it("passes null zoneAdvantage to the charts until the toggle is enabled", () => {
@@ -817,5 +793,71 @@ describe("ScoreProgressionPresenter", () => {
         { key: "1", color: null, text: "Cobra: 0" },
       ]);
     });
+  });
+});
+
+describe("ScoreProgressionPresenter ctf", () => {
+  function asFlagRuns(model: ScoreProgressionViewModel): Extract<ScoreProgressionViewModel, { kind: "flag-runs" }> {
+    if (model.kind !== "flag-runs") {
+      throw new Error("expected flag-runs view model");
+    }
+    return model;
+  }
+
+  it("presents the flag runs by default with the legend and the runs passed through", () => {
+    const { store, presenter } = makePresenter();
+    const viewData = aFakeCtfViewDataWith();
+
+    const model = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "flags" }));
+
+    expect(model.ariaLabel).toBe("flags");
+    expect(model.effectiveChartType).toBe("timeline");
+    expect(model.chart.runs).toBe(viewData.runs);
+    expect(model.chart.durationMs).toBe(120000);
+    expect(model.chart.points).toBe(viewData.points);
+    expect(model.legend).toBe(viewData.legend);
+    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "drop", "return", "capture"]);
+  });
+
+  it("hides the chart type select when no capture happened", () => {
+    const { store, presenter } = makePresenter();
+    const model = asFlagRuns(
+      presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+    );
+
+    expect(model.showChartTypeSelect).toBe(false);
+    expect(model.chartTypeOptions).toEqual([{ value: "timeline", label: "Flag Runs" }]);
+  });
+
+  it("offers the score charts after the flag runs when captures exist, and switches to them", () => {
+    const { store, presenter } = makePresenter();
+    const viewData = aFakeCtfViewDataWith({
+      scoreLines: aFakeScoreLinesViewDataWith({ scoreDelta: aFakeScoreDeltaData() }),
+    });
+
+    const flagRuns = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+    expect(flagRuns.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+    expect(flagRuns.showChartTypeSelect).toBe(true);
+
+    flagRuns.onChartTypeChange("progression");
+    const scoreLines = presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" });
+    expect(scoreLines.kind).toBe("score-lines");
+    expect(scoreLines.effectiveChartType).toBe("progression");
+
+    scoreLines.onChartTypeChange("timeline");
+    expect(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }).kind).toBe("flag-runs");
+  });
+
+  it("formats the tooltip as unsigned progress toward the capture point", () => {
+    const { store, presenter } = makePresenter();
+    const model = asFlagRuns(
+      presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+    );
+
+    expect(model.chart.tooltipFormatter(-86, "Cobra flag · Eagle carrying")).toEqual([
+      "86% of the way to the capture point",
+      "Cobra flag · Eagle carrying",
+    ]);
+    expect(model.chart.tooltipFormatter(undefined, "x")).toEqual(["", "x"]);
   });
 });

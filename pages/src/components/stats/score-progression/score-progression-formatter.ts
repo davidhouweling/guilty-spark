@@ -1,9 +1,20 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { DeathOverlay, KillRaceEvent, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type {
+  CtfTimeline,
+  DeathOverlay,
+  KillRaceEvent,
+  MatchAnalytics,
+} from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
+import {
+  MATCH_SKEW_TOLERANCE_MS,
+  buildFlagRunLegend,
+  buildFlagRuns,
+  buildFlagRunsChartPoints,
+} from "./modes/ctf/ctf-view-model";
 import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
@@ -180,6 +191,22 @@ function buildTeamLines(
   return teamLines;
 }
 
+function mergeRunningScores(records: readonly Record<string, number>[]): Record<string, number> {
+  const merged: Record<string, number> = {};
+  for (const record of records) {
+    Object.assign(merged, record);
+  }
+  return merged;
+}
+
+// boundary defense: a film clock can stamp the final capture a little past the duration, which
+// is clamped onto the axis; anything further out is bad data and dropped
+function clampEventsToDuration(events: readonly KillRaceEvent[], durationMs: number): KillRaceEvent[] {
+  return events
+    .filter((event) => event.timestampMs <= durationMs + MATCH_SKEW_TOLERANCE_MS)
+    .map((event) => ({ ...event, timestampMs: Math.min(event.timestampMs, durationMs) }));
+}
+
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
@@ -228,6 +255,20 @@ function buildSampledScoreLines(
   };
 }
 
+function resolveTeamsFromIds(teamIds: readonly number[], teamColors: readonly TeamColor[]): ResolvedTeams | null {
+  if (teamIds.length === 0) {
+    return null;
+  }
+  const sortedTeamIds = [...teamIds].sort((a, b) => a - b);
+  const teamColorByTeamId = new Map(
+    sortedTeamIds.map((teamId, slotIndex) => [
+      teamId,
+      teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
+    ]),
+  );
+  return { teamIds: sortedTeamIds, teamColorByTeamId };
+}
+
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
@@ -235,19 +276,35 @@ function resolveTeams(
   if (scoresByTeamId == null) {
     return null;
   }
-  const teamIds = Object.keys(scoresByTeamId)
-    .map(Number)
-    .sort((a, b) => a - b);
-  if (teamIds.length === 0) {
-    return null;
-  }
-  const teamColorByTeamId = new Map(
-    teamIds.map((teamId, slotIndex) => [
-      teamId,
-      teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
-    ]),
+  return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
+}
+
+function resolveCtfTeams(
+  captureEvents: readonly KillRaceEvent[],
+  runs: CtfTimeline["runs"],
+  teamColors: readonly TeamColor[],
+): ResolvedTeams | null {
+  const teamIds = new Set(
+    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
   );
-  return { teamIds, teamColorByTeamId };
+  const runCounts = new Map<number, number>();
+  for (const run of runs) {
+    // a run carried by the flag's own team is malformed and cannot vouch for a roster
+    if (run.carrierTeamId === run.flagTeamId) {
+      continue;
+    }
+    for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
+      runCounts.set(teamId, (runCounts.get(teamId) ?? 0) + 1);
+    }
+  }
+  const runTeamIds = [...runCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
+  for (const teamId of runTeamIds) {
+    if (teamIds.size >= 2) {
+      break;
+    }
+    teamIds.add(teamId);
+  }
+  return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
 export function formatScoreProgression(
@@ -285,13 +342,7 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      // round score records may be sparse, so a team missing from one round must still resolve —
-      // union the scores across all rounds
-      const mergedRoundScores: Record<string, number> = {};
-      for (const round of timeline.rounds) {
-        Object.assign(mergedRoundScores, round.scores);
-      }
-      const teams = resolveTeams(timeline.rounds.length > 0 ? mergedRoundScores : undefined, teamColors);
+      const teams = resolveTeams(mergeRunningScores(timeline.rounds.map((round) => round.scores)), teamColors);
       if (teams == null) {
         return null;
       }
@@ -304,13 +355,7 @@ export function formatScoreProgression(
       };
     }
     case "strongholds": {
-      // strongholds records may be sparse, so a team missing from the first sample must still
-      // resolve — union the scores across all samples
-      const mergedScores: Record<string, number> = {};
-      for (const event of timeline.events) {
-        Object.assign(mergedScores, event.runningScores);
-      }
-      const teams = resolveTeams(timeline.events.length > 0 ? mergedScores : undefined, teamColors);
+      const teams = resolveTeams(mergeRunningScores(timeline.events.map((event) => event.runningScores)), teamColors);
       if (teams == null) {
         return null;
       }
@@ -331,6 +376,27 @@ export function formatScoreProgression(
           zoneAdvantage: buildZoneAdvantage(zoneWindows, durationMs),
           roundBoundaries: [],
         },
+      };
+    }
+    case "ctf": {
+      const captureEvents = clampEventsToDuration(timeline.events, durationMs);
+      const teams = resolveCtfTeams(captureEvents, timeline.runs, teamColors);
+      if (teams == null) {
+        return null;
+      }
+      const scoreLines =
+        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
+      const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      if (runs.length === 0) {
+        return scoreLines;
+      }
+      return {
+        kind: "ctf",
+        durationMs,
+        runs,
+        points: buildFlagRunsChartPoints(runs),
+        legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
+        scoreLines,
       };
     }
     default: {

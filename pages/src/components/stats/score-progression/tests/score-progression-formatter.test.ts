@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { formatScoreProgression } from "../score-progression-formatter";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
 import { aFakeStrongholdsTimelineWith } from "../modes/strongholds/fakes/strongholds-timeline.fake";
+import { aFakeCtfFlagRunWith } from "../modes/ctf/fakes/ctf-flag-run.fake";
+import { aFakeCtfTimelineWith } from "../modes/ctf/fakes/ctf-timeline.fake";
 import type {
+  CtfViewData,
   KothViewData,
   OddballViewData,
   ScoreLinesViewData,
@@ -45,6 +49,13 @@ function asKoth(result: ScoreProgressionViewData | null): KothViewData {
 function asOddball(result: ScoreProgressionViewData | null): OddballViewData {
   if (result?.kind !== "oddball") {
     throw new Error("expected oddball view data");
+  }
+  return result;
+}
+
+function asCtf(result: ScoreProgressionViewData | null): CtfViewData {
+  if (result?.kind !== "ctf") {
+    throw new Error("expected ctf view data");
   }
   return result;
 }
@@ -744,5 +755,158 @@ describe("formatScoreProgression", () => {
       expect(result.markers).toBeNull();
       expect(result.zoneAdvantage).toBeNull();
     });
+  });
+});
+
+describe("formatScoreProgression ctf", () => {
+  function aCtfProgression(timeline = aFakeCtfTimelineWith()): NonNullable<MatchAnalytics["scoreProgression"]> {
+    return aFakeScoreProgressionWith({ mode: 15, durationMs: 120000, timeline });
+  }
+
+  it("builds flag runs in team colours and a capture step score line", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
+
+    expect(result.durationMs).toBe(120000);
+    expect(result.runs.map((run) => [run.seriesName, run.color])).toEqual([
+      ["Eagle flag · Cobra carrying", "#ff0000"],
+      ["Cobra flag · Eagle carrying", "#0000ff"],
+    ]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    const { scoreLines } = result;
+    expect(scoreLines?.teamLines.map((line) => line.points.at(-1)?.score)).toEqual([0, 1]);
+    expect(scoreLines?.playerAdvantage).not.toBeNull();
+  });
+
+  it("offers no score line when nobody captured but still resolves the teams from the runs", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [] })), TEAM_COLORS));
+
+    expect(result.scoreLines).toBeNull();
+    expect(result.runs).toHaveLength(2);
+  });
+
+  it("clamps a capture stamped past the match duration onto the score line's end", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 120040, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    const cobra = result.scoreLines?.teamLines.find((line) => line.teamId === 1);
+    expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
+  });
+
+  it("drops a capture stamped well past the match duration from the score line", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [
+        { timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+        { timestampMs: 300000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    const cobra = result.scoreLines?.teamLines.find((line) => line.teamId === 1);
+    expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
+  });
+
+  it("rejects a capture beyond the match-end tolerance from both the score line and the run", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 121500, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [
+        aFakeCtfFlagRunWith({
+          startMs: 100000,
+          endMs: 121500,
+          samples: [{ timestampMs: 110000, progress: 0.4 }],
+          events: [{ timestampMs: 121500, kind: "capture" }],
+        }),
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.scoreLines).toBeNull();
+    expect(result.runs[0].reset).toBeNull();
+    expect(result.runs[0].markers).toEqual([]);
+  });
+
+  it("ignores a capture beyond the match-end tolerance when resolving the teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [
+        { timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+        { timestampMs: 300000, teamId: 2, runningScores: { "0": 0, "1": 1, "2": 1 } },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
+  it("exposes the shared chart rows alongside the runs", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
+    expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
+    expect(result.points).toHaveLength(8);
+  });
+
+  it("falls back to the capture score lines when no run can be drawn", () => {
+    const timeline = aFakeCtfTimelineWith({ runs: [] });
+    const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
+    expect(result?.kind).toBe("score-lines");
+  });
+
+  it("falls back to the capture score lines when the records carry more than two teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1, "2": 0 } }],
+    });
+    const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
+    expect(result?.kind).toBe("score-lines");
+  });
+
+  it("completes the roster from the runs when a sparse capture record names only the scorer", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+  });
+
+  it("resolves the teams from the captures even when a run names a team outside the match", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [...aFakeCtfTimelineWith().runs, aFakeCtfFlagRunWith({ carrierTeamId: 3 })],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines?.teamLines.map((line) => line.teamId)).toEqual([0, 1]);
+  });
+
+  it("ignores run teams once the captures already name two teams", () => {
+    const malformed = aFakeCtfFlagRunWith({ carrierTeamId: 5 });
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [aFakeCtfFlagRunWith(), malformed, malformed],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(1);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
+  it("ignores a same-team run when inferring the roster of a 0-0 match", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [aFakeCtfFlagRunWith(), aFakeCtfFlagRunWith({ flagTeamId: 2, carrierTeamId: 2 })],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(1);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
+  it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [...aFakeCtfTimelineWith().runs, aFakeCtfFlagRunWith({ carrierTeamId: 3 })],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.scoreLines).toBeNull();
+  });
+
+  it("returns null when the timeline has neither captures nor runs", () => {
+    expect(
+      formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [], runs: [] })), TEAM_COLORS),
+    ).toBeNull();
   });
 });

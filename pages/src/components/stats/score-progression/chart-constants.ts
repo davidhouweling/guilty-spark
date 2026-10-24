@@ -143,3 +143,18 @@ export function playerAdvantageAreaProps(): AdvantageAreaProps {
 export function zoneAdvantageAreaProps(): AdvantageAreaProps {
   return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE);
 }
+
+const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
+
+function formatFlagAxisTick(value: number): string {
+  return value === 0 ? "home" : `${String(Math.abs(value))}%`;
+}
+
+export function flagAxisProps(): {
+  domain: [number, number];
+  ticks: number[];
+  width: number;
+  tickFormatter: (value: number) => string;
+} {
+  return { domain: [-100, 100], ticks: [...FLAG_AXIS_TICKS], width: 40, tickFormatter: formatFlagAxisTick };
+}

@@ -140,9 +140,62 @@ export interface OddballViewData {
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
-export type ScoreProgressionViewData = ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData;
+export type FlagRunMarkerKind = "steal" | "grab" | "drop" | "return" | "capture";
+
+// progress is a signed percentage: positive for the first team's flag (carried by the second
+// team), negative for the second team's flag, so the two flags mirror around the home line
+export interface FlagRunPoint {
+  readonly timestampMs: number;
+  readonly progress: number;
+}
+
+export interface FlagRunMarkerData {
+  readonly timestampMs: number;
+  readonly progress: number;
+  readonly kind: FlagRunMarkerKind;
+}
+
+export interface FlagRunResetData {
+  readonly timestampMs: number;
+  readonly fromProgress: number;
+}
+
+export interface FlagRunData {
+  readonly runIndex: number;
+  readonly seriesKey: string;
+  readonly seriesName: string;
+  readonly color: string;
+  readonly points: readonly FlagRunPoint[];
+  readonly markers: readonly FlagRunMarkerData[];
+  readonly reset: FlagRunResetData | null;
+}
+
+export interface FlagRunLegendEntry {
+  readonly key: string;
+  readonly color: string;
+  readonly text: string;
+}
+
+export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
+
+export interface CtfViewData {
+  readonly kind: "ctf";
+  readonly durationMs: number;
+  readonly runs: readonly FlagRunData[];
+  readonly points: readonly FlagRunsChartPoint[];
+  readonly legend: readonly FlagRunLegendEntry[];
+  readonly scoreLines: ScoreLinesViewData | null;
+}
+
+export type ScoreProgressionViewData =
+  ScoreLinesViewData | StrongholdsViewData | KothViewData | OddballViewData | CtfViewData;
 
 export type ChartType = "timeline" | "progression" | "delta";
+
+export type TooltipFormatter = (
+  value: number | string | readonly (number | string)[] | undefined,
+  name: string | number | undefined,
+) => [string, string];
 
 export interface ChartTypeOption {
   readonly value: ChartType;
@@ -158,10 +211,7 @@ export interface ScoreProgressionDeltaViewModel {
   readonly zoneAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
   readonly roundBoundaries: readonly number[];
-  readonly tooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ) => [string, string];
+  readonly tooltipFormatter: TooltipFormatter;
 }
 
 export interface ScoreProgressionProgressionViewModel {
@@ -172,10 +222,7 @@ export interface ScoreProgressionProgressionViewModel {
   readonly advantageDomain: readonly [number, number] | null;
   readonly markers: readonly ScoreMarkerData[] | null;
   readonly roundBoundaries: readonly number[];
-  readonly tooltipFormatter: (
-    value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
-  ) => [string, string];
+  readonly tooltipFormatter: TooltipFormatter;
 }
 
 export interface ScoreLinesViewModel {
@@ -190,7 +237,6 @@ export interface ScoreLinesViewModel {
   readonly showPlayerAdvantage: boolean;
   readonly showMarkers: boolean;
   readonly showZoneAdvantage: boolean;
-  readonly showToolbar: boolean;
   readonly deltaViewModel: ScoreProgressionDeltaViewModel | null;
   readonly progressionViewModel: ScoreProgressionProgressionViewModel;
   readonly onChartTypeChange: (value: string) => void;
@@ -209,4 +255,28 @@ export interface TimelineGanttChartViewModel {
   readonly onChartTypeChange: (value: string) => void;
 }
 
-export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel;
+export interface FlagRunsChartViewModel {
+  readonly durationMs: number;
+  readonly runs: readonly FlagRunData[];
+  readonly points: readonly FlagRunsChartPoint[];
+  readonly tooltipFormatter: TooltipFormatter;
+}
+
+export interface FlagRunMarkerLegendEntry {
+  readonly kind: FlagRunMarkerKind;
+  readonly text: string;
+}
+
+export interface FlagRunsViewModel {
+  readonly kind: "flag-runs";
+  readonly ariaLabel: string;
+  readonly effectiveChartType: ChartType;
+  readonly chartTypeOptions: readonly ChartTypeOption[];
+  readonly showChartTypeSelect: boolean;
+  readonly legend: readonly FlagRunLegendEntry[];
+  readonly markerLegend: readonly FlagRunMarkerLegendEntry[];
+  readonly chart: FlagRunsChartViewModel;
+  readonly onChartTypeChange: (value: string) => void;
+}
+
+export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel | FlagRunsViewModel;
