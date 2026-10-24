@@ -9,7 +9,12 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
-import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "./modes/ctf/ctf-view-model";
+import {
+  MATCH_SKEW_TOLERANCE_MS,
+  buildFlagRunLegend,
+  buildFlagRuns,
+  buildFlagRunsChartPoints,
+} from "./modes/ctf/ctf-view-model";
 import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
@@ -196,11 +201,9 @@ function mergeRunningScores(records: readonly Record<string, number>[]): Record<
 
 // boundary defense: a film clock can stamp the final capture a little past the duration, which
 // is clamped onto the axis; anything further out is bad data and dropped
-const EVENT_SKEW_TOLERANCE_MS = 1_000;
-
 function clampEventsToDuration(events: readonly KillRaceEvent[], durationMs: number): KillRaceEvent[] {
   return events
-    .filter((event) => event.timestampMs <= durationMs + EVENT_SKEW_TOLERANCE_MS)
+    .filter((event) => event.timestampMs <= durationMs + MATCH_SKEW_TOLERANCE_MS)
     .map((event) => ({ ...event, timestampMs: Math.min(event.timestampMs, durationMs) }));
 }
 
@@ -276,12 +279,16 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-function resolveCtfTeams(timeline: CtfTimeline, teamColors: readonly TeamColor[]): ResolvedTeams | null {
+function resolveCtfTeams(
+  captureEvents: readonly KillRaceEvent[],
+  runs: CtfTimeline["runs"],
+  teamColors: readonly TeamColor[],
+): ResolvedTeams | null {
   const teamIds = new Set(
-    Object.keys(mergeRunningScores(timeline.events.map((event) => event.runningScores))).map(Number),
+    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
   );
   const runCounts = new Map<number, number>();
-  for (const run of timeline.runs) {
+  for (const run of runs) {
     // a run carried by the flag's own team is malformed and cannot vouch for a roster
     if (run.carrierTeamId === run.flagTeamId) {
       continue;
@@ -372,11 +379,11 @@ export function formatScoreProgression(
       };
     }
     case "ctf": {
-      const teams = resolveCtfTeams(timeline, teamColors);
+      const captureEvents = clampEventsToDuration(timeline.events, durationMs);
+      const teams = resolveCtfTeams(captureEvents, timeline.runs, teamColors);
       if (teams == null) {
         return null;
       }
-      const captureEvents = clampEventsToDuration(timeline.events, durationMs);
       const scoreLines =
         captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
       const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);

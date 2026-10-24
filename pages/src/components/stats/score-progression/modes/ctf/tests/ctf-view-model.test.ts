@@ -182,7 +182,7 @@ describe("buildFlagRuns", () => {
     expect(run.markers).toEqual([{ timestampMs: 60000, progress: 100, kind: "capture" }]);
   });
 
-  it("keeps a capture marker whose run overran the match by more than the skew tolerance", () => {
+  it("draws a run captured beyond the match-end tolerance as cut off, without the capture", () => {
     const timeline = aFakeCtfTimelineWith({
       runs: [
         {
@@ -191,13 +191,15 @@ describe("buildFlagRuns", () => {
           startMs: 100000,
           endMs: 121500,
           outcome: "capture",
-          samples: [],
+          samples: [{ timestampMs: 110000, progress: 0.4 }],
           events: [{ timestampMs: 121500, kind: "capture" }],
         },
       ],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.markers).toEqual([{ timestampMs: 120000, progress: 100, kind: "capture" }]);
+    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: 40 });
+    expect(run.markers).toEqual([]);
+    expect(run.reset).toBeNull();
   });
 
   it("orders runs by start time regardless of payload order", () => {

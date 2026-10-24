@@ -805,6 +805,36 @@ describe("formatScoreProgression ctf", () => {
     expect(cobra?.points.at(-1)).toEqual({ timestampMs: 120000, score: 1 });
   });
 
+  it("rejects a capture beyond the match-end tolerance from both the score line and the run", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 121500, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [
+        aFakeCtfFlagRunWith({
+          startMs: 100000,
+          endMs: 121500,
+          samples: [{ timestampMs: 110000, progress: 0.4 }],
+          events: [{ timestampMs: 121500, kind: "capture" }],
+        }),
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.scoreLines).toBeNull();
+    expect(result.runs[0].reset).toBeNull();
+    expect(result.runs[0].markers).toEqual([]);
+  });
+
+  it("ignores a capture beyond the match-end tolerance when resolving the teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [
+        { timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+        { timestampMs: 300000, teamId: 2, runningScores: { "0": 0, "1": 1, "2": 1 } },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+    expect(result.runs).toHaveLength(2);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+  });
+
   it("exposes the shared chart rows alongside the runs", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });

@@ -33,13 +33,13 @@ interface RunPoints {
   readonly endProgress: number;
 }
 
-function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection): RunPoints {
+function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection, captured: boolean): RunPoints {
   const points: FlagRunPoint[] = [{ timestampMs: run.startMs, progress: 0 }];
   for (const [timestampMs, progress] of orderedSamplesWithin(run, endMs)) {
     points.push({ timestampMs, progress: toSignedPercent(progress, direction) });
   }
   const last = Preconditions.checkExists(points.at(-1), "a run always has its start point");
-  const endProgress = run.outcome === "capture" ? FULL_PROGRESS * direction : last.progress;
+  const endProgress = captured ? FULL_PROGRESS * direction : last.progress;
   if (last.timestampMs === endMs) {
     points[points.length - 1] = { timestampMs: endMs, progress: endProgress };
   } else {
@@ -48,8 +48,9 @@ function buildRunPoints(run: CtfFlagRun, endMs: number, direction: RunDirection)
   return { points, endProgress };
 }
 
-// film-clock skew can stamp an event a little outside its run; anything further out is bad data
-const MARKER_SKEW_TOLERANCE_MS = 1_000;
+// film-clock skew can stamp an event or a run end a little outside the match or its run; anything
+// further out is bad data
+export const MATCH_SKEW_TOLERANCE_MS = 1_000;
 
 const MARKER_KIND_BY_EVENT: Record<CtfFlagRunEvent["kind"], FlagRunMarkerKind> = {
   steal: "steal",
@@ -63,8 +64,8 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
   const markers: FlagRunMarkerData[] = [];
   for (const event of run.events) {
     if (
-      event.timestampMs < run.startMs - MARKER_SKEW_TOLERANCE_MS ||
-      event.timestampMs > run.endMs + MARKER_SKEW_TOLERANCE_MS
+      event.timestampMs < run.startMs - MATCH_SKEW_TOLERANCE_MS ||
+      event.timestampMs > endMs + MATCH_SKEW_TOLERANCE_MS
     ) {
       continue;
     }
@@ -78,8 +79,14 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
   return markers;
 }
 
-function buildRunReset(run: CtfFlagRun, endMs: number, endProgress: number): FlagRunData["reset"] {
-  return run.outcome === "matchEnd" ? null : { timestampMs: endMs, fromProgress: endProgress };
+// a run whose end lands beyond the match-end tolerance is drawn as cut off: its in-match portion
+// stays, but the capture or return the film placed after the match is not depicted
+function finishesWithinMatch(run: CtfFlagRun, durationMs: number): boolean {
+  return run.outcome !== "matchEnd" && run.endMs <= durationMs + MATCH_SKEW_TOLERANCE_MS;
+}
+
+function buildRunReset(finished: boolean, endMs: number, endProgress: number): FlagRunData["reset"] {
+  return finished ? { timestampMs: endMs, fromProgress: endProgress } : null;
 }
 
 export function buildFlagRuns(
@@ -107,7 +114,8 @@ export function buildFlagRuns(
     }
     const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;
     const endMs = Math.min(run.endMs, durationMs);
-    const { points, endProgress } = buildRunPoints(run, endMs, direction);
+    const finished = finishesWithinMatch(run, durationMs);
+    const { points, endProgress } = buildRunPoints(run, endMs, direction, finished && run.outcome === "capture");
     const runIndex = runs.length + 1;
     runs.push({
       runIndex,
@@ -116,7 +124,7 @@ export function buildFlagRuns(
       color,
       points,
       markers: buildRunMarkers(run, points, endMs),
-      reset: buildRunReset(run, endMs, endProgress),
+      reset: buildRunReset(finished, endMs, endProgress),
     });
   }
   return runs;
