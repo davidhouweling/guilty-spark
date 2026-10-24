@@ -375,11 +375,14 @@ export function createResilientFetch({
 
       logService.info(`Proxying request via URL rewrite: ${url} -> ${transformedUrl}`);
 
-      response = await fetch(transformedUrl, withTimeoutSignal({ ...init, headers: proxiedHeaders }, requestTimeoutMs));
+      response = await fetch(
+        transformedUrl,
+        withTimeoutSignal(input, { ...init, headers: proxiedHeaders }, requestTimeoutMs),
+      );
     } else {
       // JSON-RPC style (existing behavior for backward compatibility)
       logService.info(`Proxying request via JSON-RPC: ${url}`);
-      response = await fetch(input, withTimeoutSignal(init, requestTimeoutMs));
+      response = await fetch(input, withTimeoutSignal(input, init, requestTimeoutMs));
     }
 
     logCacheStatus(response, url, true);
@@ -424,7 +427,7 @@ export function createResilientFetch({
     }
 
     async function fetchWithRetry(attempt = 1): Promise<Response> {
-      const response = await fetch(input, withTimeoutSignal(init, requestTimeoutMs));
+      const response = await fetch(input, withTimeoutSignal(input, init, requestTimeoutMs));
 
       logCacheStatus(response, url);
 
