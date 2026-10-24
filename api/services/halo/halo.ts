@@ -368,6 +368,14 @@ export class HaloService {
       return freshUsers;
     }
 
+    this.logService.debug(
+      `HaloService: Fetching ${missingXuids.length.toString()} users by xuid`,
+      new Map([
+        ["missingXuids", missingXuids.join(", ")],
+        ["freshCount", freshUsers.length.toString()],
+        ["staleCount", staleUsers.length.toString()],
+      ]),
+    );
     const fetchedUsers = await this.fetchWithResilientFallback(
       async () =>
         this.infiniteClient.getUsers(missingXuids, {
@@ -1529,6 +1537,9 @@ export class HaloService {
     }
 
     const { xboxGamertags, xboxGamertagMap } = await this.getXboxGamertagMap(xboxXuids);
+    this.logService.debug(
+      `HaloService: Resolved ${xboxGamertags.length.toString()} Xbox gamertags for ${unassociatedUsers.length.toString()} unassociated Discord users`,
+    );
 
     if (xboxGamertags.length === 0) {
       this.logService.debug("HaloService: No Xbox gamertags found for fuzzy matching, skipping");
