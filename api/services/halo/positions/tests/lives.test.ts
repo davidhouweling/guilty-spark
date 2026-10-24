@@ -7,7 +7,6 @@ import {
 } from "../fakes/biped-position.fake";
 import {
   alignDeathsToFilm,
-  bestDeathOffset,
   buildLives,
   nameLivesByDeaths,
   nameLivesByElimination,
@@ -54,16 +53,27 @@ describe("buildLives", () => {
     ]);
   });
 
+  it("drops a life made of a single sample", () => {
+    const positions = [
+      aFakeBipedPositionWith({ slot: 512, timestampMs: 1000 }),
+      aFakeBipedPositionWith({ slot: 512, timestampMs: 1100 }),
+      aFakeBipedPositionWith({ slot: 512, timestampMs: 9000 }),
+    ];
+
+    expect(buildLives(positions).map((life) => [life.startMs, life.endMs])).toEqual([[1000, 1100]]);
+  });
+
   it("keeps a short gap inside one life and orders lives by slot", () => {
     const positions = [
       aFakeBipedPositionWith({ slot: 513, timestampMs: 1000 }),
+      aFakeBipedPositionWith({ slot: 513, timestampMs: 1100 }),
       aFakeBipedPositionWith({ slot: 512, timestampMs: 1000 }),
       aFakeBipedPositionWith({ slot: 512, timestampMs: 5000 }),
     ];
 
     expect(buildLives(positions).map((life) => [life.slot, life.startMs, life.endMs])).toEqual([
       [512, 1000, 5000],
-      [513, 1000, 1000],
+      [513, 1000, 1100],
     ]);
   });
 
@@ -72,7 +82,7 @@ describe("buildLives", () => {
   });
 });
 
-describe("bestDeathOffset", () => {
+describe("nameLivesByDeaths offset", () => {
   it("returns the centre of the offset plateau that pairs the most deaths", () => {
     const lives = [aFakeBipedLifeWith({ endMs: 10_000 }), aFakeBipedLifeWith({ slot: 513, endMs: 20_000 })];
     const deaths = [
@@ -80,7 +90,7 @@ describe("bestDeathOffset", () => {
       aFakeDeathEventWith({ timestampMs: 19_900, xuid: B }),
     ];
 
-    expect(bestDeathOffset(lives, deaths)).toBe(100);
+    expect(nameLivesByDeaths(lives, deaths).offsetMs).toBe(100);
   });
 
   it("counts each death once so a cluster of lives cannot pull the offset", () => {
@@ -94,11 +104,11 @@ describe("bestDeathOffset", () => {
       aFakeDeathEventWith({ timestampMs, xuid: `0${String(index + 1)}00000000000000` }),
     );
 
-    expect(bestDeathOffset(lives, deaths)).toBe(0);
+    expect(nameLivesByDeaths(lives, deaths).offsetMs).toBe(0);
   });
 
   it("returns zero without deaths", () => {
-    expect(bestDeathOffset([aFakeBipedLifeWith()], [])).toBe(0);
+    expect(nameLivesByDeaths([aFakeBipedLifeWith()], []).offsetMs).toBe(0);
   });
 });
 
@@ -308,7 +318,17 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 50_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesBySlot(lives).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
+    expect(nameLivesBySlot(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
+  });
+
+  it("does not extend a slot's owner onto a life before the owner joined", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 520, startMs: 100_000, endMs: 150_000 }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 320_000, endMs: 340_000, xuid: B }),
+    ];
+    const roster = [aFakeRosterMemberWith({ xuid: A }), aFakeRosterMemberWith({ xuid: B, presentFromMs: 300_000 })];
+
+    expect(nameLivesBySlot(lives, roster).map((life) => life.xuid)).toEqual([null, B]);
   });
 
   it("does not extend a slot's owner onto a life that overlaps the owner's other life", () => {
@@ -318,7 +338,7 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 520, startMs: 40_000, endMs: 50_000 }),
     ];
 
-    expect(nameLivesBySlot(lives).map((life) => life.xuid)).toEqual([A, A, null]);
+    expect(nameLivesBySlot(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null]);
   });
 });
 

@@ -71,7 +71,7 @@ function collectSamples(
       return null;
     }
     samples.push({ slot: header.slot, chunk, packet, bits: readWindowBits(payload, header.positionBit) });
-    return header.positionBit + DETECT_WINDOW_BITS / 2;
+    return header.positionBit + Math.floor(DETECT_WINDOW_BITS / 2);
   });
   return samples;
 }

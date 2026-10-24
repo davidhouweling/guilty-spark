@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { walkChunk } from "../services/halo/statborg/bit-reader";
 import { decodePositions, namePositions } from "../services/halo/positions/build-player-positions";
 import { dropIsolated } from "../services/halo/positions/position-filters";
-import { createScriptServices, fmtMs } from "./script-services";
+import { createScriptServices, fmtMs, gamertagsByXuid } from "./script-services";
 
 const MATCH_ID = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "5e3900a6-69ee-42f6-9a79-5146e8802a0c";
 const LEVELUP_CSV = process.argv.find((arg) => arg.startsWith("--levelup="))?.slice("--levelup=".length);
@@ -23,10 +23,8 @@ if (matchStats == null) {
 }
 
 const startedAt = performance.now();
-const [chunks, deaths] = await Promise.all([
-  haloFilmService.getCompleteReplicationChunks(MATCH_ID),
-  haloFilmService.getDeathEvents(MATCH_ID),
-]);
+const deaths = await haloFilmService.getDeathEvents(MATCH_ID);
+const chunks = await haloFilmService.getCompleteReplicationChunks(MATCH_ID);
 const walked = chunks.map(walkChunk);
 const decoded = decodePositions(walked, MATCH_ID);
 const positions = namePositions(decoded, matchStats, deaths);
@@ -34,7 +32,7 @@ console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,
 );
 const highlightEvents = await haloFilmService.getHighlightEventsForMatch(MATCH_ID);
-const gamertags = new Map(highlightEvents.map((event) => [event.xuid, event.gamertag]));
+const gamertags = gamertagsByXuid(highlightEvents);
 for (const track of positions.tracks) {
   const samples = track.lives.reduce((sum, life) => sum + life.samples.length, 0);
   const span = track.lives.map((life) => `${fmtMs(life.startMs)}-${fmtMs(life.endMs)}`).join(" ");

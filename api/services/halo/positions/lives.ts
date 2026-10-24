@@ -7,6 +7,8 @@ import type { BipedLife, BipedPosition, DeathEvent, DeathNaming, RosterMember } 
 export const LIFE_GAP_MS = 5_000;
 const MIN_RESPAWN_MS = 1_000;
 const MAX_RESPAWN_MS = 30_000;
+// a lone sample that survived the isolation filter is a chance match, not a life
+const MIN_LIFE_SAMPLES = 2;
 // the footer death clock and the packet clock share a base; the search covers residual drift
 const DEATH_MATCH_WINDOW_MS = 150;
 const OFFSET_SEARCH_MS = 2_000;
@@ -33,10 +35,12 @@ export function buildLives(positions: readonly BipedPosition[]): BipedLife[] {
       current.samples.push(position);
     }
   }
-  return lives.map((life) => ({
-    ...life,
-    samples: life.samples.map((position) => ({ timestampMs: position.timestampMs, q: position.q })),
-  }));
+  return lives
+    .filter((life) => life.samples.length >= MIN_LIFE_SAMPLES)
+    .map((life) => ({
+      ...life,
+      samples: life.samples.map((position) => ({ timestampMs: position.timestampMs, q: position.q })),
+    }));
 }
 
 interface Pairing {
@@ -94,10 +98,15 @@ function nearbyPairs(
 
 // a death can end a life whose end falls inside the window; a life that began before its
 // owner's previous death is impossible
+function isFeasible(pair: NearbyPair, offsetMs: number): boolean {
+  return (
+    Math.abs(pair.delta - offsetMs) <= DEATH_MATCH_WINDOW_MS && (pair.startGap == null || pair.startGap > offsetMs)
+  );
+}
+
 function feasiblePairs(pairs: readonly NearbyPair[], offsetMs: number): Pairing[] {
   return pairs
-    .filter((pair) => Math.abs(pair.delta - offsetMs) <= DEATH_MATCH_WINDOW_MS)
-    .filter((pair) => pair.startGap == null || pair.startGap > offsetMs)
+    .filter((pair) => isFeasible(pair, offsetMs))
     .map(({ deathIndex, lifeIndex }) => ({ deathIndex, lifeIndex }));
 }
 
@@ -152,8 +161,7 @@ function matchedCount(pairs: readonly NearbyPair[], offsetMs: number): number {
   const usedDeaths = new Set<number>();
   const usedLives = new Set<number>();
   const ordered = pairs
-    .filter((pair) => Math.abs(pair.delta - offsetMs) <= DEATH_MATCH_WINDOW_MS)
-    .filter((pair) => pair.startGap == null || pair.startGap > offsetMs)
+    .filter((pair) => isFeasible(pair, offsetMs))
     .sort((a, b) => Math.abs(a.delta - offsetMs) - Math.abs(b.delta - offsetMs));
   for (const pair of ordered) {
     if (!usedDeaths.has(pair.deathIndex) && !usedLives.has(pair.lifeIndex)) {
@@ -178,10 +186,6 @@ function plateauCentre(pairs: readonly NearbyPair[]): number {
     }
   }
   return plateau[Math.floor(plateau.length / 2)] ?? 0;
-}
-
-export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): number {
-  return plateauCentre(nearbyPairs(lives, deaths, previousDeathByIndex(deaths)));
 }
 
 export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
@@ -220,12 +224,18 @@ function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
 
 // a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
 // one name a slot's lives agree on extends to the slot's unnamed lives
-export function nameLivesBySlot(lives: readonly BipedLife[]): BipedLife[] {
+// a name extends to another life only where the owner may be present and has no other biped
+function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
+  const member = roster.find((candidate) => candidate.xuid === owner);
+  return member != null && mayBePresent(member, life.startMs) && !overlapsNamedLife(lives, owner, life);
+}
+
+export function nameLivesBySlot(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
   const owners = slotOwners(lives);
   return lives.map((life) => {
     const set = owners.get(life.slot);
     const [owner] = set ?? [];
-    if (life.xuid != null || set?.size !== 1 || owner == null || overlapsNamedLife(lives, owner, life)) {
+    if (life.xuid != null || set?.size !== 1 || owner == null || !canOwn(lives, roster, owner, life)) {
       return life;
     }
     return { ...life, xuid: owner };
@@ -417,9 +427,9 @@ function longestWaitingPlayer(
   return longest.xuid;
 }
 
-function nameSlot(lives: BipedLife[], slot: number, owner: string): void {
+function nameSlot(lives: BipedLife[], roster: readonly RosterMember[], slot: number, owner: string): void {
   for (const [index, life] of lives.entries()) {
-    if (life.slot === slot && life.xuid == null && !overlapsNamedLife(lives, owner, life)) {
+    if (life.slot === slot && life.xuid == null && canOwn(lives, roster, owner, life)) {
       lives[index] = { ...life, xuid: owner };
     }
   }
@@ -435,7 +445,7 @@ export function nameLivesByRespawnOrder(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const named = nameLivesBySlot(lives);
+  const named = nameLivesBySlot(lives, roster);
   const order = [...named.keys()].sort((a, b) => (named[a]?.startMs ?? 0) - (named[b]?.startMs ?? 0));
   for (const index of order) {
     const life = named[index];
@@ -444,7 +454,7 @@ export function nameLivesByRespawnOrder(
     }
     const owner = longestWaitingPlayer(named, deaths, roster, life);
     if (owner != null) {
-      nameSlot(named, life.slot, owner);
+      nameSlot(named, roster, life.slot, owner);
     }
   }
   return named;

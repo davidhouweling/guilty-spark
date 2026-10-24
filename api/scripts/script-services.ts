@@ -78,3 +78,7 @@ export function fmtMs(ms: number): string {
   const s = Math.floor(ms / 1000);
   return `${Math.floor(s / 60).toString()}:${(s % 60).toString().padStart(2, "0")}`;
 }
+
+export function gamertagsByXuid(events: readonly { xuid: string; gamertag: string }[]): Map<string, string> {
+  return new Map(events.map((event) => [event.xuid, event.gamertag]));
+}

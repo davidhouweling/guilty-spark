@@ -71,6 +71,20 @@ function groupTracks(lives: readonly BipedLife[], roster: readonly RosterMember[
   return tracks.sort((a, b) => a.xuid.localeCompare(b.xuid));
 }
 
+function namingRound(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+): BipedLife[] {
+  const settled = nameLivesByElimination(nameLivesBySlot(lives, roster), deaths, roster);
+  return nameLivesByElimination(nameLivesByRespawnOrder(settled, deaths, roster), deaths, roster);
+}
+
+function namedCount(lives: readonly BipedLife[]): number {
+  return lives.filter((life) => life.xuid != null).length;
+}
+
+// each pass can unlock another, so the round repeats until no further life is named
 function nameLives(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
@@ -79,9 +93,13 @@ function nameLives(
   const byDeaths = nameLivesByDeaths(lives, deaths);
   const filmDeaths = alignDeathsToFilm(deaths, byDeaths.offsetMs);
   const filmRoster = alignRosterToFilm(roster, byDeaths.offsetMs);
-  const settled = nameLivesByElimination(nameLivesBySlot(byDeaths.lives), filmDeaths, filmRoster);
-  const byRespawn = nameLivesByRespawnOrder(settled, filmDeaths, filmRoster);
-  return nameLivesBySlot(nameLivesByElimination(byRespawn, filmDeaths, filmRoster));
+  let named = byDeaths.lives;
+  let before = -1;
+  while (namedCount(named) !== before) {
+    before = namedCount(named);
+    named = namingRound(named, filmDeaths, filmRoster);
+  }
+  return nameLivesBySlot(named, filmRoster);
 }
 
 export function namePositions(
