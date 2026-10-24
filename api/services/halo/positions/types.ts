@@ -49,3 +49,34 @@ export interface RosterMember {
   readonly presentFromMs: number;
   readonly presentToMs: number;
 }
+
+export interface SlotPrefilter {
+  readonly bits: number;
+  readonly value: number;
+}
+
+export interface BipedHeader {
+  readonly slot: number;
+  readonly positionBit: number;
+}
+
+export interface ScannedBiped {
+  readonly slot: number;
+  readonly q: Quantum3;
+}
+
+export interface FlipProfile {
+  readonly pairs: number;
+  readonly flipRates: readonly number[];
+}
+
+export interface DecodedPositions {
+  readonly layout: AxisLayout;
+  readonly slots: ReadonlySet<number>;
+  readonly scanned: readonly BipedPosition[];
+}
+
+export interface DeathNaming {
+  readonly lives: BipedLife[];
+  readonly offsetMs: number;
+}

@@ -215,11 +215,10 @@ export class HaloFilmService {
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
+  // the death feed is read first so a cold film metadata cache is filled once, not twice
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
-    const [chunks, deaths] = await Promise.all([
-      this.getCompleteReplicationChunks(matchStats.MatchId),
-      this.getDeathEvents(matchStats.MatchId),
-    ]);
+    const deaths = await this.getDeathEvents(matchStats.MatchId);
+    const chunks = await this.getCompleteReplicationChunks(matchStats.MatchId);
     return buildPlayerPositions(chunks, matchStats, deaths);
   }
 

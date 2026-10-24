@@ -35,6 +35,10 @@ function axisSpeed(from: BipedPosition, to: BipedPosition): number {
   return distance / elapsedS;
 }
 
+function isSameSample(a: BipedPosition, b: BipedPosition): boolean {
+  return a.timestampMs === b.timestampMs && a.q.every((value, axis) => value === b.q[axis]);
+}
+
 function isTeleport(anchor: BipedPosition | null, position: BipedPosition, streak: number): boolean {
   if (anchor == null || streak >= MAX_REJECT_STREAK || position.timestampMs - anchor.timestampMs > LIFE_GAP_MS) {
     return false;
@@ -53,6 +57,9 @@ export function dropTeleports(positions: readonly BipedPosition[]): BipedPositio
     for (const position of list) {
       if (isTeleport(anchor, position, streak)) {
         streak += 1;
+        continue;
+      }
+      if (anchor != null && isSameSample(anchor, position)) {
         continue;
       }
       anchor = position;

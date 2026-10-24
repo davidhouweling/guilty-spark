@@ -1,6 +1,6 @@
 import { byTimestamp, groupBySlot } from "./group-by-slot";
 import { isPresent, mayBePresent } from "./roster";
-import type { BipedLife, BipedPosition, DeathEvent, RosterMember } from "./types";
+import type { BipedLife, BipedPosition, DeathEvent, DeathNaming, RosterMember } from "./types";
 
 // a gap this long inside one slot opens a new life: far above the replication cadence and
 // well below the respawn time
@@ -186,11 +186,6 @@ export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly De
 
 export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
   return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
-}
-
-export interface DeathNaming {
-  readonly lives: BipedLife[];
-  readonly offsetMs: number;
 }
 
 export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): DeathNaming {
@@ -393,13 +388,22 @@ function respawnWait(
   return wait >= MIN_RESPAWN_MS && wait <= MAX_RESPAWN_MS ? wait : null;
 }
 
+// an unnamed life still open at this instant belongs to someone, so some candidate's wait is
+// not what it seems and no guess is made
+function hasOpenUnnamedLife(lives: readonly BipedLife[], life: BipedLife): boolean {
+  return lives.some((other) => other !== life && other.xuid == null && covers(other, life.startMs));
+}
+
 function longestWaitingPlayer(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
   life: BipedLife,
 ): string | null {
-  if (roster.some((member) => hasNeverSpawned(lives, deaths, member, life.startMs))) {
+  if (
+    hasOpenUnnamedLife(lives, life) ||
+    roster.some((member) => hasNeverSpawned(lives, deaths, member, life.startMs))
+  ) {
     return null;
   }
   const waits = roster

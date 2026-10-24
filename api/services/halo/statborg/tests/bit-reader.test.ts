@@ -122,7 +122,10 @@ describe("datedFrames", () => {
 
     const frames = datedFrames(chunk);
 
-    expect(frames.map((frame) => frame.timestampMs)).toEqual([5200, 5000]);
+    expect(frames.map((frame) => [frame.timestampMs, frame.timestampUs])).toEqual([
+      [5200, 1_200_000n],
+      [5000, 1_000_000n],
+    ]);
     expect(frames[0]?.payload).toEqual(chunk.data.subarray(16, 24));
   });
 

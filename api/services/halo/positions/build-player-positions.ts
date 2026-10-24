@@ -16,10 +16,10 @@ import {
 import { dropIsolated, dropTeleports } from "./position-filters";
 import { alignRosterToFilm, buildRoster } from "./roster";
 import type {
-  AxisLayout,
   BipedLife,
   BipedPosition,
   DeathEvent,
+  DecodedPositions,
   PlayerPositions,
   PlayerPositionTrack,
   RosterMember,
@@ -33,12 +33,6 @@ export class PositionDecodeError extends Error {
     super(message);
     this.name = "PositionDecodeError";
   }
-}
-
-export interface DecodedPositions {
-  readonly layout: AxisLayout;
-  readonly slots: ReadonlySet<number>;
-  readonly scanned: readonly BipedPosition[];
 }
 
 export function scanChunkPositions(chunk: WalkedChunk, scanner: BipedRecordScanner): BipedPosition[] {

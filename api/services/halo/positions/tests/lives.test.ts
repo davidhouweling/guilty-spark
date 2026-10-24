@@ -428,6 +428,25 @@ describe("nameLivesByRespawnOrder", () => {
     expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, A, A, B]);
   });
 
+  it("does not guess while an unnamed life is still open at the start", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 12_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 40_000 }),
+      aFakeBipedLifeWith({ slot: 515, startMs: 25_000, endMs: 40_000 }),
+    ];
+    const roster = [...rosterOf(A, B), aFakeRosterMemberWith({ xuid: C, presentFromMs: 20_000 })];
+    const cLife = aFakeBipedLifeWith({ slot: 516, startMs: 22_000, endMs: 40_000, xuid: C });
+
+    expect(nameLivesByRespawnOrder([...lives, cLife], [], roster).map((life) => life.xuid)).toEqual([
+      A,
+      B,
+      null,
+      null,
+      C,
+    ]);
+  });
+
   it("does not hand a respawn to a player who has left the match", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),

@@ -7,12 +7,7 @@
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/ctf-validate-positions.ts <matchId> [--levelup=<positions.csv>]
  */
 import { readFileSync } from "node:fs";
-import {
-  earliestTimestampUs,
-  packetTimestampMs,
-  walkChunk,
-  walkFramePackets,
-} from "../services/halo/statborg/bit-reader";
+import { walkChunk } from "../services/halo/statborg/bit-reader";
 import { decodePositions, namePositions } from "../services/halo/positions/build-player-positions";
 import { dropIsolated } from "../services/halo/positions/position-filters";
 import { createScriptServices, fmtMs } from "./script-services";
@@ -32,7 +27,8 @@ const [chunks, deaths] = await Promise.all([
   haloFilmService.getCompleteReplicationChunks(MATCH_ID),
   haloFilmService.getDeathEvents(MATCH_ID),
 ]);
-const decoded = decodePositions(chunks.map(walkChunk), MATCH_ID);
+const walked = chunks.map(walkChunk);
+const decoded = decodePositions(walked, MATCH_ID);
 const positions = namePositions(decoded, matchStats, deaths);
 console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,
@@ -59,15 +55,9 @@ if (LEVELUP_CSV != null) {
   const ourKeys = new Set(ours.map((position) => key(position.slot, position.timestampMs, position.q)));
   const msByUs = new Map<bigint, number>();
   let clockCollisions = 0;
-  for (const chunk of chunks) {
-    const frames = walkFramePackets(chunk.data);
-    const originUs = earliestTimestampUs(frames);
-    for (const frame of frames) {
-      if (originUs != null) {
-        clockCollisions += msByUs.has(frame.timestampUs) ? 1 : 0;
-        msByUs.set(frame.timestampUs, packetTimestampMs(chunk.startMs, originUs, frame));
-      }
-    }
+  for (const frame of walked.flatMap((chunk) => chunk.frames)) {
+    clockCollisions += msByUs.has(frame.timestampUs) ? 1 : 0;
+    msByUs.set(frame.timestampUs, frame.timestampMs);
   }
   if (clockCollisions > 0) {
     console.log(`WARNING: ${String(clockCollisions)} frame clocks repeat across chunks; parity keys may collide`);

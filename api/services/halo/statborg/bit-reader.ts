@@ -95,6 +95,7 @@ export function walkFramePackets(data: Uint8Array): FramePacket[] {
 
 export interface DatedFrame {
   timestampMs: number;
+  timestampUs: bigint;
   payload: Uint8Array;
 }
 
@@ -105,6 +106,7 @@ function dateFrames(chunk: ReplicationChunk, frames: readonly FramePacket[]): Da
   }
   return frames.map((frame) => ({
     timestampMs: packetTimestampMs(chunk.startMs, originUs, frame),
+    timestampUs: frame.timestampUs,
     payload: chunk.data.subarray(frame.payloadOffset, frame.payloadOffset + frame.payloadSize),
   }));
 }

@@ -1,5 +1,5 @@
 import { readBitsBE } from "../statborg/bit-reader";
-import type { AxisLayout, Quantum3 } from "./types";
+import type { AxisLayout, BipedHeader, Quantum3, ScannedBiped, SlotPrefilter } from "./types";
 
 // Biped delta record (LevelUp filmdec/offline_biped.go, validated to the exact quantum):
 //   [1 prefix=1][13 slot][2 tag=01][2 = 00][3 mask count][6 bits x count component indices]
@@ -9,11 +9,6 @@ export const BIPED_INDEX_BITS = 6;
 export const BIPED_SLOT_BITS = 13;
 const MIN_MASK_COUNT = 2;
 const MAX_MASK_COUNT = 7;
-
-export interface BipedHeader {
-  readonly slot: number;
-  readonly positionBit: number;
-}
 
 export function axisOffset(layout: AxisLayout, axis: number): number {
   let offset = layout.gateBits;
@@ -69,20 +64,13 @@ function isSaturated(q: Quantum3, layout: AxisLayout): boolean {
   return q.some((value, axis) => value === 0 || value === 2 ** (layout.axisWidths[axis] ?? 0) - 1);
 }
 
-export interface ScannedBiped {
-  readonly slot: number;
-  readonly q: Quantum3;
-}
-
 // Every record starts with the prefix bit and a slot from one contiguous band, so the leading
 // bits every slot in the band shares form a fixed pattern after the prefix; sliding a 24-bit
 // window byte by byte finds candidates without a per-bit header decode.
-export interface SlotPrefilter {
-  readonly bits: number;
-  readonly value: number;
-}
-
-export function slotPrefilter(slots: ReadonlySet<number>): SlotPrefilter {
+export function slotPrefilter(slots: ReadonlySet<number>): SlotPrefilter | null {
+  if (slots.size === 0) {
+    return null;
+  }
   const lowest = Math.min(...slots);
   const highest = Math.max(...slots);
   let shared = 0;
@@ -137,7 +125,7 @@ export class BipedRecordScanner {
     private readonly slots: ReadonlySet<number>,
     private readonly layout: AxisLayout,
   ) {
-    this.prefilter = slots.size === 0 ? null : slotPrefilter(slots);
+    this.prefilter = slotPrefilter(slots);
     this.componentBits = layoutBits(layout);
     this.axisOffsets = [axisOffset(layout, 0), axisOffset(layout, 1), axisOffset(layout, 2)];
   }

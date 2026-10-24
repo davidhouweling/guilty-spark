@@ -21,6 +21,10 @@ describe("slotPrefilter", () => {
   it("matches only the prefix bit when the band spans every slot", () => {
     expect(slotPrefilter(new Set([0, 8191]))).toEqual({ bits: 1, value: 1 });
   });
+
+  it("has no prefilter for an empty band", () => {
+    expect(slotPrefilter(new Set())).toBeNull();
+  });
 });
 
 describe("BipedRecordScanner", () => {

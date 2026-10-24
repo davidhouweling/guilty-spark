@@ -56,10 +56,9 @@ describe("dropTeleports", () => {
 
   it("treats a different position at the same instant as a teleport", () => {
     const anchor = aFakeBipedPositionWith({ timestampMs: 1000, q: [1000, 1000, 1000] });
-    const duplicate = aFakeBipedPositionWith({ timestampMs: 1000, q: [1000, 1000, 1000] });
     const conflicting = aFakeBipedPositionWith({ timestampMs: 1000, q: [1001, 1000, 1000] });
 
-    expect(dropTeleports([anchor, duplicate, conflicting])).toEqual([anchor, duplicate]);
+    expect(dropTeleports([anchor, conflicting])).toEqual([anchor]);
   });
 
   it("re-seats the anchor across a silence long enough to open a new life", () => {
@@ -68,6 +67,13 @@ describe("dropTeleports", () => {
     const next = aFakeBipedPositionWith({ timestampMs: 1000 + LIFE_GAP_MS + 101, q: [30_010, 1000, 1000] });
 
     expect(dropTeleports([lastOfLife, respawn, next])).toEqual([lastOfLife, respawn, next]);
+  });
+
+  it("keeps one copy of a sample repeated at the same instant", () => {
+    const sample = aFakeBipedPositionWith({ timestampMs: 1000, q: [1000, 1000, 1000] });
+    const repeat = aFakeBipedPositionWith({ timestampMs: 1000, q: [1000, 1000, 1000] });
+
+    expect(dropTeleports([sample, repeat])).toEqual([sample]);
   });
 
   it("keeps movement within the speed limit", () => {
