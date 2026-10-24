@@ -206,30 +206,13 @@ export class HaloFilmService {
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
+    const load = await this.getReplicationChunks(matchStats.MatchId);
+    this.assertCompleteFilm(load, matchStats.MatchId);
     const records: StatRecord[] = [];
-    let chunkCount = 0;
-    for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
-      switch (entry.kind) {
-        case "chunk": {
-          if (entry.chunk.data.length === 0) {
-            throw emptyReplicationChunkError(matchStats.MatchId, entry.chunk.index);
-          }
-          chunkCount += 1;
-          for (const record of scanChunkStatRecords(entry.chunk)) {
-            records.push(record);
-          }
-          break;
-        }
-        case "skipped": {
-          throw malformedReplicationChunkError(matchStats.MatchId, entry.skipped.index);
-        }
-        default: {
-          throw new UnreachableError(entry);
-        }
+    for (const chunk of load.chunks) {
+      for (const record of scanChunkStatRecords(chunk)) {
+        records.push(record);
       }
-    }
-    if (chunkCount === 0) {
-      throw noReplicationChunksError(matchStats.MatchId);
     }
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
@@ -246,14 +229,20 @@ export class HaloFilmService {
     return buildPlayerPositions(load.chunks, matchStats, deaths);
   }
 
+  // the first problem in film order is reported, whichever list it sits in
   private assertCompleteFilm(load: ReplicationChunkLoad, matchId: string): void {
-    const [skipped] = load.skippedChunks;
-    if (skipped != null) {
-      throw malformedReplicationChunkError(matchId, skipped.index);
-    }
-    const empty = load.chunks.find((chunk) => chunk.data.length === 0);
-    if (empty != null) {
-      throw emptyReplicationChunkError(matchId, empty.index);
+    const problems = [
+      ...load.skippedChunks.map((chunk) => ({
+        index: chunk.index,
+        error: malformedReplicationChunkError(matchId, chunk.index),
+      })),
+      ...load.chunks
+        .filter((chunk) => chunk.data.length === 0)
+        .map((chunk) => ({ index: chunk.index, error: emptyReplicationChunkError(matchId, chunk.index) })),
+    ].sort((a, b) => a.index - b.index);
+    const [first] = problems;
+    if (first != null) {
+      throw first.error;
     }
     if (load.chunks.length === 0) {
       throw noReplicationChunksError(matchId);

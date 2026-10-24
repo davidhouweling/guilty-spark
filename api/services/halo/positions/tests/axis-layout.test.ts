@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { AxisLayoutError, detectAxisLayout, flipBoundaries, layoutFromBoundaries } from "../axis-layout";
-import { aFakeBipedFrameChunkWith, aFakePositionFilmWith } from "../fakes/position-film.fake";
+import {
+  aFakeBipedFrameChunkWith,
+  aFakePositionFilmWith,
+  FAKE_AXIS_LAYOUT,
+  FAKE_ORIGIN,
+  walkPosition,
+} from "../fakes/position-film.fake";
 import type { AxisLayout } from "../types";
 
 describe("detectAxisLayout", () => {
@@ -23,6 +29,15 @@ describe("detectAxisLayout", () => {
     });
 
     expect(detectAxisLayout(chunks, new Set([512]))).toEqual(layout);
+  });
+
+  it("profiles only records in region zero so a toggling region bit cannot fake a boundary", () => {
+    const frames = [...Array(80).keys()].map((step) => ({
+      timestampUs: BigInt(1_000_000 + step * 100_000),
+      records: [{ slot: 512, q: walkPosition(FAKE_ORIGIN, 512, step), gate: step % 2 }],
+    }));
+
+    expect(detectAxisLayout([aFakeBipedFrameChunkWith(frames)], new Set([512]))).toEqual(FAKE_AXIS_LAYOUT);
   });
 
   it("throws when the bipeds hold still and no field boundary shows", () => {

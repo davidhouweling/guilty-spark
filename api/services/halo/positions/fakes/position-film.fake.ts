@@ -2,6 +2,7 @@ import type { ReplicationChunk } from "../../types";
 import { PACKET_TYPE_FRAME, PACKET_TYPE_KEYFRAME } from "../../statborg/bit-reader";
 import { BitWriter, buildChunkBytes } from "../../statborg/fakes/replication-chunk.fake";
 import type { PacketSpec } from "../../statborg/fakes/replication-chunk.fake";
+import { BIPED_ARCHETYPE } from "../keyframe-slots";
 import type { AxisLayout, Quantum3 } from "../types";
 
 // Encodes synthetic keyframe entity lists and biped delta records in the measured grammars
@@ -9,7 +10,6 @@ import type { AxisLayout, Quantum3 } from "../types";
 // quanta and lives.
 export const FAKE_AXIS_LAYOUT: AxisLayout = { gateBits: 5, axisWidths: [15, 15, 17] };
 export const FAKE_ORIGIN: Quantum3 = [12_000, 12_000, 70_000];
-export const BIPED_ARCHETYPE = 35;
 
 export interface KeyframeEntitySpec {
   slot: number;

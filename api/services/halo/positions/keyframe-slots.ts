@@ -7,7 +7,7 @@ import { PACKET_TYPE_KEYFRAME, readBitsBE, walkPackets } from "../statborg/bit-r
 const SENTINEL_ID = 0xffff_ffff;
 const SLOT_CAP = 8192;
 const ARCHETYPE_CAP = 50;
-const BIPED_ARCHETYPE = 35;
+export const BIPED_ARCHETYPE = 35;
 const RECORD_HEADER_BITS = 64;
 const SCAN_WINDOW_BITS = 120_000;
 const MAX_SENTINEL_STREAK = 2048;

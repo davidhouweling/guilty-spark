@@ -15,7 +15,7 @@ import { bipedSlotBand } from "../services/halo/positions/keyframe-slots";
 import { dropIsolated } from "../services/halo/positions/position-filters";
 import { createScriptServices, fmtMs } from "./script-services";
 
-const MATCH_ID = process.argv[2] ?? "5e3900a6-69ee-42f6-9a79-5146e8802a0c";
+const MATCH_ID = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "5e3900a6-69ee-42f6-9a79-5146e8802a0c";
 const LEVELUP_CSV = process.argv.find((arg) => arg.startsWith("--levelup="))?.slice("--levelup=".length);
 
 const { haloService, haloFilmService } = await createScriptServices();

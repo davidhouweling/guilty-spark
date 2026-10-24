@@ -133,13 +133,14 @@ function pairDeathsToLives(
   return settled;
 }
 
-// the match count is a plateau across the acceptance window, so the plateau's centre is kept
+// the feasible-pair count is a plateau across the acceptance window, so the plateau's centre
+// is kept; the clock alignment does not need the pairs to be settled
 export function bestDeathOffset(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): number {
   const previousDeaths = previousDeathByIndex(deaths);
   let bestCount = -1;
   let plateau: number[] = [];
   for (let offset = -OFFSET_SEARCH_MS; offset <= OFFSET_SEARCH_MS; offset += OFFSET_STEP_MS) {
-    const count = pairDeathsToLives(lives, deaths, previousDeaths, offset).length;
+    const count = feasiblePairs(lives, deaths, previousDeaths, offset).length;
     if (count > bestCount) {
       bestCount = count;
       plateau = [offset];
@@ -189,22 +190,47 @@ export function nameLivesBySlot(lives: readonly BipedLife[]): BipedLife[] {
   });
 }
 
-const ELIMINATION_STEP_MS = 500;
+function covers(life: BipedLife, atMs: number): boolean {
+  return life.startMs <= atMs && life.endMs >= atMs;
+}
 
+// decisive only when exactly one present roster member has no named biped and the candidate
+// life is the only unnamed biped alive, so two overlapping unnamed lives cannot both take it
 function soleMissingPlayer(lives: readonly BipedLife[], roster: readonly RosterMember[], atMs: number): string | null {
-  const alive = new Set(
-    lives.filter((life) => life.xuid != null && life.startMs <= atMs && life.endMs >= atMs).map((life) => life.xuid),
-  );
-  const missing = roster.filter((member) => isPresent(member, atMs) && !alive.has(member.xuid));
+  const alive = lives.filter((life) => covers(life, atMs));
+  if (alive.filter((life) => life.xuid == null).length !== 1) {
+    return null;
+  }
+  const named = new Set(alive.map((life) => life.xuid));
+  const missing = roster.filter((member) => isPresent(member, atMs) && !named.has(member.xuid));
   const [only] = missing;
   return missing.length === 1 && only != null ? only.xuid : null;
 }
 
+// the set of live bipeds only changes where some life starts or ends, so the span is judged
+// once between each pair of neighbouring boundaries and at its own ends
+function decisiveInstants(lives: readonly BipedLife[], life: BipedLife): number[] {
+  const boundaries = new Set<number>([life.startMs, life.endMs]);
+  for (const other of lives) {
+    for (const edge of [other.startMs, other.endMs]) {
+      if (edge > life.startMs && edge < life.endMs) {
+        boundaries.add(edge);
+      }
+    }
+  }
+  const sorted = [...boundaries].sort((a, b) => a - b);
+  const instants = [...sorted];
+  for (let index = 1; index < sorted.length; index++) {
+    instants.push(((sorted[index - 1] ?? 0) + (sorted[index] ?? 0)) / 2);
+  }
+  return instants;
+}
+
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
-// life is sampled along its span and named only when every decisive instant agrees
+// life is named only when every decisive instant along its span agrees
 function eliminatedOwner(lives: readonly BipedLife[], roster: readonly RosterMember[], life: BipedLife): string | null {
   const owners = new Set<string>();
-  for (let atMs = life.startMs; atMs <= life.endMs; atMs += ELIMINATION_STEP_MS) {
+  for (const atMs of decisiveInstants(lives, life)) {
     const owner = soleMissingPlayer(lives, roster, atMs);
     if (owner != null) {
       owners.add(owner);
@@ -247,7 +273,7 @@ function lastDeathBefore(lives: readonly BipedLife[], xuid: string, atMs: number
     if (life.xuid !== xuid) {
       continue;
     }
-    if (life.startMs <= atMs && life.endMs >= atMs) {
+    if (covers(life, atMs)) {
       return null;
     }
     if (life.endMs < atMs && (lastEnd == null || life.endMs > lastEnd)) {

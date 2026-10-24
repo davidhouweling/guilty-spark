@@ -18,7 +18,6 @@ const SPINE_BITS = 3;
 const USE_DEFAULT_BITS = 1;
 const REGION_INDEX_BITS = 1;
 export const DEFAULT_GATE_BITS = SPINE_BITS + USE_DEFAULT_BITS + REGION_INDEX_BITS;
-const PRE_GATE_BITS = SPINE_BITS + USE_DEFAULT_BITS;
 const DETECT_WINDOW_BITS = 72;
 const DETECT_MAX_CHUNKS = 6;
 const DETECT_MAX_PACKET_GAP = 3;
@@ -52,7 +51,7 @@ function collectSamples(
   const limitBit = totalBits - (BIPED_HEADER_BITS + BIPED_INDEX_BITS * 2 + DETECT_WINDOW_BITS) + 1;
   forEachCandidateBit(payload, slotPrefilter(slots), limitBit, (bitPos) => {
     const header = matchBipedHeader(payload, bitPos, totalBits, slots, DETECT_WINDOW_BITS);
-    if (header == null || readBitsBE(payload, header.positionBit, PRE_GATE_BITS) !== 0) {
+    if (header == null || readBitsBE(payload, header.positionBit, DEFAULT_GATE_BITS) !== 0) {
       return null;
     }
     const bits = new Uint8Array(DETECT_WINDOW_BITS);

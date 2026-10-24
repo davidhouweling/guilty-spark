@@ -195,6 +195,16 @@ describe("nameLivesByElimination", () => {
     expect(nameLivesByElimination(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, B, C, null]);
   });
 
+  it("names only the life that stands alone as the missing player's biped when unnamed lives overlap", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 514, startMs: 10_000, endMs: 20_000 }),
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 30_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 5000, endMs: 25_000 }),
+    ];
+
+    expect(nameLivesByElimination(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, B]);
+  });
+
   it("does not expect a biped from a player outside their participation window", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { aFakeReplicationChunkWith } from "../../statborg/fakes/replication-chunk.fake";
-import { aFakeKeyframeChunkWith, buildKeyframePayload, BIPED_ARCHETYPE } from "../fakes/position-film.fake";
-import { bipedSlotBand, walkKeyframeRecords } from "../keyframe-slots";
+import { aFakeKeyframeChunkWith, buildKeyframePayload } from "../fakes/position-film.fake";
+import { BIPED_ARCHETYPE, bipedSlotBand, walkKeyframeRecords } from "../keyframe-slots";
 
 describe("walkKeyframeRecords", () => {
   it("lists every entity record with its slot, archetype and generation", () => {
