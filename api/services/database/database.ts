@@ -102,6 +102,30 @@ function getQueueFilterBindings(
   return queueChannelIds ?? [queueChannelId, queueChannelId];
 }
 
+/**
+ * Builds an `identity` CTE with each player's most recent Gamertag (latest game EndedAt, then
+ * CreatedAt). Grouping by XboxXuid lets SQLite join it through an automatic index; the previous
+ * ROW_NUMBER() form was joined by full scan per player when the queue filter used `IN (...)`.
+ * The fixed-width epoch-second prefix makes the string MAX() order by time before Gamertag.
+ */
+function getLatestGamertagIdentityCteSql(queueFilterSql: string): string {
+  return `
+      identity AS (
+        SELECT
+          gp.XboxXuid AS XboxXuid,
+          substr(MAX(printf('%012d%012d', g.EndedAt, gp.CreatedAt) || gp.GamertagSnapshot), 25) AS Gamertag
+        FROM LeaderboardGamePlayers gp
+        INNER JOIN LeaderboardGames g
+          ON g.GuildId = gp.GuildId
+          AND g.QueueNumber = gp.QueueNumber
+          AND g.MatchId = gp.MatchId
+        WHERE gp.GuildId = ?
+          AND g.EndedAt >= ?
+          AND ${queueFilterSql}
+        GROUP BY gp.XboxXuid
+      )`;
+}
+
 function getLatestIdentityJoinSql({
   relatedTableName,
   identityTableName,
@@ -2813,28 +2837,7 @@ export class DatabaseService {
       .join(",\n        ");
 
     const query = `
-      WITH identityRanked AS (
-        SELECT
-          gp.XboxXuid AS XboxXuid,
-          gp.GamertagSnapshot AS Gamertag,
-          ROW_NUMBER() OVER (
-            PARTITION BY gp.XboxXuid
-            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
-          ) AS RowNumber
-        FROM LeaderboardGamePlayers gp
-        INNER JOIN LeaderboardGames g
-          ON g.GuildId = gp.GuildId
-          AND g.QueueNumber = gp.QueueNumber
-          AND g.MatchId = gp.MatchId
-        WHERE gp.GuildId = ?
-          AND g.EndedAt >= ?
-          AND ${queueFilterSql}
-      ),
-      identity AS (
-        SELECT XboxXuid, Gamertag
-        FROM identityRanked
-        WHERE RowNumber = 1
-      ),
+      WITH ${getLatestGamertagIdentityCteSql(queueFilterSql)},
       agg AS (
         SELECT
           gp.XboxXuid AS XboxXuid,
@@ -2940,28 +2943,7 @@ export class DatabaseService {
       .join(",\n        ");
 
     const query = `
-      WITH identityRanked AS (
-        SELECT
-          gp.XboxXuid AS XboxXuid,
-          gp.GamertagSnapshot AS Gamertag,
-          ROW_NUMBER() OVER (
-            PARTITION BY gp.XboxXuid
-            ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
-          ) AS RowNumber
-        FROM LeaderboardGamePlayers gp
-        INNER JOIN LeaderboardGames g
-          ON g.GuildId = gp.GuildId
-          AND g.QueueNumber = gp.QueueNumber
-          AND g.MatchId = gp.MatchId
-        WHERE gp.GuildId = ?
-          AND g.EndedAt >= ?
-          AND ${identityQueueFilterSql}
-      ),
-      identity AS (
-        SELECT XboxXuid, Gamertag
-        FROM identityRanked
-        WHERE RowNumber = 1
-      ),
+      WITH ${getLatestGamertagIdentityCteSql(identityQueueFilterSql)},
       agg AS (
         SELECT
           sp.XboxXuid AS XboxXuid,

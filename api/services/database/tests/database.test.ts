@@ -1825,10 +1825,35 @@ describe("Database Service", () => {
         });
 
         for (const call of prepareSpy.mock.calls) {
-          expect(call[0]).toContain("gp.GamertagSnapshot AS Gamertag");
-          expect(call[0]).toContain("ORDER BY g.EndedAt DESC, gp.CreatedAt DESC");
+          expect(call[0]).toContain(
+            "substr(MAX(printf('%012d%012d', g.EndedAt, gp.CreatedAt) || gp.GamertagSnapshot), 25) AS Gamertag",
+          );
           expect(call[0]).toContain("agg.GamesPlayed DESC, identity.Gamertag ASC, agg.XboxXuid ASC");
           expect(call[0]).not.toContain("WHERE identityGp.GuildId =");
+        }
+      });
+
+      it("groups the identity CTE by player instead of ranking every game row, so it joins through an index", async () => {
+        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+        vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
+        vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
+
+        await databaseService.getLeaderboardPlayerMetricRanks({
+          guildId: "guild-1",
+          queueChannelId: null,
+          queueChannelIds: ["queue-1", "queue-2"],
+          startEpochSeconds: 0,
+          minGamesPlayed: 1,
+          metrics: [LeaderboardMetric.Kills, LeaderboardMetric.SeriesWinRate],
+          xboxXuid: "2533274000000001",
+        });
+
+        expect(prepareSpy).toHaveBeenCalledTimes(2);
+        for (const call of prepareSpy.mock.calls) {
+          expect(call[0]).toMatch(/identity AS \([\s\S]*?GROUP BY gp\.XboxXuid\s*\)/);
+          expect(call[0]).not.toContain("identityRanked");
+          expect(call[0]).not.toContain("PARTITION BY gp.XboxXuid");
         }
       });
 
