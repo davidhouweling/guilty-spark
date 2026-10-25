@@ -2865,5 +2865,41 @@ describe("DiscordService", () => {
 
       expect(mockFetch).toHaveBeenCalledOnce();
     });
+
+    it("skips a subsequent rename while the rate limit from a 429 is active", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 300 }), {
+          status: 429,
+          headers: { "Retry-After": "300" },
+        }),
+      );
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it("does not make channel reads wait on an exhausted rename rate limit", async () => {
+      const warnSpy = vi.spyOn(logService, "warn");
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: "thread-id" }), {
+            headers: {
+              "X-RateLimit-Limit": "2",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Date.now() / 1000 + 600),
+              "X-RateLimit-Reset-After": "600",
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(JSON.stringify({ id: "thread-id" })));
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+      await discordService.getChannel("thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(warnSpy).not.toHaveBeenCalledWith("Discord rate limit pre-emptive wait", expect.any(Map));
+    });
   });
 });

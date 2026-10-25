@@ -1879,7 +1879,10 @@ export class DiscordService {
     retry = false,
     bestEffort = false,
   ): Promise<T> {
-    const rateLimit = await this.getRateLimitFromAppConfig(path);
+    // Best-effort requests (e.g. thread renames) have their own tighter Discord limits, so track them
+    // separately to avoid making regular requests on the same path wait on them.
+    const rateLimitPath = bestEffort ? `${path}#${options.method}` : path;
+    const rateLimit = await this.getRateLimitFromAppConfig(rateLimitPath);
 
     if (rateLimit?.remaining === 0 && rateLimit.reset != null) {
       const now = Date.now();
@@ -1951,6 +1954,10 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
+      if (response.status === 429 && bestEffort) {
+        this.setRateLimitInAppConfig(rateLimitPath, this.getRateLimitFromRejection(response));
+      }
+
       if (response.status === 429 && !retry) {
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
         this.logService.warn(
@@ -1964,7 +1971,7 @@ export class DiscordService {
         this.logService.info("Response headers", new Map(Array.from((response.headers as fHeaders).entries())));
 
         if (rateLimitFromResponse.reset != null) {
-          this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+          this.setRateLimitInAppConfig(rateLimitPath, rateLimitFromResponse);
 
           return this.fetch<T>(path, options, true);
         }
@@ -1982,7 +1989,7 @@ export class DiscordService {
       }
 
       if (error instanceof DiscordError && error.httpStatus === 429 && error.restError.code === 1015 && !retry) {
-        this.setRateLimitInAppConfig(path, {
+        this.setRateLimitInAppConfig(rateLimitPath, {
           limit: 0,
           remaining: 0,
           reset: Date.now() / 1000 + 10,
@@ -1997,7 +2004,7 @@ export class DiscordService {
     }
 
     const rateLimitFromResponse = this.getRateLimitFromResponse(response);
-    this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+    this.setRateLimitInAppConfig(rateLimitPath, rateLimitFromResponse);
 
     if (response.status === 204) {
       return {} as T;
@@ -2041,6 +2048,14 @@ export class DiscordService {
     const bucket = this.getRateLimitFromHeader(headers, "X-RateLimit-Bucket");
 
     return { limit, remaining, reset, resetAfter, bucket };
+  }
+
+  private getRateLimitFromRejection(response: Response): RateLimit {
+    const rateLimit = this.getRateLimitFromResponse(response);
+    const resetAfter = rateLimit.resetAfter ?? this.getRateLimitFromHeader(response.headers, "Retry-After");
+    const reset = rateLimit.reset ?? (resetAfter != null ? Date.now() / 1000 + resetAfter : undefined);
+
+    return { ...rateLimit, remaining: 0, reset, resetAfter };
   }
 
   private getRateLimitKey(path: string): string {
