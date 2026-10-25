@@ -65,7 +65,7 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "^8.72.0",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "^3.2.1",
@@ -78,7 +78,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5",
-    "vitest-mock-extended": "^4.0.0"
+    "vitest-mock-extended": "^5.1.1"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
