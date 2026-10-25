@@ -18,6 +18,7 @@ import type { RosterMember } from "../types";
 const A = "0100000000000000";
 const B = "0400000000000000";
 const C = "0800000000000000";
+const D = "0900000000000000";
 const rosterOf = (...xuids: string[]): RosterMember[] => xuids.map((xuid) => aFakeRosterMemberWith({ xuid }));
 
 describe("buildLives", () => {
@@ -90,7 +91,7 @@ describe("nameLivesByDeaths offset", () => {
       aFakeDeathEventWith({ timestampMs: 19_900, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).offsetMs).toBe(100);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).offsetMs).toBe(100);
   });
 
   it("counts each death once so a cluster of lives cannot pull the offset", () => {
@@ -104,7 +105,7 @@ describe("nameLivesByDeaths offset", () => {
       aFakeDeathEventWith({ timestampMs, xuid: `0${String(index + 1)}00000000000000` }),
     );
 
-    expect(nameLivesByDeaths(lives, deaths).offsetMs).toBe(0);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).offsetMs).toBe(0);
   });
 
   it("scores an offset by its largest one-to-one matching, not by nearest-first picks", () => {
@@ -115,13 +116,13 @@ describe("nameLivesByDeaths offset", () => {
       aFakeDeathEventWith({ timestampMs: 10_050, xuid: A }),
       aFakeDeathEventWith({ timestampMs: 10_200, xuid: B }),
       aFakeDeathEventWith({ timestampMs: 19_850, xuid: C }),
-      aFakeDeathEventWith({ timestampMs: 29_850, xuid: "0900000000000000" }),
+      aFakeDeathEventWith({ timestampMs: 29_850, xuid: D }),
     ];
 
-    const named = nameLivesByDeaths(lives, deaths);
+    const named = nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D));
 
     expect(named.offsetMs).toBe(0);
-    expect(named.lives.map((life) => life.xuid)).toEqual([A, B, C, "0900000000000000"]);
+    expect(named.lives.map((life) => life.xuid)).toEqual([A, B, C, D]);
   });
 
   it("names nothing when the optimal plateau supports different owners at different offsets", () => {
@@ -132,7 +133,7 @@ describe("nameLivesByDeaths offset", () => {
       aFakeDeathEventWith({ timestampMs: 10_280, xuid: C }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([null]);
   });
 
   it("claims no alignment when two separate offsets fit the feed equally well", () => {
@@ -142,14 +143,14 @@ describe("nameLivesByDeaths offset", () => {
       aFakeDeathEventWith({ timestampMs: 11_000, xuid: B }),
     ];
 
-    const named = nameLivesByDeaths(lives, deaths);
+    const named = nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D));
 
     expect(named.offsetMs).toBeNull();
     expect(named.lives.map((life) => life.xuid)).toEqual([null]);
   });
 
   it("claims no alignment without deaths", () => {
-    expect(nameLivesByDeaths([aFakeBipedLifeWith()], []).offsetMs).toBeNull();
+    expect(nameLivesByDeaths([aFakeBipedLifeWith()], [], rosterOf(A)).offsetMs).toBeNull();
   });
 });
 
@@ -173,7 +174,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_020, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, B, null]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("settles two deaths at the same instant when a previous death leaves one of them a single option", () => {
@@ -190,7 +191,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 15_000, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, B, A, B]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([A, B, A, B]);
   });
 
   it("does not pair a death with a life that began before the owner's previous death", () => {
@@ -203,7 +204,7 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: A }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, null]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([A, null]);
   });
 
   it("settles only pairs that belong to every maximum matching", () => {
@@ -217,7 +218,11 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 10_200, xuid: B }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null, null, null]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([
+      null,
+      null,
+      null,
+    ]);
   });
 
   it("leaves two deaths at the same instant unnamed when nothing tells them apart", () => {
@@ -232,13 +237,25 @@ describe("nameLivesByDeaths", () => {
       aFakeDeathEventWith({ timestampMs: 20_000, xuid: C }),
     ];
 
-    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null, null, C]);
+    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).lives.map((life) => life.xuid)).toEqual([
+      null,
+      null,
+      C,
+    ]);
+  });
+
+  it("does not name a life after a player who joined after it began", () => {
+    const lives = [aFakeBipedLifeWith({ startMs: 1000, endMs: 40_000 })];
+    const deaths = [aFakeDeathEventWith({ timestampMs: 40_000, xuid: B })];
+    const roster = [aFakeRosterMemberWith({ xuid: A }), aFakeRosterMemberWith({ xuid: B, presentFromMs: 30_000 })];
+
+    expect(nameLivesByDeaths(lives, deaths, roster).lives.map((life) => life.xuid)).toEqual([null]);
   });
 
   it("leaves lives untouched without deaths", () => {
     const lives = [aFakeBipedLifeWith()];
 
-    expect(nameLivesByDeaths(lives, []).lives).toEqual(lives);
+    expect(nameLivesByDeaths(lives, [], rosterOf(A)).lives).toEqual(lives);
   });
 });
 
@@ -344,6 +361,29 @@ describe("nameLivesByElimination", () => {
     const deaths = [aFakeDeathEventWith({ timestampMs: 10_000, xuid: B })];
 
     expect(nameLivesByElimination(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null]);
+  });
+
+  it("does not name a fragment after a player whose next life starts within a respawn of it", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 10_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 60_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 600, startMs: 19_600, endMs: 19_800 }),
+    ];
+
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, B, null]);
+  });
+
+  it("does not name a fragment after a player when its slot already belongs to someone else", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 515, startMs: 38_000, endMs: 55_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 30_000, xuid: B }),
+      aFakeBipedLifeWith({ slot: 512, startMs: 40_000, endMs: 50_000 }),
+    ];
+
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, B, null]);
+    expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, B, null]);
   });
 
   it("does not name a life that began before its only candidate joined", () => {

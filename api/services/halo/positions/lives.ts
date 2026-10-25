@@ -1,5 +1,5 @@
 import { byTimestamp, groupBySlot } from "./group-by-slot";
-import { isPresent, mayBePresent } from "./roster";
+import { alignRosterToFilm, isPresent, mayBePresent } from "./roster";
 import type { BipedLife, BipedPosition, DeathEvent, DeathNaming, RosterMember } from "./types";
 
 // a gap this long inside one slot opens a new life: far above the replication cadence and
@@ -295,23 +295,53 @@ export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: numbe
   return deaths.map((death) => ({ ...death, timestampMs: death.timestampMs + offsetMs }));
 }
 
-export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): DeathNaming {
+function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
+}
+
+function nextLifeStartsTooSoon(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  return lives.some(
+    (other) => other.xuid === xuid && other.startMs > life.endMs && other.startMs - life.endMs < MIN_RESPAWN_MS,
+  );
+}
+
+function slotHasAnotherOwner(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  return lives.some((other) => other.slot === life.slot && other.xuid != null && other.xuid !== xuid);
+}
+
+// a name fits a life only where the owner may be present, has no other biped alongside it or
+// within a respawn after it, and the slot is not already another player's
+function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
+  const member = roster.find((candidate) => candidate.xuid === owner);
+  return (
+    member != null &&
+    mayBePresent(member, life.startMs) &&
+    !overlapsNamedLife(lives, owner, life) &&
+    !nextLifeStartsTooSoon(lives, owner, life) &&
+    !slotHasAnotherOwner(lives, owner, life)
+  );
+}
+
+// the roster is moved onto the film clock with the offset just measured, so a death only names
+// a life its player could own
+export function nameLivesByDeaths(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+): DeathNaming {
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
   const plateau = optimalOffsets(pairs);
   const offsetMs = plateau[Math.floor(plateau.length / 2)] ?? null;
+  const filmRoster = alignRosterToFilm(roster, offsetMs ?? 0);
   const named = [...lives];
   for (const pairing of pairingsSettledAcrossPlateau(pairs, plateau)) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
-    if (life != null && death != null) {
+    if (life != null && death != null && canOwn(named, filmRoster, death.xuid, life)) {
       named[pairing.lifeIndex] = { ...life, xuid: death.xuid };
     }
   }
   return { lives: named, offsetMs };
-}
-
-function overlapsNamedLife(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
-  return lives.some((other) => other.xuid === xuid && other.startMs <= life.endMs && other.endMs >= life.startMs);
 }
 
 function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
@@ -327,10 +357,6 @@ function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
 }
 
 // a name extends to another life only where the owner may be present and has no other biped
-function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
-  const member = roster.find((candidate) => candidate.xuid === owner);
-  return member != null && mayBePresent(member, life.startMs) && !overlapsNamedLife(lives, owner, life);
-}
 
 // a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
 // one name a slot's lives agree on extends to the slot's unnamed lives, each checked against
@@ -506,7 +532,7 @@ function respawnWait(
   member: RosterMember,
   life: BipedLife,
 ): number | null {
-  if (!mayBePresent(member, life.startMs) || overlapsNamedLife(lives, member.xuid, life)) {
+  if (!canOwn(lives, [member], member.xuid, life)) {
     return null;
   }
   const lastEnd = lastDeathBefore(lives, deaths, member.xuid, life.startMs);

@@ -94,7 +94,7 @@ function nameLives(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const byDeaths = nameLivesByDeaths(lives, deaths);
+  const byDeaths = nameLivesByDeaths(lives, deaths, roster);
   const filmDeaths = byDeaths.offsetMs == null ? [] : alignDeathsToFilm(deaths, byDeaths.offsetMs);
   const filmRoster = alignRosterToFilm(roster, byDeaths.offsetMs ?? 0);
   let named = byDeaths.lives;
