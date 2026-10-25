@@ -83,7 +83,9 @@ export class FlagRunBuilder {
       if (event == null) {
         break;
       }
-      const carrierKeepsFlag = event.xuid === run.currentCarrier && (event.kind === "grab" || event.kind === "capture");
+      // a carrier's own capture proves they held the flag throughout; their own grab proves the
+      // opposite, since the grab counter only moves once the flag has left their hands
+      const carrierKeepsFlag = event.xuid === run.currentCarrier && event.kind === "capture";
       this.dropIfCarrierLost(run, event.timestampMs, carrierKeepsFlag);
       switch (event.kind) {
         case "steal": {
@@ -112,8 +114,8 @@ export class FlagRunBuilder {
   }
 
   // a death ends one carry only, and one stamped just before the pickup is placed at the
-  // pickup; a vanished biped counts as a drop unless the carrier's own next event proves the
-  // flag never left their hands
+  // pickup; a vanished biped counts as a drop unless the carrier's own capture proves the flag
+  // never left their hands
   private dropIfCarrierLost(run: OpenRun, untilMs: number, carrierActsNext: boolean): void {
     const death = run.carrierDeathBefore(this.openDeaths, untilMs);
     if (death != null) {

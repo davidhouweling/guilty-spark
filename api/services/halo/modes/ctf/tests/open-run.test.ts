@@ -64,6 +64,20 @@ describe("OpenRun", () => {
     expect(run.carrierDeathBefore(new Set([later, earlier]), 60_000)).toBe(earlier);
   });
 
+  it("calls a carrier never seen since the pickup lost at the pickup itself", () => {
+    const run = aRunStolenAt(10_000, aLookupWith(40_000, 50_000));
+
+    expect(run.carrierLostBefore(10_000 + CARRIER_LOST_MS)).toBe(10_000);
+  });
+
+  it("keeps the terminal sample at the whistle when a return lands just after it", () => {
+    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
+
+    const closed = run.close(20_300, "return", { timestampMs: 20_300, kind: "return" }, 20_000);
+
+    expect(closed.samples.at(-1)?.timestampMs).toBe(20_000);
+  });
+
   it("finds a vanished carrier across successive scans that each cover part of the gap", () => {
     const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
 

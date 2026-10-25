@@ -54,6 +54,7 @@ import {
 } from "./positions/build-player-positions";
 import { AxisLayoutError } from "./positions/axis-layout";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
+import type { CtfProgressionInput } from "./modes/ctf/ctf-progression";
 import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
 import type { WalkedChunk } from "./statborg/bit-reader";
@@ -228,20 +229,24 @@ export class HaloFilmService {
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
-  // one film load and one walk per chunk serve both decoders: the stat records that carry the
-  // flag events and the biped positions that place the carrier
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
     assertCtfMatchSupported(matchStats);
-    const [chunks, highlightEvents] = await Promise.all([
-      this.getCompleteReplicationChunks(matchStats.MatchId),
-      this.loadEnrichedEventsForMatch(matchStats),
-    ]);
+    const highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
+    const decoded = await this.decodeCtfFilm(matchStats, toDeathEvents(highlightEvents));
+    return buildCtfProgression({ ...decoded, highlightEvents, matchStats, durationMs });
+  }
+
+  // one film load and one walk per chunk serve both decoders, and the inflated film is out of
+  // scope again before the progression is built
+  private async decodeCtfFilm(
+    matchStats: MatchStats,
+    deaths: readonly DeathEvent[],
+  ): Promise<Pick<CtfProgressionInput, "flagEvents" | "unresolvedSlots" | "positions">> {
+    const chunks = await this.getCompleteReplicationChunks(matchStats.MatchId);
     const walked = chunks.map(walkChunk);
     const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
     const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
-    const deaths = toDeathEvents(highlightEvents);
-    const positions = this.tryNamePositions(walked, matchStats, deaths);
-    return buildCtfProgression({ flagEvents, unresolvedSlots, positions, highlightEvents, matchStats, durationMs });
+    return { flagEvents, unresolvedSlots, positions: this.tryNamePositions(walked, matchStats, deaths) };
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {

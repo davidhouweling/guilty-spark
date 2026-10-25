@@ -78,8 +78,9 @@ export class OpenRun {
     return earliest;
   }
 
-  // the instant the carrier's biped was last seen, once it has been gone long enough to count
-  // as having left the carrier's hands; the scan resumes where the previous call stopped
+  // the instant the carrier's biped was last seen (the pickup itself if never), once it has
+  // been gone long enough to count as having left the carrier's hands; the scan resumes where
+  // the previous call stopped
   carrierLostBefore(untilMs: number): number | null {
     const { carrier } = this;
     if (carrier == null) {
@@ -89,9 +90,9 @@ export class OpenRun {
       this.scanMs = atMs;
       const seen = this.sampleFor(carrier, atMs);
       if (seen != null) {
-        this.lastSeenMs = Math.max(this.lastSeenMs ?? this.lastMs, seen.timestampMs);
-      } else if (this.lastSeenMs != null && atMs - this.lastSeenMs >= CARRIER_LOST_MS) {
-        return this.lastSeenMs;
+        this.lastSeenMs = Math.max(this.lastSeenMs ?? this.carryStartMs, seen.timestampMs);
+      } else if (atMs - (this.lastSeenMs ?? this.carryStartMs) >= CARRIER_LOST_MS) {
+        return this.lastSeenMs ?? this.carryStartMs;
       }
     }
     return null;
@@ -121,6 +122,7 @@ export class OpenRun {
     this.carryStartMs = event.timestampMs;
     this.lastSeenMs = null;
     this.seenAt.clear();
+    this.sampleAt(event.timestampMs);
   }
 
   close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null, durationMs: number): CtfFlagRun {
@@ -128,7 +130,7 @@ export class OpenRun {
     if (outcome === "capture" && this.axis != null) {
       this.pushSample(Math.min(endMs, durationMs), 1);
     } else {
-      this.sampleAt(endMs);
+      this.sampleAt(Math.min(endMs, durationMs));
     }
     this.dropSamplesBeforeTerminal();
     if (closingEvent != null) {

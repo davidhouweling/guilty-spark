@@ -305,6 +305,65 @@ describe("buildCtfProgression", () => {
     expect(run?.samples.at(-1)).toEqual({ timestampMs: 40_000, progress: 1 });
   });
 
+  it("treats a carrier's own re-grab as proof the flag had left their hands", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({
+          slot: 520,
+          startMs: 10_000,
+          endMs: 15_000,
+          from: STAND_0,
+          to: [3500, 1000, 1000],
+          xuid: B,
+        }),
+        aFakeStraightLifeWith({
+          slot: 521,
+          startMs: 22_000,
+          endMs: 30_000,
+          from: [3500, 1000, 1000],
+          to: CAPTURE_1,
+          xuid: B,
+        }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", B, 1, 22_000), flag("capture", B, 1, 30_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
+    expect(run?.events.map((event) => [event.kind, event.timestampMs])).toEqual([
+      ["steal", 10_000],
+      ["drop", 15_000],
+      ["grab", 22_000],
+      ["capture", 30_000],
+    ]);
+  });
+
+  it("samples the new carrier on the instant of the grab", () => {
+    const relay = "0800000000000000";
+    const tracks = [
+      ...defaultTracks,
+      {
+        xuid: relay,
+        teamId: 1,
+        lives: [
+          aFakeStraightLifeWith({
+            slot: 530,
+            startMs: 20_000,
+            endMs: 40_000,
+            from: [6000, 1000, 1000],
+            to: CAPTURE_1,
+            xuid: relay,
+          }),
+        ],
+      },
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 30_000), flag("capture", relay, 1, 40_000)];
+
+    const [run] = build({ flagEvents, tracks }).runs;
+
+    expect(run?.samples.find((sample) => sample.timestampMs === 30_000)?.progress).toBe(0.75);
+  });
+
   it("widens the pre-pickup death window to the whole search range on an unaligned feed", () => {
     const relay = "0800000000000000";
     const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 12_000)];
@@ -346,12 +405,16 @@ describe("buildCtfProgression", () => {
     expect(build({ unresolvedSlots: [18] }).unresolvedSlots).toEqual([18]);
   });
 
-  it("emits a run without samples when neither stand nor capture point can be placed", () => {
+  it("drops a carrier it never sees at the pickup and emits no samples without an axis", () => {
     const flagEvents = [flag("steal", B, 1, 10_000)];
 
     const [run] = build({ flagEvents, tracks: [], highlightEvents: [] }).runs;
 
-    expect(run?.outcome).toBe("matchEnd");
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 10_000, kind: "drop" },
+    ]);
+    expect(run?.outcome).toBe("autoReturn");
     expect(run?.samples).toEqual([]);
   });
 

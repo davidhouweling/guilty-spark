@@ -4,7 +4,7 @@ import { OFFSET_SEARCH_MS } from "../../positions/death-pairing";
 import { DEATH_MATCH_WINDOW_MS } from "../../positions/naming-constants";
 import type { PlayerPositions } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
-import type { CtfProgression, CtfProgressionEvent, ParsedHighlightEvent } from "../../types";
+import type { CtfFlagRun, CtfProgression, CtfProgressionEvent, ParsedHighlightEvent } from "../../types";
 import { buildDeathTimeline } from "../death-timeline";
 import { FlagRunBuilder } from "./flag-run-builder";
 import { FlagStands } from "./flag-stands";
@@ -40,36 +40,48 @@ function buildCaptureEvents(
   return events;
 }
 
-// every series shares the film clock: the feed's deaths are shifted by the offset the
-// position decoder measured, for the drops and for the overlay alike; a death the shift
-// would put before the match start sits on it
-export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
-  const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots } = input;
-  const feedOffsetMs = positions.feedOffsetMs ?? 0;
-  const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
-  const filmHighlights = highlightEvents.map((event) => ({
-    ...event,
-    timeMs: Math.max(0, event.timeMs + feedOffsetMs),
-  }));
-  const deathTimeline = buildDeathTimeline(filmHighlights, new Set(teamIds), durationMs);
-  const events = buildCaptureEvents(flagEvents, teamIds, durationMs);
+// the contract forbids negative times, so a death the shift would place before the start sits
+// on it
+function shiftOntoFilmClock(events: readonly ParsedHighlightEvent[], feedOffsetMs: number): ParsedHighlightEvent[] {
+  return events.map((event) => ({ ...event, timeMs: Math.max(0, event.timeMs + feedOffsetMs) }));
+}
+
+function buildRuns(
+  input: CtfProgressionInput,
+  teamIds: readonly number[],
+  filmHighlights: readonly ParsedHighlightEvent[],
+): CtfFlagRun[] {
   const [firstTeam, secondTeam] = teamIds;
   if (firstTeam == null || secondTeam == null || teamIds.length !== 2) {
-    return { events, runs: [], deathTimeline, teamCount: teamIds.length, unresolvedSlots: [...unresolvedSlots] };
+    return [];
   }
+  const { flagEvents, positions, durationMs } = input;
   const lookup = new PositionLookup(positions);
-  const filmDeaths = toDeathEvents(filmHighlights);
   const deathSkewMs = positions.feedOffsetMs == null ? OFFSET_SEARCH_MS : DEATH_MATCH_WINDOW_MS;
   const builder = new FlagRunBuilder(
     flagEvents,
     new FlagStands(flagEvents, teamIds, lookup),
     lookup,
-    filmDeaths,
+    toDeathEvents(filmHighlights),
     deathSkewMs,
     durationMs,
   );
-  const runs = [...builder.runsForFlag(firstTeam, secondTeam), ...builder.runsForFlag(secondTeam, firstTeam)].sort(
+  return [...builder.runsForFlag(firstTeam, secondTeam), ...builder.runsForFlag(secondTeam, firstTeam)].sort(
     (a, b) => a.startMs - b.startMs,
   );
-  return { events, runs, deathTimeline, teamCount: teamIds.length, unresolvedSlots: [...unresolvedSlots] };
+}
+
+// every series shares the film clock: the feed's deaths are shifted by the offset the position
+// decoder measured, for the drops and for the overlay alike
+export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
+  const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots } = input;
+  const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
+  const filmHighlights = shiftOntoFilmClock(highlightEvents, positions.feedOffsetMs ?? 0);
+  return {
+    events: buildCaptureEvents(flagEvents, teamIds, durationMs),
+    runs: buildRuns(input, teamIds, filmHighlights),
+    deathTimeline: buildDeathTimeline(filmHighlights, new Set(teamIds), durationMs),
+    teamCount: teamIds.length,
+    unresolvedSlots: [...unresolvedSlots],
+  };
 }
