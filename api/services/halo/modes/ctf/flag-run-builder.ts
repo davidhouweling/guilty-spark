@@ -173,10 +173,11 @@ export class FlagRunBuilder {
     run.drop(kill.timestampMs);
   }
 
-  // with a feed to consult, a kill stamped just after a pickup whose new carrier did not die
-  // around it belongs to the carry before
+  // with a feed to consult, a kill stamped just after a pickup off the ground whose new carrier
+  // did not die around it belongs to the carry before; a kill right after the steal itself has
+  // no earlier carry to belong to
   private killBelongsToPreviousCarry(run: OpenRun, carrier: string, killMs: number): boolean {
-    if (this.feedIsEmpty || killMs - run.carryStartMs > KILL_AFTER_PICKUP_MS) {
+    if (!run.pickedUpFromGround || this.feedIsEmpty || killMs - run.carryStartMs > KILL_AFTER_PICKUP_MS) {
       return false;
     }
     return !(this.openDeaths.get(carrier) ?? []).some(

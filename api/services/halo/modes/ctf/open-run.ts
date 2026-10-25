@@ -21,6 +21,7 @@ function roundProgress(progress: number): number {
 export class OpenRun {
   private carrier: string | null;
   private lastCarrier: string | null = null;
+  private pickedUp = false;
   private lastMs: number;
   private lastPosition: Quantum3 | null;
   private dropMs: number | null = null;
@@ -55,6 +56,12 @@ export class OpenRun {
 
   get currentCarrier(): string | null {
     return this.carrier;
+  }
+
+  // true once the flag has been picked up off the ground, so the current carry follows an
+  // earlier one rather than the steal off the stand
+  get pickedUpFromGround(): boolean {
+    return this.pickedUp;
   }
 
   get carryStartMs(): number {
@@ -135,6 +142,7 @@ export class OpenRun {
     this.advanceTo(event.timestampMs);
     this.events.push({ timestampMs: event.timestampMs, kind: "grab" });
     this.carrier = event.xuid;
+    this.pickedUp = true;
     this.dropMs = null;
     this.scanMs = event.timestampMs;
     this.carryStart = event.timestampMs;

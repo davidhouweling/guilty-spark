@@ -454,6 +454,20 @@ describe("buildCtfProgression", () => {
     expect(run?.events.map((event) => event.kind)).toEqual(["steal", "drop", "grab", "capture"]);
   });
 
+  it("drops the flag on a carrier kill right after the steal even with a partial feed and no track", () => {
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("carrierKilled", A, 0, 10_100)];
+    const highlightEvents = [death(A, 90_000, 0)];
+
+    const [run] = build({ flagEvents, tracks: [], highlightEvents }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 10_100, kind: "drop" },
+    ]);
+    expect(run?.outcome).toBe("autoReturn");
+    expect(run?.endMs).toBe(10_100 + AUTO_RETURN_MS);
+  });
+
   it("leaves a late carrier kill to the carry before even when the new carrier never dies all match", () => {
     const relay = "0800000000000000";
     const tracks = [
