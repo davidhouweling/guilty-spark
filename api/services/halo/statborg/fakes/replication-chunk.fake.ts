@@ -24,7 +24,7 @@ export interface FrameSpec {
 
 const RECORD_GAP_BITS = 8;
 
-class BitWriter {
+export class BitWriter {
   private readonly bits: number[] = [];
 
   write(value: number, bitCount: number): void {
@@ -85,29 +85,43 @@ export function buildFramePayload(records: readonly StatRecordSpec[], gapBits = 
   return writer.toBytes();
 }
 
-function writePacket(type: number, timestampUs: bigint, payload: Uint8Array): Uint8Array {
-  const packet = new Uint8Array(PACKET_HEADER_BYTES + payload.length);
-  const view = new DataView(packet.buffer);
-  view.setUint16(0, type, true);
-  view.setUint32(4, payload.length, true);
-  view.setBigUint64(8, timestampUs, true);
-  packet.set(payload, PACKET_HEADER_BYTES);
-  return packet;
+export interface PacketSpec {
+  type: number;
+  timestampUs: bigint;
+  payload: Uint8Array;
 }
 
-export function buildReplicationChunkBytes(frames: readonly FrameSpec[]): Uint8Array {
-  const packets = frames.map((frame) =>
-    writePacket(PACKET_TYPE_FRAME, frame.timestampUs, buildFramePayload(frame.records)),
-  );
-  packets.push(writePacket(PACKET_TYPE_CHUNK_END, 0n, new Uint8Array(0)));
-  const total = packets.reduce((sum, packet) => sum + packet.length, 0);
+function writePacket(packet: PacketSpec): Uint8Array {
+  const bytes = new Uint8Array(PACKET_HEADER_BYTES + packet.payload.length);
+  const view = new DataView(bytes.buffer);
+  view.setUint16(0, packet.type, true);
+  view.setUint32(4, packet.payload.length, true);
+  view.setBigUint64(8, packet.timestampUs, true);
+  bytes.set(packet.payload, PACKET_HEADER_BYTES);
+  return bytes;
+}
+
+export function buildChunkBytes(packets: readonly PacketSpec[]): Uint8Array {
+  const encoded = packets.map((packet) => writePacket(packet));
+  encoded.push(writePacket({ type: PACKET_TYPE_CHUNK_END, timestampUs: 0n, payload: new Uint8Array(0) }));
+  const total = encoded.reduce((sum, packet) => sum + packet.length, 0);
   const bytes = new Uint8Array(total);
   let offset = 0;
-  for (const packet of packets) {
+  for (const packet of encoded) {
     bytes.set(packet, offset);
     offset += packet.length;
   }
   return bytes;
+}
+
+export function buildReplicationChunkBytes(frames: readonly FrameSpec[]): Uint8Array {
+  return buildChunkBytes(
+    frames.map((frame) => ({
+      type: PACKET_TYPE_FRAME,
+      timestampUs: frame.timestampUs,
+      payload: buildFramePayload(frame.records),
+    })),
+  );
 }
 
 export function aFakeReplicationChunkWith(

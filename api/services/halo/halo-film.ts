@@ -43,6 +43,9 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
+import { buildPlayerPositions } from "./positions/build-player-positions";
+import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
@@ -69,6 +72,7 @@ export class HaloFilmService {
   private readonly spartanTokenProvider: SpartanTokenProvider;
   private readonly fetchFn: typeof globalThis.fetch | undefined;
   private readonly clearanceCacheKey: string;
+  private readonly filmMetadataLoads = new Map<string, Promise<FilmMetadataResponse>>();
 
   constructor({ env, spartanTokenProvider, fetch: fetchFn, kvKeyNamespace }: HaloFilmServiceOpts) {
     this.env = env;
@@ -204,25 +208,49 @@ export class HaloFilmService {
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
+    for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
+      for (const record of scanChunkStatRecords(chunk)) {
+        records.push(record);
+      }
+    }
+    return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+  }
+
+  async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
+    const [chunks, deaths] = await Promise.all([
+      this.getCompleteReplicationChunks(matchStats.MatchId),
+      this.getDeathEvents(matchStats.MatchId),
+    ]);
+    return buildPlayerPositions(chunks, matchStats, deaths);
+  }
+
+  async getDeathEvents(matchId: string): Promise<DeathEvent[]> {
+    const events = await this.getHighlightEventsForMatch(matchId);
+    return events
+      .filter((event) => event.eventType === "death")
+      .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+  }
+
+  async getCompleteReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {
+    const chunks: ReplicationChunk[] = [];
+    for await (const chunk of this.iterateCompleteReplicationChunks(matchId)) {
+      chunks.push(chunk);
+    }
+    return chunks;
+  }
+
+  // a decoder that needs the whole match clock refuses the film at the first skipped chunk
+  private async *iterateCompleteReplicationChunks(matchId: string): AsyncGenerator<ReplicationChunk> {
     let chunkCount = 0;
-    for await (const entry of this.iterateReplicationChunksForMatch(matchStats.MatchId)) {
+    for await (const entry of this.iterateReplicationChunksForMatch(matchId)) {
       switch (entry.kind) {
         case "chunk": {
-          if (entry.chunk.data.length === 0) {
-            throw new Error(
-              `Film for match ${matchStats.MatchId} has an empty replication chunk: ${String(entry.chunk.index)}`,
-            );
-          }
           chunkCount += 1;
-          for (const record of scanChunkStatRecords(entry.chunk)) {
-            records.push(record);
-          }
+          yield entry.chunk;
           break;
         }
         case "skipped": {
-          throw new Error(
-            `Film for match ${matchStats.MatchId} has a malformed replication chunk: ${String(entry.skipped.index)}`,
-          );
+          throw skippedReplicationChunkError(matchId, entry.skipped);
         }
         default: {
           throw new UnreachableError(entry);
@@ -230,9 +258,8 @@ export class HaloFilmService {
       }
     }
     if (chunkCount === 0) {
-      throw new Error(`Film for match ${matchStats.MatchId} has no replication chunks`);
+      throw noReplicationChunksError(matchId);
     }
-    return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
   async getReplicationChunks(matchId: string): Promise<ReplicationChunkLoad> {
@@ -279,7 +306,11 @@ export class HaloFilmService {
         try {
           data = new Uint8Array(inflateSync(download.bytes));
         } catch {
-          yield { kind: "skipped", skipped: { index: chunk.Index, startMs } };
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs, reason: "malformed" } };
+          continue;
+        }
+        if (data.length === 0) {
+          yield { kind: "skipped", skipped: { index: chunk.Index, startMs, reason: "empty" } };
           continue;
         }
         yield { kind: "chunk", chunk: { index: chunk.Index, startMs, durationMs: chunk.DurationMilliseconds, data } };
@@ -441,7 +472,23 @@ export class HaloFilmService {
     return { fireEvents: allFireEvents, timeline, chunkTimings };
   }
 
+  // concurrent callers for one match share a single load so a cold cache is filled once
   private async getOrFetchFilmMetadata(
+    matchId: string,
+    authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
+  ): Promise<FilmMetadataResponse> {
+    const inFlight = this.filmMetadataLoads.get(matchId);
+    if (inFlight != null) {
+      return inFlight;
+    }
+    const load = this.loadFilmMetadata(matchId, authResolver).finally(() => {
+      this.filmMetadataLoads.delete(matchId);
+    });
+    this.filmMetadataLoads.set(matchId, load);
+    return load;
+  }
+
+  private async loadFilmMetadata(
     matchId: string,
     authResolver: () => Promise<{ spartanToken: string; clearanceToken: string }>,
   ): Promise<FilmMetadataResponse> {

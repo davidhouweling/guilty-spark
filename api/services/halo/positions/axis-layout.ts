@@ -1,0 +1,165 @@
+import { readBitsBE } from "../statborg/bit-reader";
+import type { WalkedChunk } from "../statborg/bit-reader";
+import {
+  BIPED_HEADER_BITS,
+  BIPED_INDEX_BITS,
+  forEachCandidateBit,
+  matchBipedHeader,
+  slotPrefilters,
+} from "./biped-records";
+import { groupBySlot } from "./group-by-slot";
+import type { AxisLayout, FlipProfile, SlotPrefilter } from "./types";
+
+// The axis widths of the position component are a per-map constant that never travels in the
+// bitstream, but they can be read off the film: a quantised field that moves a little between
+// consecutive frames flips its low bits about half the time and its high bits almost never, so
+// the flip rate per bit position is a saw-tooth whose collapses mark each field's MSB
+// (LevelUp filmdec/i0_layout.go).
+const SPINE_BITS = 3;
+const USE_DEFAULT_BITS = 1;
+const REGION_INDEX_BITS = 1;
+export const DEFAULT_GATE_BITS = SPINE_BITS + USE_DEFAULT_BITS + REGION_INDEX_BITS;
+const DETECT_MAX_PACKET_GAP = 3;
+const BOUNDARY_SATURATION = 0.1;
+const BOUNDARY_DROP = 8;
+const MIN_AXIS_BITS = 8;
+const MAX_AXIS_BITS = 26;
+// wide enough to hold the collapse after the widest allowed Z axis
+const DETECT_WINDOW_BITS = DEFAULT_GATE_BITS + 3 * MAX_AXIS_BITS + 1;
+
+interface LayoutSample {
+  readonly slot: number;
+  readonly chunk: number;
+  readonly packet: number;
+  readonly bits: Uint8Array;
+}
+
+export class AxisLayoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AxisLayoutError";
+  }
+}
+
+const WINDOW_WORD_BITS = 28;
+
+function readWindowBits(payload: Uint8Array, fromBit: number): Uint8Array {
+  const bits = new Uint8Array(DETECT_WINDOW_BITS);
+  for (let wordStart = 0; wordStart < DETECT_WINDOW_BITS; wordStart += WINDOW_WORD_BITS) {
+    const width = Math.min(WINDOW_WORD_BITS, DETECT_WINDOW_BITS - wordStart);
+    const word = readBitsBE(payload, fromBit + wordStart, width);
+    for (let bit = 0; bit < width; bit++) {
+      bits[wordStart + bit] = Math.floor(word / 2 ** (width - 1 - bit)) % 2;
+    }
+  }
+  return bits;
+}
+
+function collectSamples(
+  payload: Uint8Array,
+  slots: ReadonlySet<number>,
+  prefilters: readonly SlotPrefilter[],
+  chunk: number,
+  packet: number,
+): LayoutSample[] {
+  const totalBits = payload.length * 8;
+  const samples: LayoutSample[] = [];
+  const limitBit = totalBits - (BIPED_HEADER_BITS + BIPED_INDEX_BITS * 2 + DETECT_WINDOW_BITS) + 1;
+  forEachCandidateBit(payload, prefilters, limitBit, (bitPos) => {
+    const header = matchBipedHeader(payload, bitPos, totalBits, slots, DETECT_WINDOW_BITS);
+    if (header == null || readBitsBE(payload, header.positionBit, DEFAULT_GATE_BITS) !== 0) {
+      return null;
+    }
+    samples.push({ slot: header.slot, chunk, packet, bits: readWindowBits(payload, header.positionBit) });
+    return header.positionBit + Math.floor(DETECT_WINDOW_BITS / 2);
+  });
+  return samples;
+}
+
+// flips are counted between consecutive records of the same slot in neighbouring packets of
+// one chunk: it is the continuity of a player's movement that produces the saw-tooth
+export function profileFlips(samples: readonly LayoutSample[]): FlipProfile {
+  const flips = new Array<number>(DETECT_WINDOW_BITS).fill(0);
+  let pairs = 0;
+  const bySlot = groupBySlot(samples, (a, b) => a.chunk - b.chunk || a.packet - b.packet);
+  for (const list of bySlot.values()) {
+    for (let index = 1; index < list.length; index++) {
+      const previous = list[index - 1];
+      const current = list[index];
+      if (previous == null || current == null) {
+        continue;
+      }
+      const packetGap = current.packet - previous.packet;
+      if (previous.chunk !== current.chunk || packetGap <= 0 || packetGap > DETECT_MAX_PACKET_GAP) {
+        continue;
+      }
+      pairs += 1;
+      for (let bit = 0; bit < DETECT_WINDOW_BITS; bit++) {
+        if (previous.bits[bit] !== current.bits[bit]) {
+          flips[bit] = (flips[bit] ?? 0) + 1;
+        }
+      }
+    }
+  }
+  return { pairs, flipRates: flips.map((count) => (pairs > 0 ? count / pairs : 0)) };
+}
+
+// flips are only ever counted inside one chunk, so chunk profiles add up
+export function addProfiles(first: FlipProfile, second: FlipProfile): FlipProfile {
+  const pairs = first.pairs + second.pairs;
+  const flipRates = Array.from({ length: DETECT_WINDOW_BITS }, (_, bit) => {
+    const flips = (first.flipRates[bit] ?? 0) * first.pairs + (second.flipRates[bit] ?? 0) * second.pairs;
+    return pairs > 0 ? flips / pairs : 0;
+  });
+  return { pairs, flipRates };
+}
+
+// a bit is a field's MSB when the bit before it flipped often (an LSB) and it almost never does
+export function flipBoundaries(flipRates: readonly number[]): number[] {
+  const boundaries: number[] = [];
+  for (let bit = 1; bit < flipRates.length; bit++) {
+    const previous = flipRates[bit - 1] ?? 0;
+    const current = flipRates[bit] ?? 0;
+    if (previous >= BOUNDARY_SATURATION && current * BOUNDARY_DROP < previous) {
+      boundaries.push(bit);
+    }
+  }
+  return boundaries;
+}
+
+export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout | null {
+  const [first, second, third] = boundaries;
+  if (first == null || second == null || third == null) {
+    return null;
+  }
+  const layout: AxisLayout = {
+    gateBits: DEFAULT_GATE_BITS,
+    axisWidths: [first - DEFAULT_GATE_BITS, second - first, third - second],
+  };
+  return layout.axisWidths.every((width) => width >= MIN_AXIS_BITS && width <= MAX_AXIS_BITS) ? layout : null;
+}
+
+// chunks are profiled one at a time and the layout returned as soon as it shows, so a film
+// whose opening chunks hold still is read from the first chunk in which the bipeds move
+export function detectAxisLayout(chunks: readonly WalkedChunk[], slots: ReadonlySet<number>): AxisLayout {
+  const prefilters = slotPrefilters(slots);
+  if (prefilters.length === 0) {
+    throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
+  }
+  let profile: FlipProfile = { pairs: 0, flipRates: [] };
+  let sampleCount = 0;
+  for (const chunk of chunks) {
+    const samples = chunk.frames.flatMap((frame, frameIndex) =>
+      collectSamples(frame.payload, slots, prefilters, chunk.index, frameIndex),
+    );
+    sampleCount += samples.length;
+    profile = addProfiles(profile, profileFlips(samples));
+    const layout = layoutFromBoundaries(flipBoundaries(profile.flipRates));
+    if (layout != null) {
+      return layout;
+    }
+  }
+  throw new AxisLayoutError(
+    `Position axis layout could not be read from the film (${String(profile.pairs)} record pairs, ${String(sampleCount)} samples)`,
+  );
+}
