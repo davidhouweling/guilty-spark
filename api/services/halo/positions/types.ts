@@ -76,8 +76,14 @@ export interface DecodedPositions {
   readonly scanned: readonly BipedPosition[];
 }
 
-// offsetMs is null when the feed cannot be aligned to the film clock
-export interface DeathNaming {
-  readonly lives: BipedLife[];
+export interface DeathLifePairing {
+  readonly deathIndex: number;
+  readonly lifeIndex: number;
+}
+
+// offsetMs is null when the feed cannot be aligned to the film clock; pairings index into the
+// deaths and lives the alignment was measured on
+export interface DeathAlignment {
   readonly offsetMs: number | null;
+  readonly pairings: readonly DeathLifePairing[];
 }
