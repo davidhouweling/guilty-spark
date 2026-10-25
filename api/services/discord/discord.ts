@@ -1877,7 +1877,7 @@ export class DiscordService {
       method: "GET",
     },
     retry = false,
-    failFastOnRateLimit = false,
+    bestEffort = false,
   ): Promise<T> {
     const rateLimit = await this.getRateLimitFromAppConfig(path);
 
@@ -1886,7 +1886,7 @@ export class DiscordService {
       const resetTimeMs = rateLimit.reset * 1000;
       if (now < resetTimeMs) {
         const timeUntilReset = resetTimeMs - now;
-        if (failFastOnRateLimit) {
+        if (bestEffort) {
           throw new Error(`Discord rate limit active for ${path}, resets in ${timeUntilReset.toString()}ms`);
         }
         const maxWaitTime = 90 * 1000;
@@ -1977,7 +1977,9 @@ export class DiscordService {
       } catch {
         error = new Error(`Failed to fetch data from Discord API (HTTP ${response.status.toString()}): ${body}`);
       }
-      this.logService.warn(error);
+      if (!bestEffort) {
+        this.logService.warn(error);
+      }
 
       if (error instanceof DiscordError && error.httpStatus === 429 && error.restError.code === 1015 && !retry) {
         this.setRateLimitInAppConfig(path, {

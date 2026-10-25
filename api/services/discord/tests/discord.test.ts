@@ -2825,8 +2825,9 @@ describe("DiscordService", () => {
       expect(infoSpy).toHaveBeenCalledWith("Skipping thread rename, name exceeds 100 characters", expect.any(Map));
     });
 
-    it("logs info and does not throw when discord returns an error", async () => {
+    it("logs info without a warning and does not throw when discord returns an error", async () => {
       const infoSpy = vi.spyOn(logService, "info");
+      const warnSpy = vi.spyOn(logService, "warn");
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ code: 50013, message: "Missing Permissions" }), { status: 403 }),
       );
@@ -2836,6 +2837,7 @@ describe("DiscordService", () => {
       ).resolves.toBeUndefined();
 
       expect(infoSpy).toHaveBeenCalledWith("Failed to rename thread", expect.any(Map));
+      expect(warnSpy).not.toHaveBeenCalled();
     });
 
     it("skips the rename without waiting when the rate limit is already exhausted", async () => {
