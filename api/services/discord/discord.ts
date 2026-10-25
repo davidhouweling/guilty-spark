@@ -1572,7 +1572,12 @@ export class DiscordService {
     }
 
     try {
-      await this.fetch<APIChannel>(Routes.channel(threadId), { method: "PATCH", body: JSON.stringify({ name }) }, true);
+      await this.fetch<APIChannel>(
+        Routes.channel(threadId),
+        { method: "PATCH", body: JSON.stringify({ name }) },
+        true,
+        true,
+      );
     } catch (error) {
       this.logService.info(
         "Failed to rename thread",
@@ -1872,6 +1877,7 @@ export class DiscordService {
       method: "GET",
     },
     retry = false,
+    failFastOnRateLimit = false,
   ): Promise<T> {
     const rateLimit = await this.getRateLimitFromAppConfig(path);
 
@@ -1880,6 +1886,9 @@ export class DiscordService {
       const resetTimeMs = rateLimit.reset * 1000;
       if (now < resetTimeMs) {
         const timeUntilReset = resetTimeMs - now;
+        if (failFastOnRateLimit) {
+          throw new Error(`Discord rate limit active for ${path}, resets in ${timeUntilReset.toString()}ms`);
+        }
         const maxWaitTime = 90 * 1000;
         const waitTime = Math.min(timeUntilReset, maxWaitTime);
         // Warn level: long waits here can push waitUntil jobs past the runtime's post-response limit.

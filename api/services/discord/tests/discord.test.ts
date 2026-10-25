@@ -2838,6 +2838,19 @@ describe("DiscordService", () => {
       expect(infoSpy).toHaveBeenCalledWith("Failed to rename thread", expect.any(Map));
     });
 
+    it("skips the rename without waiting when the rate limit is already exhausted", async () => {
+      const infoSpy = vi.spyOn(logService, "info");
+      const appConfigGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      appConfigGetSpy.mockImplementation(async () =>
+        Promise.resolve({ limit: 2, remaining: 0, reset: Date.now() / 1000 + 600, resetAfter: 600 }),
+      );
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith("Failed to rename thread", expect.any(Map));
+    });
+
     it("does not retry when rate limited", async () => {
       mockFetch.mockResolvedValue(
         new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 300 }), {
