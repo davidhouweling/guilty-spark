@@ -28,7 +28,7 @@ const [chunks, deaths] = await Promise.all([
   haloFilmService.getDeathEvents(MATCH_ID),
 ]);
 const walked = chunks.map(walkChunk);
-const decoded = decodePositions(walked, MATCH_ID);
+const decoded = decodePositions(walked, matchStats);
 const positions = namePositions(decoded, matchStats, deaths);
 console.log(
   `Decoded in ${String(Math.round(performance.now() - startedAt))}ms: layout gate=${String(positions.layout.gateBits)} ${positions.layout.axisWidths.join("/")}, ${String(positions.tracks.length)} tracks, ${String(positions.unnamedLives.length)} unnamed lives`,

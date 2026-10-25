@@ -132,6 +132,22 @@ describe("buildPlayerPositions", () => {
     expect(positions.tracks.flatMap((track) => track.lives)).toHaveLength(xuids.length * 2);
   });
 
+  it("reports a life in a slot allocated after the final keyframe", () => {
+    const chunks = aFakePositionFilmWith({
+      lives: [
+        { slot: 512, startMs: 1000, endMs: 15_000 },
+        { slot: 513, startMs: 25_000, endMs: 30_000 },
+      ],
+    });
+
+    const positions = buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), []);
+
+    expect(positions.unnamedLives.map((life) => [life.slot, life.startMs, life.endMs])).toEqual([
+      [512, 1000, 15_000],
+      [513, 25_000, 30_000],
+    ]);
+  });
+
   it("throws when the keyframes span more biped slots than a match can allocate", () => {
     const chunks = [
       aFakeKeyframeChunkWith([
@@ -140,7 +156,7 @@ describe("buildPlayerPositions", () => {
       ]),
     ];
 
-    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow("3489 biped slots");
+    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow("3505 biped slots");
   });
 
   it("throws when the film lists no biped slots", () => {

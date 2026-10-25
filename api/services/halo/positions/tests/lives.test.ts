@@ -165,6 +165,20 @@ describe("nameLivesByDeaths", () => {
     expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([A, null]);
   });
 
+  it("settles only pairs that belong to every maximum matching", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 1000, endMs: 9900 }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 1000, endMs: 10_100 }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 1000, endMs: 10_300 }),
+    ];
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 10_000, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 10_200, xuid: B }),
+    ];
+
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null, null, null]);
+  });
+
   it("leaves two deaths at the same instant unnamed when nothing tells them apart", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 1000, endMs: 10_000 }),
@@ -384,6 +398,20 @@ describe("nameLivesByRespawnOrder", () => {
     ];
 
     expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A, null]);
+  });
+
+  it("keeps a simultaneous-death tie when the sampled life ends differ by a few frames", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 0, endMs: 10_050, xuid: B }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 20_000, endMs: 40_000 }),
+    ];
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 10_000, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 10_000, xuid: B }),
+    ];
+
+    expect(nameLivesByRespawnOrder(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
   });
 
   it("leaves a life unnamed when two players have been dead for exactly as long", () => {

@@ -45,14 +45,17 @@ export function scanChunkPositions(chunk: WalkedChunk, scanner: BipedRecordScann
   return positions;
 }
 
-export function decodePositions(chunks: readonly WalkedChunk[], matchId: string): DecodedPositions {
-  const slots = bipedSlotBand(chunks);
+// every player may respawn twice between the final keyframe and the end of its chunk
+const TAIL_SLOTS_PER_PLAYER = 2;
+
+export function decodePositions(chunks: readonly WalkedChunk[], matchStats: MatchStats): DecodedPositions {
+  const slots = bipedSlotBand(chunks, matchStats.Players.length * TAIL_SLOTS_PER_PLAYER);
   if (slots.size === 0) {
-    throw new PositionDecodeError(`Film for match ${matchId} lists no biped slots in its keyframes`);
+    throw new PositionDecodeError(`Film for match ${matchStats.MatchId} lists no biped slots in its keyframes`);
   }
   if (slots.size > MAX_BIPED_SLOTS) {
     throw new PositionDecodeError(
-      `Film for match ${matchId} spans ${String(slots.size)} biped slots, more than a match can allocate`,
+      `Film for match ${matchStats.MatchId} spans ${String(slots.size)} biped slots, more than a match can allocate`,
     );
   }
   const layout = detectAxisLayout(chunks, slots);
@@ -124,5 +127,5 @@ export function buildPlayerPositions(
   matchStats: MatchStats,
   deaths: readonly DeathEvent[],
 ): PlayerPositions {
-  return namePositions(decodePositions(chunks.map(walkChunk), matchStats.MatchId), matchStats, deaths);
+  return namePositions(decodePositions(chunks.map(walkChunk), matchStats), matchStats, deaths);
 }

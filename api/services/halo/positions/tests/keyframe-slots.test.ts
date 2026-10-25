@@ -50,18 +50,24 @@ describe("bipedSlotBand", () => {
       aFakeKeyframeChunkWith([{ slot: 516, archetype: BIPED_ARCHETYPE }], { index: 2, startMs: 21_000 }),
     ];
 
-    expect([...bipedSlotBand(chunks.map(walkChunk))]).toEqual([512, 513, 514, 515, 516]);
+    expect([...bipedSlotBand(chunks.map(walkChunk), 0)]).toEqual([512, 513, 514, 515, 516]);
+  });
+
+  it("adds a tail of spare slots above the highest seen for allocations after the final keyframe", () => {
+    const chunks = [aFakeKeyframeChunkWith([{ slot: 512, archetype: BIPED_ARCHETYPE }])];
+
+    expect([...bipedSlotBand(chunks.map(walkChunk), 3)]).toEqual([512, 513, 514, 515]);
   });
 
   it("ignores entities of other archetypes", () => {
     const chunks = [aFakeKeyframeChunkWith([{ slot: 100, archetype: 3 }])];
 
-    expect(bipedSlotBand(chunks.map(walkChunk)).size).toBe(0);
+    expect(bipedSlotBand(chunks.map(walkChunk), 4).size).toBe(0);
   });
 
   it("returns an empty band when no chunk carries a keyframe", () => {
-    expect(bipedSlotBand([walkChunk(aFakeReplicationChunkWith([{ timestampUs: 1_000_000n, records: [] }]))]).size).toBe(
-      0,
-    );
+    expect(
+      bipedSlotBand([walkChunk(aFakeReplicationChunkWith([{ timestampUs: 1_000_000n, records: [] }]))], 4).size,
+    ).toBe(0);
   });
 });

@@ -110,49 +110,106 @@ function feasiblePairs(pairs: readonly NearbyPair[], offsetMs: number): Pairing[
     .map(({ deathIndex, lifeIndex }) => ({ deathIndex, lifeIndex }));
 }
 
-function countBy(pairs: readonly Pairing[], key: (pair: Pairing) => number): Map<number, number> {
-  const counts = new Map<number, number>();
-  for (const pair of pairs) {
-    counts.set(key(pair), (counts.get(key(pair)) ?? 0) + 1);
-  }
-  return counts;
-}
-
 // a pair is forced when one side has no other option and the other side is nobody else's
 // only option; a death whose only life is also another death's only life stays open
-function forcedPairs(open: readonly Pairing[]): Pairing[] {
-  const deathOptions = countBy(open, (pair) => pair.deathIndex);
-  const lifeOptions = countBy(open, (pair) => pair.lifeIndex);
-  const soleLifeClaims = countBy(
-    open.filter((pair) => deathOptions.get(pair.deathIndex) === 1),
-    (pair) => pair.lifeIndex,
-  );
-  const soleDeathClaims = countBy(
-    open.filter((pair) => lifeOptions.get(pair.lifeIndex) === 1),
-    (pair) => pair.deathIndex,
-  );
-  return open.filter(
-    (pair) =>
-      (deathOptions.get(pair.deathIndex) === 1 && soleLifeClaims.get(pair.lifeIndex) === 1) ||
-      (lifeOptions.get(pair.lifeIndex) === 1 && soleDeathClaims.get(pair.deathIndex) === 1),
+interface PairComponent {
+  readonly deaths: number[];
+  readonly pairs: Pairing[];
+}
+
+// deaths linked through shared candidate lives form one component; a settlement in one
+// component never depends on another
+function pairComponents(open: readonly Pairing[]): PairComponent[] {
+  const parent = new Map<number, number>();
+  const find = (death: number): number => {
+    const root = parent.get(death) ?? death;
+    if (root === death) {
+      return death;
+    }
+    const top = find(root);
+    parent.set(death, top);
+    return top;
+  };
+  const deathsByLife = new Map<number, number[]>();
+  for (const pair of open) {
+    deathsByLife.set(pair.lifeIndex, [...(deathsByLife.get(pair.lifeIndex) ?? []), pair.deathIndex]);
+  }
+  for (const deaths of deathsByLife.values()) {
+    const [first, ...rest] = deaths;
+    for (const death of rest) {
+      if (first != null) {
+        parent.set(find(death), find(first));
+      }
+    }
+  }
+  const components = new Map<number, PairComponent>();
+  for (const pair of open) {
+    const root = find(pair.deathIndex);
+    const component = components.get(root) ?? { deaths: [], pairs: [] };
+    if (!component.deaths.includes(pair.deathIndex)) {
+      component.deaths.push(pair.deathIndex);
+    }
+    component.pairs.push(pair);
+    components.set(root, component);
+  }
+  return [...components.values()];
+}
+
+const MAX_COMPONENT_PAIRS = 24;
+
+// every maximum matching of the component is enumerated; the deaths are tried in order and
+// each may take any free candidate life or stay unmatched
+function maximumMatchings(component: PairComponent): Pairing[][] {
+  const matchings: Pairing[][] = [];
+  let best = 0;
+  const visit = (deathPosition: number, usedLives: Set<number>, chosen: Pairing[]): void => {
+    if (deathPosition === component.deaths.length) {
+      if (chosen.length > best) {
+        best = chosen.length;
+        matchings.length = 0;
+      }
+      if (chosen.length === best) {
+        matchings.push([...chosen]);
+      }
+      return;
+    }
+    const death = component.deaths[deathPosition];
+    for (const pair of component.pairs) {
+      if (pair.deathIndex === death && !usedLives.has(pair.lifeIndex)) {
+        usedLives.add(pair.lifeIndex);
+        chosen.push(pair);
+        visit(deathPosition + 1, usedLives, chosen);
+        chosen.pop();
+        usedLives.delete(pair.lifeIndex);
+      }
+    }
+    visit(deathPosition + 1, usedLives, chosen);
+  };
+  visit(0, new Set(), []);
+  return matchings;
+}
+
+function pairsInEveryMaximumMatching(component: PairComponent): Pairing[] {
+  if (component.pairs.length > MAX_COMPONENT_PAIRS) {
+    return [];
+  }
+  const matchings = maximumMatchings(component);
+  const [first] = matchings;
+  if (first == null) {
+    return [];
+  }
+  return first.filter((pair) =>
+    matchings.every((matching) =>
+      matching.some((other) => other.deathIndex === pair.deathIndex && other.lifeIndex === pair.lifeIndex),
+    ),
   );
 }
 
 // two deaths at the same instant end two lives at the same instant, and the few milliseconds
-// between their last samples carry no information, so pairs are only settled when forced;
-// settling one pair can force the next, and whatever stays open is left to the later passes
+// between their last samples carry no information, so a pair is settled only when every
+// maximum matching of its component contains it; whatever stays open is left to later passes
 function pairDeathsToLives(pairs: readonly NearbyPair[], offsetMs: number): Pairing[] {
-  let open = feasiblePairs(pairs, offsetMs);
-  const settled: Pairing[] = [];
-  let forced = forcedPairs(open);
-  while (forced.length > 0) {
-    settled.push(...forced);
-    const usedDeaths = new Set(forced.map((pair) => pair.deathIndex));
-    const usedLives = new Set(forced.map((pair) => pair.lifeIndex));
-    open = open.filter((pair) => !usedDeaths.has(pair.deathIndex) && !usedLives.has(pair.lifeIndex));
-    forced = forcedPairs(open);
-  }
-  return settled;
+  return pairComponents(feasiblePairs(pairs, offsetMs)).flatMap(pairsInEveryMaximumMatching);
 }
 
 // each death and each life count once, so a death beside a cluster of lives cannot pull the
@@ -281,6 +338,9 @@ function decisiveInstants(lives: readonly BipedLife[], life: BipedLife): number[
   return instants;
 }
 
+// the feed carries the exact death instant while a life's last sample lands a few frames
+// either side of it, so the feed time is preferred wherever it matches the sampled end;
+// a sampled end with no feed death near it still counts
 function lastDeathBefore(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
@@ -293,12 +353,16 @@ function lastDeathBefore(
       lastEnd = life.endMs;
     }
   }
+  let lastDeath: number | null = null;
   for (const death of deaths) {
-    if (death.xuid === xuid && death.timestampMs < atMs && (lastEnd == null || death.timestampMs > lastEnd)) {
-      lastEnd = death.timestampMs;
+    if (death.xuid === xuid && death.timestampMs < atMs && (lastDeath == null || death.timestampMs > lastDeath)) {
+      lastDeath = death.timestampMs;
     }
   }
-  return lastEnd;
+  if (lastEnd != null && lastDeath != null && Math.abs(lastEnd - lastDeath) <= DEATH_MATCH_WINDOW_MS) {
+    return lastDeath;
+  }
+  return lastEnd == null || lastDeath == null ? (lastEnd ?? lastDeath) : Math.max(lastEnd, lastDeath);
 }
 
 type OwnerAt = (atMs: number) => string | null;
