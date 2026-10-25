@@ -1848,7 +1848,16 @@ export class DiscordService {
         const timeUntilReset = resetTimeMs - now;
         const maxWaitTime = 90 * 1000;
         const waitTime = Math.min(timeUntilReset, maxWaitTime);
-        this.logService.info(`Rate limit hit for path ${path}. Waiting ${waitTime.toString()}ms until reset.`);
+        // Warn level: long waits here can push waitUntil jobs past the runtime's post-response limit.
+        this.logService.warn(
+          "Discord rate limit pre-emptive wait",
+          new Map<string, JsonAny>([
+            ["path", path],
+            ["waitMs", waitTime],
+            ["timeUntilResetMs", timeUntilReset],
+            ["rateLimit", JSON.stringify(rateLimit)],
+          ]),
+        );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }

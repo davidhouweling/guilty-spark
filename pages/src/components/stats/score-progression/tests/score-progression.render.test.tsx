@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ScoreProgression } from "../score-progression";
 import type { ScoreLinesViewModel, ScoreMarkerData } from "../types";
+import { aFakeFlagRunsViewModelWith } from "../fakes/flag-runs-view-model.fake";
 
 afterEach(() => {
   cleanup();
@@ -20,6 +21,10 @@ vi.mock("../delta-chart/delta-chart", () => ({
 
 vi.mock("../timeline-gantt-chart/timeline-gantt-chart", () => ({
   TimelineGanttChart: (): React.ReactElement => <div data-testid="timeline-gantt-chart" />,
+}));
+
+vi.mock("../flag-runs-charts/flag-runs-charts", () => ({
+  FlagRunsCharts: (): React.ReactElement => <div data-testid="flag-runs-charts" />,
 }));
 
 const aFakeMarker = (): ScoreMarkerData => ({
@@ -44,7 +49,6 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     showPlayerAdvantage: false,
     showMarkers: true,
     showZoneAdvantage: false,
-    showToolbar: false,
     deltaViewModel: null,
     progressionViewModel: {
       durationMs: 600000,
@@ -115,5 +119,13 @@ describe("ScoreProgression", () => {
       />,
     );
     expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
+  });
+});
+
+describe("ScoreProgression flag runs", () => {
+  it("delegates a flag-runs view model to the flag runs charts", () => {
+    render(<ScoreProgression {...aFakeFlagRunsViewModelWith()} />);
+
+    expect(screen.getByTestId("flag-runs-charts")).toBeInTheDocument();
   });
 });
