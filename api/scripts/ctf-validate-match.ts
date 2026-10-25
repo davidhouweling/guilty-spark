@@ -10,7 +10,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { getDurationInSeconds } from "@guilty-spark/shared/halo/duration";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { CtfFlagEvent, CtfFlagEventKind } from "../services/halo/statborg/types";
-import { createScriptServices, enrichEventsWithTeamIds, fmtMs } from "./script-services";
+import { createScriptServices, enrichEventsWithTeamIds, fmtMs, gamertagsByXuid } from "./script-services";
 
 const MATCH_ID = process.argv[2] ?? "5e3900a6-69ee-42f6-9a79-5146e8802a0c";
 const SHOW_EVENTS = process.argv.includes("--events");
@@ -124,7 +124,7 @@ console.log(
 );
 
 const highlightEvents = enrichEventsWithTeamIds(await haloFilmService.getHighlightEventsForMatch(MATCH_ID), matchStats);
-const gamertagByXuid = new Map(highlightEvents.map((event) => [event.xuid, event.gamertag]));
+const gamertagByXuid = gamertagsByXuid(highlightEvents);
 const players = matchStats.Players.map((player) => {
   const xuid = unwrapXuid(player.PlayerId);
   return { xuid, team: player.LastTeamId, gamertag: gamertagByXuid.get(xuid) ?? xuid, player };
