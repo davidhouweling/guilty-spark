@@ -124,6 +124,17 @@ describe("nameLivesByDeaths offset", () => {
     expect(named.lives.map((life) => life.xuid)).toEqual([A, B, C, "0900000000000000"]);
   });
 
+  it("names nothing when the optimal plateau supports different owners at different offsets", () => {
+    const lives = [aFakeBipedLifeWith({ startMs: 1000, endMs: 10_000 })];
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 9720, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 10_000, xuid: B }),
+      aFakeDeathEventWith({ timestampMs: 10_280, xuid: C }),
+    ];
+
+    expect(nameLivesByDeaths(lives, deaths).lives.map((life) => life.xuid)).toEqual([null]);
+  });
+
   it("claims no alignment when two separate offsets fit the feed equally well", () => {
     const lives = [aFakeBipedLifeWith({ startMs: 1000, endMs: 10_000 })];
     const deaths = [
@@ -313,6 +324,16 @@ describe("nameLivesByElimination", () => {
     ];
 
     expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, B, null]);
+  });
+
+  it("judges lives earliest first so a later fragment sees the life that ended just before it", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 10_200, endMs: 10_400 }),
+      aFakeBipedLifeWith({ slot: 600, startMs: 0, endMs: 10_000 }),
+    ];
+
+    expect(nameLivesByElimination(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null, B]);
   });
 
   it("reads a death known only from the feed when judging whether a respawn is possible", () => {

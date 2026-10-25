@@ -254,7 +254,7 @@ function isContiguous(offsets: readonly number[]): boolean {
 
 // two separate plateaus with the same count mean the feed supports two different clocks, so
 // no alignment is claimed
-function plateauCentre(pairs: readonly NearbyPair[]): number | null {
+function optimalOffsets(pairs: readonly NearbyPair[]): number[] {
   let bestCount = -1;
   let plateau: number[] = [];
   for (let offset = -OFFSET_SEARCH_MS; offset <= OFFSET_SEARCH_MS; offset += OFFSET_STEP_MS) {
@@ -266,10 +266,29 @@ function plateauCentre(pairs: readonly NearbyPair[]): number | null {
       plateau.push(offset);
     }
   }
-  if (bestCount <= 0 || !isContiguous(plateau)) {
-    return null;
+  return bestCount > 0 && isContiguous(plateau) ? plateau : [];
+}
+
+function pairingKey(pair: Pairing): string {
+  return `${String(pair.deathIndex)}|${String(pair.lifeIndex)}`;
+}
+
+// the clock is only known to the width of the plateau, so a pairing counts only if it is
+// settled at every offset on it
+function pairingsSettledAcrossPlateau(pairs: readonly NearbyPair[], plateau: readonly number[]): Pairing[] {
+  const [first, ...rest] = plateau;
+  if (first == null) {
+    return [];
   }
-  return plateau[Math.floor(plateau.length / 2)] ?? null;
+  const settled = pairDeathsToLives(pairs, first);
+  const survivors = rest.reduce(
+    (keys, offset) => {
+      const atOffset = new Set(pairDeathsToLives(pairs, offset).map(pairingKey));
+      return new Set([...keys].filter((key) => atOffset.has(key)));
+    },
+    new Set(settled.map(pairingKey)),
+  );
+  return settled.filter((pair) => survivors.has(pairingKey(pair)));
 }
 
 export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
@@ -278,9 +297,10 @@ export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: numbe
 
 export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly DeathEvent[]): DeathNaming {
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
-  const offsetMs = plateauCentre(pairs);
+  const plateau = optimalOffsets(pairs);
+  const offsetMs = plateau[Math.floor(plateau.length / 2)] ?? null;
   const named = [...lives];
-  for (const pairing of offsetMs == null ? [] : pairDeathsToLives(pairs, offsetMs)) {
+  for (const pairing of pairingsSettledAcrossPlateau(pairs, plateau)) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
     if (life != null && death != null) {
@@ -392,6 +412,11 @@ function lastDeathBefore(
   return lastEnd == null || lastDeath == null ? (lastEnd ?? lastDeath) : Math.max(lastEnd, lastDeath);
 }
 
+// lives are judged earliest first so a life's verdict can see every life that ended before it
+function byStartTime(lives: readonly BipedLife[]): number[] {
+  return [...lives.keys()].sort((a, b) => (lives[a]?.startMs ?? 0) - (lives[b]?.startMs ?? 0));
+}
+
 type OwnerAt = (atMs: number) => string | null;
 
 // a dead player has no life at all for a few seconds, so single instants are unreliable; the
@@ -446,8 +471,9 @@ export function nameLivesByElimination(
     changed = false;
     const ownerAt = memoisedOwnerAt(named, roster);
     const next = [...named];
-    for (const [index, life] of named.entries()) {
-      if (life.xuid != null) {
+    for (const index of byStartTime(named)) {
+      const life = named[index];
+      if (life == null || life.xuid != null) {
         continue;
       }
       const owner = eliminatedOwner(named, ownerAt, life);
@@ -539,8 +565,7 @@ export function nameLivesByRespawnOrder(
   roster: readonly RosterMember[],
 ): BipedLife[] {
   const named = nameLivesBySlot(lives, roster);
-  const order = [...named.keys()].sort((a, b) => (named[a]?.startMs ?? 0) - (named[b]?.startMs ?? 0));
-  for (const index of order) {
+  for (const index of byStartTime(named)) {
     const life = named[index];
     if (life == null || life.xuid != null) {
       continue;
