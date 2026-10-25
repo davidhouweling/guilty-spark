@@ -5,8 +5,9 @@ import { aFakeCtfFlagEventWith } from "../../../statborg/fakes/ctf-flag-event.fa
 import { aFakeCtfMatchStatsWith } from "../../../statborg/fakes/ctf-match-stats.fake";
 import type { CtfFlagEvent } from "../../../statborg/types";
 import type { ParsedHighlightEvent } from "../../../types";
-import { AUTO_RETURN_MS, buildCtfProgression } from "../ctf-progression";
-import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../fakes/ctf-positions.fake";
+import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../../../positions/fakes/player-positions.fake";
+import { buildCtfProgression } from "../ctf-progression";
+import { AUTO_RETURN_MS } from "../open-run";
 
 // team 0 (A) defends the stand at x=1000; team 1 (B) captures at x=11000, so progress is x/10000
 const A = "0100000000000000";
@@ -44,12 +45,6 @@ const defaultTracks = [
 const defaultFlagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 60_000), flag("capture", B, 1, 70_000)];
 const defaultDeaths = [death(B, 20_000, 1)];
 
-function toDeaths(events: readonly ParsedHighlightEvent[]): { timestampMs: number; xuid: string }[] {
-  return events
-    .filter((event) => event.eventType === "death")
-    .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-}
-
 interface BuildOverrides {
   flagEvents?: readonly CtfFlagEvent[];
   tracks?: readonly PlayerPositionTrack[];
@@ -68,7 +63,6 @@ function build(overrides: BuildOverrides = {}): ReturnType<typeof buildCtfProgre
       tracks: overrides.tracks ?? defaultTracks,
       feedOffsetMs: overrides.feedOffsetMs ?? 0,
     }),
-    deaths: toDeaths(highlightEvents),
     highlightEvents,
     matchStats: aFakeCtfMatchStatsWith(),
     durationMs: overrides.durationMs ?? DURATION_MS,
@@ -237,10 +231,24 @@ describe("buildCtfProgression", () => {
     ]);
   });
 
-  it("ignores a steal recorded after the final whistle", () => {
-    const flagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 200_300)];
+  it("ignores a steal recorded after the final whistle, leaving the open run to end at the whistle", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({
+          slot: 520,
+          startMs: 150_000,
+          endMs: 200_000,
+          from: STAND_0,
+          to: [6000, 1000, 1000],
+          xuid: B,
+        }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 150_000), flag("steal", B, 1, 200_300)];
 
-    expect(build({ flagEvents }).runs).toHaveLength(1);
+    const { runs } = build({ flagEvents, tracks, highlightEvents: [] });
+
+    expect(runs.map((run) => [run.endMs, run.outcome])).toEqual([[DURATION_MS, "matchEnd"]]);
   });
 
   it("closes the current run on a same-frame return before opening the next run on the steal", () => {
@@ -332,7 +340,6 @@ describe("buildCtfProgression", () => {
       flagEvents: defaultFlagEvents,
       unresolvedSlots: [],
       positions: aFakePlayerPositionsWith({ tracks: defaultTracks }),
-      deaths: toDeaths(defaultDeaths),
       highlightEvents: defaultDeaths,
       matchStats,
       durationMs: DURATION_MS,

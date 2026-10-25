@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../fakes/ctf-positions.fake";
+import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../../../positions/fakes/player-positions.fake";
 import { PositionLookup, POSITION_TOLERANCE_MS } from "../position-lookup";
 
 const A = "0100000000000000";

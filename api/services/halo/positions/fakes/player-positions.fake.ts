@@ -1,4 +1,4 @@
-import type { BipedLife, PlayerPositions, PositionSample, Quantum3 } from "../../../positions/types";
+import type { BipedLife, PlayerPositions, PositionSample, Quantum3 } from "../types";
 
 export interface StraightLifeSpec {
   slot: number;

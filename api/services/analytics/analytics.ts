@@ -10,7 +10,7 @@ import { RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
-import { isCtfMatchSupported } from "../halo/statborg/ctf-flag-events";
+import { UnsupportedFilmError } from "../halo/film-errors";
 import type { LogService } from "../log/types";
 import type { DatabaseService, MatchKillMatrixReplaceRow } from "../database/database";
 import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
@@ -216,6 +216,9 @@ export class AnalyticsService {
       try {
         return await build();
       } catch (error) {
+        if (error instanceof UnsupportedFilmError) {
+          throw error;
+        }
         const normalizedError = toError(error);
         lastError = normalizedError;
         this.logService.warn(
@@ -274,6 +277,9 @@ export class AnalyticsService {
         this.buildScoreProgressionAnalytics(matchStats),
       );
     } catch (error) {
+      if (error instanceof UnsupportedFilmError) {
+        return null;
+      }
       this.logService.warn(
         toError(error),
         new Map([
@@ -285,12 +291,13 @@ export class AnalyticsService {
     }
   }
 
-  private warnOnUnresolvedCtfSlots(matchId: string, unresolvedSlots: readonly number[]): void {
+  // a known data condition of the match, not a fault: logged at info so it does not alert
+  private noteUnresolvedCtfSlots(matchId: string, unresolvedSlots: readonly number[]): void {
     if (unresolvedSlots.length === 0) {
       return;
     }
-    this.logService.warn(
-      new Error("CTF flag events could not be tied to a player for some stat slots"),
+    this.logService.info(
+      "CTF flag events could not be tied to a player for some stat slots",
       new Map([
         ["matchId", matchId],
         ["unresolvedSlots", unresolvedSlots.join(",")],
@@ -352,11 +359,9 @@ export class AnalyticsService {
         },
       };
     }
-    // BTB lobbies share the CTF category but exceed the statborg slot band; they get no timeline
-    // rather than three retries of a known failure
-    if (mode === GameVariantCategory.MultiplayerCtf && isCtfMatchSupported(matchStats)) {
+    if (mode === GameVariantCategory.MultiplayerCtf) {
       const progression = await this.haloFilmService.buildCtfProgression(matchStats, durationMs);
-      this.warnOnUnresolvedCtfSlots(matchStats.MatchId, progression.unresolvedSlots);
+      this.noteUnresolvedCtfSlots(matchStats.MatchId, progression.unresolvedSlots);
       return {
         mode,
         durationMs,

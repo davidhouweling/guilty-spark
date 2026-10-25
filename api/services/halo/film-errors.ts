@@ -31,3 +31,11 @@ export function skippedReplicationChunkError(matchId: string, skipped: SkippedRe
 export function noReplicationChunksError(matchId: string): IncompleteFilmError {
   return new IncompleteFilmError(`Film for match ${matchId} has no replication chunks`);
 }
+
+// a film the decoders cannot read by design (wrong mode, lobby too large); retrying never helps
+export class UnsupportedFilmError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnsupportedFilmError";
+  }
+}

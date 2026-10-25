@@ -1,6 +1,7 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
+import { UnsupportedFilmError } from "../film-errors";
 import { resolveSlotIdentities } from "./slot-identity";
 import { counterIncrementTimes } from "./stat-counters";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
@@ -40,20 +41,15 @@ function startingPlayerCount(matchStats: MatchStats): number {
   return matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
 }
 
-export function isCtfMatchSupported(matchStats: MatchStats): boolean {
-  return (
-    matchStats.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerCtf &&
-    startingPlayerCount(matchStats) <= MAX_SUPPORTED_PLAYERS
-  );
-}
-
 export function assertCtfMatchSupported(matchStats: MatchStats): void {
   if (matchStats.MatchInfo.GameVariantCategory !== GameVariantCategory.MultiplayerCtf) {
-    throw new Error(`Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`);
+    throw new UnsupportedFilmError(
+      `Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`,
+    );
   }
   const startingPlayers = startingPlayerCount(matchStats);
   if (startingPlayers > MAX_SUPPORTED_PLAYERS) {
-    throw new Error(
+    throw new UnsupportedFilmError(
       `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} started with ${String(startingPlayers)}`,
     );
   }

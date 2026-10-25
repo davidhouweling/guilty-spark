@@ -506,7 +506,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(ctfTimeline?.respawnDurationMs).toBe(10000);
   });
 
-  it("returns no scoreProgression for a CTF lobby larger than the statborg decoder supports", async () => {
+  it("returns no scoreProgression, without retries or warnings, for a CTF lobby larger than the decoder supports", async () => {
     const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
     const [firstPlayer] = matchStats.Players;
     const template = Preconditions.checkExists(firstPlayer);
@@ -526,12 +526,12 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
       perfectCounts: { total: 0, byXuid: {} },
     });
-    const buildSpy = vi.spyOn(haloFilmService, "buildCtfProgression");
+    const logWarnSpy = vi.spyOn(logService, "warn");
 
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
 
     expect(results["match-1"]?.scoreProgression).toBeNull();
-    expect(buildSpy).not.toHaveBeenCalled();
+    expect(logWarnSpy).not.toHaveBeenCalled();
   });
 
   it("retries a transient score-progression film failure and returns the second attempt", async () => {

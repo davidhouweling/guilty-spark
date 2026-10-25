@@ -54,16 +54,11 @@ import {
 } from "./positions/build-player-positions";
 import { AxisLayoutError } from "./positions/axis-layout";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
+import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
 import type { WalkedChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
-
-function toDeathEvents(events: readonly ParsedHighlightEvent[]): DeathEvent[] {
-  return events
-    .filter((event) => event.eventType === "death")
-    .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-}
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
@@ -246,15 +241,7 @@ export class HaloFilmService {
     const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
     const deaths = toDeathEvents(highlightEvents);
     const positions = this.tryNamePositions(walked, matchStats, deaths);
-    return buildCtfProgression({
-      flagEvents,
-      unresolvedSlots,
-      positions,
-      deaths,
-      highlightEvents,
-      matchStats,
-      durationMs,
-    });
+    return buildCtfProgression({ flagEvents, unresolvedSlots, positions, highlightEvents, matchStats, durationMs });
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
