@@ -22,8 +22,6 @@
   },
   "dependencies": {
     "@guilty-spark/shared": "file:../shared",
-    "@sentry/cli": "^3.8.1",
-    "@sentry/cloudflare": "^11.8.0",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.4.0",
     "discord-api-types": "^0.38.57",
@@ -35,8 +33,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@sentry/cli": "^3.8.2",
+    "@sentry/cloudflare": "^11.9.0",
     "@types/luxon": "^3.7.6",
-    "dotenv": "^18.0.8",
-    "wrangler": "^4.151.3"
+    "dotenv": "^18.0.9",
+    "wrangler": "^4.152.0"
   }
 }
