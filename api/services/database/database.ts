@@ -126,6 +126,50 @@ function getLatestGamertagIdentityCteSql(queueFilterSql: string): string {
       )`;
 }
 
+/**
+ * Latest DiscordUserId/Gamertag per player for leaderboard listings, from series (CompletedAt) or
+ * games (EndedAt). SQLite takes bare columns from the row holding the single MAX(), using the same
+ * fixed-width time key as getLatestGamertagIdentityCteSql. Binds: guildId, startEpochSeconds,
+ * queueChannelId, queueChannelId.
+ */
+function getLatestListingIdentitySql(source: "series" | "games"): string {
+  const { alias, guildColumnSql, timeSql, fromSql, queueColumnSql } =
+    source === "series"
+      ? {
+          alias: "sp",
+          guildColumnSql: "s.GuildId",
+          timeSql: "s.CompletedAt",
+          fromSql: `LeaderboardSeriesPlayers sp
+          INNER JOIN LeaderboardSeries s
+            ON s.GuildId = sp.GuildId
+            AND s.QueueNumber = sp.QueueNumber`,
+          queueColumnSql: "s.QueueChannelId",
+        }
+      : {
+          alias: "gp",
+          guildColumnSql: "gp.GuildId",
+          timeSql: "g.EndedAt",
+          fromSql: `LeaderboardGamePlayers gp
+          INNER JOIN LeaderboardGames g
+            ON g.GuildId = gp.GuildId
+            AND g.QueueNumber = gp.QueueNumber
+            AND g.MatchId = gp.MatchId`,
+          queueColumnSql: "gp.QueueChannelId",
+        };
+
+  return `
+          SELECT
+            ${alias}.XboxXuid AS XboxXuid,
+            ${alias}.DiscordUserId AS DiscordUserId,
+            ${alias}.GamertagSnapshot AS GamertagSnapshot,
+            MAX(printf('%012d%012d', ${timeSql}, ${alias}.CreatedAt) || ${alias}.GamertagSnapshot) AS LatestIdentityKey
+          FROM ${fromSql}
+          WHERE ${guildColumnSql} = ?
+            AND ${timeSql} >= ?
+            AND (? IS NULL OR ${queueColumnSql} = ?)
+          GROUP BY ${alias}.XboxXuid`;
+}
+
 function getLatestIdentityJoinSql({
   relatedTableName,
   identityTableName,
@@ -1862,25 +1906,7 @@ export class DatabaseService {
         HAVING SUM(sp.GamesPlayedCount) >= ?
       ) stats
       INNER JOIN (
-        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
-        FROM (
-          SELECT
-            sp.XboxXuid AS XboxXuid,
-            sp.DiscordUserId AS DiscordUserId,
-            sp.GamertagSnapshot AS GamertagSnapshot,
-            ROW_NUMBER() OVER (
-              PARTITION BY sp.XboxXuid
-              ORDER BY s.CompletedAt DESC, sp.CreatedAt DESC
-            ) AS RowNumber
-          FROM LeaderboardSeriesPlayers sp
-          INNER JOIN LeaderboardSeries s
-            ON s.GuildId = sp.GuildId
-            AND s.QueueNumber = sp.QueueNumber
-          WHERE s.GuildId = ?
-            AND s.CompletedAt >= ?
-            AND (? IS NULL OR s.QueueChannelId = ?)
-        ) ranked
-        WHERE ranked.RowNumber = 1
+        ${getLatestListingIdentitySql("series")}
       ) identity
         ON identity.XboxXuid = stats.XboxXuid
     `;
@@ -1897,22 +1923,57 @@ export class DatabaseService {
       queueChannelId,
     ] as const;
 
-    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
-    const countRow = await countStmt.first<{ Total: number }>();
+    return this.queryLeaderboardRankingsPage({
+      aggregateSql,
+      bindings,
+      orderBySql: "agg.MetricValue DESC, agg.SeriesWins DESC, agg.GamesPlayed DESC, agg.Gamertag ASC",
+      limit,
+      offset,
+    });
+  }
 
-    const rowsStmt = this.DB.prepare(
+  /**
+   * Fetches one ranking page with its total in a single pass: the window count is evaluated before
+   * LIMIT/OFFSET. An empty page past the end carries no total, so only then is it counted separately.
+   */
+  private async queryLeaderboardRankingsPage({
+    aggregateSql,
+    bindings,
+    orderBySql,
+    limit,
+    offset,
+  }: {
+    aggregateSql: string;
+    bindings: readonly (string | number | null)[];
+    orderBySql: string;
+    limit: number;
+    offset: number;
+  }): Promise<{ total: number; rows: LeaderboardRankingRow[] }> {
+    const rowsResponse = await this.DB.prepare(
       `
-        SELECT * FROM (${aggregateSql}) agg
-        ORDER BY agg.MetricValue DESC, agg.SeriesWins DESC, agg.GamesPlayed DESC, agg.Gamertag ASC
+        SELECT agg.*, COUNT(*) OVER () AS TotalCount FROM (${aggregateSql}) agg
+        ORDER BY ${orderBySql}
         LIMIT ? OFFSET ?
       `,
-    ).bind(...bindings, limit, offset);
-    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
+    )
+      .bind(...bindings, limit, offset)
+      .all<LeaderboardRankingRow & { TotalCount: number }>();
 
-    return {
-      total: countRow?.Total ?? 0,
-      rows: rowsResponse.results,
-    };
+    const rows: LeaderboardRankingRow[] = [];
+    let total = 0;
+    for (const { TotalCount, ...row } of rowsResponse.results) {
+      total = TotalCount;
+      rows.push(row);
+    }
+
+    if (rows.length === 0 && offset > 0) {
+      const countRow = await this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`)
+        .bind(...bindings)
+        .first<{ Total: number }>();
+      total = countRow?.Total ?? 0;
+    }
+
+    return { total, rows };
   }
 
   async getLeaderboardStatMetricRankings({
@@ -2195,26 +2256,7 @@ export class DatabaseService {
       ) seriesStats
         ON seriesStats.XboxXuid = stats.XboxXuid
       INNER JOIN (
-        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
-        FROM (
-          SELECT
-            gp.XboxXuid AS XboxXuid,
-            gp.DiscordUserId AS DiscordUserId,
-            gp.GamertagSnapshot AS GamertagSnapshot,
-            ROW_NUMBER() OVER (
-              PARTITION BY gp.XboxXuid
-              ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
-            ) AS RowNumber
-          FROM LeaderboardGamePlayers gp
-          INNER JOIN LeaderboardGames g
-            ON g.GuildId = gp.GuildId
-            AND g.QueueNumber = gp.QueueNumber
-            AND g.MatchId = gp.MatchId
-          WHERE gp.GuildId = ?
-            AND g.EndedAt >= ?
-            AND (? IS NULL OR gp.QueueChannelId = ?)
-        ) ranked
-        WHERE ranked.RowNumber = 1
+        ${getLatestListingIdentitySql("games")}
       ) identity
         ON identity.XboxXuid = stats.XboxXuid
     `;
@@ -2236,23 +2278,14 @@ export class DatabaseService {
       queueChannelId,
     ] as const;
 
-    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
-    const countRow = await countStmt.first<{ Total: number }>();
-
     const metricSortDirection = getLeaderboardMetricComparisonDirection(metric) === "asc" ? "ASC" : "DESC";
-    const rowsStmt = this.DB.prepare(
-      `
-        SELECT * FROM (${aggregateSql}) agg
-        ORDER BY agg.MetricValue ${metricSortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC
-        LIMIT ? OFFSET ?
-      `,
-    ).bind(...bindings, limit, offset);
-    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
-
-    return {
-      total: countRow?.Total ?? 0,
-      rows: rowsResponse.results,
-    };
+    return this.queryLeaderboardRankingsPage({
+      aggregateSql,
+      bindings,
+      orderBySql: `agg.MetricValue ${metricSortDirection}, agg.GamesPlayed DESC, agg.Gamertag ASC`,
+      limit,
+      offset,
+    });
   }
 
   async getLeaderboardPlayerStats({
@@ -3111,26 +3144,7 @@ export class DatabaseService {
         HAVING SUM(sp.GamesPlayedCount) >= ?
       ) stats
       INNER JOIN (
-        SELECT ranked.XboxXuid, ranked.DiscordUserId, ranked.GamertagSnapshot
-        FROM (
-          SELECT
-            gp.XboxXuid AS XboxXuid,
-            gp.DiscordUserId AS DiscordUserId,
-            gp.GamertagSnapshot AS GamertagSnapshot,
-            ROW_NUMBER() OVER (
-              PARTITION BY gp.XboxXuid
-              ORDER BY g.EndedAt DESC, gp.CreatedAt DESC
-            ) AS RowNumber
-          FROM LeaderboardGamePlayers gp
-          INNER JOIN LeaderboardGames g
-            ON g.GuildId = gp.GuildId
-            AND g.QueueNumber = gp.QueueNumber
-            AND g.MatchId = gp.MatchId
-          WHERE gp.GuildId = ?
-            AND g.EndedAt >= ?
-            AND (? IS NULL OR gp.QueueChannelId = ?)
-        ) ranked
-        WHERE ranked.RowNumber = 1
+        ${getLatestListingIdentitySql("games")}
       ) identity
         ON identity.XboxXuid = stats.XboxXuid
     `;
@@ -3150,14 +3164,13 @@ export class DatabaseService {
       queueChannelId,
       queueChannelId,
     ] as const;
-    const countStmt = this.DB.prepare(`SELECT COUNT(*) AS Total FROM (${aggregateSql}) agg`).bind(...bindings);
-    const countRow = await countStmt.first<{ Total: number }>();
-    const rowsStmt = this.DB.prepare(
-      `SELECT * FROM (${aggregateSql}) agg ORDER BY agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC LIMIT ? OFFSET ?`,
-    ).bind(...bindings, limit, offset);
-    const rowsResponse = await rowsStmt.all<LeaderboardRankingRow>();
-
-    return { total: countRow?.Total ?? 0, rows: rowsResponse.results };
+    return this.queryLeaderboardRankingsPage({
+      aggregateSql,
+      bindings,
+      orderBySql: "agg.MetricValue DESC, agg.GamesPlayed DESC, agg.Gamertag ASC",
+      limit,
+      offset,
+    });
   }
 
   async getUserSession(sessionId: string): Promise<UserSessionsRow | null> {
