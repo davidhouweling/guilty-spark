@@ -462,6 +462,49 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(strongholdsTimeline?.respawnDurationMs).toBe(8000);
   });
 
+  it("returns scoreProgression with a ctf timeline for Capture the Flag when scoreProgression is requested", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const ctfMatchStats = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerCtf },
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([ctfMatchStats]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    const run = {
+      flagTeamId: 0,
+      carrierTeamId: 1,
+      startMs: 40000,
+      endMs: 95000,
+      outcome: "capture" as const,
+      samples: [{ timestampMs: 50000, progress: 0.25 }],
+      events: [
+        { timestampMs: 40000, kind: "steal" as const },
+        { timestampMs: 95000, kind: "capture" as const },
+      ],
+    };
+    vi.spyOn(haloFilmService, "buildCtfProgression").mockResolvedValue({
+      events: [{ timestampMs: 95000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [run],
+      deathTimeline: [{ timestampMs: 45000, teamId: 1 }],
+      teamCount: 2,
+    });
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    const timeline = results["match-1"]?.scoreProgression?.timeline;
+    expect(timeline?.type).toBe("ctf");
+    const ctfTimeline = timeline?.type === "ctf" ? timeline : undefined;
+    expect(ctfTimeline?.events).toEqual([{ timestampMs: 95000, teamId: 1, runningScores: { "0": 0, "1": 1 } }]);
+    expect(ctfTimeline?.runs).toEqual([run]);
+    expect(ctfTimeline?.deathTimeline).toEqual([{ timestampMs: 45000, teamId: 1 }]);
+    expect(ctfTimeline?.respawnDurationMs).toBe(10000);
+  });
+
   it("retries a transient score-progression film failure and returns the second attempt", async () => {
     const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
     const strongholdsMatchStats = {

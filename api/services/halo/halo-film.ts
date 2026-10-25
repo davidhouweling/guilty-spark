@@ -40,11 +40,14 @@ import type {
   SkippedReplicationChunk,
   StateByte2Transition,
   HaloFilmServiceOpts,
+  CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
-import { buildPlayerPositions } from "./positions/build-player-positions";
+import { buildPlayerPositions, decodePositions, namePositions } from "./positions/build-player-positions";
+import { buildCtfProgression } from "./modes/ctf/ctf-progression";
+import { walkChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
 
@@ -214,6 +217,23 @@ export class HaloFilmService {
       }
     }
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+  }
+
+  // one film load serves both decoders: the stat records that carry the flag events and the
+  // biped positions that place the carrier
+  async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
+    assertCtfMatchSupported(matchStats);
+    const [chunks, highlightEvents] = await Promise.all([
+      this.getCompleteReplicationChunks(matchStats.MatchId),
+      this.loadEnrichedEventsForMatch(matchStats),
+    ]);
+    const records = chunks.flatMap((chunk) => scanChunkStatRecords(chunk));
+    const flagEvents = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats).events;
+    const deaths = highlightEvents
+      .filter((event) => event.eventType === "death")
+      .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+    const positions = namePositions(decodePositions(chunks.map(walkChunk), matchStats), matchStats, deaths);
+    return buildCtfProgression({ flagEvents, positions, highlightEvents, matchStats, durationMs });
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {

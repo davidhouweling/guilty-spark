@@ -8,5 +8,7 @@ export const RESPAWN_DURATION_MS: Partial<Record<number, number>> = {
   [GameVariantCategory.MultiplayerStrongholds]: 8000,
   [GameVariantCategory.MultiplayerOddball]: 8000,
   [GameVariantCategory.MultiplayerKingOfTheHill]: 8000,
+  // measured on every respawn of the ranked CTF reference match (film biped lives, PR #1024)
+  [GameVariantCategory.MultiplayerCtf]: 10000,
   // Attrition uses a lives-pool mechanic with teammate revival; respawn duration TBD
 };

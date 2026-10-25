@@ -338,6 +338,21 @@ export class AnalyticsService {
         },
       };
     }
+    if (mode === GameVariantCategory.MultiplayerCtf) {
+      const progression = await this.haloFilmService.buildCtfProgression(matchStats, durationMs);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "ctf",
+          events: progression.events,
+          runs: progression.runs,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs,
+        },
+      };
+    }
     if (mode === GameVariantCategory.MultiplayerOddball) {
       const progression = await this.haloFilmService.buildOddballProgression(matchStats, durationMs);
       return {
