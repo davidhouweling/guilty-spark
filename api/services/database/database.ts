@@ -141,29 +141,27 @@ function getLatestIdentityJoinSql({
   relatedAlias: "related";
   queueChannelIds: string[] | undefined;
 }): string {
+  // SQLite takes bare columns from the row holding the single MAX(), so DiscordUserId and
+  // GamertagSnapshot come from the latest row (same fixed-width key as getLatestGamertagIdentityCteSql).
   return `
     LEFT JOIN (
-      SELECT GuildId, XboxXuid, DiscordUserId, GamertagSnapshot
-      FROM (
-        SELECT
-          relatedIdentity.GuildId AS GuildId,
-          relatedIdentity.XboxXuid AS XboxXuid,
-          relatedIdentity.DiscordUserId AS DiscordUserId,
-          relatedIdentity.GamertagSnapshot AS GamertagSnapshot,
-          ROW_NUMBER() OVER (
-            PARTITION BY relatedIdentity.GuildId, relatedIdentity.XboxXuid
-            ORDER BY identityTable.${timeColumn} DESC, relatedIdentity.CreatedAt DESC
-          ) AS IdentityRowNumber
-        FROM ${relatedTableName} relatedIdentity
-        INNER JOIN ${identityTableName} identityTable
-          ON identityTable.GuildId = relatedIdentity.GuildId
-          AND identityTable.QueueNumber = relatedIdentity.QueueNumber
-          ${joinClause}
-        WHERE relatedIdentity.GuildId = ?
-          AND identityTable.${timeColumn} >= ?
-          AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
-      )
-      WHERE IdentityRowNumber = 1
+      SELECT
+        relatedIdentity.GuildId AS GuildId,
+        relatedIdentity.XboxXuid AS XboxXuid,
+        relatedIdentity.DiscordUserId AS DiscordUserId,
+        relatedIdentity.GamertagSnapshot AS GamertagSnapshot,
+        MAX(
+          printf('%012d%012d', identityTable.${timeColumn}, relatedIdentity.CreatedAt) || relatedIdentity.GamertagSnapshot
+        ) AS LatestIdentityKey
+      FROM ${relatedTableName} relatedIdentity
+      INNER JOIN ${identityTableName} identityTable
+        ON identityTable.GuildId = relatedIdentity.GuildId
+        AND identityTable.QueueNumber = relatedIdentity.QueueNumber
+        ${joinClause}
+      WHERE relatedIdentity.GuildId = ?
+        AND identityTable.${timeColumn} >= ?
+        AND ${getQueueFilterSql("relatedIdentity", queueChannelIds)}
+      GROUP BY relatedIdentity.GuildId, relatedIdentity.XboxXuid
     ) latestIdentity
       ON latestIdentity.GuildId = ${relatedAlias}.GuildId
       AND latestIdentity.XboxXuid = ${relatedAlias}.XboxXuid
