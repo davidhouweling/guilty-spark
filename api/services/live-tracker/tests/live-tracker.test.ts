@@ -423,6 +423,27 @@ describe("LiveTrackerService", () => {
       expect(warnSpy).toHaveBeenCalledWith("Refresh cooldown active", expect.any(Map));
     });
 
+    it("returns the in-progress response (409) without throwing", async () => {
+      const mockResponse = {
+        success: false,
+        error: "in_progress",
+        message: "A refresh is already in progress, please wait",
+      };
+
+      fetch.mockResolvedValue(
+        aFakeResponseWith({
+          ok: false,
+          status: 409,
+          json: vi.fn().mockResolvedValue(mockResponse),
+        }),
+      );
+
+      const result = await service.refreshTracker(liveTrackerContext, true);
+
+      expect(result).toEqual(mockResponse);
+      expect(warnSpy).toHaveBeenCalledWith("Refresh already in progress", expect.any(Map));
+    });
+
     it("throws error for non-cooldown failures", async () => {
       fetch.mockResolvedValue(
         aFakeResponseWith({

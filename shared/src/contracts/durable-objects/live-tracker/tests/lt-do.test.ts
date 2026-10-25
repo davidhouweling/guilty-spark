@@ -176,6 +176,12 @@ describe("liveTrackerRefreshContract", () => {
     await expect(liveTrackerRefreshContract.fromResponse(response)).resolves.toEqual(data);
   });
 
+  it("accepts an in-progress error response", async () => {
+    const data = { success: false as const, error: "in_progress" as const, message: "Please wait" };
+    const response = liveTrackerRefreshContract.toResponse(data, { status: 409 });
+    await expect(liveTrackerRefreshContract.fromResponse(response)).resolves.toEqual(data);
+  });
+
   it("accepts a failure response with state", () => {
     expect(liveTrackerRefreshContract.parse({ success: false, state: validState })).toMatchObject({ success: false });
   });

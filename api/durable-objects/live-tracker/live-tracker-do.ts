@@ -509,17 +509,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     if (this.checkAndHandleStaleLock(trackerState)) {
       this.logService.debug("Refresh already in progress, ignoring concurrent request");
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "in_progress",
-          message: "A refresh is already in progress, please wait",
-        }),
-        {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return this.createRefreshInProgressResponse();
     }
 
     trackerState.refreshInProgress = true;
@@ -1052,6 +1042,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private createRefreshCooldownResponse(message: string): Response {
     return liveTrackerRefreshContract.toResponse({ success: false, error: "cooldown", message }, { status: 429 });
+  }
+
+  private createRefreshInProgressResponse(): Response {
+    return liveTrackerRefreshContract.toResponse(
+      { success: false, error: "in_progress", message: "A refresh is already in progress, please wait" },
+      { status: 409 },
+    );
   }
 
   private createRefreshFailureResponse(state: LiveTrackerState): Response {
