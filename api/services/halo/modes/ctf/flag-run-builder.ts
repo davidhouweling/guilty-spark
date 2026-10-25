@@ -87,6 +87,9 @@ export class FlagRunBuilder {
       // opposite, since the grab counter only moves once the flag has left their hands
       const carrierKeepsFlag = event.xuid === run.currentCarrier && event.kind === "capture";
       this.dropIfCarrierLost(run, event.timestampMs, carrierKeepsFlag);
+      if (event.kind === "return" || event.kind === "steal") {
+        this.dropAtLatest(run, event.timestampMs);
+      }
       switch (event.kind) {
         case "steal": {
           const endMs = Math.min(event.timestampMs, run.autoReturnMs() ?? event.timestampMs);
@@ -126,6 +129,15 @@ export class FlagRunBuilder {
     const lostMs = carrierActsNext ? null : run.carrierLostBefore(untilMs);
     if (lostMs != null) {
       run.drop(lostMs);
+    }
+  }
+
+  // a return or a fresh steal proves the flag had left the carrier's hands and lain on the
+  // ground; with no death and no vanished biped to date it, the drop is placed at that event.
+  // A grab by someone else is a handover (a throw to a teammate) and is modelled as one
+  private dropAtLatest(run: OpenRun, atMs: number): void {
+    if (run.currentCarrier != null) {
+      run.drop(atMs);
     }
   }
 

@@ -43,23 +43,33 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { scanChunkStatRecords, scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
-import {
-  buildPlayerPositions,
-  decodePositions,
-  emptyPlayerPositions,
-  namePositions,
-  PositionDecodeError,
-} from "./positions/build-player-positions";
-import { AxisLayoutError } from "./positions/axis-layout";
+import { buildPlayerPositions } from "./positions/build-player-positions";
+import { namePositionsOrEmpty } from "./positions/name-positions-or-empty";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
 import type { CtfProgressionInput } from "./modes/ctf/ctf-progression";
 import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
-import type { WalkedChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
+
+function flagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+  return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+}
+
+// one walk per chunk serves both decoders, and the inflated film is out of scope again before
+// the progression is built
+function decodeCtfFilm(
+  chunks: readonly ReplicationChunk[],
+  matchStats: MatchStats,
+  deaths: readonly DeathEvent[],
+): Pick<CtfProgressionInput, "flagEvents" | "unresolvedSlots" | "positions"> {
+  const walked = chunks.map(walkChunk);
+  const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
+  const { events: flagEvents, unresolvedSlots } = flagEventsFromRecords(records, matchStats);
+  return { flagEvents, unresolvedSlots, positions: namePositionsOrEmpty(walked, matchStats, deaths) };
+}
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
@@ -222,31 +232,19 @@ export class HaloFilmService {
     assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
     for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
-      for (const record of scanChunkStatRecords(chunk)) {
-        records.push(record);
-      }
+      records.push(...scanWalkedChunkStatRecords(walkChunk(chunk)));
     }
-    return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
+    return flagEventsFromRecords(records, matchStats);
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
     assertCtfMatchSupported(matchStats);
-    const highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
-    const decoded = await this.decodeCtfFilm(matchStats, toDeathEvents(highlightEvents));
+    const [highlightEvents, chunks] = await Promise.all([
+      this.loadEnrichedEventsForMatch(matchStats),
+      this.getCompleteReplicationChunks(matchStats.MatchId),
+    ]);
+    const decoded = decodeCtfFilm(chunks, matchStats, toDeathEvents(highlightEvents));
     return buildCtfProgression({ ...decoded, highlightEvents, matchStats, durationMs });
-  }
-
-  // one film load and one walk per chunk serve both decoders, and the inflated film is out of
-  // scope again before the progression is built
-  private async decodeCtfFilm(
-    matchStats: MatchStats,
-    deaths: readonly DeathEvent[],
-  ): Promise<Pick<CtfProgressionInput, "flagEvents" | "unresolvedSlots" | "positions">> {
-    const chunks = await this.getCompleteReplicationChunks(matchStats.MatchId);
-    const walked = chunks.map(walkChunk);
-    const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
-    const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
-    return { flagEvents, unresolvedSlots, positions: this.tryNamePositions(walked, matchStats, deaths) };
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
@@ -259,23 +257,6 @@ export class HaloFilmService {
 
   async getDeathEvents(matchId: string): Promise<DeathEvent[]> {
     return toDeathEvents(await this.getHighlightEventsForMatch(matchId));
-  }
-
-  // the flag events and the score need no positions, so a film whose bipeds cannot be decoded
-  // still yields runs, only without progress samples
-  private tryNamePositions(
-    walked: readonly WalkedChunk[],
-    matchStats: MatchStats,
-    deaths: readonly DeathEvent[],
-  ): PlayerPositions {
-    try {
-      return namePositions(decodePositions(walked, matchStats), matchStats, deaths);
-    } catch (error: unknown) {
-      if (error instanceof PositionDecodeError || error instanceof AxisLayoutError) {
-        return emptyPlayerPositions();
-      }
-      throw error;
-    }
   }
 
   async getCompleteReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {

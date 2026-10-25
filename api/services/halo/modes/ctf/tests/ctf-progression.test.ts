@@ -405,17 +405,31 @@ describe("buildCtfProgression", () => {
     expect(build({ unresolvedSlots: [18] }).unresolvedSlots).toEqual([18]);
   });
 
-  it("drops a carrier it never sees at the pickup and emits no samples without an axis", () => {
+  it("holds a run open to the whistle for a carrier with no track at all and emits no samples", () => {
     const flagEvents = [flag("steal", B, 1, 10_000)];
 
     const [run] = build({ flagEvents, tracks: [], highlightEvents: [] }).runs;
 
+    expect(run?.events).toEqual([{ timestampMs: 10_000, kind: "steal" }]);
+    expect(run?.outcome).toBe("matchEnd");
+    expect(run?.samples).toEqual([]);
+  });
+
+  it("places the drop on the return when nothing dates the carrier letting go", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({ slot: 520, startMs: 10_000, endMs: 60_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("return", A, 0, 30_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
     expect(run?.events).toEqual([
       { timestampMs: 10_000, kind: "steal" },
-      { timestampMs: 10_000, kind: "drop" },
+      { timestampMs: 30_000, kind: "drop" },
+      { timestampMs: 30_000, kind: "return" },
     ]);
-    expect(run?.outcome).toBe("autoReturn");
-    expect(run?.samples).toEqual([]);
   });
 
   it("clamps events and samples to the match duration", () => {

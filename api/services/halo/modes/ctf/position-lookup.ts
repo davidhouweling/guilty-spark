@@ -39,6 +39,10 @@ export class PositionLookup {
     );
   }
 
+  hasTrack(xuid: string): boolean {
+    return this.samplesByXuid.has(xuid);
+  }
+
   positionAt(xuid: string, atMs: number): Quantum3 | null {
     return this.sampleAt(xuid, atMs)?.q ?? null;
   }

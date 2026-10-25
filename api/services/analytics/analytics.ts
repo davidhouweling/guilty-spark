@@ -11,7 +11,6 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
 import { UnsupportedFilmError } from "../halo/film-errors";
-import { isCtfMatchSupported } from "../halo/statborg/ctf-flag-events";
 import type { LogService } from "../log/types";
 import type { DatabaseService, MatchKillMatrixReplaceRow } from "../database/database";
 import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
@@ -278,6 +277,10 @@ export class AnalyticsService {
         this.buildScoreProgressionAnalytics(matchStats),
       );
     } catch (error) {
+      if (error instanceof UnsupportedFilmError) {
+        this.logService.info(error.message, new Map([["matchId", matchStats.MatchId]]));
+        return null;
+      }
       this.logService.warn(
         toError(error),
         new Map([
@@ -358,9 +361,6 @@ export class AnalyticsService {
       };
     }
     if (mode === GameVariantCategory.MultiplayerCtf) {
-      if (!isCtfMatchSupported(matchStats)) {
-        return null;
-      }
       const progression = await this.haloFilmService.buildCtfProgression(matchStats, durationMs);
       this.noteUnresolvedCtfSlots(matchStats.MatchId, progression.unresolvedSlots);
       return {

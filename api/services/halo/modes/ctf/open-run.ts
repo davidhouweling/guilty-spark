@@ -1,6 +1,7 @@
 import type { DeathEvent, PositionSample, Quantum3 } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
 import type { CtfFlagRun, CtfRunEvent, CtfRunOutcome } from "../../types";
+import { LIFE_GAP_MS } from "../../positions/lives";
 import type { FlagAxis } from "./flag-axis";
 import type { PositionLookup } from "./position-lookup";
 
@@ -8,9 +9,9 @@ import type { PositionLookup } from "./position-lookup";
 // it last left a carrier's hands (the timer pauses while an attacker stands on it)
 export const AUTO_RETURN_MS = 25_000;
 export const SAMPLE_INTERVAL_MS = 500;
-// the carrier's biped vanishing for this long (left the match, or a life the decoder could not
-// name) counts as the flag leaving their hands at the last place it was seen
-export const CARRIER_LOST_MS = 5_000;
+// the carrier's biped vanishing for as long as a life gap (left the match, or a life the decoder
+// could not name) counts as the flag leaving their hands at the last place it was seen
+export const CARRIER_LOST_MS = LIFE_GAP_MS;
 const PROGRESS_SCALE = 1000;
 
 function roundProgress(progress: number): number {
@@ -79,11 +80,11 @@ export class OpenRun {
   }
 
   // the instant the carrier's biped was last seen (the pickup itself if never), once it has
-  // been gone long enough to count as having left the carrier's hands; the scan resumes where
-  // the previous call stopped
+  // been gone long enough to count as having left the carrier's hands; a carrier with no track
+  // at all is unknown rather than lost, and the scan resumes where the previous call stopped
   carrierLostBefore(untilMs: number): number | null {
     const { carrier } = this;
-    if (carrier == null) {
+    if (carrier == null || !this.lookup.hasTrack(carrier)) {
       return null;
     }
     for (let atMs = this.scanMs; atMs <= untilMs; atMs += SAMPLE_INTERVAL_MS) {
@@ -132,7 +133,7 @@ export class OpenRun {
     } else {
       this.sampleAt(Math.min(endMs, durationMs));
     }
-    this.dropSamplesBeforeTerminal();
+    this.dedupeSamples();
     if (closingEvent != null) {
       this.events.push(closingEvent);
     }
@@ -171,16 +172,10 @@ export class OpenRun {
     this.samples.push({ timestampMs: atMs, progress: roundProgress(progress) });
   }
 
-  // a capture clamped onto the whistle can land on the instant of the last stepped sample; the
-  // terminal sample wins
-  private dropSamplesBeforeTerminal(): void {
-    const terminal = this.samples.at(-1);
-    if (terminal == null) {
-      return;
-    }
-    const kept = this.samples.filter(
-      (sample, index) => sample.timestampMs !== terminal.timestampMs || index === this.samples.length - 1,
-    );
-    this.samples.splice(0, this.samples.length, ...kept);
+  // a drop, a grab or a clamped capture can land on an instant already stepped; the later
+  // sample is the truer one
+  private dedupeSamples(): void {
+    const lastByInstant = new Map(this.samples.map((sample) => [sample.timestampMs, sample]));
+    this.samples.splice(0, this.samples.length, ...lastByInstant.values());
   }
 }
