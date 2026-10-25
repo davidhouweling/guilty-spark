@@ -2460,8 +2460,9 @@ describe("HaloFilmService replication chunks", () => {
   });
 
   // a film whose replication chunks carry both decoders' records: a keyframe listing the two
-  // bipeds, a biped record for each every 100 ms, and the statborg frames that name the slots
-  // and carry the flag counters (team 1's 0400… steals at 5 s and captures at 25 s)
+  // bipeds, a biped record for each every 100 ms (team 0's biped dies at 28 s, team 1's at
+  // 30 s), and the statborg frames that name the slots and carry the flag counters (team 1's
+  // 0400… steals at 5 s and captures at 25 s)
   function aCtfFilmChunk(startMs: number, statFrames: readonly PacketSpec[]): Uint8Array {
     const packets: PacketSpec[] = [
       {
@@ -2475,13 +2476,14 @@ describe("HaloFilmService replication chunks", () => {
     ];
     for (let atMs = startMs; atMs < startMs + 20_000 && atMs <= 30_000; atMs += 100) {
       const step = (atMs - 1000) / 100;
+      const records = [{ slot: 512, q: walkPosition(FAKE_ORIGIN, 512, step) }];
+      if (atMs <= 28_000) {
+        records.push({ slot: 513, q: walkPosition([20_000, 12_000, 70_000], 513, step) });
+      }
       packets.push({
         type: PACKET_TYPE_FRAME,
         timestampUs: BigInt(atMs) * 1000n,
-        payload: buildBipedFramePayload([
-          { slot: 512, q: walkPosition(FAKE_ORIGIN, 512, step) },
-          { slot: 513, q: walkPosition([20_000, 12_000, 70_000], 513, step) },
-        ]),
+        payload: buildBipedFramePayload(records),
       });
     }
     packets.push(...statFrames);
@@ -2513,7 +2515,7 @@ describe("HaloFilmService replication chunks", () => {
     await env.APP_DATA.put(
       "halo:film:match:match-ctf",
       JSON.stringify([
-        aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType: "death", timeMs: 30_000 }),
+        aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType: "death", timeMs: 28_000 }),
         aFakeParsedHighlightEventWith({ xuid: "0400000000000000", eventType: "death", timeMs: 30_000 }),
       ]),
     );
@@ -2540,7 +2542,7 @@ describe("HaloFilmService replication chunks", () => {
     ]);
     expect(progression.runs[0]?.samples.at(-1)).toEqual({ timestampMs: 25_000, progress: 1 });
     expect(progression.deathTimeline).toEqual([
-      { timestampMs: 30_000, teamId: 0 },
+      { timestampMs: 28_000, teamId: 0 },
       { timestampMs: 30_000, teamId: 1 },
     ]);
     expect(progression.teamCount).toBe(2);

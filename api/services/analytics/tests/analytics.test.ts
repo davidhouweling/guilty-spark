@@ -492,6 +492,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       runs: [run],
       deathTimeline: [{ timestampMs: 45000, teamId: 1 }],
       teamCount: 2,
+      unresolvedSlots: [],
     });
 
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
@@ -503,6 +504,34 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(ctfTimeline?.runs).toEqual([run]);
     expect(ctfTimeline?.deathTimeline).toEqual([{ timestampMs: 45000, teamId: 1 }]);
     expect(ctfTimeline?.respawnDurationMs).toBe(10000);
+  });
+
+  it("returns no scoreProgression for a CTF lobby larger than the statborg decoder supports", async () => {
+    const matchStats = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
+    const [firstPlayer] = matchStats.Players;
+    const template = Preconditions.checkExists(firstPlayer);
+    const bigLobby = {
+      ...matchStats,
+      MatchInfo: { ...matchStats.MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerCtf },
+      Players: [...Array(9).keys()].map((index) => ({
+        ...template,
+        PlayerId: `xuid(${String(1000 + index)})`,
+        ParticipationInfo: { ...template.ParticipationInfo, PresentAtBeginning: true },
+      })),
+    };
+    vi.spyOn(haloService, "getMatchDetails").mockResolvedValue([bigLobby]);
+    vi.spyOn(haloFilmService, "warmAuthCache").mockResolvedValue(undefined);
+    vi.spyOn(haloFilmService, "buildKillMatrixAnalytics").mockResolvedValue({
+      entries: [],
+      pairingQuality: { unpairedDeathCount: 0, maxTimeDeltaMs: 0 },
+      perfectCounts: { total: 0, byXuid: {} },
+    });
+    const buildSpy = vi.spyOn(haloFilmService, "buildCtfProgression");
+
+    const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);
+
+    expect(results["match-1"]?.scoreProgression).toBeNull();
+    expect(buildSpy).not.toHaveBeenCalled();
   });
 
   it("retries a transient score-progression film failure and returns the second attempt", async () => {

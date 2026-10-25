@@ -36,11 +36,22 @@ function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
 // may attribute the slot to one of them or neither.
 const MAX_SUPPORTED_PLAYERS = 8;
 
+function startingPlayerCount(matchStats: MatchStats): number {
+  return matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
+}
+
+export function isCtfMatchSupported(matchStats: MatchStats): boolean {
+  return (
+    matchStats.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerCtf &&
+    startingPlayerCount(matchStats) <= MAX_SUPPORTED_PLAYERS
+  );
+}
+
 export function assertCtfMatchSupported(matchStats: MatchStats): void {
   if (matchStats.MatchInfo.GameVariantCategory !== GameVariantCategory.MultiplayerCtf) {
     throw new Error(`Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`);
   }
-  const startingPlayers = matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
+  const startingPlayers = startingPlayerCount(matchStats);
   if (startingPlayers > MAX_SUPPORTED_PLAYERS) {
     throw new Error(
       `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} started with ${String(startingPlayers)}`,

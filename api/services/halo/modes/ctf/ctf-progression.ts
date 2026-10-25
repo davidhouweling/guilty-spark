@@ -13,7 +13,7 @@ import type {
 } from "../../types";
 import { buildDeathTimeline } from "../death-timeline";
 import { FlagAxis, medianPosition } from "./flag-axis";
-import { PositionLookup } from "./position-lookup";
+import { PositionLookup, POSITION_TOLERANCE_MS } from "./position-lookup";
 
 // theatre-checked on the reference match: an untouched flag is back on its stand 20–25 s after
 // it last left a carrier's hands (the timer pauses while an attacker stands on it)
@@ -27,6 +27,7 @@ const CARRIER_LOST_MS = 5_000;
 
 export interface CtfProgressionInput {
   readonly flagEvents: readonly CtfFlagEvent[];
+  readonly unresolvedSlots: readonly number[];
   readonly positions: PlayerPositions;
   readonly deaths: readonly DeathEvent[];
   readonly highlightEvents: readonly ParsedHighlightEvent[];
@@ -110,6 +111,9 @@ class OpenRun {
   private lastMs: number;
   private lastPosition: Quantum3 | null;
   private dropMs: number | null = null;
+  private scanMs: number;
+  private lastSeenMs: number | null = null;
+  carryStartMs: number;
   private readonly samples: CtfFlagRun["samples"] = [];
   private readonly events: CtfRunEvent[] = [];
 
@@ -122,6 +126,8 @@ class OpenRun {
   ) {
     this.carrier = steal.xuid;
     this.lastMs = steal.timestampMs;
+    this.scanMs = steal.timestampMs;
+    this.carryStartMs = steal.timestampMs;
     this.lastPosition = stand;
     this.events.push({ timestampMs: steal.timestampMs, kind: "steal" });
   }
@@ -130,32 +136,39 @@ class OpenRun {
     return this.dropMs == null ? null : this.dropMs + AUTO_RETURN_MS;
   }
 
-  // a death stamped on the very instant of the pickup still ends the carry
-  carrierDeathBefore(deaths: readonly DeathEvent[], untilMs: number): DeathEvent | null {
-    const { carrier, lastMs } = this;
+  // a death stamped on the instant of the pickup, or a few frames before it on an unaligned
+  // feed, still ends the carry
+  carrierDeathBefore(deaths: ReadonlySet<DeathEvent>, untilMs: number): DeathEvent | null {
+    const { carrier, carryStartMs } = this;
     if (carrier == null) {
       return null;
     }
-    return (
-      deaths.find((death) => death.xuid === carrier && death.timestampMs >= lastMs && death.timestampMs <= untilMs) ??
-      null
-    );
+    for (const death of deaths) {
+      if (
+        death.xuid === carrier &&
+        death.timestampMs >= carryStartMs - POSITION_TOLERANCE_MS &&
+        death.timestampMs <= untilMs
+      ) {
+        return death;
+      }
+    }
+    return null;
   }
 
   // the instant the carrier's biped was last seen, once it has been gone long enough to count
-  // as having left the carrier's hands
+  // as having left the carrier's hands; the scan resumes where the previous call stopped
   carrierLostBefore(untilMs: number): number | null {
-    const { carrier, lastMs } = this;
+    const { carrier } = this;
     if (carrier == null) {
       return null;
     }
-    let lastSeenMs: number | null = null;
-    for (let atMs = lastMs; atMs <= untilMs; atMs += SAMPLE_INTERVAL_MS) {
+    for (let atMs = this.scanMs; atMs <= untilMs; atMs += SAMPLE_INTERVAL_MS) {
+      this.scanMs = atMs;
       const seen = this.lookup.sampleAt(carrier, atMs);
       if (seen != null) {
-        lastSeenMs = Math.max(lastSeenMs ?? lastMs, seen.timestampMs);
-      } else if (lastSeenMs != null && atMs - lastSeenMs >= CARRIER_LOST_MS) {
-        return lastSeenMs;
+        this.lastSeenMs = Math.max(this.lastSeenMs ?? this.lastMs, seen.timestampMs);
+      } else if (this.lastSeenMs != null && atMs - this.lastSeenMs >= CARRIER_LOST_MS) {
+        return this.lastSeenMs;
       }
     }
     return null;
@@ -181,12 +194,15 @@ class OpenRun {
     this.events.push({ timestampMs: event.timestampMs, kind: "grab" });
     this.carrier = event.xuid;
     this.dropMs = null;
+    this.scanMs = event.timestampMs;
+    this.carryStartMs = event.timestampMs;
+    this.lastSeenMs = null;
   }
 
   close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null, durationMs: number): CtfFlagRun {
     this.advanceTo(endMs);
-    if (outcome === "capture") {
-      this.pushSample(endMs, 1);
+    if (outcome === "capture" && this.axis != null) {
+      this.pushSample(Math.min(endMs, durationMs), 1);
     } else {
       this.sampleAt(endMs);
     }
@@ -217,6 +233,17 @@ class OpenRun {
   }
 }
 
+const RUN_EVENT_ORDER: Record<CtfFlagEvent["kind"], number> = {
+  return: 0,
+  capture: 0,
+  grab: 1,
+  steal: 2,
+  captureAssist: 3,
+  carrierKilled: 3,
+  returnerKilled: 3,
+  secure: 3,
+};
+
 function isRunEvent(event: CtfFlagEvent, flagTeamId: number, carrierTeamId: number): boolean {
   if (event.kind === "return") {
     return event.teamId === flagTeamId;
@@ -232,13 +259,17 @@ interface ClosedRun {
 }
 
 class FlagRunBuilder {
+  private readonly openDeaths: Set<DeathEvent>;
+
   constructor(
     private readonly flagEvents: readonly CtfFlagEvent[],
     private readonly stands: FlagStands,
     private readonly lookup: PositionLookup,
-    private readonly deaths: readonly DeathEvent[],
+    deaths: readonly DeathEvent[],
     private readonly durationMs: number,
-  ) {}
+  ) {
+    this.openDeaths = new Set(deaths);
+  }
 
   // steal → (grab | drop)* → capture | return | auto-return 25 s after the last drop | match end
   runsForFlag(flagTeamId: number, carrierTeamId: number): CtfFlagRun[] {
@@ -265,10 +296,11 @@ class FlagRunBuilder {
     return runs;
   }
 
+  // events stamped on one frame close the flag's current run before they open the next
   private runEvents(flagTeamId: number, carrierTeamId: number): CtfFlagEvent[] {
     return this.flagEvents
       .filter((event) => isRunEvent(event, flagTeamId, carrierTeamId))
-      .sort((a, b) => a.timestampMs - b.timestampMs);
+      .sort((a, b) => a.timestampMs - b.timestampMs || RUN_EVENT_ORDER[a.kind] - RUN_EVENT_ORDER[b.kind]);
   }
 
   // a grab, return or capture of this flag proves it was still out however long after the last
@@ -315,11 +347,18 @@ class FlagRunBuilder {
     return { run: this.closeAtMatchEnd(run), nextIndex: index };
   }
 
+  // a death ends one carry only; one stamped just before the pickup on an unaligned feed is
+  // placed at the pickup
   private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
-    const death = run.carrierDeathBefore(this.deaths, untilMs);
-    const dropMs = death?.timestampMs ?? run.carrierLostBefore(untilMs);
-    if (dropMs != null) {
-      run.drop(dropMs);
+    const death = run.carrierDeathBefore(this.openDeaths, untilMs);
+    if (death != null) {
+      this.openDeaths.delete(death);
+      run.drop(Math.max(death.timestampMs, run.carryStartMs));
+      return;
+    }
+    const lostMs = run.carrierLostBefore(untilMs);
+    if (lostMs != null) {
+      run.drop(lostMs);
     }
   }
 
@@ -333,17 +372,21 @@ class FlagRunBuilder {
   }
 }
 
+// every series shares the film clock: the feed's deaths are shifted by the offset the
+// position decoder measured, for the drops and for the overlay alike
 export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
-  const { flagEvents, positions, highlightEvents, matchStats, durationMs } = input;
+  const { flagEvents, positions, matchStats, durationMs, unresolvedSlots } = input;
+  const feedOffsetMs = positions.feedOffsetMs ?? 0;
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
-  const deathTimeline = buildDeathTimeline(highlightEvents, new Set(teamIds), durationMs);
+  const filmHighlights = input.highlightEvents.map((event) => ({ ...event, timeMs: event.timeMs + feedOffsetMs }));
+  const deathTimeline = buildDeathTimeline(filmHighlights, new Set(teamIds), durationMs);
   const events = buildCaptureEvents(flagEvents, teamIds, durationMs);
   const [firstTeam, secondTeam] = teamIds;
   if (firstTeam == null || secondTeam == null || teamIds.length !== 2) {
-    return { events, runs: [], deathTimeline, teamCount: teamIds.length };
+    return { events, runs: [], deathTimeline, teamCount: teamIds.length, unresolvedSlots: [...unresolvedSlots] };
   }
   const lookup = new PositionLookup(positions);
-  const filmDeaths = alignDeathsToFilm(input.deaths, positions.feedOffsetMs ?? 0);
+  const filmDeaths = alignDeathsToFilm(input.deaths, feedOffsetMs);
   const builder = new FlagRunBuilder(
     flagEvents,
     new FlagStands(flagEvents, teamIds, lookup),
@@ -354,5 +397,5 @@ export function buildCtfProgression(input: CtfProgressionInput): CtfProgression 
   const runs = [...builder.runsForFlag(firstTeam, secondTeam), ...builder.runsForFlag(secondTeam, firstTeam)].sort(
     (a, b) => a.startMs - b.startMs,
   );
-  return { events, runs, deathTimeline, teamCount: teamIds.length };
+  return { events, runs, deathTimeline, teamCount: teamIds.length, unresolvedSlots: [...unresolvedSlots] };
 }

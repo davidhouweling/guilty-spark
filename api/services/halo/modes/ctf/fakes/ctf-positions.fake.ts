@@ -1,10 +1,4 @@
-import type {
-  BipedLife,
-  PlayerPositions,
-  PlayerPositionTrack,
-  PositionSample,
-  Quantum3,
-} from "../../../positions/types";
+import type { BipedLife, PlayerPositions, PositionSample, Quantum3 } from "../../../positions/types";
 
 export interface StraightLifeSpec {
   slot: number;
@@ -34,9 +28,12 @@ export function aFakeStraightLifeWith(spec: StraightLifeSpec): BipedLife {
   return { slot: spec.slot, startMs: spec.startMs, endMs: spec.endMs, samples, xuid: spec.xuid };
 }
 
-export function aFakePlayerPositionsWith(
-  tracks: readonly PlayerPositionTrack[] = [],
-  feedOffsetMs: number | null = 0,
-): PlayerPositions {
-  return { layout: { gateBits: 5, axisWidths: [15, 15, 17] }, tracks, unnamedLives: [], feedOffsetMs };
+export function aFakePlayerPositionsWith(overrides: Partial<PlayerPositions> = {}): PlayerPositions {
+  return {
+    layout: { gateBits: 5, axisWidths: [15, 15, 17] },
+    tracks: [],
+    unnamedLives: [],
+    feedOffsetMs: 0,
+    ...overrides,
+  };
 }

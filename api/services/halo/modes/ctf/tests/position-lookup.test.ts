@@ -6,23 +6,32 @@ const A = "0100000000000000";
 
 describe("PositionLookup", () => {
   const lookup = new PositionLookup(
-    aFakePlayerPositionsWith([
-      {
-        xuid: A,
-        teamId: 0,
-        lives: [
-          aFakeStraightLifeWith({ slot: 512, startMs: 1000, endMs: 3000, from: [0, 0, 0], to: [4000, 0, 0], xuid: A }),
-          aFakeStraightLifeWith({
-            slot: 520,
-            startMs: 13_000,
-            endMs: 14_000,
-            from: [9000, 0, 0],
-            to: [9000, 0, 0],
-            xuid: A,
-          }),
-        ],
-      },
-    ]),
+    aFakePlayerPositionsWith({
+      tracks: [
+        {
+          xuid: A,
+          teamId: 0,
+          lives: [
+            aFakeStraightLifeWith({
+              slot: 512,
+              startMs: 1000,
+              endMs: 3000,
+              from: [0, 0, 0],
+              to: [4000, 0, 0],
+              xuid: A,
+            }),
+            aFakeStraightLifeWith({
+              slot: 520,
+              startMs: 13_000,
+              endMs: 14_000,
+              from: [9000, 0, 0],
+              to: [9000, 0, 0],
+              xuid: A,
+            }),
+          ],
+        },
+      ],
+    }),
   );
 
   it("returns the nearest sample across a player's lives", () => {

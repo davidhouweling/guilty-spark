@@ -56,13 +56,18 @@ interface BuildOverrides {
   highlightEvents?: readonly ParsedHighlightEvent[];
   durationMs?: number;
   feedOffsetMs?: number | null;
+  unresolvedSlots?: readonly number[];
 }
 
 function build(overrides: BuildOverrides = {}): ReturnType<typeof buildCtfProgression> {
   const highlightEvents = overrides.highlightEvents ?? defaultDeaths;
   return buildCtfProgression({
     flagEvents: overrides.flagEvents ?? defaultFlagEvents,
-    positions: aFakePlayerPositionsWith(overrides.tracks ?? defaultTracks, overrides.feedOffsetMs ?? 0),
+    unresolvedSlots: overrides.unresolvedSlots ?? [],
+    positions: aFakePlayerPositionsWith({
+      tracks: overrides.tracks ?? defaultTracks,
+      feedOffsetMs: overrides.feedOffsetMs ?? 0,
+    }),
     deaths: toDeaths(highlightEvents),
     highlightEvents,
     matchStats: aFakeCtfMatchStatsWith(),
@@ -238,6 +243,63 @@ describe("buildCtfProgression", () => {
     expect(build({ flagEvents }).runs).toHaveLength(1);
   });
 
+  it("closes the current run on a same-frame return before opening the next run on the steal", () => {
+    const flagEvents = [
+      flag("steal", B, 1, 10_000),
+      flag("steal", B, 1, 40_000),
+      flag("return", A, 0, 40_000),
+      flag("capture", B, 1, 70_000),
+    ];
+
+    const { runs } = build({ flagEvents });
+
+    expect(runs.map((run) => [run.startMs, run.endMs, run.outcome])).toEqual([
+      [10_000, 40_000, "return"],
+      [40_000, 70_000, "capture"],
+    ]);
+  });
+
+  it("still sees a new carrier's death stamped a few frames before their grab on an unaligned feed", () => {
+    const relay = "0800000000000000";
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 12_000)];
+    const highlightEvents = [death(relay, 11_700, 1)];
+
+    const [run] = build({ flagEvents, highlightEvents, feedOffsetMs: null }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 12_000, kind: "grab" },
+      { timestampMs: 12_000, kind: "drop" },
+    ]);
+    expect(run?.outcome).toBe("autoReturn");
+    expect(run?.endMs).toBe(12_000 + AUTO_RETURN_MS);
+  });
+
+  it("keeps a captured run sampleless when its axis cannot be placed", () => {
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("capture", B, 1, 20_000)];
+
+    const [run] = build({ flagEvents, tracks: [], highlightEvents: [] }).runs;
+
+    expect(run?.outcome).toBe("capture");
+    expect(run?.samples).toEqual([]);
+  });
+
+  it("keeps the terminal capture sample at the whistle when the capture lands just after it", () => {
+    const flagEvents = [flag("steal", B, 1, 60_000), flag("capture", B, 1, 70_200)];
+
+    const [run] = build({ flagEvents, durationMs: 70_000 }).runs;
+
+    expect(run?.samples.at(-1)).toEqual({ timestampMs: 70_000, progress: 1 });
+  });
+
+  it("puts the death timeline on the film clock with the same offset as the drops", () => {
+    expect(build({ feedOffsetMs: 1500 }).deathTimeline).toEqual([{ timestampMs: 21_500, teamId: 1 }]);
+  });
+
+  it("passes the unresolved stat slots through", () => {
+    expect(build({ unresolvedSlots: [18] }).unresolvedSlots).toEqual([18]);
+  });
+
   it("emits a run without samples when neither stand nor capture point can be placed", () => {
     const flagEvents = [flag("steal", B, 1, 10_000)];
 
@@ -268,7 +330,8 @@ describe("buildCtfProgression", () => {
 
     const progression = buildCtfProgression({
       flagEvents: defaultFlagEvents,
-      positions: aFakePlayerPositionsWith(defaultTracks),
+      unresolvedSlots: [],
+      positions: aFakePlayerPositionsWith({ tracks: defaultTracks }),
       deaths: toDeaths(defaultDeaths),
       highlightEvents: defaultDeaths,
       matchStats,

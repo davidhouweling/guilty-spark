@@ -263,11 +263,8 @@ export interface KothProgression {
   teamCount: number;
 }
 
-export interface CtfProgressionEvent {
-  timestampMs: number;
-  teamId: number;
-  runningScores: Record<string, number>;
-}
+// a capture steps the score exactly as a kill does in kill race
+export type CtfProgressionEvent = KillRaceProgressionEvent;
 
 export type CtfRunOutcome = "capture" | "return" | "autoReturn" | "matchEnd";
 export type CtfRunEventKind = "steal" | "grab" | "drop" | "return" | "capture";
@@ -294,11 +291,14 @@ export interface CtfFlagRun {
   events: CtfRunEvent[];
 }
 
+// unresolvedSlots lists stat slots whose flag counters could not be tied to a player; their
+// events are missing from the runs and the score
 export interface CtfProgression {
   events: CtfProgressionEvent[];
   runs: CtfFlagRun[];
   deathTimeline: TeamDeathEvent[];
   teamCount: number;
+  unresolvedSlots: number[];
 }
 
 export interface HaloFilmServiceOpts {

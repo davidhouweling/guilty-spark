@@ -43,7 +43,7 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { scanChunkStatRecords, scanFrameForStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { scanChunkStatRecords, scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import {
   buildPlayerPositions,
@@ -242,13 +242,19 @@ export class HaloFilmService {
       this.loadEnrichedEventsForMatch(matchStats),
     ]);
     const walked = chunks.map(walkChunk);
-    const records = walked.flatMap((chunk) =>
-      chunk.frames.flatMap((frame) => scanFrameForStatRecords(frame.payload, frame.timestampMs)),
-    );
-    const flagEvents = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats).events;
+    const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
+    const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
     const deaths = toDeathEvents(highlightEvents);
     const positions = this.tryNamePositions(walked, matchStats, deaths);
-    return buildCtfProgression({ flagEvents, positions, deaths, highlightEvents, matchStats, durationMs });
+    return buildCtfProgression({
+      flagEvents,
+      unresolvedSlots,
+      positions,
+      deaths,
+      highlightEvents,
+      matchStats,
+      durationMs,
+    });
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
