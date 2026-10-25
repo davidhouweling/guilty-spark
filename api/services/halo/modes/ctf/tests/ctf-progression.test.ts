@@ -61,7 +61,7 @@ function build(overrides: BuildOverrides = {}): ReturnType<typeof buildCtfProgre
     unresolvedSlots: overrides.unresolvedSlots ?? [],
     positions: aFakePlayerPositionsWith({
       tracks: overrides.tracks ?? defaultTracks,
-      feedOffsetMs: overrides.feedOffsetMs ?? 0,
+      feedOffsetMs: overrides.feedOffsetMs === undefined ? 0 : overrides.feedOffsetMs,
     }),
     highlightEvents,
     matchStats: aFakeCtfMatchStatsWith(),
@@ -281,6 +281,44 @@ describe("buildCtfProgression", () => {
     ]);
     expect(run?.outcome).toBe("autoReturn");
     expect(run?.endMs).toBe(12_000 + AUTO_RETURN_MS);
+  });
+
+  it("does not call a carrier lost when their own next event proves they still held the flag", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({
+          slot: 520,
+          startMs: 10_000,
+          endMs: 15_000,
+          from: STAND_0,
+          to: [3500, 1000, 1000],
+          xuid: B,
+        }),
+        aFakeStraightLifeWith({ slot: 520, startMs: 38_000, endMs: 40_000, from: CAPTURE_1, to: CAPTURE_1, xuid: B }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("capture", B, 1, 40_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "capture"]);
+    expect(run?.samples.at(-1)).toEqual({ timestampMs: 40_000, progress: 1 });
+  });
+
+  it("widens the pre-pickup death window to the whole search range on an unaligned feed", () => {
+    const relay = "0800000000000000";
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 12_000)];
+    const highlightEvents = [death(relay, 10_800, 1)];
+
+    const [run] = build({ flagEvents, highlightEvents, feedOffsetMs: null }).runs;
+
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "grab", "drop"]);
+  });
+
+  it("sits a death the clock shift would place before the start on the start", () => {
+    const highlightEvents = [death(A, 900, 0), ...defaultDeaths];
+
+    expect(build({ highlightEvents, feedOffsetMs: -1500 }).deathTimeline[0]).toEqual({ timestampMs: 0, teamId: 0 });
   });
 
   it("keeps a captured run sampleless when its axis cannot be placed", () => {

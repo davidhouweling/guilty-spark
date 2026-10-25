@@ -277,16 +277,15 @@ export class AnalyticsService {
         this.buildScoreProgressionAnalytics(matchStats),
       );
     } catch (error) {
-      if (error instanceof UnsupportedFilmError) {
-        return null;
+      if (!(error instanceof UnsupportedFilmError)) {
+        this.logService.warn(
+          toError(error),
+          new Map([
+            ["matchId", matchStats.MatchId],
+            ["context", "score progression degraded to null"],
+          ]),
+        );
       }
-      this.logService.warn(
-        toError(error),
-        new Map([
-          ["matchId", matchStats.MatchId],
-          ["context", "score progression degraded to null"],
-        ]),
-      );
       return null;
     }
   }

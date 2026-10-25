@@ -1,9 +1,8 @@
-import type { DeathEvent, Quantum3 } from "../../positions/types";
+import type { DeathEvent, PositionSample, Quantum3 } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
 import type { CtfFlagRun, CtfRunEvent, CtfRunOutcome } from "../../types";
 import type { FlagAxis } from "./flag-axis";
 import type { PositionLookup } from "./position-lookup";
-import { POSITION_TOLERANCE_MS } from "./position-lookup";
 
 // theatre-checked on the reference match: an untouched flag is back on its stand 20–25 s after
 // it last left a carrier's hands (the timer pauses while an attacker stands on it)
@@ -29,12 +28,17 @@ export class OpenRun {
   private readonly samples: CtfFlagRun["samples"] = [];
   private readonly events: CtfRunEvent[] = [];
 
+  private readonly seenAt = new Map<number, PositionSample | null>();
+
+  // deathSkewMs is how far a feed death may be stamped before the pickup and still end the
+  // carry: the matching window on an aligned feed, the whole search range on an unaligned one
   constructor(
     private readonly flagTeamId: number,
     private readonly steal: CtfFlagEvent,
     private readonly axis: FlagAxis | null,
     stand: Quantum3 | null,
     private readonly lookup: PositionLookup,
+    private readonly deathSkewMs: number,
   ) {
     this.carrier = steal.xuid;
     this.lastMs = steal.timestampMs;
@@ -42,14 +46,19 @@ export class OpenRun {
     this.carryStartMs = steal.timestampMs;
     this.lastPosition = stand;
     this.events.push({ timestampMs: steal.timestampMs, kind: "steal" });
+    this.sampleAt(steal.timestampMs);
+  }
+
+  get currentCarrier(): string | null {
+    return this.carrier;
   }
 
   autoReturnMs(): number | null {
     return this.dropMs == null ? null : this.dropMs + AUTO_RETURN_MS;
   }
 
-  // a death stamped on the instant of the pickup, or a few frames before it on an unaligned
-  // feed, still ends the carry
+  // a death stamped on the instant of the pickup, or within the feed's skew before it, still
+  // ends the carry
   carrierDeathBefore(deaths: ReadonlySet<DeathEvent>, untilMs: number): DeathEvent | null {
     const { carrier, carryStartMs } = this;
     if (carrier == null) {
@@ -59,7 +68,7 @@ export class OpenRun {
     for (const death of deaths) {
       if (
         death.xuid === carrier &&
-        death.timestampMs >= carryStartMs - POSITION_TOLERANCE_MS &&
+        death.timestampMs >= carryStartMs - this.deathSkewMs &&
         death.timestampMs <= untilMs &&
         (earliest == null || death.timestampMs < earliest.timestampMs)
       ) {
@@ -78,7 +87,7 @@ export class OpenRun {
     }
     for (let atMs = this.scanMs; atMs <= untilMs; atMs += SAMPLE_INTERVAL_MS) {
       this.scanMs = atMs;
-      const seen = this.lookup.sampleAt(carrier, atMs);
+      const seen = this.sampleFor(carrier, atMs);
       if (seen != null) {
         this.lastSeenMs = Math.max(this.lastSeenMs ?? this.lastMs, seen.timestampMs);
       } else if (this.lastSeenMs != null && atMs - this.lastSeenMs >= CARRIER_LOST_MS) {
@@ -111,6 +120,7 @@ export class OpenRun {
     this.scanMs = event.timestampMs;
     this.carryStartMs = event.timestampMs;
     this.lastSeenMs = null;
+    this.seenAt.clear();
   }
 
   close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null, durationMs: number): CtfFlagRun {
@@ -135,8 +145,20 @@ export class OpenRun {
     };
   }
 
+  // the lost-carrier scan and the progress samples read the same instants, so each lookup is
+  // made once per run
+  private sampleFor(xuid: string, atMs: number): PositionSample | null {
+    const cached = this.seenAt.get(atMs);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const sample = this.lookup.sampleAt(xuid, atMs);
+    this.seenAt.set(atMs, sample);
+    return sample;
+  }
+
   private sampleAt(atMs: number): void {
-    const carried = this.carrier == null ? null : this.lookup.positionAt(this.carrier, atMs);
+    const carried = this.carrier == null ? null : (this.sampleFor(this.carrier, atMs)?.q ?? null);
     this.lastPosition = carried ?? this.lastPosition;
     if (this.axis != null && this.lastPosition != null) {
       this.pushSample(atMs, this.axis.progressOf(this.lastPosition));

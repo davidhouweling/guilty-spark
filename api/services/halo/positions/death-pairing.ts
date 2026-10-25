@@ -2,7 +2,7 @@ import { DEATH_MATCH_WINDOW_MS, MIN_RESPAWN_MS } from "./naming-constants";
 import { PRESENCE_TOLERANCE_MS } from "./roster";
 import type { BipedLife, DeathAlignment, DeathEvent, DeathLifePairing, RosterMember } from "./types";
 
-const OFFSET_SEARCH_MS = 2_000;
+export const OFFSET_SEARCH_MS = 2_000;
 const OFFSET_STEP_MS = 10;
 
 type PreviousDeaths = readonly (number | null)[];

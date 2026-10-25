@@ -7,14 +7,24 @@ export interface StraightLifeSpec {
   from: Quantum3;
   to: Quantum3;
   xuid: string;
-  intervalMs?: number | undefined;
+  intervalMs: number;
 }
 
+const DEFAULT_STRAIGHT_LIFE: StraightLifeSpec = {
+  slot: 512,
+  startMs: 1000,
+  endMs: 11_000,
+  from: [1000, 1000, 1000],
+  to: [11_000, 1000, 1000],
+  xuid: "0100000000000000",
+  intervalMs: 500,
+};
+
 // a life whose biped moves in a straight line at a steady pace, sampled on a fixed interval
-export function aFakeStraightLifeWith(spec: StraightLifeSpec): BipedLife {
-  const intervalMs = spec.intervalMs ?? 500;
+export function aFakeStraightLifeWith(overrides: Partial<StraightLifeSpec> = {}): BipedLife {
+  const spec = { ...DEFAULT_STRAIGHT_LIFE, ...overrides };
   const samples: PositionSample[] = [];
-  for (let atMs = spec.startMs; atMs <= spec.endMs; atMs += intervalMs) {
+  for (let atMs = spec.startMs; atMs <= spec.endMs; atMs += spec.intervalMs) {
     const fraction = spec.endMs === spec.startMs ? 1 : (atMs - spec.startMs) / (spec.endMs - spec.startMs);
     samples.push({
       timestampMs: atMs,

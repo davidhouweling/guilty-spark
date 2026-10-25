@@ -1,5 +1,7 @@
 import type { MatchStats } from "halo-infinite-api";
 import { toDeathEvents } from "../../positions/death-events";
+import { OFFSET_SEARCH_MS } from "../../positions/death-pairing";
+import { DEATH_MATCH_WINDOW_MS } from "../../positions/naming-constants";
 import type { PlayerPositions } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
 import type { CtfProgression, CtfProgressionEvent, ParsedHighlightEvent } from "../../types";
@@ -39,12 +41,16 @@ function buildCaptureEvents(
 }
 
 // every series shares the film clock: the feed's deaths are shifted by the offset the
-// position decoder measured, for the drops and for the overlay alike
+// position decoder measured, for the drops and for the overlay alike; a death the shift
+// would put before the match start sits on it
 export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
   const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots } = input;
   const feedOffsetMs = positions.feedOffsetMs ?? 0;
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
-  const filmHighlights = highlightEvents.map((event) => ({ ...event, timeMs: event.timeMs + feedOffsetMs }));
+  const filmHighlights = highlightEvents.map((event) => ({
+    ...event,
+    timeMs: Math.max(0, event.timeMs + feedOffsetMs),
+  }));
   const deathTimeline = buildDeathTimeline(filmHighlights, new Set(teamIds), durationMs);
   const events = buildCaptureEvents(flagEvents, teamIds, durationMs);
   const [firstTeam, secondTeam] = teamIds;
@@ -53,11 +59,13 @@ export function buildCtfProgression(input: CtfProgressionInput): CtfProgression 
   }
   const lookup = new PositionLookup(positions);
   const filmDeaths = toDeathEvents(filmHighlights);
+  const deathSkewMs = positions.feedOffsetMs == null ? OFFSET_SEARCH_MS : DEATH_MATCH_WINDOW_MS;
   const builder = new FlagRunBuilder(
     flagEvents,
     new FlagStands(flagEvents, teamIds, lookup),
     lookup,
     filmDeaths,
+    deathSkewMs,
     durationMs,
   );
   const runs = [...builder.runsForFlag(firstTeam, secondTeam), ...builder.runsForFlag(secondTeam, firstTeam)].sort(

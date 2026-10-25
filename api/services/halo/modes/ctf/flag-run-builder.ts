@@ -33,6 +33,7 @@ export class FlagRunBuilder {
     private readonly stands: FlagStands,
     private readonly lookup: PositionLookup,
     deaths: readonly DeathEvent[],
+    private readonly deathSkewMs: number,
     private readonly durationMs: number,
   ) {
     this.openDeaths = new Set(deaths);
@@ -55,6 +56,7 @@ export class FlagRunBuilder {
         this.stands.axisFor(flagTeamId, carrierTeamId),
         this.stands.standOf(flagTeamId),
         this.lookup,
+        this.deathSkewMs,
       );
       const closed = this.follow(run, events, index);
       runs.push(closed.run);
@@ -81,7 +83,8 @@ export class FlagRunBuilder {
       if (event == null) {
         break;
       }
-      this.dropIfCarrierLost(run, event.timestampMs);
+      const carrierKeepsFlag = event.xuid === run.currentCarrier && (event.kind === "grab" || event.kind === "capture");
+      this.dropIfCarrierLost(run, event.timestampMs, carrierKeepsFlag);
       switch (event.kind) {
         case "steal": {
           const endMs = Math.min(event.timestampMs, run.autoReturnMs() ?? event.timestampMs);
@@ -108,23 +111,24 @@ export class FlagRunBuilder {
     return { run: this.closeAtMatchEnd(run), nextIndex: index };
   }
 
-  // a death ends one carry only; one stamped just before the pickup on an unaligned feed is
-  // placed at the pickup
-  private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
+  // a death ends one carry only, and one stamped just before the pickup is placed at the
+  // pickup; a vanished biped counts as a drop unless the carrier's own next event proves the
+  // flag never left their hands
+  private dropIfCarrierLost(run: OpenRun, untilMs: number, carrierActsNext: boolean): void {
     const death = run.carrierDeathBefore(this.openDeaths, untilMs);
     if (death != null) {
       this.openDeaths.delete(death);
       run.drop(Math.max(death.timestampMs, run.carryStartMs));
       return;
     }
-    const lostMs = run.carrierLostBefore(untilMs);
+    const lostMs = carrierActsNext ? null : run.carrierLostBefore(untilMs);
     if (lostMs != null) {
       run.drop(lostMs);
     }
   }
 
   private closeAtMatchEnd(run: OpenRun): CtfFlagRun {
-    this.dropIfCarrierLost(run, this.durationMs);
+    this.dropIfCarrierLost(run, this.durationMs, false);
     const autoReturnMs = run.autoReturnMs();
     if (autoReturnMs != null && autoReturnMs <= this.durationMs) {
       return run.close(autoReturnMs, "autoReturn", null, this.durationMs);
@@ -132,6 +136,3 @@ export class FlagRunBuilder {
     return run.close(this.durationMs, "matchEnd", null, this.durationMs);
   }
 }
-
-// every series shares the film clock: the feed's deaths are shifted by the offset the
-// position decoder measured, for the drops and for the overlay alike

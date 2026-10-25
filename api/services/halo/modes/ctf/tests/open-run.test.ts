@@ -33,6 +33,7 @@ function aRunStolenAt(stealMs: number, lookup: PositionLookup): OpenRun {
     axis,
     STAND,
     lookup,
+    150,
   );
 }
 
@@ -45,6 +46,14 @@ describe("OpenRun", () => {
     expect(closed.samples.filter((sample) => sample.timestampMs === 20_000)).toEqual([
       { timestampMs: 20_000, progress: 1 },
     ]);
+  });
+
+  it("opens with a sample on the steal itself", () => {
+    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
+
+    const closed = run.close(20_000, "matchEnd", null, 60_000);
+
+    expect(closed.samples[0]).toEqual({ timestampMs: 10_000, progress: 0 });
   });
 
   it("takes the earliest matching death whatever order the feed lists them in", () => {
