@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = CHANNEL > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
 [
   [
     "other-channel-id",
@@ -692,7 +692,7 @@ Defensive kills: __**4**__
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > creates the thread/message and posts overviews, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = CHANNEL > creates the thread/message and posts overviews, clears timeline 1`] = `
 [
   [
     "other-channel-id",
@@ -981,7 +981,7 @@ Team objective contribution (time): 20.1% (1m 6s)
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > handles failure to clear timeline data (high level error handling) 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = CHANNEL > handles failure to clear timeline data (high level error handling) 1`] = `
 [
   "other-channel-id",
   {
@@ -1020,7 +1020,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > handles missing results message 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = CHANNEL > handles missing results message 1`] = `
 [
   "other-channel-id",
   {
@@ -1044,7 +1044,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'CHANNEL' > handles substitution event by merging match data and displaying all players data 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = CHANNEL > handles substitution event by merging match data and displaying all players data 1`] = `
 [
   [
     "other-channel-id",
@@ -1392,7 +1392,7 @@ Team objective contribution (time): 16.5% (17s)
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = MESSAGE > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
 [
   [
     "results-channel-1",
@@ -2084,7 +2084,7 @@ Defensive kills: __**4**__
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > creates the thread/message and posts overviews, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = MESSAGE > creates the thread/message and posts overviews, clears timeline 1`] = `
 [
   [
     "results-channel-1",
@@ -2373,7 +2373,7 @@ Team objective contribution (time): 20.1% (1m 6s)
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > handles failure to clear timeline data (high level error handling) 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = MESSAGE > handles failure to clear timeline data (high level error handling) 1`] = `
 [
   "results-channel-1",
   {
@@ -2412,7 +2412,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > handles missing results message 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = MESSAGE > handles missing results message 1`] = `
 [
   "results-channel-1",
   {
@@ -2436,7 +2436,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'MESSAGE' > handles substitution event by merging match data and displaying all players data 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = MESSAGE > handles substitution event by merging match data and displaying all players data 1`] = `
 [
   [
     "results-channel-1",
@@ -2784,7 +2784,7 @@ Team objective contribution (time): 16.5% (17s)
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'THREAD' > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = THREAD > creates the thread/message and posts overviews and game stats, clears timeline 1`] = `
 [
   [
     "thread-id",
@@ -3476,7 +3476,7 @@ Defensive kills: __**4**__
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'THREAD' > creates the thread/message and posts overviews, clears timeline 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = THREAD > creates the thread/message and posts overviews, clears timeline 1`] = `
 [
   [
     "thread-id",
@@ -3765,7 +3765,7 @@ Team objective contribution (time): 20.1% (1m 6s)
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'THREAD' > falls back to creating a message in post series channel if it fails to create thread 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = THREAD > falls back to creating a message in post series channel if it fails to create thread 1`] = `
 [
   "results-channel-1",
   {
@@ -3820,7 +3820,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'THREAD' > handles failure to clear timeline data (high level error handling) 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = THREAD > handles failure to clear timeline data (high level error handling) 1`] = `
 [
   "thread-id",
   {
@@ -3859,7 +3859,7 @@ exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.Po
 ]
 `;
 
-exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = 'THREAD' > handles substitution event by merging match data and displaying all players data 1`] = `
+exports[`NeatQueueService > handleRequest > MATCH_COMPLETED > NeatQueueConfig.PostSeriesMode = THREAD > handles substitution event by merging match data and displaying all players data 1`] = `
 [
   [
     "thread-id",
