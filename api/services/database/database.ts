@@ -859,6 +859,7 @@ export class DatabaseService {
         `SELECT XboxXuid, GamertagSnapshot, MAX(CreatedAt) AS LatestCreatedAt
          FROM LeaderboardSeriesPlayers
          WHERE XboxXuid IN (${placeholders})
+           AND GamertagSnapshot NOT IN ('*Unknown*', 'Unknown')
          GROUP BY XboxXuid`,
       )
         .bind(...chunk)

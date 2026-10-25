@@ -127,6 +127,9 @@ describe("Database Service", () => {
 
       expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("WHERE XboxXuid IN (?,?)"));
       expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("MAX(CreatedAt)"));
+      expect(prepareSpy).toHaveBeenCalledWith(
+        expect.stringContaining("AND GamertagSnapshot NOT IN ('*Unknown*', 'Unknown')"),
+      );
       expect(bindSpy).toHaveBeenCalledWith("xuid1", "xuid2");
       expect(snapshots).toEqual(new Map([["xuid1", "Gamertag1"]]));
     });
