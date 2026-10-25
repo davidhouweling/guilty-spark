@@ -1,6 +1,5 @@
 import type { Quantum3 } from "../../positions/types";
 
-// progress along the straight line from a flag's stand to the carrier team's capture point;
 // quanta are anisotropic per axis, which cancels on a single-axis map and is tolerated elsewhere
 export class FlagAxis {
   private readonly direction: Quantum3;

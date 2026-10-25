@@ -78,12 +78,18 @@ export function namePositions(
   const rosterXuids = new Set(roster.map((member) => member.xuid));
   const rosterDeaths = deaths.filter((death) => rosterXuids.has(death.xuid));
   const lives = buildLives(positions);
-  const named = LifeNamer.forMatch(lives, rosterDeaths, roster).name(lives);
+  const namer = LifeNamer.forMatch(lives, rosterDeaths, roster);
+  const named = namer.name(lives);
   return {
     layout: decoded.layout,
     tracks: groupTracks(named, roster),
     unnamedLives: named.filter((life) => life.xuid == null),
+    feedOffsetMs: namer.offsetMs,
   };
+}
+
+export function emptyPlayerPositions(): PlayerPositions {
+  return { layout: { gateBits: 0, axisWidths: [0, 0, 0] }, tracks: [], unnamedLives: [], feedOffsetMs: null };
 }
 
 export function buildPlayerPositions(

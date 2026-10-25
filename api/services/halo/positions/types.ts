@@ -31,10 +31,13 @@ export interface PlayerPositionTrack {
   readonly lives: readonly BipedLife[];
 }
 
+// feedOffsetMs moves the highlight feed's clock onto the film clock; null when the feed could
+// not be aligned (no deaths matched a life end)
 export interface PlayerPositions {
   readonly layout: AxisLayout;
   readonly tracks: readonly PlayerPositionTrack[];
   readonly unnamedLives: readonly BipedLife[];
+  readonly feedOffsetMs: number | null;
 }
 
 export interface DeathEvent {

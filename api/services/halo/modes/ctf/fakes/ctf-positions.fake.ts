@@ -34,6 +34,9 @@ export function aFakeStraightLifeWith(spec: StraightLifeSpec): BipedLife {
   return { slot: spec.slot, startMs: spec.startMs, endMs: spec.endMs, samples, xuid: spec.xuid };
 }
 
-export function aFakePlayerPositionsWith(tracks: readonly PlayerPositionTrack[] = []): PlayerPositions {
-  return { layout: { gateBits: 5, axisWidths: [15, 15, 17] }, tracks, unnamedLives: [] };
+export function aFakePlayerPositionsWith(
+  tracks: readonly PlayerPositionTrack[] = [],
+  feedOffsetMs: number | null = 0,
+): PlayerPositions {
+  return { layout: { gateBits: 5, axisWidths: [15, 15, 17] }, tracks, unnamedLives: [], feedOffsetMs };
 }

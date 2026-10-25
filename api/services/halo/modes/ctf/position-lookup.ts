@@ -40,8 +40,12 @@ export class PositionLookup {
   }
 
   positionAt(xuid: string, atMs: number): Quantum3 | null {
+    return this.sampleAt(xuid, atMs)?.q ?? null;
+  }
+
+  sampleAt(xuid: string, atMs: number): PositionSample | null {
     const samples = this.samplesByXuid.get(xuid) ?? [];
     const nearest = nearestSample(samples, atMs);
-    return nearest != null && Math.abs(nearest.timestampMs - atMs) <= POSITION_TOLERANCE_MS ? nearest.q : null;
+    return nearest != null && Math.abs(nearest.timestampMs - atMs) <= POSITION_TOLERANCE_MS ? nearest : null;
   }
 }

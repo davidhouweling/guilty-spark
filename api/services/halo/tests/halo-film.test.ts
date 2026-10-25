@@ -2546,6 +2546,34 @@ describe("HaloFilmService replication chunks", () => {
     expect(progression.teamCount).toBe(2);
   });
 
+  it("still builds the CTF runs from the flag events when the film's bipeds cannot be decoded", async () => {
+    const metadata = aChunkMetadata([{ Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 }]);
+    const encoded = buildReplicationChunkBytes([
+      {
+        timestampUs: 1_500_000n,
+        records: [
+          { slot: 10, components: [{ index: 2, a: 16, b: 17 }] },
+          { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+          { slot: 24, components: [{ index: 2, a: 19, b: 16 }] },
+          { slot: 24, components: [{ index: 3, a: 6, b: 0 }] },
+        ],
+      },
+      { timestampUs: 5_000_000n, records: [{ slot: 24, components: [{ index: 24, a: 1, b: 0 }] }] },
+      { timestampUs: 9_000_000n, records: [{ slot: 10, components: [{ index: 23, a: 1, b: 0 }] }] },
+    ]);
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put("halo:film:match:match-ctf", JSON.stringify([]));
+    const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(encoded)]]), env);
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const progression = await service.buildCtfProgression(matchStats, 20_000);
+
+    expect(progression.runs.map((run) => [run.startMs, run.endMs, run.outcome, run.samples.length])).toEqual([
+      [3500, 7500, "return", 0],
+    ]);
+  });
+
   it("decodes player positions from the fetched film, naming lives from the cached highlight deaths", async () => {
     const metadata = aChunkMetadata([
       { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },

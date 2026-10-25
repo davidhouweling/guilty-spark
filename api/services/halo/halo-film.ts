@@ -43,13 +43,27 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { scanChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { scanChunkStatRecords, scanFrameForStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
-import { buildPlayerPositions, decodePositions, namePositions } from "./positions/build-player-positions";
+import {
+  buildPlayerPositions,
+  decodePositions,
+  emptyPlayerPositions,
+  namePositions,
+  PositionDecodeError,
+} from "./positions/build-player-positions";
+import { AxisLayoutError } from "./positions/axis-layout";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
 import { walkChunk } from "./statborg/bit-reader";
+import type { WalkedChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
+
+function toDeathEvents(events: readonly ParsedHighlightEvent[]): DeathEvent[] {
+  return events
+    .filter((event) => event.eventType === "death")
+    .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+}
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
@@ -219,21 +233,22 @@ export class HaloFilmService {
     return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
   }
 
-  // one film load serves both decoders: the stat records that carry the flag events and the
-  // biped positions that place the carrier
+  // one film load and one walk per chunk serve both decoders: the stat records that carry the
+  // flag events and the biped positions that place the carrier
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
     assertCtfMatchSupported(matchStats);
     const [chunks, highlightEvents] = await Promise.all([
       this.getCompleteReplicationChunks(matchStats.MatchId),
       this.loadEnrichedEventsForMatch(matchStats),
     ]);
-    const records = chunks.flatMap((chunk) => scanChunkStatRecords(chunk));
+    const walked = chunks.map(walkChunk);
+    const records = walked.flatMap((chunk) =>
+      chunk.frames.flatMap((frame) => scanFrameForStatRecords(frame.payload, frame.timestampMs)),
+    );
     const flagEvents = buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats).events;
-    const deaths = highlightEvents
-      .filter((event) => event.eventType === "death")
-      .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
-    const positions = namePositions(decodePositions(chunks.map(walkChunk), matchStats), matchStats, deaths);
-    return buildCtfProgression({ flagEvents, positions, highlightEvents, matchStats, durationMs });
+    const deaths = toDeathEvents(highlightEvents);
+    const positions = this.tryNamePositions(walked, matchStats, deaths);
+    return buildCtfProgression({ flagEvents, positions, deaths, highlightEvents, matchStats, durationMs });
   }
 
   async buildPlayerPositions(matchStats: MatchStats): Promise<PlayerPositions> {
@@ -245,10 +260,24 @@ export class HaloFilmService {
   }
 
   async getDeathEvents(matchId: string): Promise<DeathEvent[]> {
-    const events = await this.getHighlightEventsForMatch(matchId);
-    return events
-      .filter((event) => event.eventType === "death")
-      .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+    return toDeathEvents(await this.getHighlightEventsForMatch(matchId));
+  }
+
+  // the flag events and the score need no positions, so a film whose bipeds cannot be decoded
+  // still yields runs, only without progress samples
+  private tryNamePositions(
+    walked: readonly WalkedChunk[],
+    matchStats: MatchStats,
+    deaths: readonly DeathEvent[],
+  ): PlayerPositions {
+    try {
+      return namePositions(decodePositions(walked, matchStats), matchStats, deaths);
+    } catch (error: unknown) {
+      if (error instanceof PositionDecodeError || error instanceof AxisLayoutError) {
+        return emptyPlayerPositions();
+      }
+      throw error;
+    }
   }
 
   async getCompleteReplicationChunks(matchId: string): Promise<ReplicationChunk[]> {

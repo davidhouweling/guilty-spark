@@ -44,18 +44,27 @@ const defaultTracks = [
 const defaultFlagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 60_000), flag("capture", B, 1, 70_000)];
 const defaultDeaths = [death(B, 20_000, 1)];
 
-function build(
-  overrides: {
-    flagEvents?: readonly CtfFlagEvent[];
-    tracks?: readonly PlayerPositionTrack[];
-    highlightEvents?: readonly ParsedHighlightEvent[];
-    durationMs?: number;
-  } = {},
-): ReturnType<typeof buildCtfProgression> {
+function toDeaths(events: readonly ParsedHighlightEvent[]): { timestampMs: number; xuid: string }[] {
+  return events
+    .filter((event) => event.eventType === "death")
+    .map((event) => ({ timestampMs: event.timeMs, xuid: event.xuid }));
+}
+
+interface BuildOverrides {
+  flagEvents?: readonly CtfFlagEvent[];
+  tracks?: readonly PlayerPositionTrack[];
+  highlightEvents?: readonly ParsedHighlightEvent[];
+  durationMs?: number;
+  feedOffsetMs?: number | null;
+}
+
+function build(overrides: BuildOverrides = {}): ReturnType<typeof buildCtfProgression> {
+  const highlightEvents = overrides.highlightEvents ?? defaultDeaths;
   return buildCtfProgression({
     flagEvents: overrides.flagEvents ?? defaultFlagEvents,
-    positions: aFakePlayerPositionsWith(overrides.tracks ?? defaultTracks),
-    highlightEvents: overrides.highlightEvents ?? defaultDeaths,
+    positions: aFakePlayerPositionsWith(overrides.tracks ?? defaultTracks, overrides.feedOffsetMs ?? 0),
+    deaths: toDeaths(highlightEvents),
+    highlightEvents,
     matchStats: aFakeCtfMatchStatsWith(),
     durationMs: overrides.durationMs ?? DURATION_MS,
   });
@@ -160,12 +169,73 @@ describe("buildCtfProgression", () => {
   it("closes a run before the next steal of the same flag even if the auto-return timer has not run out", () => {
     const flagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 30_000), flag("capture", B, 1, 70_000)];
 
-    const {runs} = build({ flagEvents });
+    const { runs } = build({ flagEvents });
 
     expect(runs.map((run) => [run.startMs, run.endMs, run.outcome])).toEqual([
       [10_000, 30_000, "autoReturn"],
       [30_000, 70_000, "capture"],
     ]);
+  });
+
+  it("keeps a run open past the auto-return timer when a later grab proves the flag was still out", () => {
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", B, 1, 60_000), flag("capture", B, 1, 70_000)];
+
+    const [run] = build({ flagEvents }).runs;
+
+    expect(run?.outcome).toBe("capture");
+    expect(run?.endMs).toBe(70_000);
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "drop", "grab", "capture"]);
+  });
+
+  it("moves the death feed onto the film clock before reading the carrier's death", () => {
+    const [run] = build({ feedOffsetMs: 1500 }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 21_500, kind: "drop" },
+    ]);
+  });
+
+  it("treats a carrier whose biped disappears as having dropped the flag where it was last seen", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({
+          slot: 520,
+          startMs: 10_000,
+          endMs: 20_000,
+          from: STAND_0,
+          to: [6000, 1000, 1000],
+          xuid: B,
+        }),
+        aFakeStraightLifeWith({ slot: 521, startMs: 60_000, endMs: 70_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
+      ]),
+    ];
+
+    const [run] = build({ tracks, highlightEvents: [] }).runs;
+
+    expect(run?.outcome).toBe("autoReturn");
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 20_000, kind: "drop" },
+    ]);
+    expect(run?.endMs).toBe(20_000 + AUTO_RETURN_MS);
+  });
+
+  it("counts a death stamped on the instant of the steal as an immediate drop", () => {
+    const highlightEvents = [death(B, 10_000, 1)];
+
+    const [run] = build({ highlightEvents }).runs;
+
+    expect(run?.events.map((event) => [event.kind, event.timestampMs])).toEqual([
+      ["steal", 10_000],
+      ["drop", 10_000],
+    ]);
+  });
+
+  it("ignores a steal recorded after the final whistle", () => {
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 200_300)];
+
+    expect(build({ flagEvents }).runs).toHaveLength(1);
   });
 
   it("emits a run without samples when neither stand nor capture point can be placed", () => {
@@ -199,6 +269,7 @@ describe("buildCtfProgression", () => {
     const progression = buildCtfProgression({
       flagEvents: defaultFlagEvents,
       positions: aFakePlayerPositionsWith(defaultTracks),
+      deaths: toDeaths(defaultDeaths),
       highlightEvents: defaultDeaths,
       matchStats,
       durationMs: DURATION_MS,
