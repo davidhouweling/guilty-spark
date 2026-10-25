@@ -2554,6 +2554,95 @@ describe("Halo service", () => {
       expect(result).toEqual(xboxUsers);
     });
 
+    it.each([502, 503, 504])("falls back to Xbox service when Halo returns %i", async (status) => {
+      const xuids = ["xuid1"];
+      infiniteClient.getUsers.mockRejectedValueOnce(
+        new RequestError(new URL("https://example.com"), new Response("", { status })),
+      );
+      const xboxUsers = [{ xuid: "xuid1", gamertag: "XboxPlayer1" }];
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids").mockResolvedValueOnce(xboxUsers);
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        expect.any(RequestError),
+        new Map([
+          ["context", `Halo Infinite API returned ${status.toString()} for 1 xuids, falling back to Xbox Live API`],
+        ]),
+      );
+      expect(result).toEqual(xboxUsers);
+    });
+
+    it("falls back to Xbox service when the Halo request times out", async () => {
+      const xuids = ["xuid1"];
+      const timeoutError = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      infiniteClient.getUsers.mockRejectedValueOnce(timeoutError);
+      const xboxUsers = [{ xuid: "xuid1", gamertag: "XboxPlayer1" }];
+      const xboxServiceSpy = vi.spyOn(xboxService, "getUsersByXuids").mockResolvedValueOnce(xboxUsers);
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(xboxServiceSpy).toHaveBeenCalledWith(xuids);
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        timeoutError,
+        new Map([["context", "Halo Infinite API timed out for 1 xuids, falling back to Xbox Live API"]]),
+      );
+      expect(result).toEqual(xboxUsers);
+    });
+
+    it("uses leaderboard gamertag snapshots for xuids no other source resolved", async () => {
+      const xuids = ["resolved1", "snapshot1", "unknown1"];
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+      const resolvedUser: UserInfo = {
+        xuid: "resolved1",
+        gamertag: "Resolved1",
+        gamerpic: { small: "s.png", medium: "m.png", large: "l.png", xlarge: "xl.png" },
+      };
+      infiniteClient.getUsers.mockResolvedValueOnce([resolvedUser]);
+      const snapshotSpy = vi
+        .spyOn(databaseService, "getLatestGamertagSnapshotsByXuids")
+        .mockResolvedValueOnce(new Map([["snapshot1", "Snapshot1"]]));
+      const logInfoSpy = vi.spyOn(logService, "info");
+
+      const result = await haloService.getUsersByXuids(xuids);
+
+      expect(snapshotSpy).toHaveBeenCalledWith(["snapshot1", "unknown1"]);
+      expect(result).toEqual([resolvedUser, { xuid: "snapshot1", gamertag: "Snapshot1" }]);
+      expect(logInfoSpy).toHaveBeenCalledWith(
+        "HaloService: Using 1 leaderboard gamertag snapshot(s) as fallback",
+        new Map([["xuids", "snapshot1"]]),
+      );
+    });
+
+    it("does not load leaderboard gamertag snapshots when every xuid is resolved", async () => {
+      const snapshotSpy = vi.spyOn(databaseService, "getLatestGamertagSnapshotsByXuids");
+
+      await haloService.getUsersByXuids(["0100000000000000"]);
+
+      expect(snapshotSpy).not.toHaveBeenCalled();
+    });
+
+    it("returns the resolved users when the leaderboard gamertag snapshot lookup fails", async () => {
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(null);
+      infiniteClient.getUsers.mockResolvedValueOnce([]);
+      const snapshotError = new Error("D1 unavailable");
+      vi.spyOn(databaseService, "getLatestGamertagSnapshotsByXuids").mockRejectedValueOnce(snapshotError);
+      const logWarnSpy = vi.spyOn(logService, "warn");
+
+      const result = await haloService.getUsersByXuids(["xuid1"]);
+
+      expect(result).toEqual([]);
+      expect(logWarnSpy).toHaveBeenCalledWith(
+        snapshotError,
+        new Map([["context", "Failed to load leaderboard gamertag snapshots"]]),
+      );
+    });
+
     it("returns empty array for non-500 errors when no stale cache exists", async () => {
       const xuids = ["xuid1"];
       const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");

@@ -51,6 +51,8 @@ import type {
 } from "./types";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types";
 
+const XBOX_FALLBACK_STATUSES = new Set([500, 502, 503, 504]);
+
 export interface HaloServiceOpts {
   env: Env;
   logService: LogService;
@@ -403,8 +405,33 @@ export class HaloService {
     }
 
     await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
-    const allUsers: UserInfo[] = [...freshUsers, ...fetchedUsers, ...staleCandidates];
+    const resolvedUsers: UserInfo[] = [...fetchedUsers, ...staleCandidates];
+    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, resolvedUsers);
+    const allUsers: UserInfo[] = [...freshUsers, ...resolvedUsers, ...snapshotUsers];
     return allUsers;
+  }
+
+  private async getLeaderboardSnapshotUsers(missingXuids: string[], resolvedUsers: UserInfo[]): Promise<UserInfo[]> {
+    const resolvedXuids = new Set(resolvedUsers.map((user) => user.xuid));
+    const unresolvedXuids = missingXuids.filter((xuid) => !resolvedXuids.has(xuid));
+    if (unresolvedXuids.length === 0) {
+      return [];
+    }
+
+    try {
+      const snapshots = await this.databaseService.getLatestGamertagSnapshotsByXuids(unresolvedXuids);
+      if (snapshots.size > 0) {
+        this.logService.info(
+          `HaloService: Using ${snapshots.size.toString()} leaderboard gamertag snapshot(s) as fallback`,
+          new Map([["xuids", Array.from(snapshots.keys()).join(", ")]]),
+        );
+      }
+
+      return Array.from(snapshots, ([xuid, gamertag]) => ({ xuid, gamertag }));
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", "Failed to load leaderboard gamertag snapshots"]]));
+      return [];
+    }
   }
 
   async getServiceRecord(xuid: string): Promise<ServiceRecord> {
@@ -1210,10 +1237,13 @@ export class HaloService {
       result = await primaryFetch();
     } catch (error) {
       haloError = error as Error | RequestError;
-      if (error instanceof RequestError && error.response.status === 500) {
+      const fallbackReason = this.getXboxFallbackReason(error);
+      if (fallbackReason != null) {
         this.logService.info(
           error,
-          new Map([["context", `Halo Infinite API returned 500 for ${identifier}, falling back to Xbox Live API`]]),
+          new Map([
+            ["context", `Halo Infinite API ${fallbackReason} for ${identifier}, falling back to Xbox Live API`],
+          ]),
         );
         try {
           result = await fallbackFetch();
@@ -1238,6 +1268,16 @@ export class HaloService {
     }
 
     return result;
+  }
+
+  private getXboxFallbackReason(error: unknown): string | null {
+    if (error instanceof RequestError && XBOX_FALLBACK_STATUSES.has(error.response.status)) {
+      return `returned ${error.response.status.toString()}`;
+    }
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return "timed out";
+    }
+    return null;
   }
 
   private async updateUserKVCache(user: UserInfo): Promise<void> {

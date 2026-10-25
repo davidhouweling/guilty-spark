@@ -205,6 +205,8 @@ CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersGuildQueueXuid
     ON LeaderboardSeriesPlayers (GuildId, QueueChannelId, XboxXuid);
 CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersGuildQueueDiscord
     ON LeaderboardSeriesPlayers (GuildId, QueueChannelId, DiscordUserId);
+CREATE INDEX IF NOT EXISTS IdxLeaderboardSeriesPlayersXuidCreatedAt
+    ON LeaderboardSeriesPlayers (XboxXuid, CreatedAt DESC);
 
 CREATE TABLE IF NOT EXISTS LeaderboardGames (
     MatchId TEXT NOT NULL,

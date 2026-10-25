@@ -894,6 +894,29 @@ export class DatabaseService {
     return response.results;
   }
 
+  async getLatestGamertagSnapshotsByXuids(xuids: string[]): Promise<Map<string, string>> {
+    const snapshots = new Map<string, string>();
+    for (let start = 0; start < xuids.length; start += D1_SAFE_MAX_VARIABLES_PER_STATEMENT) {
+      const chunk = xuids.slice(start, start + D1_SAFE_MAX_VARIABLES_PER_STATEMENT);
+      const placeholders = chunk.map(() => "?").join(",");
+      const response = await this.DB.prepare(
+        `SELECT XboxXuid, GamertagSnapshot, MAX(CreatedAt) AS LatestCreatedAt
+         FROM LeaderboardSeriesPlayers
+         WHERE XboxXuid IN (${placeholders})
+           AND GamertagSnapshot NOT IN ('*Unknown*', 'Unknown')
+         GROUP BY XboxXuid`,
+      )
+        .bind(...chunk)
+        .all<Pick<LeaderboardSeriesPlayersRow, "XboxXuid" | "GamertagSnapshot">>();
+
+      for (const row of response.results) {
+        snapshots.set(row.XboxXuid, row.GamertagSnapshot);
+      }
+    }
+
+    return snapshots;
+  }
+
   async upsertMatchKillMatrix(rows: MatchKillMatrixRow[]): Promise<void> {
     if (rows.length === 0) {
       return;
