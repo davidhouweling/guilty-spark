@@ -326,8 +326,9 @@ function diesDuringLife(deaths: readonly DeathEvent[], xuid: string, life: Biped
   );
 }
 
-// a name fits a life only where the owner may be present, has no other biped or feed death
-// alongside it or within a respawn on either side of it, and the slot is not another player's
+// a name fits a life only where the owner may be present from its start to its end, has no
+// other biped or feed death alongside it or within a respawn on either side of it, and the slot
+// is not another player's
 function canOwn(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
@@ -339,6 +340,7 @@ function canOwn(
   return (
     member != null &&
     mayBePresent(member, life.startMs) &&
+    mayBePresent(member, life.endMs) &&
     !overlapsNamedLife(lives, owner, life) &&
     !nextLifeStartsTooSoon(lives, owner, life) &&
     !previousLifeEndedTooSoon(lives, owner, life) &&

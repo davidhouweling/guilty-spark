@@ -478,6 +478,16 @@ describe("nameLivesBySlot", () => {
     expect(nameLivesBySlot(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A]);
   });
 
+  it("does not extend a slot's owner onto a life that outlasts the owner's departure", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 520, startMs: 0, endMs: 20_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 30_000, endMs: 60_000 }),
+    ];
+    const roster = [aFakeRosterMemberWith({ xuid: A, presentToMs: 40_000 }), aFakeRosterMemberWith({ xuid: B })];
+
+    expect(nameLivesBySlot(lives, [], roster).map((life) => life.xuid)).toEqual([A, null]);
+  });
+
   it("does not extend a slot's owner onto a life before the owner joined", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 520, startMs: 100_000, endMs: 150_000 }),

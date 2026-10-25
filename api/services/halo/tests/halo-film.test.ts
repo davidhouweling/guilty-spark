@@ -2536,11 +2536,12 @@ describe("HaloFilmService replication chunks", () => {
     await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("has a malformed replication chunk: 2");
   });
 
-  it("fetches the film metadata once when the chunk and highlight loads run together", async () => {
+  it("fetches the film metadata once when the chunk and highlight loads both start cold", async () => {
     const metadata = aChunkMetadata([
       { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
       { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
       { Index: 2, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 3, ChunkType: 3, DurationMilliseconds: 500 },
     ]);
     const film = aFakePositionFilmWith({
       lives: [
@@ -2548,12 +2549,12 @@ describe("HaloFilmService replication chunks", () => {
         { slot: 513, startMs: 1000, endMs: 30_000 },
       ],
     });
-    const env = aFakeCacheBackedEnvWith();
-    await env.APP_DATA.put("halo:film:match:match-ctf", JSON.stringify([]));
     const service = await aServiceWithFilm(
       metadata,
-      new Map(film.map((chunk) => [chunk.index, deflateSync(chunk.data)])),
-      env,
+      new Map([
+        ...film.map((chunk): [number, Uint8Array] => [chunk.index, deflateSync(chunk.data)]),
+        [3, deflateSync(Uint8Array.of(1, 2))],
+      ]),
     );
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
@@ -2565,6 +2566,7 @@ describe("HaloFilmService replication chunks", () => {
       typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url,
     );
     expect(requestUrls.filter((url) => url.includes("/spectate"))).toHaveLength(1);
+    expect(requestUrls.filter((url) => url.includes("chunk-3.bin"))).toHaveLength(1);
   });
 
   it("refuses to build player positions when a chunk inflates to nothing", async () => {
