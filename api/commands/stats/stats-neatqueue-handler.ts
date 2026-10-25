@@ -15,6 +15,7 @@ import type { PreservedMessageContent, QueueData } from "../../services/discord/
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import { JobProgressLogger } from "../../services/log/job-progress-logger";
+import { getSeriesStatsThreadName } from "../../services/discord/series-stats-thread-name";
 import type { StatsHandlerContext } from "./stats-handler-context";
 
 interface StatsNeatQueueCapabilities {
@@ -243,6 +244,11 @@ export class StatsNeatQueueHandler {
           endDateTime,
         });
         progress.step("series resolved", new Map([["seriesMatchCount", series.length]]));
+        await discordService.trySetThreadName(
+          threadChannelId,
+          getSeriesStatsThreadName(queueData.queue, haloService.getSeriesScore(series, locale, true)),
+          interaction.channel.name,
+        );
         const seriesEmbed = await this.capabilities.createSeriesEmbed({
           guildId,
           channelId: queueMessage.channel_id,

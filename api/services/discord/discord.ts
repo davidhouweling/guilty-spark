@@ -1551,6 +1551,40 @@ export class DiscordService {
     });
   }
 
+  /**
+   * Best-effort thread rename: never throws, and fails fast on rate limits
+   * (Discord only allows a couple of renames per channel every 10 minutes).
+   */
+  async trySetThreadName(threadId: string, name: string, currentName?: string | null): Promise<void> {
+    if (name === currentName) {
+      return;
+    }
+
+    if (name.length > 100) {
+      this.logService.info(
+        "Skipping thread rename, name exceeds 100 characters",
+        new Map([
+          ["threadId", threadId],
+          ["name", name],
+        ]),
+      );
+      return;
+    }
+
+    try {
+      await this.fetch<APIChannel>(Routes.channel(threadId), { method: "PATCH", body: JSON.stringify({ name }) }, true);
+    } catch (error) {
+      this.logService.info(
+        "Failed to rename thread",
+        new Map([
+          ["threadId", threadId],
+          ["name", name],
+          ["error", String(error)],
+        ]),
+      );
+    }
+  }
+
   async getUsers(guildId: string, discordIds: string[]): Promise<APIGuildMember[]> {
     // doing it sequentially to better handle rate limit
     const users: APIGuildMember[] = [];

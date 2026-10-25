@@ -513,6 +513,18 @@ describe("StatsCommand", () => {
           expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
         });
 
+        it("renames the existing thread to include the series score", async () => {
+          const trySetThreadNameSpy = vi.spyOn(services.discordService, "trySetThreadName").mockResolvedValue();
+
+          await jobToComplete?.();
+
+          expect(trySetThreadNameSpy).toHaveBeenCalledWith(
+            "thread-channel-id",
+            "Queue #777 series stats (🦅 2:1 🐍)",
+            threadChannel.name,
+          );
+        });
+
         it("calls createMessage with the thread channel id", async () => {
           await jobToComplete?.();
 
@@ -834,6 +846,19 @@ describe("StatsCommand", () => {
 
           expect(updateDeferredReplySpy).toHaveBeenCalledOnce();
           expect(createMessageSpy).toHaveBeenCalledWith("thread-channel-id", expect.anything());
+        });
+
+        it("renames the thread to include the series score", async () => {
+          getMessagesSpy.mockResolvedValue([threadFirstMessage]);
+          const trySetThreadNameSpy = vi.spyOn(services.discordService, "trySetThreadName").mockResolvedValue();
+
+          await jobToComplete?.();
+
+          expect(trySetThreadNameSpy).toHaveBeenCalledWith(
+            "thread-channel-id",
+            expect.stringMatching(/^Queue #\d+ series stats \(.+\)$/) as string,
+            threadInteraction.channel.name,
+          );
         });
 
         it("posts game stats when StatsReturn is SERIES_AND_GAMES", async () => {
@@ -4005,6 +4030,7 @@ describe("StatsCommand", () => {
       const editMessageSpy = vi.spyOn(services.discordService, "editMessage").mockResolvedValue(apiMessage);
       const createMessageSpy = vi.spyOn(services.discordService, "createMessage").mockResolvedValue(apiMessage);
       const startThreadFromMessageSpy = vi.spyOn(services.discordService, "startThreadFromMessage");
+      const trySetThreadNameSpy = vi.spyOn(services.discordService, "trySetThreadName").mockResolvedValue();
       const cacheResolvedDiscordSeriesStatsSpy = vi
         .spyOn(services.discordService, "cacheResolvedDiscordSeriesStats")
         .mockResolvedValue();
@@ -4030,6 +4056,10 @@ describe("StatsCommand", () => {
       expect(editMessageSpy).toHaveBeenCalledWith("post-channel-id", "original-overview-message-id", expect.anything());
       expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
       expect(createMessageSpy).toHaveBeenCalledWith("existing-thread-id", expect.anything());
+      expect(trySetThreadNameSpy).toHaveBeenCalledWith(
+        "existing-thread-id",
+        expect.stringMatching(/^Queue #777 series stats \(.+\)$/) as string,
+      );
       expect(cacheResolvedDiscordSeriesStatsSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           guildId: "fake-guild-id",

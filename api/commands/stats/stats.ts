@@ -55,6 +55,7 @@ import {
   getPlayerCompareControlIdBase,
 } from "../../embeds/stats/player-compare-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
+import { getSeriesStatsThreadName } from "../../services/discord/series-stats-thread-name";
 import { StatsMatchHandler, createMatchEmbed } from "./stats-match-command";
 import { StatsGamesHandler } from "./stats-games-command";
 import { StatsPlayerHandler } from "./stats-player-handler";
@@ -660,21 +661,19 @@ export class StatsCommand extends BaseCommand {
   ): Promise<APIChannel> {
     const { discordService, haloService } = this.services;
     const messageChannel = await discordService.getChannel(message.channel_id);
+    const threadName = getSeriesStatsThreadName(queueNumber, haloService.getSeriesScore(series, locale, true));
 
     if (
       [ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread].includes(
         messageChannel.type,
       )
     ) {
+      await discordService.trySetThreadName(messageChannel.id, threadName, messageChannel.name);
       return messageChannel;
     }
 
     try {
-      return await discordService.startThreadFromMessage(
-        message.channel_id,
-        message.id,
-        `Queue #${queueNumber.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
-      );
+      return await discordService.startThreadFromMessage(message.channel_id, message.id, threadName);
     } catch (error) {
       throw (
         toMissingPermissionsError(error, {

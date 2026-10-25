@@ -1725,6 +1725,32 @@ describe("NeatQueueService", () => {
       expect(failureUpdate.embeds?.at(-1)?.description).toContain("**Create Public Threads**");
     });
 
+    it("renames the existing thread instead of starting a new one when retrying inside a thread", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        type: ChannelType.PublicThread,
+        id: "channel-123",
+        name: "Queue #1 series stats",
+      });
+      vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+      const startThreadFromMessageSpy = vi.spyOn(discordService, "startThreadFromMessage");
+      const trySetThreadNameSpy = vi.spyOn(discordService, "trySetThreadName").mockResolvedValue();
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+      expect(trySetThreadNameSpy).toHaveBeenCalledWith(
+        "channel-123",
+        expect.stringMatching(/^Queue #1 series stats \(.+\)$/) as string,
+        "Queue #1 series stats",
+      );
+    });
+
     it("starts the stats thread from the clicked message when retrying from a button interaction", async () => {
       const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
       getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);

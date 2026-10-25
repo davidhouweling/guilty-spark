@@ -50,6 +50,7 @@ import { DiscordError } from "../discord/discord-error";
 import { MapsEmbed } from "../../embeds/maps-embed";
 import { normalizeMapsFormat } from "../../commands/maps/maps-draft";
 import { isSuccessResponse } from "../../durable-objects/live-tracker/types";
+import { getSeriesStatsThreadName } from "../discord/series-stats-thread-name";
 import { NeatQueuePlayersEmbed } from "../../embeds/neatqueue/neatqueue-players-embed";
 import { buildDiscordSeriesRenderDataFromMatches } from "../discord/discord-series-stats";
 import type { SeriesPlayer, SeriesTeam } from "../../durable-objects/individual-tracker/types";
@@ -393,6 +394,12 @@ export class NeatQueueService {
 
       if (channel.type !== ChannelType.PublicThread && channel.type !== ChannelType.AnnouncementThread) {
         threadId = await this.startSeriesStatsThread(channelId, messageId, queue, series, locale);
+      } else {
+        await discordService.trySetThreadName(
+          channelId,
+          getSeriesStatsThreadName(queue, haloService.getSeriesScore(series, locale, true)),
+          channel.name,
+        );
       }
 
       await this.postSeriesDetailsToChannelWithPermissionCheck(threadId, guildId, series, locale);
@@ -456,7 +463,7 @@ export class NeatQueueService {
       const thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
-        `Queue #${queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+        getSeriesStatsThreadName(queue, haloService.getSeriesScore(series, locale, true)),
       );
       return thread.id;
     } catch (error) {
@@ -2378,7 +2385,7 @@ export class NeatQueueService {
       thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, locale, true)})`,
+        getSeriesStatsThreadName(request.match_number, this.haloService.getSeriesScore(series, locale, true)),
       );
       useFallback = false;
       progress.step("thread created", new Map([["threadId", thread.id]]));
@@ -2460,7 +2467,7 @@ export class NeatQueueService {
       const thread = await discordService.startThreadFromMessage(
         channelId,
         messageId,
-        `Queue #${request.match_number.toString()} series stats`,
+        getSeriesStatsThreadName(request.match_number),
       );
 
       const endUserError = this.getEndUserErrorEmbed(handledError, request, neatQueueConfig, timeline);
@@ -2523,7 +2530,7 @@ export class NeatQueueService {
       const thread = await discordService.startThreadFromMessage(
         channelId,
         createdMessage.id,
-        `Queue #${request.match_number.toString()} series stats (${this.haloService.getSeriesScore(series, locale, true)})`,
+        getSeriesStatsThreadName(request.match_number, this.haloService.getSeriesScore(series, locale, true)),
       );
 
       channelId = thread.id;

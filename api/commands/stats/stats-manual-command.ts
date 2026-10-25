@@ -38,6 +38,7 @@ import {
 import { SeriesOverviewEmbed } from "../../embeds/stats/series-overview-embed";
 import type { GuildConfigRow } from "../../services/database/types/guild_config";
 import { toMissingPermissionsError } from "../../base/missing-permissions-error";
+import { getSeriesStatsThreadName } from "../../services/discord/series-stats-thread-name";
 import {
   MANUAL_QUEUE_NUMBER_MIN,
   allocateManualQueueNumber,
@@ -1010,7 +1011,11 @@ export class StatsManualHandler {
           ? metadata.channelId
           : (queueConfig?.PostSeriesChannelId ?? queueConfig?.ResultsChannelId ?? metadata.channelId),
         seriesEmbed,
-        threadName: `Queue #${metadata.queueNumber.toString()} series stats (${this.getManualSeriesScoreOverride(metadata, locale, true) ?? haloService.getSeriesScore(displaySeries, locale, true)})`,
+        threadName: getSeriesStatsThreadName(
+          metadata.queueNumber,
+          this.getManualSeriesScoreOverride(metadata, locale, true) ??
+            haloService.getSeriesScore(displaySeries, locale, true),
+        ),
       });
       try {
         await this.postSeriesStatsToThread(
