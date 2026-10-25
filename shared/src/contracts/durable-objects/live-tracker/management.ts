@@ -43,6 +43,7 @@ export const liveTrackerRefreshContract = defineContract(
   z.union([
     z.object({ success: z.literal(true), state: liveTrackerStateSchema }),
     z.object({ success: z.literal(false), error: z.literal("cooldown"), message: z.string() }),
+    z.object({ success: z.literal(false), error: z.literal("in_progress"), message: z.string() }),
     z.object({ success: z.literal(false), state: liveTrackerStateSchema }),
   ]),
 );

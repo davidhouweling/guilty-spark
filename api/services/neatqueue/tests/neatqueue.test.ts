@@ -1493,6 +1493,38 @@ describe("NeatQueueService", () => {
         expect(passedMap).toBeInstanceOf(Map);
         expect(passedMap.get("xuid-1")).toBe("Gamertag1");
       });
+
+      it("falls back to timeline resolution when the live tracker refresh is already in progress", async () => {
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: false,
+          error: "in_progress",
+          message: "A refresh is already in progress, please wait",
+        });
+        const getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData");
+        const warnSpy = vi.spyOn(logService, "warn");
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        const fallbackCall = warnSpy.mock.calls.find(
+          ([message]) =>
+            message === "Live tracker refresh failed for MATCH_COMPLETED; falling back to timeline resolution",
+        );
+        const fallbackParams = Preconditions.checkExists(fallbackCall?.[1]);
+        expect(fallbackParams.get("error")).toBe("in_progress");
+        expect(getSeriesDataSpy).not.toHaveBeenCalled();
+        const resolveFailureCall = warnSpy.mock.calls.find(
+          ([, params]) => params?.get("reason") === "Failed to resolve series data for MATCH_COMPLETED",
+        );
+        expect(resolveFailureCall).toBeUndefined();
+      });
     });
 
     it("returns OK response for unknown action", () => {
