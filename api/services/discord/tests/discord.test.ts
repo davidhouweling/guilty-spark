@@ -2880,6 +2880,31 @@ describe("DiscordService", () => {
       expect(mockFetch).toHaveBeenCalledOnce();
     });
 
+    it("honours a Retry-After longer than the bucket reset", async () => {
+      vi.useFakeTimers();
+      try {
+        mockFetch.mockResolvedValue(
+          new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 600 }), {
+            status: 429,
+            headers: {
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Date.now() / 1000 + 5),
+              "X-RateLimit-Reset-After": "5",
+              "Retry-After": "600",
+            },
+          }),
+        );
+
+        await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+        vi.setSystemTime(Date.now() + 60_000);
+        await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+        expect(mockFetch).toHaveBeenCalledOnce();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("does not make channel reads wait on an exhausted rename rate limit", async () => {
       const warnSpy = vi.spyOn(logService, "warn");
       mockFetch

@@ -2052,10 +2052,18 @@ export class DiscordService {
 
   private getRateLimitFromRejection(response: Response): RateLimit {
     const rateLimit = this.getRateLimitFromResponse(response);
-    const resetAfter = rateLimit.resetAfter ?? this.getRateLimitFromHeader(response.headers, "Retry-After");
-    const reset = rateLimit.reset ?? (resetAfter != null ? Date.now() / 1000 + resetAfter : undefined);
+    const retryAfter = this.getRateLimitFromHeader(response.headers, "Retry-After");
+    if (retryAfter == null) {
+      return { ...rateLimit, remaining: 0 };
+    }
 
-    return { ...rateLimit, remaining: 0, reset, resetAfter };
+    // Retry-After can exceed the bucket reset (e.g. per-resource sub-limits like thread renames).
+    const retryAt = Date.now() / 1000 + retryAfter;
+    if (rateLimit.reset != null && rateLimit.reset >= retryAt) {
+      return { ...rateLimit, remaining: 0 };
+    }
+
+    return { ...rateLimit, remaining: 0, reset: retryAt, resetAfter: retryAfter };
   }
 
   private getRateLimitKey(path: string): string {
