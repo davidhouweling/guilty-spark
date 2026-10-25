@@ -3,7 +3,7 @@ import type { DeathEvent } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
 import type { CtfFlagRun, CtfRunEvent } from "../../types";
 import type { FlagStands } from "./flag-stands";
-import { OpenRun, SAMPLE_INTERVAL_MS } from "./open-run";
+import { AUTO_RETURN_MS, OpenRun } from "./open-run";
 import type { PositionLookup } from "./position-lookup";
 
 export type RunFlagEvent = CtfFlagEvent & { kind: "steal" | "grab" | "capture" | "return" | "carrierKilled" };
@@ -31,21 +31,18 @@ function isRunEvent(event: CtfFlagEvent, flagTeamId: number, carrierTeamId: numb
 function deathsByXuid(deaths: readonly DeathEvent[]): Map<string, DeathEvent[]> {
   const byXuid = new Map<string, DeathEvent[]>();
   for (const death of [...deaths].sort((a, b) => a.timestampMs - b.timestampMs)) {
-    byXuid.set(death.xuid, [...(byXuid.get(death.xuid) ?? []), death]);
+    const list = byXuid.get(death.xuid) ?? [];
+    list.push(death);
+    byXuid.set(death.xuid, list);
   }
   return byXuid;
 }
 
-// the carrier's own capture proves they held the flag throughout, so neither a skewed death
-// nor a gap in their biped can drop it
+// a kill counter can land a frame or two after the pickup that follows the kill
+const KILL_AFTER_PICKUP_MS = 200;
+
 function carrierProvedHoldingBy(run: OpenRun, event: RunFlagEvent): boolean {
   return event.kind === "capture" && event.xuid === run.currentCarrier;
-}
-
-// a return or a fresh steal proves the flag lay on the ground before it; a grab already says so
-// by itself and gets no synthetic drop
-function provesUndatedDrop(event: RunFlagEvent): boolean {
-  return event.kind === "return" || event.kind === "steal";
 }
 
 interface ClosedRun {
@@ -55,6 +52,7 @@ interface ClosedRun {
 
 export class FlagRunBuilder {
   private readonly openDeaths: Map<string, DeathEvent[]>;
+  private readonly feedIsEmpty: boolean;
 
   constructor(
     private readonly flagEvents: readonly CtfFlagEvent[],
@@ -65,6 +63,7 @@ export class FlagRunBuilder {
     private readonly durationMs: number,
   ) {
     this.openDeaths = deathsByXuid(deaths);
+    this.feedIsEmpty = deaths.length === 0;
   }
 
   // steal → (grab | drop)* → capture | return | auto-return 25 s after the last drop | match end
@@ -154,33 +153,39 @@ export class FlagRunBuilder {
       return;
     }
     this.dropIfCarrierLost(run, event.timestampMs);
-    if (provesUndatedDrop(event)) {
+    if (event.kind === "return") {
       run.dropIfCarrying(event.timestampMs);
+    }
+    if (event.kind === "steal") {
+      run.dropIfCarrying(Math.max(run.carryStartMs, event.timestampMs - AUTO_RETURN_MS));
     }
   }
 
-  // the defenders' carrier kill is authoritative and on the film clock: it drops a live carry,
-  // and it re-dates a drop the model had placed earlier on weaker evidence; a kill stamped a
-  // frame after a pickup whose new carrier did not die belongs to the carry before it
   private settleCarrierKill(run: OpenRun, kill: RunFlagEvent): void {
     const carrier = run.currentCarrier;
     if (carrier == null) {
       run.redateDrop(kill.timestampMs);
       return;
     }
-    const justPickedUp = kill.timestampMs - run.carryStartMs <= SAMPLE_INTERVAL_MS;
-    const carrierDeaths = this.openDeaths.get(carrier);
-    const carrierDied = (carrierDeaths ?? []).some(
-      (death) => Math.abs(death.timestampMs - kill.timestampMs) <= this.deathSkewMs,
-    );
-    if (justPickedUp && carrierDeaths != null && !carrierDied) {
+    if (this.killBelongsToPreviousCarry(run, carrier, kill.timestampMs)) {
       return;
     }
     run.drop(kill.timestampMs);
   }
 
-  // a death ends one carry only; one stamped just before the pickup is placed at the pickup and
-  // one stamped just after the next event (the feed's skew runs both ways) at that event
+  // with a feed to consult, a kill stamped just after a pickup whose new carrier did not die
+  // around it belongs to the carry before
+  private killBelongsToPreviousCarry(run: OpenRun, carrier: string, killMs: number): boolean {
+    if (this.feedIsEmpty || killMs - run.carryStartMs > KILL_AFTER_PICKUP_MS) {
+      return false;
+    }
+    return !(this.openDeaths.get(carrier) ?? []).some(
+      (death) => Math.abs(death.timestampMs - killMs) <= this.deathSkewMs,
+    );
+  }
+
+  // the feed's skew runs both ways: a death just before the pickup lands on the pickup, one
+  // just after the next event on that event
   private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
     const carrierDeaths = run.currentCarrier == null ? [] : (this.openDeaths.get(run.currentCarrier) ?? []);
     const death = run.carrierDeathBefore(carrierDeaths, untilMs + this.deathSkewMs);

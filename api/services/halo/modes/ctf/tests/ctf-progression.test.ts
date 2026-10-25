@@ -454,6 +454,85 @@ describe("buildCtfProgression", () => {
     expect(run?.events.map((event) => event.kind)).toEqual(["steal", "drop", "grab", "capture"]);
   });
 
+  it("leaves a late carrier kill to the carry before even when the new carrier never dies all match", () => {
+    const relay = "0800000000000000";
+    const tracks = [
+      ...defaultTracks,
+      aFakePlayerPositionTrackWith({
+        xuid: relay,
+        teamId: 1,
+        lives: [
+          aFakeStraightLifeWith({
+            slot: 530,
+            startMs: 20_000,
+            endMs: 40_000,
+            from: [6000, 1000, 1000],
+            to: CAPTURE_1,
+            xuid: relay,
+          }),
+        ],
+      }),
+    ];
+    const flagEvents = [
+      flag("steal", B, 1, 10_000),
+      flag("grab", relay, 1, 30_000),
+      flag("carrierKilled", A, 0, 30_100),
+      flag("capture", relay, 1, 40_000),
+    ];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [death(B, 20_000, 1)] }).runs;
+
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "drop", "grab", "capture"]);
+  });
+
+  it("dates the drop at least an auto-return before a fresh steal when a carry was never closed", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({ slot: 520, startMs: 10_000, endMs: 80_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("steal", B, 1, 80_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 80_000 - AUTO_RETURN_MS, kind: "drop" },
+    ]);
+    expect(run?.endMs).toBe(80_000);
+    expect(run?.outcome).toBe("autoReturn");
+  });
+
+  it("re-reads the carrier's path when a carrier kill moves a drop later", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({ slot: 520, startMs: 10_000, endMs: 30_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
+      ]),
+      aFakePlayerPositionTrackWith({
+        xuid: A,
+        teamId: 0,
+        lives: [
+          aFakeStraightLifeWith({ slot: 540, startMs: 150_000, endMs: 160_000, from: CAPTURE_1, to: STAND_0, xuid: A }),
+        ],
+      }),
+    ];
+    const flagEvents = [
+      flag("steal", B, 1, 10_000),
+      flag("carrierKilled", A, 0, 30_000),
+      flag("steal", B, 1, 70_000),
+      flag("steal", A, 0, 150_000),
+    ];
+    const highlightEvents = [death(B, 28_500, 1)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents, feedOffsetMs: null }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 30_000, kind: "drop" },
+    ]);
+    expect(run?.samples.find((sample) => sample.timestampMs === 29_500)?.progress).toBeCloseTo(0.975, 2);
+  });
+
   it("matches a carrier death the feed stamps just after the next event on an unaligned feed", () => {
     const relay = "0800000000000000";
     const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 30_500)];

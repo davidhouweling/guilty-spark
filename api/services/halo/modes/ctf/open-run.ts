@@ -20,6 +20,7 @@ function roundProgress(progress: number): number {
 
 export class OpenRun {
   private carrier: string | null;
+  private lastCarrier: string | null = null;
   private lastMs: number;
   private lastPosition: Quantum3 | null;
   private dropMs: number | null = null;
@@ -104,19 +105,24 @@ export class OpenRun {
     this.advanceTo(atMs);
     this.sampleAt(atMs);
     this.events.push({ timestampMs: atMs, kind: "drop" });
+    this.lastCarrier = this.carrier;
     this.carrier = null;
     this.dropMs = atMs;
   }
 
-  // a later authoritative drop instant moves the drop the model placed on weaker evidence
+  // a later authoritative drop instant moves the drop the model placed on weaker evidence, and
+  // the interval in between is re-read from the carrier who was in fact still carrying
   redateDrop(atMs: number): void {
     const dropIndex = this.events.findLastIndex((event) => event.kind === "drop");
-    if (this.dropMs == null || atMs <= this.dropMs || dropIndex < 0) {
+    if (this.dropMs == null || atMs <= this.dropMs || dropIndex < 0 || this.lastCarrier == null) {
       return;
     }
+    this.carrier = this.lastCarrier;
+    this.advanceTo(atMs);
+    this.sampleAt(atMs);
+    this.carrier = null;
     this.events[dropIndex] = { timestampMs: atMs, kind: "drop" };
     this.dropMs = atMs;
-    this.advanceTo(atMs);
   }
 
   dropIfCarrying(atMs: number): void {
