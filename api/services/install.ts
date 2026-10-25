@@ -121,7 +121,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     discordService,
     haloService,
     leaderboardService,
-    analyticsService,
     liveTrackerService,
     individualTrackerService,
   });
