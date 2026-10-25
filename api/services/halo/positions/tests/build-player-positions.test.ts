@@ -148,6 +148,22 @@ describe("buildPlayerPositions", () => {
     ]);
   });
 
+  it("reports a life in a slot that lived and died before any keyframe listed it", () => {
+    const chunks = aFakePositionFilmWith({
+      lives: [
+        { slot: 512, startMs: 2000, endMs: 15_000 },
+        { slot: 513, startMs: 2000, endMs: 40_000 },
+      ],
+    });
+
+    const positions = buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), []);
+
+    expect(positions.unnamedLives.map((life) => [life.slot, life.startMs, life.endMs])).toEqual([
+      [512, 2000, 15_000],
+      [513, 2000, 40_000],
+    ]);
+  });
+
   it("throws when the keyframes span more biped slots than a match can allocate", () => {
     const chunks = [
       aFakeKeyframeChunkWith([
@@ -156,7 +172,7 @@ describe("buildPlayerPositions", () => {
       ]),
     ];
 
-    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow("3505 biped slots");
+    expect(() => buildPlayerPositions(chunks, aFakeCtfMatchStatsWith(), [])).toThrow("3521 biped slots");
   });
 
   it("throws when the film lists no biped slots", () => {

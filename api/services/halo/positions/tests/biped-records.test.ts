@@ -1,29 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { BipedRecordScanner, slotPrefilter } from "../biped-records";
+import { BipedRecordScanner, slotPrefilters } from "../biped-records";
 import { buildBipedFramePayload, FAKE_AXIS_LAYOUT } from "../fakes/position-film.fake";
 
 const slots = new Set([512, 513, 514, 515]);
 
-describe("slotPrefilter", () => {
-  it("keeps the prefix bit and the slot bits every slot in the band shares", () => {
+describe("slotPrefilters", () => {
+  it("keeps the prefix bit and the slot bits every slot in a block shares", () => {
     const band = new Set<number>();
-    for (let slot = 512; slot <= 612; slot++) {
+    for (let slot = 512; slot <= 575; slot++) {
       band.add(slot);
     }
 
-    expect(slotPrefilter(band)).toEqual({ bits: 7, value: 0b1_000100 });
+    expect(slotPrefilters(band)).toEqual([{ bits: 8, value: 0b1_0001000 }]);
   });
 
-  it("matches the whole slot when the band holds a single slot", () => {
-    expect(slotPrefilter(new Set([600]))).toEqual({ bits: 14, value: 2 ** 13 + 600 });
+  it("splits a band that straddles a power of two into selective blocks", () => {
+    const band = new Set<number>();
+    for (let slot = 496; slot <= 628; slot++) {
+      band.add(slot);
+    }
+
+    expect(slotPrefilters(band)).toEqual([
+      { bits: 10, value: 0b1_000011111 },
+      { bits: 8, value: 0b1_0001000 },
+      { bits: 8, value: 0b1_0001001 },
+    ]);
   });
 
-  it("matches only the prefix bit when the band spans every slot", () => {
-    expect(slotPrefilter(new Set([0, 8191]))).toEqual({ bits: 1, value: 1 });
+  it("matches the whole slot when a block holds a single slot", () => {
+    expect(slotPrefilters(new Set([600]))).toEqual([{ bits: 14, value: 2 ** 13 + 600 }]);
   });
 
   it("has no prefilter for an empty band", () => {
-    expect(slotPrefilter(new Set())).toBeNull();
+    expect(slotPrefilters(new Set())).toEqual([]);
   });
 });
 

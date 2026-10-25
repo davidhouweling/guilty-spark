@@ -1,5 +1,5 @@
 import { byTimestamp, groupBySlot } from "./group-by-slot";
-import { alignRosterToFilm, isPresent, mayBePresent } from "./roster";
+import { alignRosterToFilm, isPresent, mayBePresent, PRESENCE_TOLERANCE_MS } from "./roster";
 import type { BipedLife, BipedPosition, DeathEvent, DeathNaming, RosterMember } from "./types";
 
 // a gap this long inside one slot opens a new life: far above the replication cadence and
@@ -67,20 +67,28 @@ function previousDeathByIndex(deaths: readonly DeathEvent[]): PreviousDeaths {
   return previous;
 }
 
+// slack values are measured on the match clock, so the offset moves them like the deaths
 interface NearbyPair extends Pairing {
   readonly delta: number;
   readonly startGap: number | null;
+  readonly joinSlackMs: number;
+  readonly leaveSlackMs: number;
 }
 
 function nearbyPairs(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   previousDeaths: PreviousDeaths,
+  roster: readonly RosterMember[],
 ): NearbyPair[] {
   const reach = OFFSET_SEARCH_MS + DEATH_MATCH_WINDOW_MS;
   const pairs: NearbyPair[] = [];
   for (const [deathIndex, death] of deaths.entries()) {
+    const member = roster.find((candidate) => candidate.xuid === death.xuid);
     const previousDeath = previousDeaths[deathIndex] ?? null;
+    if (member == null) {
+      continue;
+    }
     for (const [lifeIndex, life] of lives.entries()) {
       const delta = life.endMs - death.timestampMs;
       if (Math.abs(delta) <= reach) {
@@ -89,6 +97,8 @@ function nearbyPairs(
           lifeIndex,
           delta,
           startGap: previousDeath == null ? null : life.startMs - previousDeath,
+          joinSlackMs: life.startMs - member.presentFromMs,
+          leaveSlackMs: member.presentToMs - life.endMs,
         });
       }
     }
@@ -96,11 +106,14 @@ function nearbyPairs(
   return pairs;
 }
 
-// a death can end a life whose end falls inside the window; a life that began before its
-// owner's previous death is impossible
+// a death can end a life whose end falls inside the window, as long as its player may have
+// been present for the whole life and had respawned since their previous death
 function isFeasible(pair: NearbyPair, offsetMs: number): boolean {
   return (
-    Math.abs(pair.delta - offsetMs) <= DEATH_MATCH_WINDOW_MS && (pair.startGap == null || pair.startGap > offsetMs)
+    Math.abs(pair.delta - offsetMs) <= DEATH_MATCH_WINDOW_MS &&
+    (pair.startGap == null || pair.startGap - offsetMs >= MIN_RESPAWN_MS) &&
+    pair.joinSlackMs - offsetMs >= -PRESENCE_TOLERANCE_MS &&
+    pair.leaveSlackMs + offsetMs >= -PRESENCE_TOLERANCE_MS
   );
 }
 
@@ -356,7 +369,7 @@ export function nameLivesByDeaths(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): DeathNaming {
-  const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
+  const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths), roster);
   const plateau = optimalOffsets(pairs);
   const offsetMs = plateau[Math.floor(plateau.length / 2)] ?? null;
   const filmRoster = alignRosterToFilm(roster, offsetMs ?? 0);

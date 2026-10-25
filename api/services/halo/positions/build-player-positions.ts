@@ -45,11 +45,11 @@ export function scanChunkPositions(chunk: WalkedChunk, scanner: BipedRecordScann
   return positions;
 }
 
-// every player may respawn twice between the final keyframe and the end of its chunk
-const TAIL_SLOTS_PER_PLAYER = 2;
+// every player may spawn twice between two keyframes, before the first or after the last
+const SPARE_SLOTS_PER_PLAYER = 2;
 
 export function decodePositions(chunks: readonly WalkedChunk[], matchStats: MatchStats): DecodedPositions {
-  const slots = bipedSlotBand(chunks, matchStats.Players.length * TAIL_SLOTS_PER_PLAYER);
+  const slots = bipedSlotBand(chunks, matchStats.Players.length * SPARE_SLOTS_PER_PLAYER);
   if (slots.size === 0) {
     throw new PositionDecodeError(`Film for match ${matchStats.MatchId} lists no biped slots in its keyframes`);
   }

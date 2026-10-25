@@ -67,10 +67,9 @@ function isSaturated(q: Quantum3, layout: AxisLayout): boolean {
 // Every record starts with the prefix bit and a slot from one contiguous band, so the leading
 // bits every slot in the band shares form a fixed pattern after the prefix; sliding a 24-bit
 // window byte by byte finds candidates without a per-bit header decode.
-export function slotPrefilter(slots: ReadonlySet<number>): SlotPrefilter | null {
-  if (slots.size === 0) {
-    return null;
-  }
+const PREFILTER_BLOCK_SLOTS = 64;
+
+function sharedPrefixFilter(slots: readonly number[]): SlotPrefilter {
   const lowest = Math.min(...slots);
   const highest = Math.max(...slots);
   let shared = 0;
@@ -85,13 +84,29 @@ export function slotPrefilter(slots: ReadonlySet<number>): SlotPrefilter | null 
   return { bits: 1 + shared, value: 2 ** shared + prefix };
 }
 
+// a band that straddles a power of two shares almost no leading bits, so it is split into
+// aligned blocks that each keep a selective prefix
+export function slotPrefilters(slots: ReadonlySet<number>): SlotPrefilter[] {
+  const blocks = new Map<number, number[]>();
+  for (const slot of slots) {
+    const block = Math.floor(slot / PREFILTER_BLOCK_SLOTS);
+    blocks.set(block, [...(blocks.get(block) ?? []), slot]);
+  }
+  return [...blocks.values()].map(sharedPrefixFilter);
+}
+
+function matchesAny(window: number, shift: number, prefilters: readonly SlotPrefilter[]): boolean {
+  return prefilters.some(
+    (prefilter) => ((window >>> (24 - prefilter.bits - shift)) & (2 ** prefilter.bits - 1)) === prefilter.value,
+  );
+}
+
 export function forEachCandidateBit(
   payload: Uint8Array,
-  prefilter: SlotPrefilter,
+  prefilters: readonly SlotPrefilter[],
   limitBit: number,
   visit: (bitPos: number) => number | null,
 ): void {
-  const mask = 2 ** prefilter.bits - 1;
   let resumeBit = 0;
   for (let byteIndex = 0; byteIndex + 2 < payload.length; byteIndex++) {
     const window =
@@ -101,7 +116,7 @@ export function forEachCandidateBit(
       if (bitPos < resumeBit || bitPos >= limitBit) {
         continue;
       }
-      if (((window >>> (24 - prefilter.bits - shift)) & mask) !== prefilter.value) {
+      if (!matchesAny(window, shift, prefilters)) {
         continue;
       }
       const consumedTo = visit(bitPos);
@@ -117,7 +132,7 @@ export function forEachCandidateBit(
 // an absolute position is a record whose gate bits are all zero; a saturated axis is a clipped
 // value, not a position, and is skipped
 export class BipedRecordScanner {
-  private readonly prefilter: SlotPrefilter | null;
+  private readonly prefilters: readonly SlotPrefilter[];
   private readonly componentBits: number;
   private readonly axisOffsets: readonly [number, number, number];
 
@@ -125,20 +140,19 @@ export class BipedRecordScanner {
     private readonly slots: ReadonlySet<number>,
     private readonly layout: AxisLayout,
   ) {
-    this.prefilter = slotPrefilter(slots);
+    this.prefilters = slotPrefilters(slots);
     this.componentBits = layoutBits(layout);
     this.axisOffsets = [axisOffset(layout, 0), axisOffset(layout, 1), axisOffset(layout, 2)];
   }
 
   scan(payload: Uint8Array): ScannedBiped[] {
-    const { prefilter } = this;
-    if (prefilter == null) {
+    if (this.prefilters.length === 0) {
       return [];
     }
     const totalBits = payload.length * 8;
     const minRecordBits = BIPED_HEADER_BITS + BIPED_INDEX_BITS * MIN_MASK_COUNT + this.componentBits;
     const records: ScannedBiped[] = [];
-    forEachCandidateBit(payload, prefilter, totalBits - minRecordBits + 1, (bitPos) => {
+    forEachCandidateBit(payload, this.prefilters, totalBits - minRecordBits + 1, (bitPos) => {
       const header = matchBipedHeader(payload, bitPos, totalBits, this.slots, this.componentBits);
       if (header == null || readBitsBE(payload, header.positionBit, this.layout.gateBits) !== 0) {
         return null;

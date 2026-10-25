@@ -53,10 +53,10 @@ describe("bipedSlotBand", () => {
     expect([...bipedSlotBand(chunks.map(walkChunk), 0)]).toEqual([512, 513, 514, 515, 516]);
   });
 
-  it("adds a tail of spare slots above the highest seen for allocations after the final keyframe", () => {
+  it("adds spare slots on either side for bipeds no keyframe observed", () => {
     const chunks = [aFakeKeyframeChunkWith([{ slot: 512, archetype: BIPED_ARCHETYPE }])];
 
-    expect([...bipedSlotBand(chunks.map(walkChunk), 3)]).toEqual([512, 513, 514, 515]);
+    expect([...bipedSlotBand(chunks.map(walkChunk), 2)]).toEqual([510, 511, 512, 513, 514]);
   });
 
   it("ignores entities of other archetypes", () => {

@@ -5,7 +5,7 @@ import {
   BIPED_INDEX_BITS,
   forEachCandidateBit,
   matchBipedHeader,
-  slotPrefilter,
+  slotPrefilters,
 } from "./biped-records";
 import { groupBySlot } from "./group-by-slot";
 import type { AxisLayout, FlipProfile, SlotPrefilter } from "./types";
@@ -58,14 +58,14 @@ function readWindowBits(payload: Uint8Array, fromBit: number): Uint8Array {
 function collectSamples(
   payload: Uint8Array,
   slots: ReadonlySet<number>,
-  prefilter: SlotPrefilter,
+  prefilters: readonly SlotPrefilter[],
   chunk: number,
   packet: number,
 ): LayoutSample[] {
   const totalBits = payload.length * 8;
   const samples: LayoutSample[] = [];
   const limitBit = totalBits - (BIPED_HEADER_BITS + BIPED_INDEX_BITS * 2 + DETECT_WINDOW_BITS) + 1;
-  forEachCandidateBit(payload, prefilter, limitBit, (bitPos) => {
+  forEachCandidateBit(payload, prefilters, limitBit, (bitPos) => {
     const header = matchBipedHeader(payload, bitPos, totalBits, slots, DETECT_WINDOW_BITS);
     if (header == null || readBitsBE(payload, header.positionBit, DEFAULT_GATE_BITS) !== 0) {
       return null;
@@ -142,15 +142,15 @@ export function layoutFromBoundaries(boundaries: readonly number[]): AxisLayout 
 // chunks are profiled one at a time and the layout returned as soon as it shows, so a film
 // whose opening chunks hold still is read from the first chunk in which the bipeds move
 export function detectAxisLayout(chunks: readonly WalkedChunk[], slots: ReadonlySet<number>): AxisLayout {
-  const prefilter = slotPrefilter(slots);
-  if (prefilter == null) {
+  const prefilters = slotPrefilters(slots);
+  if (prefilters.length === 0) {
     throw new AxisLayoutError("Position axis layout needs at least one biped slot to profile");
   }
   let profile: FlipProfile = { pairs: 0, flipRates: [] };
   let sampleCount = 0;
   for (const chunk of chunks) {
     const samples = chunk.frames.flatMap((frame, frameIndex) =>
-      collectSamples(frame.payload, slots, prefilter, chunk.index, frameIndex),
+      collectSamples(frame.payload, slots, prefilters, chunk.index, frameIndex),
     );
     sampleCount += samples.length;
     profile = addProfiles(profile, profileFlips(samples));

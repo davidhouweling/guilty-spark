@@ -178,9 +178,9 @@ export function walkKeyframeRecords(payload: Uint8Array): KeyframeAnchor[] {
 }
 
 // a biped created and destroyed between two keyframes appears in neither, so the band between
-// the lowest and highest seen slots is filled, and slots allocated after the final keyframe
-// are covered by a tail of spare slots above the top
-export function bipedSlotBand(chunks: readonly WalkedChunk[], tailSlots: number): Set<number> {
+// the lowest and highest seen slots is filled, and spare slots on either side cover bipeds
+// allocated before the first keyframe or after the last
+export function bipedSlotBand(chunks: readonly WalkedChunk[], spareSlots: number): Set<number> {
   const seen = new Set<number>();
   for (const chunk of chunks) {
     if (chunk.keyframePayload == null) {
@@ -196,7 +196,9 @@ export function bipedSlotBand(chunks: readonly WalkedChunk[], tailSlots: number)
     return seen;
   }
   const band = new Set<number>();
-  for (let slot = Math.min(...seen); slot <= Math.min(Math.max(...seen) + tailSlots, SLOT_CAP - 1); slot++) {
+  const lowest = Math.max(Math.min(...seen) - spareSlots, 0);
+  const highest = Math.min(Math.max(...seen) + spareSlots, SLOT_CAP - 1);
+  for (let slot = lowest; slot <= highest; slot++) {
     band.add(slot);
   }
   return band;

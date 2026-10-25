@@ -104,8 +104,9 @@ describe("nameLivesByDeaths offset", () => {
     const deaths = [10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000].map((timestampMs, index) =>
       aFakeDeathEventWith({ timestampMs, xuid: `0${String(index + 1)}00000000000000` }),
     );
+    const roster = rosterOf(...deaths.map((death) => death.xuid));
 
-    expect(nameLivesByDeaths(lives, deaths, rosterOf(A, B, C, D)).offsetMs).toBe(0);
+    expect(nameLivesByDeaths(lives, deaths, roster).offsetMs).toBe(0);
   });
 
   it("scores an offset by its largest one-to-one matching, not by nearest-first picks", () => {
@@ -250,6 +251,26 @@ describe("nameLivesByDeaths", () => {
     const roster = [aFakeRosterMemberWith({ xuid: A }), aFakeRosterMemberWith({ xuid: B, presentFromMs: 30_000 })];
 
     expect(nameLivesByDeaths(lives, deaths, roster).lives.map((life) => life.xuid)).toEqual([null]);
+  });
+
+  it("rules a player out before forcing pairs so an impossible pairing cannot settle another", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 1000, endMs: 9900 }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 9500, endMs: 10_100 }),
+      aFakeBipedLifeWith({ slot: 514, startMs: 1000, endMs: 20_100 }),
+    ];
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 10_000, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 10_200, xuid: B }),
+      aFakeDeathEventWith({ timestampMs: 20_000, xuid: C }),
+    ];
+    const roster = [
+      aFakeRosterMemberWith({ xuid: A, presentFromMs: 9000 }),
+      aFakeRosterMemberWith({ xuid: B }),
+      aFakeRosterMemberWith({ xuid: C }),
+    ];
+
+    expect(nameLivesByDeaths(lives, deaths, roster).lives.map((life) => life.xuid)).toEqual([null, null, C]);
   });
 
   it("leaves lives untouched without deaths", () => {
