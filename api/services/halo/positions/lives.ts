@@ -248,7 +248,13 @@ function matchedCount(pairs: readonly NearbyPair[], offsetMs: number): number {
 }
 
 // the plateau's centre is kept: at its edge every pairing delta would be the half-window
-function plateauCentre(pairs: readonly NearbyPair[]): number {
+function isContiguous(offsets: readonly number[]): boolean {
+  return offsets.every((offset, index) => index === 0 || offset - (offsets[index - 1] ?? offset) === OFFSET_STEP_MS);
+}
+
+// two separate plateaus with the same count mean the feed supports two different clocks, so
+// no alignment is claimed
+function plateauCentre(pairs: readonly NearbyPair[]): number | null {
   let bestCount = -1;
   let plateau: number[] = [];
   for (let offset = -OFFSET_SEARCH_MS; offset <= OFFSET_SEARCH_MS; offset += OFFSET_STEP_MS) {
@@ -260,7 +266,10 @@ function plateauCentre(pairs: readonly NearbyPair[]): number {
       plateau.push(offset);
     }
   }
-  return plateau[Math.floor(plateau.length / 2)] ?? 0;
+  if (bestCount <= 0 || !isContiguous(plateau)) {
+    return null;
+  }
+  return plateau[Math.floor(plateau.length / 2)] ?? null;
 }
 
 export function alignDeathsToFilm(deaths: readonly DeathEvent[], offsetMs: number): DeathEvent[] {
@@ -271,7 +280,7 @@ export function nameLivesByDeaths(lives: readonly BipedLife[], deaths: readonly 
   const pairs = nearbyPairs(lives, deaths, previousDeathByIndex(deaths));
   const offsetMs = plateauCentre(pairs);
   const named = [...lives];
-  for (const pairing of pairDeathsToLives(pairs, offsetMs)) {
+  for (const pairing of offsetMs == null ? [] : pairDeathsToLives(pairs, offsetMs)) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
     if (life != null && death != null) {
@@ -442,7 +451,7 @@ export function nameLivesByElimination(
         continue;
       }
       const owner = eliminatedOwner(named, ownerAt, life);
-      if (owner != null && couldHaveRespawned(next, deaths, owner, life) && !overlapsNamedLife(next, owner, life)) {
+      if (owner != null && couldHaveRespawned(next, deaths, owner, life) && canOwn(next, roster, owner, life)) {
         next[index] = { ...life, xuid: owner };
         changed = true;
       }

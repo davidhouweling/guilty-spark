@@ -64,17 +64,20 @@ if (LEVELUP_CSV != null) {
   }
   const theirs = readFileSync(LEVELUP_CSV, "utf8").trim().split("\n").slice(1);
   const theirKeys = new Set<string>();
+  let undated = 0;
   for (const line of theirs) {
     const [, , us, slot, qx, qy, qz] = line.split(",");
     const ms = us == null ? undefined : msByUs.get(BigInt(us));
-    if (ms != null && slot != null && qx != null && qy != null && qz != null) {
+    if (ms == null) {
+      undated += 1;
+    } else if (slot != null && qx != null && qy != null && qz != null) {
       theirKeys.add(key(Number(slot), ms, [Number(qx), Number(qy), Number(qz)]));
     }
   }
   const missing = [...theirKeys].filter((item) => !ourKeys.has(item));
   const extra = [...ourKeys].filter((item) => !theirKeys.has(item));
   console.log(
-    `\nParity vs LevelUp: slots ${String(Math.min(...decoded.slots))}-${String(Math.max(...decoded.slots))}, ours ${String(ourKeys.size)} theirs ${String(theirKeys.size)}, missing ${String(missing.length)}, extra ${String(extra.length)}`,
+    `\nParity vs LevelUp: slots ${String(Math.min(...decoded.slots))}-${String(Math.max(...decoded.slots))}, ours ${String(ourKeys.size)} theirs ${String(theirKeys.size + undated)}, missing ${String(missing.length + undated)} (${String(undated)} at frames we never dated), extra ${String(extra.length)}`,
   );
   for (const item of [...missing.slice(0, 5), ...extra.slice(0, 5)]) {
     console.log(`  ${missing.includes(item) ? "missing" : "extra  "} ${item}`);

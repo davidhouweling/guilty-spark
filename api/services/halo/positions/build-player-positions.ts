@@ -87,15 +87,16 @@ function namedCount(lives: readonly BipedLife[]): number {
   return lives.filter((life) => life.xuid != null).length;
 }
 
-// each pass can unlock another, so the round repeats until no further life is named
+// each pass can unlock another, so the round repeats until no further life is named; a feed
+// that cannot be aligned to the film clock is not used at all
 function nameLives(
   lives: readonly BipedLife[],
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
   const byDeaths = nameLivesByDeaths(lives, deaths);
-  const filmDeaths = alignDeathsToFilm(deaths, byDeaths.offsetMs);
-  const filmRoster = alignRosterToFilm(roster, byDeaths.offsetMs);
+  const filmDeaths = byDeaths.offsetMs == null ? [] : alignDeathsToFilm(deaths, byDeaths.offsetMs);
+  const filmRoster = alignRosterToFilm(roster, byDeaths.offsetMs ?? 0);
   let named = byDeaths.lives;
   let before = -1;
   while (namedCount(named) !== before) {

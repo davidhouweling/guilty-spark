@@ -124,8 +124,21 @@ describe("nameLivesByDeaths offset", () => {
     expect(named.lives.map((life) => life.xuid)).toEqual([A, B, C, "0900000000000000"]);
   });
 
-  it("returns zero without deaths", () => {
-    expect(nameLivesByDeaths([aFakeBipedLifeWith()], []).offsetMs).toBe(0);
+  it("claims no alignment when two separate offsets fit the feed equally well", () => {
+    const lives = [aFakeBipedLifeWith({ startMs: 1000, endMs: 10_000 })];
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 9000, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 11_000, xuid: B }),
+    ];
+
+    const named = nameLivesByDeaths(lives, deaths);
+
+    expect(named.offsetMs).toBeNull();
+    expect(named.lives.map((life) => life.xuid)).toEqual([null]);
+  });
+
+  it("claims no alignment without deaths", () => {
+    expect(nameLivesByDeaths([aFakeBipedLifeWith()], []).offsetMs).toBeNull();
   });
 });
 
@@ -310,6 +323,16 @@ describe("nameLivesByElimination", () => {
     const deaths = [aFakeDeathEventWith({ timestampMs: 10_000, xuid: B })];
 
     expect(nameLivesByElimination(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null]);
+  });
+
+  it("does not name a life that began before its only candidate joined", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 1000, endMs: 60_000 }),
+    ];
+    const roster = [aFakeRosterMemberWith({ xuid: A }), aFakeRosterMemberWith({ xuid: B, presentFromMs: 30_000 })];
+
+    expect(nameLivesByElimination(lives, [], roster).map((life) => life.xuid)).toEqual([A, null]);
   });
 
   it("does not name a late joiner's first biped after a dead teammate", () => {
