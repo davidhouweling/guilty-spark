@@ -113,6 +113,47 @@ describe("Database Service", () => {
     });
   });
 
+  describe("getLatestGamertagSnapshotsByXuids()", () => {
+    it("returns the latest gamertag snapshot for each xuid", async () => {
+      const fakePreparedStatement = new FakePreparedStatement();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+      vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
+        ...fakeD1Response,
+        results: [{ XboxXuid: "xuid1", GamertagSnapshot: "Gamertag1" }],
+      });
+
+      const snapshots = await databaseService.getLatestGamertagSnapshotsByXuids(["xuid1", "xuid2"]);
+
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("WHERE XboxXuid IN (?,?)"));
+      expect(prepareSpy).toHaveBeenCalledWith(expect.stringContaining("MAX(CreatedAt)"));
+      expect(bindSpy).toHaveBeenCalledWith("xuid1", "xuid2");
+      expect(snapshots).toEqual(new Map([["xuid1", "Gamertag1"]]));
+    });
+
+    it("chunks xuids to stay within the D1 bound parameter limit", async () => {
+      const xuids = Array.from({ length: 150 }, (_, index) => `xuid${index.toString()}`);
+      const fakePreparedStatement = new FakePreparedStatement();
+      vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
+      const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
+
+      await databaseService.getLatestGamertagSnapshotsByXuids(xuids);
+
+      expect(bindSpy).toHaveBeenCalledTimes(2);
+      expect(bindSpy).toHaveBeenNthCalledWith(1, ...xuids.slice(0, 100));
+      expect(bindSpy).toHaveBeenNthCalledWith(2, ...xuids.slice(100));
+    });
+
+    it("does not query when no xuids are provided", async () => {
+      const prepareSpy = vi.spyOn(env.DB, "prepare");
+
+      const snapshots = await databaseService.getLatestGamertagSnapshotsByXuids([]);
+
+      expect(snapshots).toEqual(new Map());
+      expect(prepareSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe("upsertDiscordAssociations()", () => {
     it("upserts Discord associations in the database", async () => {
       const association1 = aFakeDiscordAssociationsRow({
