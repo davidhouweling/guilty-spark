@@ -447,6 +447,16 @@ describe("nameLivesBySlot", () => {
     expect(nameLivesBySlot(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, A, null]);
   });
 
+  it("does not extend a slot's owner onto a fragment within a respawn of the owner's previous life", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 10_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 10_200, endMs: 10_400 }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 20_000, endMs: 60_000, xuid: A }),
+    ];
+
+    expect(nameLivesBySlot(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null, A]);
+  });
+
   it("does not extend a slot's owner onto a life before the owner joined", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 520, startMs: 100_000, endMs: 150_000 }),

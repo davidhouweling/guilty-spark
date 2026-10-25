@@ -305,12 +305,18 @@ function nextLifeStartsTooSoon(lives: readonly BipedLife[], xuid: string, life: 
   );
 }
 
+function previousLifeEndedTooSoon(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
+  return lives.some(
+    (other) => other.xuid === xuid && other.endMs < life.startMs && life.startMs - other.endMs < MIN_RESPAWN_MS,
+  );
+}
+
 function slotHasAnotherOwner(lives: readonly BipedLife[], xuid: string, life: BipedLife): boolean {
   return lives.some((other) => other.slot === life.slot && other.xuid != null && other.xuid !== xuid);
 }
 
 // a name fits a life only where the owner may be present, has no other biped alongside it or
-// within a respawn after it, and the slot is not already another player's
+// within a respawn on either side of it, and the slot is not already another player's
 function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
   const member = roster.find((candidate) => candidate.xuid === owner);
   return (
@@ -318,6 +324,7 @@ function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], ow
     mayBePresent(member, life.startMs) &&
     !overlapsNamedLife(lives, owner, life) &&
     !nextLifeStartsTooSoon(lives, owner, life) &&
+    !previousLifeEndedTooSoon(lives, owner, life) &&
     !slotHasAnotherOwner(lives, owner, life)
   );
 }
