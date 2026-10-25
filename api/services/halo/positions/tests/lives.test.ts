@@ -107,6 +107,23 @@ describe("nameLivesByDeaths offset", () => {
     expect(nameLivesByDeaths(lives, deaths).offsetMs).toBe(0);
   });
 
+  it("scores an offset by its largest one-to-one matching, not by nearest-first picks", () => {
+    const lives = [9900, 10_100, 20_000, 30_000].map((endMs, index) =>
+      aFakeBipedLifeWith({ slot: 512 + index, startMs: 1000, endMs }),
+    );
+    const deaths = [
+      aFakeDeathEventWith({ timestampMs: 10_050, xuid: A }),
+      aFakeDeathEventWith({ timestampMs: 10_200, xuid: B }),
+      aFakeDeathEventWith({ timestampMs: 19_850, xuid: C }),
+      aFakeDeathEventWith({ timestampMs: 29_850, xuid: "0900000000000000" }),
+    ];
+
+    const named = nameLivesByDeaths(lives, deaths);
+
+    expect(named.offsetMs).toBe(0);
+    expect(named.lives.map((life) => life.xuid)).toEqual([A, B, C, "0900000000000000"]);
+  });
+
   it("returns zero without deaths", () => {
     expect(nameLivesByDeaths([aFakeBipedLifeWith()], []).offsetMs).toBe(0);
   });

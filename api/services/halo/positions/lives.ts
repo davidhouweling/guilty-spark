@@ -212,21 +212,39 @@ function pairDeathsToLives(pairs: readonly NearbyPair[], offsetMs: number): Pair
   return pairComponents(feasiblePairs(pairs, offsetMs)).flatMap(pairsInEveryMaximumMatching);
 }
 
-// each death and each life count once, so a death beside a cluster of lives cannot pull the
-// offset towards the cluster
-function matchedCount(pairs: readonly NearbyPair[], offsetMs: number): number {
-  const usedDeaths = new Set<number>();
-  const usedLives = new Set<number>();
-  const ordered = pairs
-    .filter((pair) => isFeasible(pair, offsetMs))
-    .sort((a, b) => Math.abs(a.delta - offsetMs) - Math.abs(b.delta - offsetMs));
-  for (const pair of ordered) {
-    if (!usedDeaths.has(pair.deathIndex) && !usedLives.has(pair.lifeIndex)) {
-      usedDeaths.add(pair.deathIndex);
-      usedLives.add(pair.lifeIndex);
+// an augmenting-path search gives the size of the largest one-to-one matching, so a death
+// beside a cluster of lives counts once and a near miss never shadows a feasible pair
+function maximumMatchingSize(pairs: readonly Pairing[]): number {
+  const livesByDeath = new Map<number, number[]>();
+  for (const pair of pairs) {
+    livesByDeath.set(pair.deathIndex, [...(livesByDeath.get(pair.deathIndex) ?? []), pair.lifeIndex]);
+  }
+  const deathByLife = new Map<number, number>();
+  const augment = (death: number, visited: Set<number>): boolean => {
+    for (const life of livesByDeath.get(death) ?? []) {
+      if (visited.has(life)) {
+        continue;
+      }
+      visited.add(life);
+      const holder = deathByLife.get(life);
+      if (holder == null || augment(holder, visited)) {
+        deathByLife.set(life, death);
+        return true;
+      }
+    }
+    return false;
+  };
+  let size = 0;
+  for (const death of livesByDeath.keys()) {
+    if (augment(death, new Set())) {
+      size += 1;
     }
   }
-  return usedDeaths.size;
+  return size;
+}
+
+function matchedCount(pairs: readonly NearbyPair[], offsetMs: number): number {
+  return maximumMatchingSize(feasiblePairs(pairs, offsetMs));
 }
 
 // the plateau's centre is kept: at its edge every pairing delta would be the half-window
