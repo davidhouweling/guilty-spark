@@ -24,8 +24,8 @@ export class OpenRun {
   private lastPosition: Quantum3 | null;
   private dropMs: number | null = null;
   private scanMs: number;
-  private lastSeenMs: number | null = null;
-  carryStartMs: number;
+  private lastSeenMs: number;
+  private carryStart: number;
   private readonly samples: CtfFlagRun["samples"] = [];
   private readonly events: CtfRunEvent[] = [];
 
@@ -45,7 +45,8 @@ export class OpenRun {
     this.carrier = steal.xuid;
     this.lastMs = steal.timestampMs;
     this.scanMs = steal.timestampMs;
-    this.carryStartMs = steal.timestampMs;
+    this.carryStart = steal.timestampMs;
+    this.lastSeenMs = steal.timestampMs;
     this.lastPosition = stand;
     this.events.push({ timestampMs: steal.timestampMs, kind: "steal" });
     this.sampleAt(steal.timestampMs);
@@ -55,29 +56,21 @@ export class OpenRun {
     return this.carrier;
   }
 
+  get carryStartMs(): number {
+    return this.carryStart;
+  }
+
   autoReturnMs(): number | null {
     return this.dropMs == null ? null : this.dropMs + AUTO_RETURN_MS;
   }
 
-  // a death stamped on the instant of the pickup, or within the feed's skew before it, still
-  // ends the carry
-  carrierDeathBefore(deaths: ReadonlySet<DeathEvent>, untilMs: number): DeathEvent | null {
-    const { carrier, carryStartMs } = this;
-    if (carrier == null) {
+  // the carrier's earliest death on or after the pickup, allowing the feed's skew before it
+  carrierDeathBefore(carrierDeaths: readonly DeathEvent[], untilMs: number): DeathEvent | null {
+    if (this.carrier == null) {
       return null;
     }
-    let earliest: DeathEvent | null = null;
-    for (const death of deaths) {
-      if (
-        death.xuid === carrier &&
-        death.timestampMs >= carryStartMs - this.deathSkewMs &&
-        death.timestampMs <= untilMs &&
-        (earliest == null || death.timestampMs < earliest.timestampMs)
-      ) {
-        earliest = death;
-      }
-    }
-    return earliest;
+    const from = this.carryStart - this.deathSkewMs;
+    return carrierDeaths.find((death) => death.timestampMs >= from && death.timestampMs <= untilMs) ?? null;
   }
 
   // the instant the carrier's biped was last seen (the pickup itself if never), once it has
@@ -92,9 +85,9 @@ export class OpenRun {
       this.scanMs = atMs;
       const seen = this.sampleFor(carrier, atMs);
       if (seen != null) {
-        this.lastSeenMs = Math.max(this.lastSeenMs ?? this.carryStartMs, seen.timestampMs);
-      } else if (atMs - (this.lastSeenMs ?? this.carryStartMs) >= CARRIER_LOST_MS) {
-        return this.lastSeenMs ?? this.carryStartMs;
+        this.lastSeenMs = Math.max(this.lastSeenMs, seen.timestampMs);
+      } else if (atMs - this.lastSeenMs >= CARRIER_LOST_MS) {
+        return this.lastSeenMs;
       }
     }
     return null;
@@ -115,14 +108,20 @@ export class OpenRun {
     this.dropMs = atMs;
   }
 
+  dropIfCarrying(atMs: number): void {
+    if (this.carrier != null) {
+      this.drop(atMs);
+    }
+  }
+
   grab(event: CtfFlagEvent): void {
     this.advanceTo(event.timestampMs);
     this.events.push({ timestampMs: event.timestampMs, kind: "grab" });
     this.carrier = event.xuid;
     this.dropMs = null;
     this.scanMs = event.timestampMs;
-    this.carryStartMs = event.timestampMs;
-    this.lastSeenMs = null;
+    this.carryStart = event.timestampMs;
+    this.lastSeenMs = event.timestampMs;
     this.seenAt.clear();
     this.sampleAt(event.timestampMs);
   }

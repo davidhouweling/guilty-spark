@@ -42,34 +42,16 @@ import type {
   HaloFilmServiceOpts,
   CtfProgression,
 } from "./types";
-import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
+import { assertCtfMatchSupported } from "./statborg/ctf-flag-events";
+import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
-import { namePositionsOrEmpty } from "./positions/name-positions-or-empty";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
-import type { CtfProgressionInput } from "./modes/ctf/ctf-progression";
+import { decodeCtfFilm, flagEventsFromRecords } from "./modes/ctf/decode-ctf-film";
 import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
 import type { CtfFlagEvents, StatRecord } from "./statborg/types";
-
-function flagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
-  return buildCtfFlagEventsFromRecords(sortStatRecords(records), matchStats);
-}
-
-// one walk per chunk serves both decoders, and the inflated film is out of scope again before
-// the progression is built
-function decodeCtfFilm(
-  chunks: readonly ReplicationChunk[],
-  matchStats: MatchStats,
-  deaths: readonly DeathEvent[],
-): Pick<CtfProgressionInput, "flagEvents" | "unresolvedSlots" | "positions"> {
-  const walked = chunks.map(walkChunk);
-  const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
-  const { events: flagEvents, unresolvedSlots } = flagEventsFromRecords(records, matchStats);
-  return { flagEvents, unresolvedSlots, positions: namePositionsOrEmpty(walked, matchStats, deaths) };
-}
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {

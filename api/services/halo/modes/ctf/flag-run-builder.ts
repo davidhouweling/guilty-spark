@@ -6,18 +6,34 @@ import type { FlagStands } from "./flag-stands";
 import { OpenRun } from "./open-run";
 import type { PositionLookup } from "./position-lookup";
 
-export type RunFlagEvent = CtfFlagEvent & { kind: "steal" | "grab" | "capture" | "return" };
+export type RunFlagEvent = CtfFlagEvent & { kind: "steal" | "grab" | "capture" | "return" | "carrierKilled" };
 
-// events stamped on one frame close the flag's current run before they open the next
-const RUN_EVENT_ORDER: Record<RunFlagEvent["kind"], number> = { return: 0, capture: 0, grab: 1, steal: 2 };
+// events stamped on one frame close the flag's current run before they open the next, and a
+// carrier kill lands before the pickup that follows it
+const RUN_EVENT_ORDER: Record<RunFlagEvent["kind"], number> = {
+  return: 0,
+  capture: 0,
+  carrierKilled: 0,
+  grab: 1,
+  steal: 2,
+};
 
+// returns and carrier kills are the defenders' events; steals, grabs and captures the attackers'
 function isRunEvent(event: CtfFlagEvent, flagTeamId: number, carrierTeamId: number): event is RunFlagEvent {
-  if (event.kind === "return") {
+  if (event.kind === "return" || event.kind === "carrierKilled") {
     return event.teamId === flagTeamId;
   }
   return (
     event.teamId === carrierTeamId && (event.kind === "steal" || event.kind === "grab" || event.kind === "capture")
   );
+}
+
+function deathsByXuid(deaths: readonly DeathEvent[]): Map<string, DeathEvent[]> {
+  const byXuid = new Map<string, DeathEvent[]>();
+  for (const death of [...deaths].sort((a, b) => a.timestampMs - b.timestampMs)) {
+    byXuid.set(death.xuid, [...(byXuid.get(death.xuid) ?? []), death]);
+  }
+  return byXuid;
 }
 
 interface ClosedRun {
@@ -26,7 +42,7 @@ interface ClosedRun {
 }
 
 export class FlagRunBuilder {
-  private readonly openDeaths: Set<DeathEvent>;
+  private readonly openDeaths: Map<string, DeathEvent[]>;
 
   constructor(
     private readonly flagEvents: readonly CtfFlagEvent[],
@@ -36,7 +52,7 @@ export class FlagRunBuilder {
     private readonly deathSkewMs: number,
     private readonly durationMs: number,
   ) {
-    this.openDeaths = new Set(deaths);
+    this.openDeaths = deathsByXuid(deaths);
   }
 
   // steal → (grab | drop)* → capture | return | auto-return 25 s after the last drop | match end
@@ -95,6 +111,11 @@ export class FlagRunBuilder {
           index += 1;
           break;
         }
+        case "carrierKilled": {
+          run.dropIfCarrying(event.timestampMs);
+          index += 1;
+          break;
+        }
         case "capture": {
           const closing: CtfRunEvent = { timestampMs: event.timestampMs, kind: "capture" };
           return { run: run.close(event.timestampMs, "capture", closing), nextIndex: index + 1 };
@@ -113,37 +134,34 @@ export class FlagRunBuilder {
 
   // what the next event says about the carry before it: the carrier's own capture proves they
   // held the flag throughout, so neither a skewed death nor a gap in their biped can drop it;
-  // otherwise a death or a vanished biped dates the drop, and a return, a fresh steal or the
-  // carrier's own re-grab (the grab counter only moves once the flag has left their hands)
-  // proves a drop that nothing else dated, which is placed on that event
+  // otherwise a death or a vanished biped dates the drop, and a return or a fresh steal proves
+  // a drop that nothing else dated, which is placed on that event. A grab is a pickup off the
+  // ground, so it already says the flag was down; no synthetic drop is added for it
   private settleCarrierBefore(run: OpenRun, event: RunFlagEvent): void {
     if (event.kind === "capture" && event.xuid === run.currentCarrier) {
       return;
     }
     this.dropIfCarrierLost(run, event.timestampMs);
-    const provesDrop = event.kind === "return" || event.kind === "steal" || event.xuid === run.currentCarrier;
-    if (provesDrop) {
-      this.dropAtLatest(run, event.timestampMs);
+    if (event.kind === "return" || event.kind === "steal") {
+      run.dropIfCarrying(event.timestampMs);
     }
   }
 
   // a death ends one carry only, and one stamped just before the pickup is placed at the pickup
   private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
-    const death = run.carrierDeathBefore(this.openDeaths, untilMs);
+    const carrierDeaths = run.currentCarrier == null ? [] : (this.openDeaths.get(run.currentCarrier) ?? []);
+    const death = run.carrierDeathBefore(carrierDeaths, untilMs);
     if (death != null) {
-      this.openDeaths.delete(death);
+      this.openDeaths.set(
+        death.xuid,
+        carrierDeaths.filter((candidate) => candidate !== death),
+      );
       run.drop(Math.max(death.timestampMs, run.carryStartMs));
       return;
     }
     const lostMs = run.carrierLostBefore(untilMs);
     if (lostMs != null) {
       run.drop(lostMs);
-    }
-  }
-
-  private dropAtLatest(run: OpenRun, atMs: number): void {
-    if (run.currentCarrier != null) {
-      run.drop(atMs);
     }
   }
 

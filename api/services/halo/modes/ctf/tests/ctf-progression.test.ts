@@ -305,7 +305,7 @@ describe("buildCtfProgression", () => {
     expect(run?.samples.at(-1)).toEqual({ timestampMs: 40_000, progress: 1 });
   });
 
-  it("treats a carrier's own re-grab as proof the flag had left their hands", () => {
+  it("models a carrier's own re-grab after a vanished biped as drop then pickup", () => {
     const tracks = [
       carrierTrack([
         aFakeStraightLifeWith({
@@ -347,22 +347,22 @@ describe("buildCtfProgression", () => {
     expect(run?.events.map((event) => event.kind)).toEqual(["steal", "capture"]);
   });
 
-  it("places a drop on a carrier's own re-grab when nothing else dates it", () => {
-    const tracks = [
-      carrierTrack([
-        aFakeStraightLifeWith({ slot: 520, startMs: 10_000, endMs: 30_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
-      ]),
+  it("dates a drop from the defenders' carrier kill on the film clock before any feed death", () => {
+    const flagEvents = [
+      flag("steal", B, 1, 10_000),
+      flag("carrierKilled", A, 0, 19_600),
+      flag("steal", B, 1, 60_000),
+      flag("capture", B, 1, 70_000),
     ];
-    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", B, 1, 14_000), flag("capture", B, 1, 30_000)];
+    const highlightEvents = [death(B, 20_300, 1)];
 
-    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+    const [run] = build({ flagEvents, highlightEvents, feedOffsetMs: null }).runs;
 
-    expect(run?.events.map((event) => [event.kind, event.timestampMs])).toEqual([
-      ["steal", 10_000],
-      ["drop", 14_000],
-      ["grab", 14_000],
-      ["capture", 30_000],
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 19_600, kind: "drop" },
     ]);
+    expect(run?.endMs).toBe(19_600 + AUTO_RETURN_MS);
   });
 
   it("keeps a death the clock shift would push past the whistle on the whistle", () => {

@@ -57,12 +57,12 @@ describe("OpenRun", () => {
     expect(closed.samples[0]).toEqual({ timestampMs: 10_000, progress: 0 });
   });
 
-  it("takes the earliest matching death whatever order the feed lists them in", () => {
+  it("takes the earliest of the carrier's deaths inside the carry", () => {
     const run = aRunStolenAt(10_000, aLookupWith(10_000, 60_000));
     const later = aFakeDeathEventWith({ timestampMs: 40_000, xuid: B });
     const earlier = aFakeDeathEventWith({ timestampMs: 15_000, xuid: B });
 
-    expect(run.carrierDeathBefore(new Set([later, earlier]), 60_000)).toBe(earlier);
+    expect(run.carrierDeathBefore([earlier, later], 60_000)).toBe(earlier);
   });
 
   it("calls a carrier never seen since the pickup lost at the pickup itself", () => {
