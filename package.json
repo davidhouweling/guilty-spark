@@ -59,31 +59,31 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.10.1",
     "@typescript-eslint/parser": "^8.72.0",
-    "@vitest/coverage-v8": "^4.1.11",
-    "eslint": "^10.12.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.13.0",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-import-x": "^4.17.1",
     "jsdom": "^30.1.3",
     "patch-package": "^8.0.1",
     "prettier": "^3.9.10",
-    "prettier-plugin-astro": "^1.1.1",
+    "prettier-plugin-astro": "^1.1.2",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.0",
-    "vitest": "^4.0.6",
-    "vitest-mock-extended": "^4.0.0"
+    "vitest": "^5.0.5",
+    "vitest-mock-extended": "^5.1.1"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
     "unrs-resolver@1.12.2": true,
-    "workerd@1.20260921.1": true,
-    "@sentry/cli@3.8.0": true
+    "workerd@1.20261019.1": true,
+    "@sentry/cli@3.8.2": true
   }
 }

@@ -19,6 +19,15 @@ updates:
           - "major"
           - "minor"
           - "patch"
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "vitest-mock-extended"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       all:
         patterns:
           - "*"

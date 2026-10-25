@@ -1,5 +1,6 @@
 import { addMilliseconds, differenceInSeconds } from "date-fns";
 import type { LogService } from "../log/types";
+import { DEFAULT_FETCH_TIMEOUT_MS, withTimeoutSignal } from "./fetch-timeout";
 import { ProxyType, KV_KEYS, CIRCUIT_BREAKER_CONFIG, ISSUE_STATUS_CODES } from "./types";
 import type { CircuitBreakerState, ErrorWindow, ProxyConfig } from "./types";
 
@@ -8,6 +9,7 @@ interface ResilientFetchOptions {
   logService: LogService;
   proxyUrl: string;
   kvKeyNamespace?: string;
+  requestTimeoutMs?: number | undefined;
 }
 
 interface DebounceEntry {
@@ -154,6 +156,7 @@ export function createResilientFetch({
   logService,
   proxyUrl,
   kvKeyNamespace,
+  requestTimeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
 }: ResilientFetchOptions): typeof fetch {
   const proxyConfig: ProxyConfig = {
     type: detectProxyType(proxyUrl),
@@ -372,14 +375,14 @@ export function createResilientFetch({
 
       logService.info(`Proxying request via URL rewrite: ${url} -> ${transformedUrl}`);
 
-      response = await fetch(transformedUrl, {
-        ...init,
-        headers: proxiedHeaders,
-      });
+      response = await fetch(
+        transformedUrl,
+        withTimeoutSignal(input, { ...init, headers: proxiedHeaders }, requestTimeoutMs),
+      );
     } else {
       // JSON-RPC style (existing behavior for backward compatibility)
       logService.info(`Proxying request via JSON-RPC: ${url}`);
-      response = await fetch(input, init);
+      response = await fetch(input, withTimeoutSignal(input, init, requestTimeoutMs));
     }
 
     logCacheStatus(response, url, true);
@@ -424,7 +427,7 @@ export function createResilientFetch({
     }
 
     async function fetchWithRetry(attempt = 1): Promise<Response> {
-      const response = await fetch(input, init);
+      const response = await fetch(input, withTimeoutSignal(input, init, requestTimeoutMs));
 
       logCacheStatus(response, url);
 
@@ -468,7 +471,13 @@ export function createResilientFetch({
       await maybeCacheResponseInKv(url, cacheInit, response);
       return response;
     } catch (error) {
-      logService.error(error, new Map([["url", url]]));
+      logService.error(
+        error,
+        new Map([
+          ["url", url],
+          ["timeoutMs", requestTimeoutMs.toString()],
+        ]),
+      );
       throw error;
     }
   };

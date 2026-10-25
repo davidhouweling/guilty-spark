@@ -3,6 +3,7 @@ import { HaloAuthenticationClient } from "halo-infinite-api";
 import { DateTime } from "luxon";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { XboxService } from "../xbox/xbox";
+import { createTimeoutFetch } from "./fetch-timeout";
 
 interface SpartanToken {
   token: string;
@@ -35,6 +36,7 @@ export class CustomSpartanTokenProvider extends HaloAuthenticationClient impleme
           }),
         clearToken: async () => env.APP_DATA.delete(CustomSpartanTokenProvider.TOKEN_NAME),
       },
+      createTimeoutFetch(async (input, init) => fetch(input, init)),
     );
   }
 }

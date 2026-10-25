@@ -42,4 +42,24 @@ describe("CustomSpartanTokenProvider", () => {
 
     expect(token).toBe(validToken.token);
   });
+
+  it("requests a new spartan token with a timeout signal", async () => {
+    env.APP_DATA.get = vi
+      .fn()
+      .mockImplementation(async (key: string) => Promise.resolve(key === "xboxToken" ? validKvToken : null));
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        Response.json({ SpartanToken: "new-spartan-token", ExpiresUtc: { ISO8601Date: "2025-01-01T04:00:00.000Z" } }),
+      );
+
+    const token = await provider.getSpartanToken();
+
+    expect(token).toBe("new-spartan-token");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/spartan-token"),
+      expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal) as AbortSignal }),
+    );
+    fetchSpy.mockRestore();
+  });
 });

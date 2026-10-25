@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = CONNECTED & GamesRetrievable = N > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -40,7 +40,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = CONNECTED & GamesRetrievable = N > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -80,7 +80,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = CONNECTED & GamesRetrievable = Y > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -163,7 +163,7 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'CONNECTED' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = CONNECTED & GamesRetrievable = Y > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -235,7 +235,7 @@ Once you have done this, search for your gamertag again.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = DISPLAY_NAME_SEARCH & GamesRetrievable = N > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -275,7 +275,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = DISPLAY_NAME_SEARCH & GamesRetrievable = N > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -315,7 +315,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = DISPLAY_NAME_SEARCH & GamesRetrievable = Y > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -407,7 +407,7 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'DISPLAY_NAME_SEARCH' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = DISPLAY_NAME_SEARCH & GamesRetrievable = Y > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -479,7 +479,7 @@ Once you have done this, search for your gamertag again.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = GAME_SIMILARITY & GamesRetrievable = N > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -519,7 +519,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = GAME_SIMILARITY & GamesRetrievable = N > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -559,7 +559,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = GAME_SIMILARITY & GamesRetrievable = Y > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -651,7 +651,7 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'GAME_SIMILARITY' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = GAME_SIMILARITY & GamesRetrievable = Y > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -723,7 +723,7 @@ Once you have done this, search for your gamertag again.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = MANUAL & GamesRetrievable = N > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -763,7 +763,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = MANUAL & GamesRetrievable = N > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -803,7 +803,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = MANUAL & GamesRetrievable = Y > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -886,7 +886,7 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'MANUAL' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = MANUAL & GamesRetrievable = Y > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -958,7 +958,7 @@ Once you have done this, search for your gamertag again.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'UNKNOWN' & GamesRetrievable = '?' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = UNKNOWN & GamesRetrievable = ? > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -998,7 +998,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'UNKNOWN' & GamesRetrievable = '?' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = UNKNOWN & GamesRetrievable = ? > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -1038,7 +1038,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'N' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = USERNAME_SEARCH & GamesRetrievable = N > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -1078,7 +1078,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'N' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = USERNAME_SEARCH & GamesRetrievable = N > returns expected response when no history 1`] = `
 [
   "fake-token",
   {
@@ -1118,7 +1118,7 @@ Click the button below to search for your gamertag and recent game history.",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'Y' > calls updateDeferredReply with the expected opts 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = USERNAME_SEARCH & GamesRetrievable = Y > calls updateDeferredReply with the expected opts 1`] = `
 [
   "fake-token",
   {
@@ -1210,7 +1210,7 @@ Loss - 1:2 (198:256)",
 ]
 `;
 
-exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = 'USERNAME_SEARCH' & GamesRetrievable = 'Y' > returns expected response when no history 1`] = `
+exports[`ConnectCommand > execute(): /command > jobToComplete > AssociationReason = USERNAME_SEARCH & GamesRetrievable = Y > returns expected response when no history 1`] = `
 [
   "fake-token",
   {

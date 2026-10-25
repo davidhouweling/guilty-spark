@@ -2338,6 +2338,22 @@ describe("Halo service", () => {
   });
 
   describe("getUsersByXuids()", () => {
+    it("logs the xuids it fetches when they are not cached", async () => {
+      const logDebugSpy = vi.spyOn(logService, "debug");
+      const xuids = ["0100000000000000", "0200000000000000"];
+
+      await haloService.getUsersByXuids(xuids);
+
+      expect(logDebugSpy).toHaveBeenCalledWith(
+        "HaloService: Fetching 2 users by xuid",
+        new Map([
+          ["missingXuids", "0100000000000000, 0200000000000000"],
+          ["freshCount", "0"],
+          ["staleCount", "0"],
+        ]),
+      );
+    });
+
     it("calls infiniteClient.getUsers and returns the UserInfo for the given xuids", async () => {
       const xuids = ["0100000000000000", "0200000000000000", "0500000000000000"];
       const result = await haloService.getUsersByXuids(xuids);
