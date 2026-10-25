@@ -1063,21 +1063,9 @@ describe("Database Service", () => {
     });
 
     it("aggregates headshot kills and ranks all deaths metrics lowest first", async () => {
-      const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
-      const prepareSpy = vi
-        .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(countStatement)
-        .mockReturnValueOnce(rowsStatement)
-        .mockReturnValueOnce(countStatement)
-        .mockReturnValueOnce(rowsStatement)
-        .mockReturnValueOnce(countStatement)
-        .mockReturnValueOnce(rowsStatement)
-        .mockReturnValueOnce(countStatement)
-        .mockReturnValueOnce(rowsStatement);
-      vi.spyOn(countStatement, "bind").mockReturnThis();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
-      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
 
       await databaseService.getLeaderboardStatMetricRankings({
@@ -1118,9 +1106,10 @@ describe("Database Service", () => {
       });
 
       expect(prepareSpy.mock.calls[0]?.[0]).toContain("SUM(gp.HeadshotKills) AS MetricValue");
+      expect(prepareSpy).toHaveBeenCalledTimes(4);
+      expect(prepareSpy.mock.calls[1]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
+      expect(prepareSpy.mock.calls[2]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
       expect(prepareSpy.mock.calls[3]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[5]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
-      expect(prepareSpy.mock.calls[7]?.[0]).toContain("ORDER BY agg.MetricValue ASC");
     });
 
     it.each([
@@ -1213,13 +1202,11 @@ describe("Database Service", () => {
     });
 
     it("clamps objective metric minimum games to one when configured to zero", async () => {
-      const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
-      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
-      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
-      vi.spyOn(rowsStatement, "bind").mockReturnThis();
-      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
+      const rowsBindSpy = vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(rowsStatement, "first").mockResolvedValue({ Total: 0 });
 
       await databaseService.getLeaderboardStatMetricRankings({
         guildId: "guild-1",
@@ -1231,18 +1218,16 @@ describe("Database Service", () => {
         metric: LeaderboardMetric.ObjectiveTime,
       });
 
-      const [countBindings] = countBindSpy.mock.calls;
-      expect(countBindings).toContain(1);
+      const [rowsBindings] = rowsBindSpy.mock.calls;
+      expect(rowsBindings).toContain(1);
     });
 
     it("keeps non-objective metric minimum games unchanged", async () => {
-      const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
-      vi.spyOn(env.DB, "prepare").mockReturnValueOnce(countStatement).mockReturnValueOnce(rowsStatement);
-      const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
-      vi.spyOn(rowsStatement, "bind").mockReturnThis();
-      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
+      vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
+      const rowsBindSpy = vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+      vi.spyOn(rowsStatement, "first").mockResolvedValue({ Total: 0 });
 
       await databaseService.getLeaderboardStatMetricRankings({
         guildId: "guild-1",
@@ -1254,8 +1239,78 @@ describe("Database Service", () => {
         metric: LeaderboardMetric.Kills,
       });
 
-      const [countBindings] = countBindSpy.mock.calls;
-      expect(countBindings).toContain(0);
+      const [rowsBindings] = rowsBindSpy.mock.calls;
+      expect(rowsBindings).toContain(0);
+    });
+
+    describe("ranking pages", () => {
+      const aRankingRow = {
+        XboxXuid: "xuid-1",
+        DiscordUserId: null,
+        Gamertag: "Player One",
+        SeriesPlayed: 4,
+        SeriesWins: 3,
+        GamesPlayed: 12,
+        GameWins: 8,
+        MedalCount: 0,
+        ObjectiveGamesPlayed: 0,
+        ObjectiveTimeSeconds: 0,
+        MetricValue: 0.75,
+      };
+      const rankingsQuery = {
+        guildId: "guild-1",
+        queueChannelId: null,
+        startEpochSeconds: 0,
+        minGamesPlayed: 0,
+        limit: 10,
+      };
+
+      it("returns the page and its total from a single query", async () => {
+        const rowsStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
+        vi.spyOn(rowsStatement, "bind").mockReturnThis();
+        vi.spyOn(rowsStatement, "all").mockResolvedValue({
+          ...fakeD1Response,
+          results: [{ ...aRankingRow, TotalCount: 37 }],
+        });
+
+        const result = await databaseService.getLeaderboardSeriesWinRateRankings({ ...rankingsQuery, offset: 0 });
+
+        expect(result).toEqual({ total: 37, rows: [aRankingRow] });
+        expect(prepareSpy).toHaveBeenCalledTimes(1);
+        expect(prepareSpy.mock.calls[0]?.[0]).toContain("COUNT(*) OVER () AS TotalCount");
+      });
+
+      it("returns an empty first page without a separate count query", async () => {
+        const rowsStatement = new FakePreparedStatement();
+        const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
+        vi.spyOn(rowsStatement, "bind").mockReturnThis();
+        vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+
+        const result = await databaseService.getLeaderboardSeriesWinRateRankings({ ...rankingsQuery, offset: 0 });
+
+        expect(result).toEqual({ total: 0, rows: [] });
+        expect(prepareSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it("counts separately when a page past the end is empty", async () => {
+        const rowsStatement = new FakePreparedStatement();
+        const countStatement = new FakePreparedStatement<{ Total: number }>();
+        const prepareSpy = vi
+          .spyOn(env.DB, "prepare")
+          .mockReturnValueOnce(rowsStatement)
+          .mockReturnValueOnce(countStatement);
+        vi.spyOn(rowsStatement, "bind").mockReturnThis();
+        vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
+        const countBindSpy = vi.spyOn(countStatement, "bind").mockReturnThis();
+        vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 12 });
+
+        const result = await databaseService.getLeaderboardSeriesWinRateRankings({ ...rankingsQuery, offset: 20 });
+
+        expect(result).toEqual({ total: 12, rows: [] });
+        expect(prepareSpy.mock.calls[1]?.[0]).toMatch(/^SELECT COUNT\(\*\) AS Total FROM \(/);
+        expect(countBindSpy).toHaveBeenCalledWith("guild-1", 0, null, null, 0, "guild-1", 0, null, null);
+      });
     });
 
     it("uses valid contribution denominators for contribution game counts", async () => {
@@ -1365,15 +1420,9 @@ describe("Database Service", () => {
         "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END",
       ],
     ] as const)("builds the expected outcome SQL for %s", async (metric, expectedSql) => {
-      const countStatement = new FakePreparedStatement<{ Total: number }>();
       const rowsStatement = new FakePreparedStatement();
-      const prepareSpy = vi
-        .spyOn(env.DB, "prepare")
-        .mockReturnValueOnce(countStatement)
-        .mockReturnValueOnce(rowsStatement);
-      vi.spyOn(countStatement, "bind").mockReturnThis();
+      const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
-      vi.spyOn(countStatement, "first").mockResolvedValue({ Total: 0 });
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
 
       await databaseService.getLeaderboardOutcomeMetricRankings({
@@ -1386,7 +1435,7 @@ describe("Database Service", () => {
         metric,
       });
 
-      const rankingQuery = prepareSpy.mock.calls[1]?.[0];
+      const rankingQuery = prepareSpy.mock.calls[0]?.[0];
       expect(rankingQuery).toContain(expectedSql);
       expect(rankingQuery).toContain("sGames.CompletedAt >= ?");
       expect(rankingQuery).toContain("s.CompletedAt >= ?");
