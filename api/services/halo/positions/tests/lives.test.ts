@@ -386,6 +386,17 @@ describe("nameLivesByElimination", () => {
     expect(nameLivesByRespawnOrder(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, B, null]);
   });
 
+  it("does not name a life to a player the feed says died while it was running", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
+      aFakeBipedLifeWith({ slot: 513, startMs: 25_000, endMs: 45_000 }),
+    ];
+    const deaths = [aFakeDeathEventWith({ timestampMs: 30_000, xuid: B })];
+
+    expect(nameLivesByElimination(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null]);
+    expect(nameLivesByRespawnOrder(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null]);
+  });
+
   it("does not name a life that began before its only candidate joined", () => {
     const lives = [
       aFakeBipedLifeWith({ slot: 512, startMs: 0, endMs: 60_000, xuid: A }),
@@ -433,7 +444,7 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 514, startMs: 50_000, endMs: 60_000 }),
     ];
 
-    expect(nameLivesBySlot(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
+    expect(nameLivesBySlot(lives, [], rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null, C, B, null]);
   });
 
   it("does not extend one owner onto two overlapping fragments in different slots", () => {
@@ -444,7 +455,7 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 521, startMs: 45_000, endMs: 55_000 }),
     ];
 
-    expect(nameLivesBySlot(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, A, null]);
+    expect(nameLivesBySlot(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, A, A, null]);
   });
 
   it("does not extend a slot's owner onto a fragment within a respawn of the owner's previous life", () => {
@@ -454,7 +465,17 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 520, startMs: 20_000, endMs: 60_000, xuid: A }),
     ];
 
-    expect(nameLivesBySlot(lives, rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null, A]);
+    expect(nameLivesBySlot(lives, [], rosterOf(A, B)).map((life) => life.xuid)).toEqual([A, null, A]);
+  });
+
+  it("does not extend a slot's owner onto a fragment within a respawn of a feed-only death", () => {
+    const lives = [
+      aFakeBipedLifeWith({ slot: 520, startMs: 10_200, endMs: 10_400 }),
+      aFakeBipedLifeWith({ slot: 520, startMs: 20_000, endMs: 60_000, xuid: A }),
+    ];
+    const deaths = [aFakeDeathEventWith({ timestampMs: 10_000, xuid: A })];
+
+    expect(nameLivesBySlot(lives, deaths, rosterOf(A, B)).map((life) => life.xuid)).toEqual([null, A]);
   });
 
   it("does not extend a slot's owner onto a life before the owner joined", () => {
@@ -464,7 +485,7 @@ describe("nameLivesBySlot", () => {
     ];
     const roster = [aFakeRosterMemberWith({ xuid: A }), aFakeRosterMemberWith({ xuid: B, presentFromMs: 300_000 })];
 
-    expect(nameLivesBySlot(lives, roster).map((life) => life.xuid)).toEqual([null, B]);
+    expect(nameLivesBySlot(lives, [], roster).map((life) => life.xuid)).toEqual([null, B]);
   });
 
   it("does not extend a slot's owner onto a life that overlaps the owner's other life", () => {
@@ -474,7 +495,7 @@ describe("nameLivesBySlot", () => {
       aFakeBipedLifeWith({ slot: 520, startMs: 40_000, endMs: 50_000 }),
     ];
 
-    expect(nameLivesBySlot(lives, rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null]);
+    expect(nameLivesBySlot(lives, [], rosterOf(A, B, C)).map((life) => life.xuid)).toEqual([A, A, null]);
   });
 });
 

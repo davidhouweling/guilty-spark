@@ -79,7 +79,7 @@ function namingRound(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const settled = nameLivesByElimination(nameLivesBySlot(lives, roster), deaths, roster);
+  const settled = nameLivesByElimination(nameLivesBySlot(lives, deaths, roster), deaths, roster);
   return nameLivesByElimination(nameLivesByRespawnOrder(settled, deaths, roster), deaths, roster);
 }
 

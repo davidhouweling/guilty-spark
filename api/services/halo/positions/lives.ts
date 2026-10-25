@@ -315,9 +315,26 @@ function slotHasAnotherOwner(lives: readonly BipedLife[], xuid: string, life: Bi
   return lives.some((other) => other.slot === life.slot && other.xuid != null && other.xuid !== xuid);
 }
 
-// a name fits a life only where the owner may be present, has no other biped alongside it or
-// within a respawn on either side of it, and the slot is not already another player's
-function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], owner: string, life: BipedLife): boolean {
+// a feed death inside the life, or less than a respawn before it, rules the owner out; a death
+// at the life's end is the one that ended it
+function diesDuringLife(deaths: readonly DeathEvent[], xuid: string, life: BipedLife): boolean {
+  return deaths.some(
+    (death) =>
+      death.xuid === xuid &&
+      death.timestampMs > life.startMs - MIN_RESPAWN_MS &&
+      death.timestampMs < life.endMs - DEATH_MATCH_WINDOW_MS,
+  );
+}
+
+// a name fits a life only where the owner may be present, has no other biped or feed death
+// alongside it or within a respawn on either side of it, and the slot is not another player's
+function canOwn(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+  owner: string,
+  life: BipedLife,
+): boolean {
   const member = roster.find((candidate) => candidate.xuid === owner);
   return (
     member != null &&
@@ -325,6 +342,7 @@ function canOwn(lives: readonly BipedLife[], roster: readonly RosterMember[], ow
     !overlapsNamedLife(lives, owner, life) &&
     !nextLifeStartsTooSoon(lives, owner, life) &&
     !previousLifeEndedTooSoon(lives, owner, life) &&
+    !diesDuringLife(deaths, owner, life) &&
     !slotHasAnotherOwner(lives, owner, life)
   );
 }
@@ -340,11 +358,12 @@ export function nameLivesByDeaths(
   const plateau = optimalOffsets(pairs);
   const offsetMs = plateau[Math.floor(plateau.length / 2)] ?? null;
   const filmRoster = alignRosterToFilm(roster, offsetMs ?? 0);
+  const filmDeaths = alignDeathsToFilm(deaths, offsetMs ?? 0);
   const named = [...lives];
   for (const pairing of pairingsSettledAcrossPlateau(pairs, plateau)) {
     const life = named[pairing.lifeIndex];
     const death = deaths[pairing.deathIndex];
-    if (life != null && death != null && canOwn(named, filmRoster, death.xuid, life)) {
+    if (life != null && death != null && canOwn(named, filmDeaths, filmRoster, death.xuid, life)) {
       named[pairing.lifeIndex] = { ...life, xuid: death.xuid };
     }
   }
@@ -368,13 +387,17 @@ function slotOwners(lives: readonly BipedLife[]): Map<number, Set<string>> {
 // a slot keeps its owner for the whole film (LevelUp measured no slot changing hands), so the
 // one name a slot's lives agree on extends to the slot's unnamed lives, each checked against
 // the names already extended
-export function nameLivesBySlot(lives: readonly BipedLife[], roster: readonly RosterMember[]): BipedLife[] {
+export function nameLivesBySlot(
+  lives: readonly BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+): BipedLife[] {
   const owners = slotOwners(lives);
   const named = [...lives];
   for (const [index, life] of named.entries()) {
     const set = owners.get(life.slot);
     const [owner] = set ?? [];
-    if (life.xuid == null && set?.size === 1 && owner != null && canOwn(named, roster, owner, life)) {
+    if (life.xuid == null && set?.size === 1 && owner != null && canOwn(named, deaths, roster, owner, life)) {
       named[index] = { ...life, xuid: owner };
     }
   }
@@ -510,7 +533,7 @@ export function nameLivesByElimination(
         continue;
       }
       const owner = eliminatedOwner(named, ownerAt, life);
-      if (owner != null && couldHaveRespawned(next, deaths, owner, life) && canOwn(next, roster, owner, life)) {
+      if (owner != null && couldHaveRespawned(next, deaths, owner, life) && canOwn(next, deaths, roster, owner, life)) {
         next[index] = { ...life, xuid: owner };
         changed = true;
       }
@@ -539,7 +562,7 @@ function respawnWait(
   member: RosterMember,
   life: BipedLife,
 ): number | null {
-  if (!canOwn(lives, [member], member.xuid, life)) {
+  if (!canOwn(lives, deaths, [member], member.xuid, life)) {
     return null;
   }
   const lastEnd = lastDeathBefore(lives, deaths, member.xuid, life.startMs);
@@ -579,9 +602,15 @@ function longestWaitingPlayer(
   return longest.xuid;
 }
 
-function nameSlot(lives: BipedLife[], roster: readonly RosterMember[], slot: number, owner: string): void {
+function nameSlot(
+  lives: BipedLife[],
+  deaths: readonly DeathEvent[],
+  roster: readonly RosterMember[],
+  slot: number,
+  owner: string,
+): void {
   for (const [index, life] of lives.entries()) {
-    if (life.slot === slot && life.xuid == null && canOwn(lives, roster, owner, life)) {
+    if (life.slot === slot && life.xuid == null && canOwn(lives, deaths, roster, owner, life)) {
       lives[index] = { ...life, xuid: owner };
     }
   }
@@ -597,7 +626,7 @@ export function nameLivesByRespawnOrder(
   deaths: readonly DeathEvent[],
   roster: readonly RosterMember[],
 ): BipedLife[] {
-  const named = nameLivesBySlot(lives, roster);
+  const named = nameLivesBySlot(lives, deaths, roster);
   for (const index of byStartTime(named)) {
     const life = named[index];
     if (life == null || life.xuid != null) {
@@ -605,7 +634,7 @@ export function nameLivesByRespawnOrder(
     }
     const owner = longestWaitingPlayer(named, deaths, roster, life);
     if (owner != null) {
-      nameSlot(named, roster, life.slot, owner);
+      nameSlot(named, deaths, roster, life.slot, owner);
     }
   }
   return named;
