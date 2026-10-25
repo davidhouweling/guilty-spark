@@ -31,6 +31,7 @@ import {
 import { NeatQueuePostSeriesDisplayMode } from "../../services/database/types/neat_queue_config";
 import type { SeriesOverviewEmbedOutput } from "../../embeds/stats/series-overview-embed";
 import type { MatchHistoryEntry } from "../../services/halo/types";
+import { getSeriesStatsThreadName } from "../../services/discord/series-stats-thread-name";
 import type { StatsHandlerContext } from "./stats-handler-context";
 import { InteractionButton } from "./stats-interaction-button";
 import type { FixFlowMetadata, FixSeriesOutcome, FixSeriesSource, FixSeriesSourceKind } from "./stats-flow-types";
@@ -861,6 +862,10 @@ export class StatsFixHandler {
 
       let destinationThreadId: string;
       let shouldPostOverviewInThread = false;
+      const threadName = getSeriesStatsThreadName(
+        metadata.queueData.queue,
+        haloService.getSeriesScore(series, locale, true),
+      );
       if (existingLocation != null) {
         const existingThreadMessages = await discordService.findBotMessagesInThread(
           metadata.guildId,
@@ -874,6 +879,8 @@ export class StatsFixHandler {
           existingGuiltySparkMessageIds,
           "Replacing amended series stats",
         );
+
+        await discordService.trySetThreadName(existingLocation.threadId, threadName);
 
         if (existingLocation.parentOverviewMessage != null) {
           await discordService.editMessage(
@@ -894,7 +901,7 @@ export class StatsFixHandler {
           metadata,
           neatQueueConfig,
           seriesEmbed: amendedSeriesEmbed,
-          threadName: `Queue #${metadata.queueData.queue.toString()} series stats (${haloService.getSeriesScore(series, locale, true)})`,
+          threadName,
         });
         ({ threadId: destinationThreadId, shouldPostOverviewInThread } = destination);
       }
