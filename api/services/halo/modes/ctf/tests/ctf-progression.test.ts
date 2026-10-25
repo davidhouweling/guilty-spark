@@ -338,6 +338,42 @@ describe("buildCtfProgression", () => {
     ]);
   });
 
+  it("does not let a skewed death just before the carrier's own capture drop the flag", () => {
+    const flagEvents = [flag("steal", B, 1, 60_000), flag("capture", B, 1, 70_000)];
+    const highlightEvents = [death(B, 69_500, 1)];
+
+    const [run] = build({ flagEvents, highlightEvents, feedOffsetMs: null }).runs;
+
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "capture"]);
+  });
+
+  it("places a drop on a carrier's own re-grab when nothing else dates it", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({ slot: 520, startMs: 10_000, endMs: 30_000, from: STAND_0, to: CAPTURE_1, xuid: B }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", B, 1, 14_000), flag("capture", B, 1, 30_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
+    expect(run?.events.map((event) => [event.kind, event.timestampMs])).toEqual([
+      ["steal", 10_000],
+      ["drop", 14_000],
+      ["grab", 14_000],
+      ["capture", 30_000],
+    ]);
+  });
+
+  it("keeps a death the clock shift would push past the whistle on the whistle", () => {
+    const highlightEvents = [death(A, 199_500, 0), ...defaultDeaths];
+
+    expect(build({ highlightEvents, feedOffsetMs: 1500 }).deathTimeline).toContainEqual({
+      timestampMs: DURATION_MS,
+      teamId: 0,
+    });
+  });
+
   it("samples the new carrier on the instant of the grab", () => {
     const relay = "0800000000000000";
     const tracks = [

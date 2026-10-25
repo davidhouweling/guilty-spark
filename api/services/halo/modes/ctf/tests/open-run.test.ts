@@ -26,7 +26,7 @@ function aLookupWith(startMs: number, endMs: number): PositionLookup {
   );
 }
 
-function aRunStolenAt(stealMs: number, lookup: PositionLookup): OpenRun {
+function aRunStolenAt(stealMs: number, lookup: PositionLookup, durationMs = 60_000): OpenRun {
   return new OpenRun(
     0,
     aFakeCtfFlagEventWith({ kind: "steal", xuid: B, teamId: 1, timestampMs: stealMs }),
@@ -34,14 +34,15 @@ function aRunStolenAt(stealMs: number, lookup: PositionLookup): OpenRun {
     STAND,
     lookup,
     150,
+    durationMs,
   );
 }
 
 describe("OpenRun", () => {
   it("replaces a stepped sample that lands on the whistle with the terminal capture sample", () => {
-    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
+    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000), 20_000);
 
-    const closed = run.close(20_200, "capture", { timestampMs: 20_200, kind: "capture" }, 20_000);
+    const closed = run.close(20_200, "capture", { timestampMs: 20_200, kind: "capture" });
 
     expect(closed.samples.filter((sample) => sample.timestampMs === 20_000)).toEqual([
       { timestampMs: 20_000, progress: 1 },
@@ -51,7 +52,7 @@ describe("OpenRun", () => {
   it("opens with a sample on the steal itself", () => {
     const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
 
-    const closed = run.close(20_000, "matchEnd", null, 60_000);
+    const closed = run.close(20_000, "matchEnd", null);
 
     expect(closed.samples[0]).toEqual({ timestampMs: 10_000, progress: 0 });
   });
@@ -71,9 +72,9 @@ describe("OpenRun", () => {
   });
 
   it("keeps the terminal sample at the whistle when a return lands just after it", () => {
-    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000));
+    const run = aRunStolenAt(10_000, aLookupWith(10_000, 20_000), 20_000);
 
-    const closed = run.close(20_300, "return", { timestampMs: 20_300, kind: "return" }, 20_000);
+    const closed = run.close(20_300, "return", { timestampMs: 20_300, kind: "return" });
 
     expect(closed.samples.at(-1)?.timestampMs).toBe(20_000);
   });

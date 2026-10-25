@@ -232,7 +232,9 @@ export class HaloFilmService {
     assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
     for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
-      records.push(...scanWalkedChunkStatRecords(walkChunk(chunk)));
+      for (const record of scanWalkedChunkStatRecords(walkChunk(chunk))) {
+        records.push(record);
+      }
     }
     return flagEventsFromRecords(records, matchStats);
   }

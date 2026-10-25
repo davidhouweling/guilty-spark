@@ -1,5 +1,4 @@
-import type { ReplicationChunk } from "../types";
-import { readBitsBE, walkChunk } from "./bit-reader";
+import { readBitsBE } from "./bit-reader";
 import type { WalkedChunk } from "./bit-reader";
 import type { StatRecord, StatValue } from "./types";
 
@@ -199,10 +198,6 @@ export function scanWalkedChunkStatRecords(chunk: WalkedChunk): StatRecord[] {
     }
   }
   return records;
-}
-
-export function scanChunkStatRecords(chunk: ReplicationChunk): StatRecord[] {
-  return scanWalkedChunkStatRecords(walkChunk(chunk));
 }
 
 export function sortStatRecords(records: readonly StatRecord[]): StatRecord[] {

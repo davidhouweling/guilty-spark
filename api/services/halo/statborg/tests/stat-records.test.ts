@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { scanChunkStatRecords, scanFrameForStatRecords, sortStatRecords } from "../stat-records";
+import { walkChunk } from "../bit-reader";
+import { scanFrameForStatRecords, scanWalkedChunkStatRecords, sortStatRecords } from "../stat-records";
 import { aFakeReplicationChunkWith, buildFramePayload } from "../fakes/replication-chunk.fake";
 
 describe("scanFrameForStatRecords", () => {
@@ -116,7 +117,7 @@ describe("scanFrameForStatRecords back-to-back records", () => {
   });
 });
 
-describe("scanChunkStatRecords", () => {
+describe("scanWalkedChunkStatRecords", () => {
   it("dates records from the chunk start plus the frame offset from the first frame", () => {
     const chunk = aFakeReplicationChunkWith(
       [
@@ -125,7 +126,7 @@ describe("scanChunkStatRecords", () => {
       ],
       { startMs: 20_000 },
     );
-    expect(scanChunkStatRecords(chunk).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
+    expect(scanWalkedChunkStatRecords(walkChunk(chunk)).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
   });
 
   it("merges chunks in timestamp order", () => {
@@ -144,10 +145,10 @@ describe("scanChunkStatRecords", () => {
       },
     );
     expect(
-      sortStatRecords([...scanChunkStatRecords(later), ...scanChunkStatRecords(earlier)]).map((record) => [
-        record.timestampMs,
-        record.slot,
-      ]),
+      sortStatRecords([
+        ...scanWalkedChunkStatRecords(walkChunk(later)),
+        ...scanWalkedChunkStatRecords(walkChunk(earlier)),
+      ]).map((record) => [record.timestampMs, record.slot]),
     ).toEqual([
       [0, 12],
       [20_000, 10],
@@ -162,25 +163,29 @@ describe("scanChunkStatRecords", () => {
       ],
       { startMs: 20_000 },
     );
-    expect(scanChunkStatRecords(chunk).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
+    expect(scanWalkedChunkStatRecords(walkChunk(chunk)).map((record) => record.timestampMs)).toEqual([20_000, 20_250]);
   });
 
   it("returns nothing for a chunk without frames", () => {
-    expect(scanChunkStatRecords({ index: 1, startMs: 0, durationMs: 1, data: new Uint8Array(0) })).toEqual([]);
+    expect(
+      scanWalkedChunkStatRecords(walkChunk({ index: 1, startMs: 0, durationMs: 1, data: new Uint8Array(0) })),
+    ).toEqual([]);
   });
 
   it("sorts without mutating the input", () => {
     const records = [
-      ...scanChunkStatRecords(
-        aFakeReplicationChunkWith([
-          {
-            timestampUs: 1n,
-            records: [
-              { slot: 12, components: [{ index: 2, a: 1, b: 0 }] },
-              { slot: 10, components: [{ index: 2, a: 1, b: 0 }] },
-            ],
-          },
-        ]),
+      ...scanWalkedChunkStatRecords(
+        walkChunk(
+          aFakeReplicationChunkWith([
+            {
+              timestampUs: 1n,
+              records: [
+                { slot: 12, components: [{ index: 2, a: 1, b: 0 }] },
+                { slot: 10, components: [{ index: 2, a: 1, b: 0 }] },
+              ],
+            },
+          ]),
+        ),
       ),
     ];
     const sorted = sortStatRecords(records);

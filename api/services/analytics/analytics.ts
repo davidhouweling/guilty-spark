@@ -210,13 +210,18 @@ export class AnalyticsService {
     );
   }
 
-  private async withFilmRetries<T>(context: string, matchId: string, build: () => Promise<T>): Promise<T> {
+  private async withFilmRetries<T>(
+    context: string,
+    matchId: string,
+    build: () => Promise<T>,
+    shouldRetry: (error: unknown) => boolean = (): boolean => true,
+  ): Promise<T> {
     let lastError: Error = new Error("Film extraction failed");
     for (let attempt = 1; attempt <= FILM_EXTRACTION_MAX_ATTEMPTS; attempt += 1) {
       try {
         return await build();
       } catch (error) {
-        if (error instanceof UnsupportedFilmError) {
+        if (!shouldRetry(error)) {
           throw error;
         }
         const normalizedError = toError(error);
@@ -273,8 +278,11 @@ export class AnalyticsService {
     matchStats: MatchStats,
   ): Promise<MatchAnalytics["scoreProgression"]> {
     try {
-      return await this.withFilmRetries("build score progression", matchStats.MatchId, async () =>
-        this.buildScoreProgressionAnalytics(matchStats),
+      return await this.withFilmRetries(
+        "build score progression",
+        matchStats.MatchId,
+        async () => this.buildScoreProgressionAnalytics(matchStats),
+        (error) => !(error instanceof UnsupportedFilmError),
       );
     } catch (error) {
       if (error instanceof UnsupportedFilmError) {

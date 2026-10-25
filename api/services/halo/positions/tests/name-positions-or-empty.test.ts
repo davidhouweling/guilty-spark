@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { walkChunk } from "../../statborg/bit-reader";
 import { aFakeCtfMatchStatsWith } from "../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeReplicationChunkWith } from "../../statborg/fakes/replication-chunk.fake";
@@ -26,12 +27,14 @@ describe("namePositionsOrEmpty", () => {
   });
 
   it("rethrows failures that are not decode failures", () => {
-    const matchStats = aFakeCtfMatchStatsWith();
-    vi.spyOn(matchStats.Players, "map").mockImplementation(() => {
-      throw new Error("unexpected");
-    });
-    const walked = aFakePositionFilmWith({ lives: [{ slot: 512, startMs: 1000, endMs: 20_000 }] }).map(walkChunk);
+    const [chunk] = aFakePositionFilmWith({ lives: [{ slot: 512, startMs: 1000, endMs: 20_000 }] }).map(walkChunk);
+    const broken = {
+      ...Preconditions.checkExists(chunk),
+      get frames(): never {
+        throw new Error("unexpected");
+      },
+    };
 
-    expect(() => namePositionsOrEmpty(walked, matchStats, [])).toThrow("unexpected");
+    expect(() => namePositionsOrEmpty([broken], aFakeCtfMatchStatsWith(), [])).toThrow("unexpected");
   });
 });

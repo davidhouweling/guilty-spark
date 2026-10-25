@@ -40,10 +40,17 @@ function buildCaptureEvents(
   return events;
 }
 
-// the contract forbids negative times, so a death the shift would place before the start sits
-// on it
-function shiftOntoFilmClock(events: readonly ParsedHighlightEvent[], feedOffsetMs: number): ParsedHighlightEvent[] {
-  return events.map((event) => ({ ...event, timeMs: Math.max(0, event.timeMs + feedOffsetMs) }));
+// the shift must not push a death outside the match: the contract forbids negative times and
+// the overlay drops anything past the whistle
+function shiftOntoFilmClock(
+  events: readonly ParsedHighlightEvent[],
+  feedOffsetMs: number,
+  durationMs: number,
+): ParsedHighlightEvent[] {
+  return events.map((event) => ({
+    ...event,
+    timeMs: Math.min(durationMs, Math.max(0, event.timeMs + feedOffsetMs)),
+  }));
 }
 
 function buildRuns(
@@ -76,7 +83,7 @@ function buildRuns(
 export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
   const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots } = input;
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
-  const filmHighlights = shiftOntoFilmClock(highlightEvents, positions.feedOffsetMs ?? 0);
+  const filmHighlights = shiftOntoFilmClock(highlightEvents, positions.feedOffsetMs ?? 0, durationMs);
   return {
     events: buildCaptureEvents(flagEvents, teamIds, durationMs),
     runs: buildRuns(input, teamIds, filmHighlights),

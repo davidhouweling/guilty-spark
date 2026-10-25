@@ -57,6 +57,7 @@ export class FlagRunBuilder {
         this.stands.standOf(flagTeamId),
         this.lookup,
         this.deathSkewMs,
+        this.durationMs,
       );
       const closed = this.follow(run, events, index);
       runs.push(closed.run);
@@ -83,17 +84,11 @@ export class FlagRunBuilder {
       if (event == null) {
         break;
       }
-      // a carrier's own capture proves they held the flag throughout; their own grab proves the
-      // opposite, since the grab counter only moves once the flag has left their hands
-      const carrierKeepsFlag = event.xuid === run.currentCarrier && event.kind === "capture";
-      this.dropIfCarrierLost(run, event.timestampMs, carrierKeepsFlag);
-      if (event.kind === "return" || event.kind === "steal") {
-        this.dropAtLatest(run, event.timestampMs);
-      }
+      this.settleCarrierBefore(run, event);
       switch (event.kind) {
         case "steal": {
           const endMs = Math.min(event.timestampMs, run.autoReturnMs() ?? event.timestampMs);
-          return { run: run.close(endMs, "autoReturn", null, this.durationMs), nextIndex: index };
+          return { run: run.close(endMs, "autoReturn", null), nextIndex: index };
         }
         case "grab": {
           run.grab(event);
@@ -102,11 +97,11 @@ export class FlagRunBuilder {
         }
         case "capture": {
           const closing: CtfRunEvent = { timestampMs: event.timestampMs, kind: "capture" };
-          return { run: run.close(event.timestampMs, "capture", closing, this.durationMs), nextIndex: index + 1 };
+          return { run: run.close(event.timestampMs, "capture", closing), nextIndex: index + 1 };
         }
         case "return": {
           const closing: CtfRunEvent = { timestampMs: event.timestampMs, kind: "return" };
-          return { run: run.close(event.timestampMs, "return", closing, this.durationMs), nextIndex: index + 1 };
+          return { run: run.close(event.timestampMs, "return", closing), nextIndex: index + 1 };
         }
         default: {
           throw new UnreachableError(event.kind);
@@ -116,25 +111,36 @@ export class FlagRunBuilder {
     return { run: this.closeAtMatchEnd(run), nextIndex: index };
   }
 
-  // a death ends one carry only, and one stamped just before the pickup is placed at the
-  // pickup; a vanished biped counts as a drop unless the carrier's own capture proves the flag
-  // never left their hands
-  private dropIfCarrierLost(run: OpenRun, untilMs: number, carrierActsNext: boolean): void {
+  // what the next event says about the carry before it: the carrier's own capture proves they
+  // held the flag throughout, so neither a skewed death nor a gap in their biped can drop it;
+  // otherwise a death or a vanished biped dates the drop, and a return, a fresh steal or the
+  // carrier's own re-grab (the grab counter only moves once the flag has left their hands)
+  // proves a drop that nothing else dated, which is placed on that event
+  private settleCarrierBefore(run: OpenRun, event: RunFlagEvent): void {
+    if (event.kind === "capture" && event.xuid === run.currentCarrier) {
+      return;
+    }
+    this.dropIfCarrierLost(run, event.timestampMs);
+    const provesDrop = event.kind === "return" || event.kind === "steal" || event.xuid === run.currentCarrier;
+    if (provesDrop) {
+      this.dropAtLatest(run, event.timestampMs);
+    }
+  }
+
+  // a death ends one carry only, and one stamped just before the pickup is placed at the pickup
+  private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
     const death = run.carrierDeathBefore(this.openDeaths, untilMs);
     if (death != null) {
       this.openDeaths.delete(death);
       run.drop(Math.max(death.timestampMs, run.carryStartMs));
       return;
     }
-    const lostMs = carrierActsNext ? null : run.carrierLostBefore(untilMs);
+    const lostMs = run.carrierLostBefore(untilMs);
     if (lostMs != null) {
       run.drop(lostMs);
     }
   }
 
-  // a return or a fresh steal proves the flag had left the carrier's hands and lain on the
-  // ground; with no death and no vanished biped to date it, the drop is placed at that event.
-  // A grab by someone else is a handover (a throw to a teammate) and is modelled as one
   private dropAtLatest(run: OpenRun, atMs: number): void {
     if (run.currentCarrier != null) {
       run.drop(atMs);
@@ -142,11 +148,11 @@ export class FlagRunBuilder {
   }
 
   private closeAtMatchEnd(run: OpenRun): CtfFlagRun {
-    this.dropIfCarrierLost(run, this.durationMs, false);
+    this.dropIfCarrierLost(run, this.durationMs);
     const autoReturnMs = run.autoReturnMs();
     if (autoReturnMs != null && autoReturnMs <= this.durationMs) {
-      return run.close(autoReturnMs, "autoReturn", null, this.durationMs);
+      return run.close(autoReturnMs, "autoReturn", null);
     }
-    return run.close(this.durationMs, "matchEnd", null, this.durationMs);
+    return run.close(this.durationMs, "matchEnd", null);
   }
 }

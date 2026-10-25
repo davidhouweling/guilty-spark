@@ -40,6 +40,7 @@ export class OpenRun {
     stand: Quantum3 | null,
     private readonly lookup: PositionLookup,
     private readonly deathSkewMs: number,
+    private readonly durationMs: number,
   ) {
     this.carrier = steal.xuid;
     this.lastMs = steal.timestampMs;
@@ -126,7 +127,8 @@ export class OpenRun {
     this.sampleAt(event.timestampMs);
   }
 
-  close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null, durationMs: number): CtfFlagRun {
+  close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null): CtfFlagRun {
+    const { durationMs } = this;
     this.advanceTo(endMs);
     if (outcome === "capture" && this.axis != null) {
       this.pushSample(Math.min(endMs, durationMs), 1);
