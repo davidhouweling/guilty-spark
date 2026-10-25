@@ -42,12 +42,12 @@ import type {
   HaloFilmServiceOpts,
   CtfProgression,
 } from "./types";
-import { assertCtfMatchSupported } from "./statborg/ctf-flag-events";
+import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
-import { decodeCtfFilm, flagEventsFromRecords } from "./modes/ctf/decode-ctf-film";
+import { decodeCtfFilm } from "./modes/ctf/decode-ctf-film";
 import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
@@ -218,7 +218,7 @@ export class HaloFilmService {
         records.push(record);
       }
     }
-    return flagEventsFromRecords(records, matchStats);
+    return buildCtfFlagEventsFromRecords(records, matchStats);
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {

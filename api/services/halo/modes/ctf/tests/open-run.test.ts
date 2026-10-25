@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { aFakeDeathEventWith } from "../../../positions/fakes/biped-position.fake";
-import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../../../positions/fakes/player-positions.fake";
+import {
+  aFakePlayerPositionsWith,
+  aFakePlayerPositionTrackWith,
+  aFakeStraightLifeWith,
+} from "../../../positions/fakes/player-positions.fake";
 import type { Quantum3 } from "../../../positions/types";
 import { aFakeCtfFlagEventWith } from "../../../statborg/fakes/ctf-flag-event.fake";
 import { FlagAxis } from "../flag-axis";
@@ -16,11 +20,11 @@ function aLookupWith(startMs: number, endMs: number): PositionLookup {
   return new PositionLookup(
     aFakePlayerPositionsWith({
       tracks: [
-        {
+        aFakePlayerPositionTrackWith({
           xuid: B,
           teamId: 1,
           lives: [aFakeStraightLifeWith({ slot: 520, startMs, endMs, from: STAND, to: CAPTURE, xuid: B })],
-        },
+        }),
       ],
     }),
   );

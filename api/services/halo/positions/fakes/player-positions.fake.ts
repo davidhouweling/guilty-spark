@@ -1,4 +1,4 @@
-import type { BipedLife, PlayerPositions, PositionSample, Quantum3 } from "../types";
+import type { BipedLife, PlayerPositions, PlayerPositionTrack, PositionSample, Quantum3 } from "../types";
 
 export interface StraightLifeSpec {
   slot: number;
@@ -46,4 +46,8 @@ export function aFakePlayerPositionsWith(overrides: Partial<PlayerPositions> = {
     feedOffsetMs: 0,
     ...overrides,
   };
+}
+
+export function aFakePlayerPositionTrackWith(overrides: Partial<PlayerPositionTrack> = {}): PlayerPositionTrack {
+  return { xuid: "0100000000000000", teamId: 0, lives: [aFakeStraightLifeWith()], ...overrides };
 }

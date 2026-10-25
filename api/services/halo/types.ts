@@ -299,6 +299,7 @@ export interface CtfProgression {
   deathTimeline: TeamDeathEvent[];
   teamCount: number;
   unresolvedSlots: number[];
+  positionsFailure: string | null;
 }
 
 export interface HaloFilmServiceOpts {

@@ -3,7 +3,7 @@ import type { DeathEvent } from "../../positions/types";
 import type { CtfFlagEvent } from "../../statborg/types";
 import type { CtfFlagRun, CtfRunEvent } from "../../types";
 import type { FlagStands } from "./flag-stands";
-import { OpenRun } from "./open-run";
+import { OpenRun, SAMPLE_INTERVAL_MS } from "./open-run";
 import type { PositionLookup } from "./position-lookup";
 
 export type RunFlagEvent = CtfFlagEvent & { kind: "steal" | "grab" | "capture" | "return" | "carrierKilled" };
@@ -34,6 +34,18 @@ function deathsByXuid(deaths: readonly DeathEvent[]): Map<string, DeathEvent[]> 
     byXuid.set(death.xuid, [...(byXuid.get(death.xuid) ?? []), death]);
   }
   return byXuid;
+}
+
+// the carrier's own capture proves they held the flag throughout, so neither a skewed death
+// nor a gap in their biped can drop it
+function carrierProvedHoldingBy(run: OpenRun, event: RunFlagEvent): boolean {
+  return event.kind === "capture" && event.xuid === run.currentCarrier;
+}
+
+// a return or a fresh steal proves the flag lay on the ground before it; a grab already says so
+// by itself and gets no synthetic drop
+function provesUndatedDrop(event: RunFlagEvent): boolean {
+  return event.kind === "return" || event.kind === "steal";
 }
 
 interface ClosedRun {
@@ -112,7 +124,7 @@ export class FlagRunBuilder {
           break;
         }
         case "carrierKilled": {
-          run.dropIfCarrying(event.timestampMs);
+          this.settleCarrierKill(run, event);
           index += 1;
           break;
         }
@@ -138,25 +150,46 @@ export class FlagRunBuilder {
   // a drop that nothing else dated, which is placed on that event. A grab is a pickup off the
   // ground, so it already says the flag was down; no synthetic drop is added for it
   private settleCarrierBefore(run: OpenRun, event: RunFlagEvent): void {
-    if (event.kind === "capture" && event.xuid === run.currentCarrier) {
+    if (carrierProvedHoldingBy(run, event)) {
       return;
     }
     this.dropIfCarrierLost(run, event.timestampMs);
-    if (event.kind === "return" || event.kind === "steal") {
+    if (provesUndatedDrop(event)) {
       run.dropIfCarrying(event.timestampMs);
     }
   }
 
-  // a death ends one carry only, and one stamped just before the pickup is placed at the pickup
+  // the defenders' carrier kill is authoritative and on the film clock: it drops a live carry,
+  // and it re-dates a drop the model had placed earlier on weaker evidence; a kill stamped a
+  // frame after a pickup whose new carrier did not die belongs to the carry before it
+  private settleCarrierKill(run: OpenRun, kill: RunFlagEvent): void {
+    const carrier = run.currentCarrier;
+    if (carrier == null) {
+      run.redateDrop(kill.timestampMs);
+      return;
+    }
+    const justPickedUp = kill.timestampMs - run.carryStartMs <= SAMPLE_INTERVAL_MS;
+    const carrierDeaths = this.openDeaths.get(carrier);
+    const carrierDied = (carrierDeaths ?? []).some(
+      (death) => Math.abs(death.timestampMs - kill.timestampMs) <= this.deathSkewMs,
+    );
+    if (justPickedUp && carrierDeaths != null && !carrierDied) {
+      return;
+    }
+    run.drop(kill.timestampMs);
+  }
+
+  // a death ends one carry only; one stamped just before the pickup is placed at the pickup and
+  // one stamped just after the next event (the feed's skew runs both ways) at that event
   private dropIfCarrierLost(run: OpenRun, untilMs: number): void {
     const carrierDeaths = run.currentCarrier == null ? [] : (this.openDeaths.get(run.currentCarrier) ?? []);
-    const death = run.carrierDeathBefore(carrierDeaths, untilMs);
+    const death = run.carrierDeathBefore(carrierDeaths, untilMs + this.deathSkewMs);
     if (death != null) {
       this.openDeaths.set(
         death.xuid,
         carrierDeaths.filter((candidate) => candidate !== death),
       );
-      run.drop(Math.max(death.timestampMs, run.carryStartMs));
+      run.drop(Math.min(untilMs, Math.max(death.timestampMs, run.carryStartMs)));
       return;
     }
     const lostMs = run.carrierLostBefore(untilMs);

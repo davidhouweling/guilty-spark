@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../../../positions/fakes/player-positions.fake";
+import {
+  aFakePlayerPositionsWith,
+  aFakePlayerPositionTrackWith,
+  aFakeStraightLifeWith,
+} from "../../../positions/fakes/player-positions.fake";
 import { PositionLookup, POSITION_TOLERANCE_MS } from "../position-lookup";
 
 const A = "0100000000000000";
@@ -8,7 +12,7 @@ describe("PositionLookup", () => {
   const lookup = new PositionLookup(
     aFakePlayerPositionsWith({
       tracks: [
-        {
+        aFakePlayerPositionTrackWith({
           xuid: A,
           teamId: 0,
           lives: [
@@ -29,7 +33,7 @@ describe("PositionLookup", () => {
               xuid: A,
             }),
           ],
-        },
+        }),
       ],
     }),
   );

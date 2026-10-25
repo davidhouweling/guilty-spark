@@ -29,6 +29,7 @@ describe("decodeCtfFilm", () => {
     expect(decoded.flagEvents).toEqual([{ timestampMs: 44_500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
     expect(decoded.unresolvedSlots).toEqual([]);
     expect(decoded.positions.tracks.map((track) => track.xuid)).toEqual(["0100000000000000"]);
+    expect(decoded.positionsFailure).toBeNull();
   });
 
   it("keeps the flag events when the film carries no decodable bipeds", () => {
@@ -38,5 +39,6 @@ describe("decodeCtfFilm", () => {
 
     expect(decoded.flagEvents).toHaveLength(1);
     expect(decoded.positions.tracks).toEqual([]);
+    expect(decoded.positionsFailure).toContain("lists no biped slots");
   });
 });

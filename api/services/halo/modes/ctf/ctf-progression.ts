@@ -14,6 +14,7 @@ export interface CtfProgressionInput {
   readonly flagEvents: readonly CtfFlagEvent[];
   readonly unresolvedSlots: readonly number[];
   readonly positions: PlayerPositions;
+  readonly positionsFailure: string | null;
   readonly highlightEvents: readonly ParsedHighlightEvent[];
   readonly matchStats: MatchStats;
   readonly durationMs: number;
@@ -40,17 +41,18 @@ function buildCaptureEvents(
   return events;
 }
 
-// the shift must not push a death outside the match: the contract forbids negative times and
-// the overlay drops anything past the whistle
+// the shift must not push a death outside the match (the contract forbids negative times), but
+// a death the feed itself stamps after the whistle stays there for the overlay to drop, as in
+// every other mode
 function shiftOntoFilmClock(
   events: readonly ParsedHighlightEvent[],
   feedOffsetMs: number,
   durationMs: number,
 ): ParsedHighlightEvent[] {
-  return events.map((event) => ({
-    ...event,
-    timeMs: Math.min(durationMs, Math.max(0, event.timeMs + feedOffsetMs)),
-  }));
+  return events.map((event) => {
+    const shifted = Math.max(0, event.timeMs + feedOffsetMs);
+    return { ...event, timeMs: event.timeMs <= durationMs ? Math.min(durationMs, shifted) : shifted };
+  });
 }
 
 function buildRuns(
@@ -81,7 +83,7 @@ function buildRuns(
 // every series shares the film clock: the feed's deaths are shifted by the offset the position
 // decoder measured, for the drops and for the overlay alike
 export function buildCtfProgression(input: CtfProgressionInput): CtfProgression {
-  const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots } = input;
+  const { flagEvents, positions, highlightEvents, matchStats, durationMs, unresolvedSlots, positionsFailure } = input;
   const teamIds = matchStats.Teams.map((team) => team.TeamId).sort((a, b) => a - b);
   const filmHighlights = shiftOntoFilmClock(highlightEvents, positions.feedOffsetMs ?? 0, durationMs);
   return {
@@ -90,5 +92,6 @@ export function buildCtfProgression(input: CtfProgressionInput): CtfProgression 
     deathTimeline: buildDeathTimeline(filmHighlights, new Set(teamIds), durationMs),
     teamCount: teamIds.length,
     unresolvedSlots: [...unresolvedSlots],
+    positionsFailure,
   };
 }

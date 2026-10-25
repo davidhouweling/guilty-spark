@@ -493,6 +493,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
       deathTimeline: [{ timestampMs: 45000, teamId: 1 }],
       teamCount: 2,
       unresolvedSlots: [],
+      positionsFailure: null,
     });
 
     const results = await service.getBatchMatchAnalytics(["match-1"], ["killMatrix", "scoreProgression"]);

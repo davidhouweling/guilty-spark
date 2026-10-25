@@ -5,7 +5,11 @@ import { aFakeCtfFlagEventWith } from "../../../statborg/fakes/ctf-flag-event.fa
 import { aFakeCtfMatchStatsWith } from "../../../statborg/fakes/ctf-match-stats.fake";
 import type { CtfFlagEvent } from "../../../statborg/types";
 import type { ParsedHighlightEvent } from "../../../types";
-import { aFakePlayerPositionsWith, aFakeStraightLifeWith } from "../../../positions/fakes/player-positions.fake";
+import {
+  aFakePlayerPositionsWith,
+  aFakePlayerPositionTrackWith,
+  aFakeStraightLifeWith,
+} from "../../../positions/fakes/player-positions.fake";
 import { buildCtfProgression } from "../ctf-progression";
 import { AUTO_RETURN_MS } from "../open-run";
 
@@ -25,7 +29,7 @@ function flag(kind: CtfFlagEvent["kind"], xuid: string, teamId: number, timestam
 }
 
 function carrierTrack(lives: PlayerPositionTrack["lives"]): PlayerPositionTrack {
-  return { xuid: B, teamId: 1, lives };
+  return aFakePlayerPositionTrackWith({ xuid: B, teamId: 1, lives });
 }
 
 // B steals at 10 s, carries halfway by 20 s and dies; later steals at 60 s and captures at 70 s
@@ -59,6 +63,7 @@ function build(overrides: BuildOverrides = {}): ReturnType<typeof buildCtfProgre
   return buildCtfProgression({
     flagEvents: overrides.flagEvents ?? defaultFlagEvents,
     unresolvedSlots: overrides.unresolvedSlots ?? [],
+    positionsFailure: null,
     positions: aFakePlayerPositionsWith({
       tracks: overrides.tracks ?? defaultTracks,
       feedOffsetMs: overrides.feedOffsetMs === undefined ? 0 : overrides.feedOffsetMs,
@@ -118,7 +123,7 @@ describe("buildCtfProgression", () => {
     const relay = "0800000000000000";
     const tracks = [
       ...defaultTracks,
-      {
+      aFakePlayerPositionTrackWith({
         xuid: relay,
         teamId: 1,
         lives: [
@@ -131,7 +136,7 @@ describe("buildCtfProgression", () => {
             xuid: relay,
           }),
         ],
-      },
+      }),
     ];
     const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 30_000), flag("capture", relay, 1, 40_000)];
 
@@ -347,6 +352,128 @@ describe("buildCtfProgression", () => {
     expect(run?.events.map((event) => event.kind)).toEqual(["steal", "capture"]);
   });
 
+  it("builds the other flag's runs too, with its own stand and capture point", () => {
+    const stand1: Quantum3 = [11_000, 1000, 1000];
+    const capture0: Quantum3 = [1000, 1000, 1000];
+    const tracks = [
+      ...defaultTracks,
+      aFakePlayerPositionTrackWith({
+        xuid: A,
+        teamId: 0,
+        lives: [
+          aFakeStraightLifeWith({ slot: 540, startMs: 100_000, endMs: 120_000, from: stand1, to: capture0, xuid: A }),
+        ],
+      }),
+    ];
+    const flagEvents = [...defaultFlagEvents, flag("steal", A, 0, 100_000), flag("capture", A, 0, 120_000)];
+
+    const progression = build({ flagEvents, tracks });
+
+    const mirrored = progression.runs.find((run) => run.flagTeamId === 1);
+    expect(mirrored?.carrierTeamId).toBe(0);
+    expect(mirrored?.outcome).toBe("capture");
+    expect(mirrored?.samples.find((sample) => sample.timestampMs === 110_000)?.progress).toBe(0.5);
+    expect(progression.events.at(-1)?.runningScores).toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("keeps both flags' runs apart when they are out at the same time", () => {
+    const tracks = [
+      ...defaultTracks,
+      aFakePlayerPositionTrackWith({
+        xuid: A,
+        teamId: 0,
+        lives: [
+          aFakeStraightLifeWith({ slot: 540, startMs: 12_000, endMs: 40_000, from: CAPTURE_1, to: STAND_0, xuid: A }),
+        ],
+      }),
+    ];
+    const flagEvents = [...defaultFlagEvents, flag("steal", A, 0, 12_000), flag("return", B, 1, 40_000)];
+
+    const { runs } = build({ flagEvents, tracks });
+
+    expect(runs.map((run) => [run.flagTeamId, run.startMs, run.outcome])).toEqual([
+      [0, 10_000, "autoReturn"],
+      [1, 12_000, "return"],
+      [0, 60_000, "capture"],
+    ]);
+  });
+
+  it("re-dates a drop placed on weaker evidence when the defenders' carrier kill arrives later", () => {
+    const tracks = [
+      carrierTrack([
+        aFakeStraightLifeWith({
+          slot: 520,
+          startMs: 10_000,
+          endMs: 15_000,
+          from: STAND_0,
+          to: [3500, 1000, 1000],
+          xuid: B,
+        }),
+      ]),
+    ];
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("carrierKilled", A, 0, 30_000), flag("steal", B, 1, 60_000)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents: [] }).runs;
+
+    expect(run?.events).toEqual([
+      { timestampMs: 10_000, kind: "steal" },
+      { timestampMs: 30_000, kind: "drop" },
+    ]);
+    expect(run?.endMs).toBe(30_000 + AUTO_RETURN_MS);
+  });
+
+  it("leaves a carrier kill stamped a frame after a pickup to the carry before it", () => {
+    const relay = "0800000000000000";
+    const tracks = [
+      ...defaultTracks,
+      aFakePlayerPositionTrackWith({
+        xuid: relay,
+        teamId: 1,
+        lives: [
+          aFakeStraightLifeWith({
+            slot: 530,
+            startMs: 20_000,
+            endMs: 40_000,
+            from: [6000, 1000, 1000],
+            to: CAPTURE_1,
+            xuid: relay,
+          }),
+        ],
+      }),
+    ];
+    const flagEvents = [
+      flag("steal", B, 1, 10_000),
+      flag("grab", relay, 1, 30_000),
+      flag("carrierKilled", A, 0, 30_100),
+      flag("capture", relay, 1, 40_000),
+    ];
+    const highlightEvents = [death(B, 20_000, 1), death(relay, 50_000, 1)];
+
+    const [run] = build({ flagEvents, tracks, highlightEvents }).runs;
+
+    expect(run?.events.map((event) => event.kind)).toEqual(["steal", "drop", "grab", "capture"]);
+  });
+
+  it("matches a carrier death the feed stamps just after the next event on an unaligned feed", () => {
+    const relay = "0800000000000000";
+    const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 30_500)];
+    const highlightEvents = [death(B, 31_400, 1)];
+
+    const [run] = build({ flagEvents, highlightEvents, feedOffsetMs: null }).runs;
+
+    expect(run?.events.map((event) => [event.kind, event.timestampMs])).toEqual([
+      ["steal", 10_000],
+      ["drop", 30_500],
+      ["grab", 30_500],
+    ]);
+  });
+
+  it("drops a death the feed stamps after the whistle like every other mode", () => {
+    const highlightEvents = [...defaultDeaths, death(A, 200_300, 0)];
+
+    expect(build({ highlightEvents }).deathTimeline).toEqual([{ timestampMs: 20_000, teamId: 1 }]);
+  });
+
   it("dates a drop from the defenders' carrier kill on the film clock before any feed death", () => {
     const flagEvents = [
       flag("steal", B, 1, 10_000),
@@ -378,7 +505,7 @@ describe("buildCtfProgression", () => {
     const relay = "0800000000000000";
     const tracks = [
       ...defaultTracks,
-      {
+      aFakePlayerPositionTrackWith({
         xuid: relay,
         teamId: 1,
         lives: [
@@ -391,7 +518,7 @@ describe("buildCtfProgression", () => {
             xuid: relay,
           }),
         ],
-      },
+      }),
     ];
     const flagEvents = [flag("steal", B, 1, 10_000), flag("grab", relay, 1, 30_000), flag("capture", relay, 1, 40_000)];
 
@@ -490,6 +617,7 @@ describe("buildCtfProgression", () => {
     const progression = buildCtfProgression({
       flagEvents: defaultFlagEvents,
       unresolvedSlots: [],
+      positionsFailure: null,
       positions: aFakePlayerPositionsWith({ tracks: defaultTracks }),
       highlightEvents: defaultDeaths,
       matchStats,

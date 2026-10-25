@@ -108,6 +108,17 @@ export class OpenRun {
     this.dropMs = atMs;
   }
 
+  // a later authoritative drop instant moves the drop the model placed on weaker evidence
+  redateDrop(atMs: number): void {
+    const dropIndex = this.events.findLastIndex((event) => event.kind === "drop");
+    if (this.dropMs == null || atMs <= this.dropMs || dropIndex < 0) {
+      return;
+    }
+    this.events[dropIndex] = { timestampMs: atMs, kind: "drop" };
+    this.dropMs = atMs;
+    this.advanceTo(atMs);
+  }
+
   dropIfCarrying(atMs: number): void {
     if (this.carrier != null) {
       this.drop(atMs);
