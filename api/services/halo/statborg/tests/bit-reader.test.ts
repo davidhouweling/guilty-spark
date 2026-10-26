@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  datedFrames,
   earliestTimestampUs,
   readBitsBE,
   MalformedPacketStreamError,
@@ -107,30 +106,6 @@ describe("packetTimestampMs", () => {
     const packet = { timestampUs: 1_250_500n, payloadOffset: 0, payloadSize: 0 };
 
     expect(packetTimestampMs(5000, 1_000_000n, packet)).toBe(5250);
-  });
-});
-
-describe("datedFrames", () => {
-  it("dates every frame payload from the chunk start by its distance to the earliest frame", () => {
-    const chunk = aFakeReplicationChunkWith(
-      [
-        { timestampUs: 1_200_000n, records: [] },
-        { timestampUs: 1_000_000n, records: [] },
-      ],
-      { startMs: 5000 },
-    );
-
-    const frames = datedFrames(chunk);
-
-    expect(frames.map((frame) => [frame.timestampMs, frame.timestampUs])).toEqual([
-      [5200, 1_200_000n],
-      [5000, 1_000_000n],
-    ]);
-    expect(frames[0]?.payload).toEqual(chunk.data.subarray(16, 24));
-  });
-
-  it("returns no frames for a chunk without frame packets", () => {
-    expect(datedFrames(aFakeReplicationChunkWith([]))).toEqual([]);
   });
 });
 

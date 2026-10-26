@@ -10,6 +10,8 @@ import { RESPAWN_DURATION_MS } from "@guilty-spark/shared/halo/respawn-durations
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { HaloService } from "../halo/halo";
 import type { HaloFilmService } from "../halo/halo-film";
+import type { CtfProgression } from "../halo/types";
+import { UnsupportedFilmError } from "../halo/film-errors";
 import type { LogService } from "../log/types";
 import type { DatabaseService, MatchKillMatrixReplaceRow } from "../database/database";
 import type { MatchKillMatrixRow } from "../database/types/match_kill_matrix";
@@ -209,12 +211,16 @@ export class AnalyticsService {
     );
   }
 
+  // a film the decoders cannot read by design is never retried
   private async withFilmRetries<T>(context: string, matchId: string, build: () => Promise<T>): Promise<T> {
     let lastError: Error = new Error("Film extraction failed");
     for (let attempt = 1; attempt <= FILM_EXTRACTION_MAX_ATTEMPTS; attempt += 1) {
       try {
         return await build();
       } catch (error) {
+        if (error instanceof UnsupportedFilmError) {
+          throw error;
+        }
         const normalizedError = toError(error);
         lastError = normalizedError;
         this.logService.warn(
@@ -273,6 +279,10 @@ export class AnalyticsService {
         this.buildScoreProgressionAnalytics(matchStats),
       );
     } catch (error) {
+      if (error instanceof UnsupportedFilmError) {
+        this.logService.info(error.message, new Map([["matchId", matchStats.MatchId]]));
+        return null;
+      }
       this.logService.warn(
         toError(error),
         new Map([
@@ -281,6 +291,30 @@ export class AnalyticsService {
         ]),
       );
       return null;
+    }
+  }
+
+  // unresolved slots are a data condition of the match (info); bipeds that could not be decoded
+  // mean a map or film the position decoder cannot read yet (warn), while the flag events still
+  // stand
+  private noteCtfDecodeIssues(matchId: string, progression: CtfProgression): void {
+    if (progression.unresolvedSlots.length > 0) {
+      this.logService.info(
+        "CTF flag events could not be tied to a player for some stat slots",
+        new Map([
+          ["matchId", matchId],
+          ["unresolvedSlots", progression.unresolvedSlots.join(",")],
+        ]),
+      );
+    }
+    if (progression.positionsFailure != null) {
+      this.logService.warn(
+        new Error(progression.positionsFailure),
+        new Map([
+          ["matchId", matchId],
+          ["context", "CTF flag runs emitted without positions"],
+        ]),
+      );
     }
   }
 
@@ -333,6 +367,22 @@ export class AnalyticsService {
           events: progression.events,
           zoneEvents: progression.zoneEvents,
           zoneTimeline: progression.zoneTimeline,
+          deathTimeline: progression.deathTimeline,
+          respawnDurationMs,
+        },
+      };
+    }
+    if (mode === GameVariantCategory.MultiplayerCtf) {
+      const progression = await this.haloFilmService.buildCtfProgression(matchStats, durationMs);
+      this.noteCtfDecodeIssues(matchStats.MatchId, progression);
+      return {
+        mode,
+        durationMs,
+        teamCount: progression.teamCount,
+        timeline: {
+          type: "ctf",
+          events: progression.events,
+          runs: progression.runs,
           deathTimeline: progression.deathTimeline,
           respawnDurationMs,
         },

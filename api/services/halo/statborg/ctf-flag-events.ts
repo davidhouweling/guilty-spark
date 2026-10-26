@@ -1,7 +1,9 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
+import { UnsupportedFilmError } from "../film-errors";
 import { resolveSlotIdentities } from "./slot-identity";
+import { sortStatRecords } from "./stat-records";
 import { counterIncrementTimes } from "./stat-counters";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
 
@@ -36,19 +38,26 @@ function compareEvents(left: CtfFlagEvent, right: CtfFlagEvent): number {
 // may attribute the slot to one of them or neither.
 const MAX_SUPPORTED_PLAYERS = 8;
 
+function startingPlayerCount(matchStats: MatchStats): number {
+  return matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
+}
+
 export function assertCtfMatchSupported(matchStats: MatchStats): void {
   if (matchStats.MatchInfo.GameVariantCategory !== GameVariantCategory.MultiplayerCtf) {
-    throw new Error(`Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`);
+    throw new UnsupportedFilmError(
+      `Match ${matchStats.MatchId} is not CTF; statborg components 20-24 are mode-specific`,
+    );
   }
-  const startingPlayers = matchStats.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).length;
+  const startingPlayers = startingPlayerCount(matchStats);
   if (startingPlayers > MAX_SUPPORTED_PLAYERS) {
-    throw new Error(
+    throw new UnsupportedFilmError(
       `Statborg decode supports at most ${String(MAX_SUPPORTED_PLAYERS)} players; match ${matchStats.MatchId} started with ${String(startingPlayers)}`,
     );
   }
 }
 
-export function buildCtfFlagEventsFromRecords(records: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+export function buildCtfFlagEventsFromRecords(unsorted: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+  const records = sortStatRecords(unsorted);
   const identities = resolveSlotIdentities(records, matchStats);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];

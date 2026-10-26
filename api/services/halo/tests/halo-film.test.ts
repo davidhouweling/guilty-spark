@@ -11,8 +11,21 @@ import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 import { aFakeCtfMatchStatsWith } from "../statborg/fakes/ctf-match-stats.fake";
-import { buildReplicationChunkBytes } from "../statborg/fakes/replication-chunk.fake";
-import { aFakePositionFilmWith } from "../positions/fakes/position-film.fake";
+import {
+  buildChunkBytes,
+  buildFramePayload,
+  buildReplicationChunkBytes,
+} from "../statborg/fakes/replication-chunk.fake";
+import {
+  aFakePositionFilmWith,
+  buildBipedFramePayload,
+  buildKeyframePayload,
+  FAKE_ORIGIN,
+  walkPosition,
+} from "../positions/fakes/position-film.fake";
+import { BIPED_ARCHETYPE } from "../positions/keyframe-slots";
+import { PACKET_TYPE_FRAME, PACKET_TYPE_KEYFRAME } from "../statborg/bit-reader";
+import type { PacketSpec } from "../statborg/fakes/replication-chunk.fake";
 import { aFakeParsedHighlightEventWith } from "../fakes/parsed-highlight-event.fake";
 import { buildFireEventBytes, buildFormulaAEventBytes } from "./film-fire-event-builder";
 
@@ -2444,6 +2457,123 @@ describe("HaloFilmService replication chunks", () => {
     matchStats.MatchId = "match-ctf";
 
     await expect(service.buildCtfFlagEvents(matchStats)).rejects.toThrow("has no replication chunks");
+  });
+
+  // a film whose replication chunks carry both decoders' records: a keyframe listing the two
+  // bipeds, a biped record for each every 100 ms (team 0's biped dies at 28 s, team 1's at
+  // 30 s), and the statborg frames that name the slots and carry the flag counters (team 1's
+  // 0400… steals at 5 s and captures at 25 s)
+  function aCtfFilmChunk(startMs: number, statFrames: readonly PacketSpec[]): Uint8Array {
+    const packets: PacketSpec[] = [
+      {
+        type: PACKET_TYPE_KEYFRAME,
+        timestampUs: BigInt(startMs) * 1000n,
+        payload: buildKeyframePayload([
+          { slot: 512, archetype: BIPED_ARCHETYPE },
+          { slot: 513, archetype: BIPED_ARCHETYPE },
+        ]),
+      },
+    ];
+    for (let atMs = startMs; atMs < startMs + 20_000 && atMs <= 30_000; atMs += 100) {
+      const step = (atMs - 1000) / 100;
+      const records = [{ slot: 512, q: walkPosition(FAKE_ORIGIN, 512, step) }];
+      if (atMs <= 28_000) {
+        records.push({ slot: 513, q: walkPosition([20_000, 12_000, 70_000], 513, step) });
+      }
+      packets.push({
+        type: PACKET_TYPE_FRAME,
+        timestampUs: BigInt(atMs) * 1000n,
+        payload: buildBipedFramePayload(records),
+      });
+    }
+    packets.push(...statFrames);
+    return buildChunkBytes(packets.sort((a, b) => (a.timestampUs < b.timestampUs ? -1 : 1)));
+  }
+
+  it("builds the CTF progression from one film load: flag events, named carriers and deaths", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 2, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const statFrame = (timestampMs: number, records: Parameters<typeof buildFramePayload>[0]): PacketSpec => ({
+      type: PACKET_TYPE_FRAME,
+      timestampUs: BigInt(timestampMs) * 1000n,
+      payload: buildFramePayload(records),
+    });
+    const chunk1 = aCtfFilmChunk(1000, [
+      statFrame(1500, [
+        { slot: 10, components: [{ index: 2, a: 16, b: 17 }] },
+        { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+        { slot: 24, components: [{ index: 2, a: 19, b: 16 }] },
+        { slot: 24, components: [{ index: 3, a: 6, b: 0 }] },
+      ]),
+      statFrame(5000, [{ slot: 24, components: [{ index: 24, a: 1, b: 0 }] }]),
+    ]);
+    const chunk2 = aCtfFilmChunk(21_000, [statFrame(25_000, [{ slot: 24, components: [{ index: 21, a: 1, b: 0 }] }])]);
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put(
+      "halo:film:match:match-ctf",
+      JSON.stringify([
+        aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType: "death", timeMs: 28_000 }),
+        aFakeParsedHighlightEventWith({ xuid: "0400000000000000", eventType: "death", timeMs: 30_000 }),
+      ]),
+    );
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([
+        [1, deflateSync(chunk1)],
+        [2, deflateSync(chunk2)],
+      ]),
+      env,
+    );
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const progression = await service.buildCtfProgression(matchStats, 40_000);
+
+    expect(progression.events).toEqual([{ timestampMs: 25_000, teamId: 1, runningScores: { "0": 0, "1": 1 } }]);
+    expect(
+      progression.runs.map((run) => [run.flagTeamId, run.carrierTeamId, run.startMs, run.endMs, run.outcome]),
+    ).toEqual([[0, 1, 5000, 25_000, "capture"]]);
+    expect(progression.runs[0]?.events).toEqual([
+      { timestampMs: 5000, kind: "steal" },
+      { timestampMs: 25_000, kind: "capture" },
+    ]);
+    expect(progression.runs[0]?.samples.at(-1)).toEqual({ timestampMs: 25_000, progress: 1 });
+    expect(progression.deathTimeline).toEqual([
+      { timestampMs: 28_000, teamId: 0 },
+      { timestampMs: 30_000, teamId: 1 },
+    ]);
+    expect(progression.teamCount).toBe(2);
+  });
+
+  it("still builds the CTF runs from the flag events when the film's bipeds cannot be decoded", async () => {
+    const metadata = aChunkMetadata([{ Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 }]);
+    const encoded = buildReplicationChunkBytes([
+      {
+        timestampUs: 1_500_000n,
+        records: [
+          { slot: 10, components: [{ index: 2, a: 16, b: 17 }] },
+          { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+          { slot: 24, components: [{ index: 2, a: 19, b: 16 }] },
+          { slot: 24, components: [{ index: 3, a: 6, b: 0 }] },
+        ],
+      },
+      { timestampUs: 5_000_000n, records: [{ slot: 24, components: [{ index: 24, a: 1, b: 0 }] }] },
+      { timestampUs: 9_000_000n, records: [{ slot: 10, components: [{ index: 23, a: 1, b: 0 }] }] },
+    ]);
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put("halo:film:match:match-ctf", JSON.stringify([]));
+    const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(encoded)]]), env);
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const progression = await service.buildCtfProgression(matchStats, 20_000);
+
+    expect(progression.runs.map((run) => [run.startMs, run.endMs, run.outcome, run.samples.length])).toEqual([
+      [3500, 7500, "return", 0],
+    ]);
   });
 
   it("decodes player positions from the fetched film, naming lives from the cached highlight deaths", async () => {

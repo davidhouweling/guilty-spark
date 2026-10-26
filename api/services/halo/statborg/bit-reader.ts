@@ -111,10 +111,6 @@ function dateFrames(chunk: ReplicationChunk, frames: readonly FramePacket[]): Da
   }));
 }
 
-export function datedFrames(chunk: ReplicationChunk): DatedFrame[] {
-  return dateFrames(chunk, walkFramePackets(chunk.data));
-}
-
 export interface WalkedChunk {
   index: number;
   startMs: number;

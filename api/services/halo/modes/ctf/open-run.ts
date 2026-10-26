@@ -1,0 +1,207 @@
+import type { DeathEvent, PositionSample, Quantum3 } from "../../positions/types";
+import type { CtfFlagEvent } from "../../statborg/types";
+import type { CtfFlagRun, CtfRunEvent, CtfRunOutcome } from "../../types";
+import { LIFE_GAP_MS } from "../../positions/lives";
+import type { FlagAxis } from "./flag-axis";
+import type { PositionLookup } from "./position-lookup";
+
+// theatre-checked on the reference match: an untouched flag is back on its stand 20–25 s after
+// it last left a carrier's hands (the timer pauses while an attacker stands on it)
+export const AUTO_RETURN_MS = 25_000;
+export const SAMPLE_INTERVAL_MS = 500;
+// the carrier's biped vanishing for as long as a life gap (left the match, or a life the decoder
+// could not name) counts as the flag leaving their hands at the last place it was seen
+export const CARRIER_LOST_MS = LIFE_GAP_MS;
+const PROGRESS_SCALE = 1000;
+
+function roundProgress(progress: number): number {
+  return Math.round(progress * PROGRESS_SCALE) / PROGRESS_SCALE;
+}
+
+export class OpenRun {
+  private carrier: string | null;
+  private lastCarrier: string | null = null;
+  private pickedUp = false;
+  private lastMs: number;
+  private lastPosition: Quantum3 | null;
+  private dropMs: number | null = null;
+  private scanMs: number;
+  private lastSeenMs: number;
+  private carryStart: number;
+  private readonly samples: CtfFlagRun["samples"] = [];
+  private readonly events: CtfRunEvent[] = [];
+
+  private readonly seenAt = new Map<number, PositionSample | null>();
+
+  // deathSkewMs is how far a feed death may be stamped before the pickup and still end the
+  // carry: the matching window on an aligned feed, the whole search range on an unaligned one
+  constructor(
+    private readonly flagTeamId: number,
+    private readonly steal: CtfFlagEvent,
+    private readonly axis: FlagAxis | null,
+    stand: Quantum3 | null,
+    private readonly lookup: PositionLookup,
+    private readonly deathSkewMs: number,
+    private readonly durationMs: number,
+  ) {
+    this.carrier = steal.xuid;
+    this.lastMs = steal.timestampMs;
+    this.scanMs = steal.timestampMs;
+    this.carryStart = steal.timestampMs;
+    this.lastSeenMs = steal.timestampMs;
+    this.lastPosition = stand;
+    this.events.push({ timestampMs: steal.timestampMs, kind: "steal" });
+    this.sampleAt(steal.timestampMs);
+  }
+
+  get currentCarrier(): string | null {
+    return this.carrier;
+  }
+
+  // true once the flag has been picked up off the ground, so the current carry follows an
+  // earlier one rather than the steal off the stand
+  get pickedUpFromGround(): boolean {
+    return this.pickedUp;
+  }
+
+  get carryStartMs(): number {
+    return this.carryStart;
+  }
+
+  autoReturnMs(): number | null {
+    return this.dropMs == null ? null : this.dropMs + AUTO_RETURN_MS;
+  }
+
+  // the carrier's earliest death on or after the pickup, allowing the feed's skew before it
+  carrierDeathBefore(carrierDeaths: readonly DeathEvent[], untilMs: number): DeathEvent | null {
+    if (this.carrier == null) {
+      return null;
+    }
+    const from = this.carryStart - this.deathSkewMs;
+    return carrierDeaths.find((death) => death.timestampMs >= from && death.timestampMs <= untilMs) ?? null;
+  }
+
+  // the instant the carrier's biped was last seen (the pickup itself if never), once it has
+  // been gone long enough to count as having left the carrier's hands; a carrier with no track
+  // at all is unknown rather than lost, and the scan resumes where the previous call stopped
+  carrierLostBefore(untilMs: number): number | null {
+    const { carrier } = this;
+    if (carrier == null || !this.lookup.hasTrack(carrier)) {
+      return null;
+    }
+    for (let atMs = this.scanMs; atMs <= untilMs; atMs += SAMPLE_INTERVAL_MS) {
+      this.scanMs = atMs;
+      const seen = this.sampleFor(carrier, atMs);
+      if (seen != null) {
+        this.lastSeenMs = Math.max(this.lastSeenMs, seen.timestampMs);
+      } else if (atMs - this.lastSeenMs >= CARRIER_LOST_MS) {
+        return this.lastSeenMs;
+      }
+    }
+    return null;
+  }
+
+  advanceTo(toMs: number): void {
+    for (let atMs = this.lastMs + SAMPLE_INTERVAL_MS; atMs < toMs; atMs += SAMPLE_INTERVAL_MS) {
+      this.sampleAt(atMs);
+    }
+    this.lastMs = toMs;
+  }
+
+  drop(atMs: number): void {
+    this.advanceTo(atMs);
+    this.sampleAt(atMs);
+    this.events.push({ timestampMs: atMs, kind: "drop" });
+    this.lastCarrier = this.carrier;
+    this.carrier = null;
+    this.dropMs = atMs;
+  }
+
+  // a later authoritative drop instant moves the drop the model placed on weaker evidence, and
+  // the interval in between is re-read from the carrier who was in fact still carrying
+  redateDrop(atMs: number): void {
+    const dropIndex = this.events.findLastIndex((event) => event.kind === "drop");
+    if (this.dropMs == null || atMs <= this.dropMs || dropIndex < 0 || this.lastCarrier == null) {
+      return;
+    }
+    this.carrier = this.lastCarrier;
+    this.advanceTo(atMs);
+    this.sampleAt(atMs);
+    this.carrier = null;
+    this.events[dropIndex] = { timestampMs: atMs, kind: "drop" };
+    this.dropMs = atMs;
+  }
+
+  dropIfCarrying(atMs: number): void {
+    if (this.carrier != null) {
+      this.drop(atMs);
+    }
+  }
+
+  grab(event: CtfFlagEvent): void {
+    this.advanceTo(event.timestampMs);
+    this.events.push({ timestampMs: event.timestampMs, kind: "grab" });
+    this.carrier = event.xuid;
+    this.pickedUp = true;
+    this.dropMs = null;
+    this.scanMs = event.timestampMs;
+    this.carryStart = event.timestampMs;
+    this.lastSeenMs = event.timestampMs;
+    this.seenAt.clear();
+    this.sampleAt(event.timestampMs);
+  }
+
+  close(endMs: number, outcome: CtfRunOutcome, closingEvent: CtfRunEvent | null): CtfFlagRun {
+    const { durationMs } = this;
+    this.advanceTo(endMs);
+    if (outcome === "capture" && this.axis != null) {
+      this.pushSample(Math.min(endMs, durationMs), 1);
+    } else {
+      this.sampleAt(Math.min(endMs, durationMs));
+    }
+    this.dedupeSamples();
+    if (closingEvent != null) {
+      this.events.push(closingEvent);
+    }
+    return {
+      flagTeamId: this.flagTeamId,
+      carrierTeamId: this.steal.teamId,
+      startMs: Math.min(this.steal.timestampMs, durationMs),
+      endMs: Math.min(endMs, durationMs),
+      outcome,
+      samples: this.samples.filter((sample) => sample.timestampMs <= durationMs),
+      events: this.events.map((event) => ({ ...event, timestampMs: Math.min(event.timestampMs, durationMs) })),
+    };
+  }
+
+  // the lost-carrier scan and the progress samples read the same instants, so each lookup is
+  // made once per run
+  private sampleFor(xuid: string, atMs: number): PositionSample | null {
+    const cached = this.seenAt.get(atMs);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const sample = this.lookup.sampleAt(xuid, atMs);
+    this.seenAt.set(atMs, sample);
+    return sample;
+  }
+
+  private sampleAt(atMs: number): void {
+    const carried = this.carrier == null ? null : (this.sampleFor(this.carrier, atMs)?.q ?? null);
+    this.lastPosition = carried ?? this.lastPosition;
+    if (this.axis != null && this.lastPosition != null) {
+      this.pushSample(atMs, this.axis.progressOf(this.lastPosition));
+    }
+  }
+
+  private pushSample(atMs: number, progress: number): void {
+    this.samples.push({ timestampMs: atMs, progress: roundProgress(progress) });
+  }
+
+  // a drop, a grab or a clamped capture can land on an instant already stepped; the later
+  // sample is the truer one
+  private dedupeSamples(): void {
+    const lastByInstant = new Map(this.samples.map((sample) => [sample.timestampMs, sample]));
+    this.samples.splice(0, this.samples.length, ...lastByInstant.values());
+  }
+}

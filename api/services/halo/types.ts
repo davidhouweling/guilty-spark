@@ -263,6 +263,45 @@ export interface KothProgression {
   teamCount: number;
 }
 
+// a capture steps the score exactly as a kill does in kill race
+export type CtfProgressionEvent = KillRaceProgressionEvent;
+
+export type CtfRunOutcome = "capture" | "return" | "autoReturn" | "matchEnd";
+export type CtfRunEventKind = "steal" | "grab" | "drop" | "return" | "capture";
+
+export interface CtfRunEvent {
+  timestampMs: number;
+  kind: CtfRunEventKind;
+}
+
+export interface CtfProgressSample {
+  timestampMs: number;
+  progress: number;
+}
+
+// one pull of a flag off its stand until it is captured, returned, auto-returned or the match
+// ends; progress runs from 0 at the stand to 1 at the carrier team's capture point
+export interface CtfFlagRun {
+  flagTeamId: number;
+  carrierTeamId: number;
+  startMs: number;
+  endMs: number;
+  outcome: CtfRunOutcome;
+  samples: CtfProgressSample[];
+  events: CtfRunEvent[];
+}
+
+// unresolvedSlots lists stat slots whose flag counters could not be tied to a player; their
+// events are missing from the runs and the score
+export interface CtfProgression {
+  events: CtfProgressionEvent[];
+  runs: CtfFlagRun[];
+  deathTimeline: TeamDeathEvent[];
+  teamCount: number;
+  unresolvedSlots: number[];
+  positionsFailure: string | null;
+}
+
 export interface HaloFilmServiceOpts {
   env: Env;
   spartanTokenProvider: SpartanTokenProvider;
