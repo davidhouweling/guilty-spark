@@ -90,7 +90,7 @@ describe("FlagRunsChart", () => {
     const { points } = aFakeFlagAdvantageDataWith();
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ points, advantageDomain: [-1, 1] })} />);
 
-    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "7");
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "6");
     const areas = screen.getAllByTestId("area");
     expect(areas.map((area) => area.textContent)).toEqual(["Eagle flag · Cobra carrying", "Player Advantage"]);
     expect(areas[1]).toHaveAttribute("data-key", "playerAdvantage");

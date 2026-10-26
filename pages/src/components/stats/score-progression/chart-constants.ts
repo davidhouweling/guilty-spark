@@ -10,10 +10,9 @@ const ZONE_ADVANTAGE_STROKE = "#f0b849";
 export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
 export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
 export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
+// kept generic over the literal keys: Recharts' Area narrows dataKey against its data's shape,
+// so an own-data overlay must see "score" rather than the union
 type AdvantageDataKey = "score" | typeof FLAG_ADVANTAGE_KEY;
-
-// the literal key is kept in the type: Recharts' Area narrows dataKey against its data's
-// shape, so an own-data overlay must see "score" rather than the union
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {

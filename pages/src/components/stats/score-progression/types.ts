@@ -23,11 +23,13 @@ export interface ScoreDeltaData {
   readonly lineType: "step" | "linear";
 }
 
-export interface PlayerAdvantageData {
-  readonly points: readonly ScoreProgressionPoint[];
+export interface AdvantageData<TPoint> {
+  readonly points: readonly TPoint[];
   readonly minScore: number;
   readonly maxScore: number;
 }
+
+export type PlayerAdvantageData = AdvantageData<ScoreProgressionPoint>;
 
 export interface ScoreMarkerData {
   readonly timestampMs: number;
@@ -178,11 +180,7 @@ export interface FlagRunLegendEntry {
 
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
-export interface FlagAdvantageData {
-  readonly minScore: number;
-  readonly maxScore: number;
-  readonly points: readonly FlagRunsChartPoint[];
-}
+export type FlagAdvantageData = AdvantageData<FlagRunsChartPoint>;
 
 export interface CtfViewData {
   readonly kind: "ctf";
