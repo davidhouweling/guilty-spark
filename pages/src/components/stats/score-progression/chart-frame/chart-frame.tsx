@@ -9,7 +9,7 @@ interface ChartFrameProps {
   readonly chartTypeOptions: readonly ChartTypeOption[];
   readonly showChartTypeSelect: boolean;
   readonly children: React.ReactNode;
-  readonly toolbarExtras?: React.ReactNode | undefined;
+  readonly toolbarExtras?: React.ReactElement | undefined;
   readonly footer?: React.ReactNode | undefined;
   readonly onChartTypeChange: (value: string) => void;
 }
@@ -32,7 +32,7 @@ export function ChartFrame({
           {showChartTypeSelect && (
             <ChartTypeSelect value={chartType} options={chartTypeOptions} onChange={onChartTypeChange} />
           )}
-          {toolbarExtras}
+          {toolbarExtras != null && <div className={styles.toolbarToggles}>{toolbarExtras}</div>}
         </div>
       )}
       <div role="img" aria-label={ariaLabel}>

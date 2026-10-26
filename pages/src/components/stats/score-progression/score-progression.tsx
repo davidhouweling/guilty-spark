@@ -1,10 +1,12 @@
 import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Checkbox } from "../../checkbox/checkbox";
+import { ZONE_ADVANTAGE_SERIES } from "./chart-constants";
 import { ChartFrame } from "./chart-frame/chart-frame";
 import { DeltaChart } from "./delta-chart/delta-chart";
 import { FlagRunsCharts } from "./flag-runs-charts/flag-runs-charts";
 import { LegendItem } from "./legend-item/legend-item";
+import { PlayerAdvantageToggle } from "./player-advantage-toggle/player-advantage-toggle";
 import { ProgressionChart } from "./progression-chart/progression-chart";
 import { TimelineGanttChart } from "./timeline-gantt-chart/timeline-gantt-chart";
 import type { ScoreLinesViewModel, ScoreProgressionViewModel } from "./types";
@@ -37,15 +39,15 @@ function ScoreLinesCharts({
       showChartTypeSelect={showChartTypeSelect}
       toolbarExtras={
         hasToggles ? (
-          <div className={styles.toolbarToggles}>
+          <>
             {hasPlayerAdvantage && (
-              <Checkbox checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} label="Player Advantage" />
+              <PlayerAdvantageToggle checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} />
             )}
             {hasZoneAdvantage && (
-              <Checkbox checked={showZoneAdvantage} onChange={onZoneAdvantageChange} label="Zone Advantage" />
+              <Checkbox checked={showZoneAdvantage} onChange={onZoneAdvantageChange} label={ZONE_ADVANTAGE_SERIES} />
             )}
             {hasMarkers && <Checkbox checked={showMarkers} onChange={onMarkersChange} label="Captures & Secures" />}
-          </div>
+          </>
         ) : undefined
       }
       footer={

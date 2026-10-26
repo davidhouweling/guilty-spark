@@ -8,6 +8,7 @@ import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake
 import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import { aFakeCtfViewDataWith } from "../fakes/ctf-view-data.fake";
+import { aFakeFlagAdvantageOverlayWith } from "../fakes/flag-advantage-overlay.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -859,5 +860,97 @@ describe("ScoreProgressionPresenter ctf", () => {
       "Cobra flag · Eagle carrying",
     ]);
     expect(model.chart.tooltipFormatter(undefined, "x")).toEqual(["", "x"]);
+  });
+
+  describe("player advantage overlay", () => {
+    it("offers the toggle only when the view data carries an advantage overlay", () => {
+      const { store, presenter } = makePresenter();
+
+      const without = asFlagRuns(
+        presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+      );
+      const viewData = aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith() });
+      const withOverlay = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+
+      expect(without.hasPlayerAdvantage).toBe(false);
+      expect(withOverlay.hasPlayerAdvantage).toBe(true);
+      expect(withOverlay.showPlayerAdvantage).toBe(false);
+      expect(withOverlay.chart.points).toBe(viewData.points);
+      expect(withOverlay.chart.advantageDomain).toBeNull();
+    });
+
+    it("swaps in the overlay rows on an axis mirrored around the home line once toggled on", () => {
+      const { store, presenter } = makePresenter();
+      const advantageOverlay = aFakeFlagAdvantageOverlayWith();
+      const input = { viewData: aFakeCtfViewDataWith({ advantageOverlay }), ariaLabel: "x" };
+
+      asFlagRuns(presenter.present(store.getSnapshot(), input)).onPlayerAdvantageChange(true);
+      const model = asFlagRuns(presenter.present(store.getSnapshot(), input));
+
+      expect(model.showPlayerAdvantage).toBe(true);
+      expect(model.chart.advantageDomain).toEqual([-1, 1]);
+      expect(model.chart.points).toBe(advantageOverlay.rows);
+    });
+
+    it("keeps the overlay off for a match without one even when the toggle is on", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true });
+      const viewData = aFakeCtfViewDataWith({ advantageOverlay: null });
+
+      const model = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+
+      expect(model.hasPlayerAdvantage).toBe(false);
+      expect(model.chart.points).toBe(viewData.points);
+      expect(model.chart.advantageDomain).toBeNull();
+    });
+
+    it("mirrors the advantage axis around the widest lead", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true });
+      const present = (minScore: number, maxScore: number): readonly [number, number] | null =>
+        asFlagRuns(
+          presenter.present(store.getSnapshot(), {
+            viewData: aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith({ minScore, maxScore }) }),
+            ariaLabel: "x",
+          }),
+        ).chart.advantageDomain;
+
+      expect(present(-1, 3)).toEqual([-3, 3]);
+      expect(present(-2, 1)).toEqual([-2, 2]);
+    });
+
+    it("shares the toggle state with the score charts", () => {
+      const { store, presenter } = makePresenter();
+      const viewData = aFakeCtfViewDataWith({
+        advantageOverlay: aFakeFlagAdvantageOverlayWith(),
+        scoreLines: aFakeScoreLinesViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() }),
+      });
+
+      asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" })).onPlayerAdvantageChange(true);
+      store.update({ chartType: "progression" });
+      const scoreLines = asScoreLines(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+
+      expect(scoreLines.showPlayerAdvantage).toBe(true);
+      expect(scoreLines.progressionViewModel.playerAdvantage).not.toBeNull();
+    });
+
+    it("names the leading team in the Player Advantage tooltip and leaves run tooltips alone", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ showPlayerAdvantage: true });
+      const model = asFlagRuns(
+        presenter.present(store.getSnapshot(), {
+          viewData: aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith() }),
+          ariaLabel: "x",
+        }),
+      );
+
+      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Eagle +1", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Cobra +2", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(50, "Eagle flag · Cobra carrying")).toEqual([
+        "50% of the way to the capture point",
+        "Eagle flag · Cobra carrying",
+      ]);
+    });
   });
 });

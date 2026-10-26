@@ -2,6 +2,15 @@ export interface TimedValue {
   readonly timestampMs: number;
 }
 
+export function stepSeriesAt<T extends TimedValue>(
+  points: readonly T[],
+  timestampMs: number,
+  getValue: (point: T) => number,
+): number | null {
+  const point = points.findLast((candidate) => candidate.timestampMs <= timestampMs);
+  return point == null ? null : getValue(point);
+}
+
 export function interpolateSeriesAt<T extends TimedValue>(
   points: readonly T[],
   timestampMs: number,

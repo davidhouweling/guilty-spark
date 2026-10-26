@@ -11,6 +11,7 @@ import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
+  buildFlagAdvantageOverlay,
   buildFlagRunLegend,
   buildFlagRuns,
   buildFlagRunsChartPoints,
@@ -215,16 +216,15 @@ interface ResolvedTeams {
 function buildStepScoreLines(
   events: readonly KillRaceEvent[],
   teams: ResolvedTeams,
-  overlaySource: DeathOverlay,
+  playerAdvantage: PlayerAdvantageData | null,
   durationMs: number,
-  teamSize: number | null,
 ): ScoreLinesViewData {
   return {
     kind: "score-lines",
     durationMs,
     teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
-    playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
+    playerAdvantage,
     markers: null,
     zoneAdvantage: null,
     roundBoundaries: [],
@@ -307,6 +307,14 @@ function resolveCtfTeams(
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
+function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
+  if (teamIds.length !== 2) {
+    return null;
+  }
+  const [firstTeamId, secondTeamId] = teamIds;
+  return [firstTeamId, secondTeamId];
+}
+
 export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
@@ -326,7 +334,8 @@ export function formatScoreProgression(
       }
       // a trailing film event past the match end would push the lines beyond the x-axis
       const inMatchEvents = timeline.events.filter((event) => event.timestampMs <= durationMs);
-      return buildStepScoreLines(inMatchEvents, teams, timeline, durationMs, teamSize);
+      const playerAdvantage = buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize);
+      return buildStepScoreLines(inMatchEvents, teams, playerAdvantage, durationMs);
     }
     case "koth": {
       const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
@@ -384,18 +393,26 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
+      const playerAdvantage = buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize);
       const scoreLines =
-        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, timeline, durationMs, teamSize) : null;
-      const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
+        captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, playerAdvantage, durationMs) : null;
+      const flagTeamIds = resolveFlagTeamIds(teams.teamIds);
+      if (flagTeamIds == null) {
+        return scoreLines;
+      }
+      const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
       if (runs.length === 0) {
         return scoreLines;
       }
+      const [firstTeamId, secondTeamId] = flagTeamIds;
       return {
         kind: "ctf",
         durationMs,
         runs,
         points: buildFlagRunsChartPoints(runs),
-        legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
+        legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
+        teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
+        advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),
         scoreLines,
       };
     }

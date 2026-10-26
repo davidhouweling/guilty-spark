@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfFlagRunWith } from "../fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
-import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "../ctf-view-model";
+import {
+  buildFlagAdvantageOverlay,
+  buildFlagRunLegend,
+  buildFlagRuns,
+  buildFlagRunsChartPoints,
+} from "../ctf-view-model";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -221,10 +226,6 @@ describe("buildFlagRuns", () => {
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(Object.is(run.points[1].progress, 0)).toBe(true);
   });
-
-  it("returns nothing for a match that is not two teams", () => {
-    expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
-  });
 });
 
 describe("buildFlagRunLegend", () => {
@@ -233,10 +234,6 @@ describe("buildFlagRunLegend", () => {
       { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
       { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
     ]);
-  });
-
-  it("returns nothing without two teams", () => {
-    expect(buildFlagRunLegend([0], COLORS)).toEqual([]);
   });
 });
 
@@ -248,6 +245,48 @@ describe("buildFlagRunsChartPoints", () => {
     expect(points[0]).toEqual({ timestampMs: 20000, run1: 0, run2: null });
     expect(points[3]).toEqual({ timestampMs: 60000, run1: 100, run2: null });
     expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: -50 });
+  });
+
+  it("carries the player advantage as a step value on every row when given its points", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+    const advantage = [
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 40000, score: -1 },
+      { timestampMs: 48000, score: 0 },
+      { timestampMs: DURATION_MS, score: 0 },
+    ];
+
+    const points = buildFlagRunsChartPoints(runs, advantage);
+
+    expect(points.map((point) => point.timestampMs)).toEqual([
+      0,
+      20000,
+      30000,
+      40000,
+      45000,
+      48000,
+      60000,
+      70000,
+      80000,
+      90000,
+      100000,
+      DURATION_MS,
+    ]);
+    expect(points.map((point) => point.playerAdvantage)).toEqual([0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0]);
+    expect(points[0]).toEqual({ timestampMs: 0, run1: null, run2: null, playerAdvantage: 0 });
+    expect(points[4]?.run1).toBe(60);
+  });
+
+  it("leaves the advantage null on rows before its first point and off the rows without it", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+
+    expect(buildFlagRunsChartPoints(runs, [{ timestampMs: 50000, score: 1 }])[0]).toEqual({
+      timestampMs: 20000,
+      run1: 0,
+      run2: null,
+      playerAdvantage: null,
+    });
+    expect(buildFlagRunsChartPoints(runs)[0]).not.toHaveProperty("playerAdvantage");
   });
 
   it("interpolates a run at the other run's sample times while both flags are out", () => {
@@ -269,5 +308,42 @@ describe("buildFlagRunsChartPoints", () => {
       run1: 60 + ((50000 - 45000) / 15000) * 40,
       run2: 0,
     });
+  });
+});
+
+describe("buildFlagAdvantageOverlay", () => {
+  it("steps the advantage into the run rows and keeps its extents", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+
+    const overlay = buildFlagAdvantageOverlay(runs, {
+      points: [
+        { timestampMs: 0, score: 0 },
+        { timestampMs: 40000, score: -1 },
+        { timestampMs: 48000, score: 2 },
+      ],
+      minScore: -1,
+      maxScore: 2,
+    });
+
+    expect(overlay?.minScore).toBe(-1);
+    expect(overlay?.maxScore).toBe(2);
+    expect(overlay?.rows.map((row) => [row.timestampMs, row.playerAdvantage])).toEqual([
+      [0, 0],
+      [20000, 0],
+      [30000, 0],
+      [40000, -1],
+      [45000, -1],
+      [48000, 2],
+      [60000, 2],
+      [70000, 2],
+      [80000, 2],
+      [90000, 2],
+      [100000, 2],
+    ]);
+    expect(overlay?.rows[0]).toEqual({ timestampMs: 0, run1: null, run2: null, playerAdvantage: 0 });
+  });
+
+  it("is null without a player advantage", () => {
+    expect(buildFlagAdvantageOverlay([], null)).toBeNull();
   });
 });

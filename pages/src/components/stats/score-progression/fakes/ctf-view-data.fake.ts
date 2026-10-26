@@ -13,6 +13,8 @@ export function aFakeCtfViewDataWith(overrides: Partial<CtfViewData> = {}): CtfV
       { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
       { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
     ],
+    teamNames: ["Eagle", "Cobra"],
+    advantageOverlay: null,
     scoreLines: null,
     ...overrides,
   };

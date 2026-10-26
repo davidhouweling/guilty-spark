@@ -102,7 +102,7 @@ export class ScoreProgressionPresenter {
         return this.presentMode(snapshot, ariaLabel, {
           timelineOption: FLAG_RUNS_OPTION,
           presentTimeline: (chartTypeOptions): FlagRunsViewModel =>
-            this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions),
+            this.presentFlagRuns(snapshot, viewData, ariaLabel, chartTypeOptions),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
@@ -133,10 +133,17 @@ export class ScoreProgressionPresenter {
   }
 
   private presentFlagRuns(
+    snapshot: ScoreProgressionSnapshot,
     viewData: CtfViewData,
     ariaLabel: string,
     chartTypeOptions: readonly ChartTypeOption[],
   ): FlagRunsViewModel {
+    const { showPlayerAdvantage } = snapshot;
+    const { hasPlayerAdvantage, playerAdvantage: overlay } = this.resolvePlayerAdvantage(
+      showPlayerAdvantage,
+      viewData.advantageOverlay,
+    );
+    const [team0Name, team1Name] = viewData.teamNames;
     return {
       kind: "flag-runs",
       ariaLabel,
@@ -145,14 +152,37 @@ export class ScoreProgressionPresenter {
       showChartTypeSelect: chartTypeOptions.length > 1,
       legend: viewData.legend,
       markerLegend: FLAG_MARKER_LEGEND,
+      hasPlayerAdvantage,
+      showPlayerAdvantage,
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points: viewData.points,
-        tooltipFormatter: (value, name): [string, string] => this.formatFlagProgressTooltip(value, name),
+        points: overlay?.rows ?? viewData.points,
+        advantageDomain: overlay != null ? this.mirrorDomain(overlay.minScore, overlay.maxScore) : null,
+        tooltipFormatter: (value, name): [string, string] =>
+          this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+            this.formatFlagProgressTooltip(value, name),
+          ),
       },
       onChartTypeChange: this.onChartTypeChange,
+      onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
+  }
+
+  private resolvePlayerAdvantage<T>(
+    showPlayerAdvantage: boolean,
+    playerAdvantage: T | null,
+  ): { hasPlayerAdvantage: boolean; playerAdvantage: T | null } {
+    return {
+      hasPlayerAdvantage: playerAdvantage != null,
+      playerAdvantage: showPlayerAdvantage ? playerAdvantage : null,
+    };
+  }
+
+  // a domain mirrored around zero so its zero line meets the other axis's
+  private mirrorDomain(minScore: number, maxScore: number): readonly [number, number] {
+    const extent = Math.max(Math.abs(minScore), Math.abs(maxScore));
+    return [-extent, extent];
   }
 
   private formatFlagProgressTooltip(
@@ -233,7 +263,10 @@ export class ScoreProgressionPresenter {
     // data) resolves to the progression chart
     const effectiveChartType: ChartType =
       chartType === "delta" && viewData.scoreDelta != null ? "delta" : "progression";
-    const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
+    const { hasPlayerAdvantage, playerAdvantage: effectivePlayerAdvantage } = this.resolvePlayerAdvantage(
+      showPlayerAdvantage,
+      viewData.playerAdvantage,
+    );
     const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;
     // markers only draw on the progression chart, so the toggle hides on the delta view rather
     // than sitting inert
@@ -265,7 +298,6 @@ export class ScoreProgressionPresenter {
           }
         : null;
 
-    const hasPlayerAdvantage = viewData.playerAdvantage != null;
     const hasZoneAdvantage = viewData.zoneAdvantage != null;
     const showChartTypeSelect = chartTypeOptions.length > 1;
 
@@ -381,8 +413,8 @@ export class ScoreProgressionPresenter {
     if (!hasAdvantageOverlay) {
       return scoreDelta;
     }
-    const maxAbsDelta = Math.max(Math.abs(scoreDelta.minScore), Math.abs(scoreDelta.maxScore));
-    return { ...scoreDelta, minScore: -maxAbsDelta, maxScore: maxAbsDelta };
+    const [minScore, maxScore] = this.mirrorDomain(scoreDelta.minScore, scoreDelta.maxScore);
+    return { ...scoreDelta, minScore, maxScore };
   }
 
   private setChartType(value: string): void {

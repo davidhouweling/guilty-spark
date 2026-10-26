@@ -178,12 +178,20 @@ export interface FlagRunLegendEntry {
 
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
+export interface FlagAdvantageOverlay {
+  readonly minScore: number;
+  readonly maxScore: number;
+  readonly rows: readonly FlagRunsChartPoint[];
+}
+
 export interface CtfViewData {
   readonly kind: "ctf";
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
   readonly legend: readonly FlagRunLegendEntry[];
+  readonly teamNames: readonly [string, string];
+  readonly advantageOverlay: FlagAdvantageOverlay | null;
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
@@ -259,6 +267,7 @@ export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
+  readonly advantageDomain: readonly [number, number] | null;
   readonly tooltipFormatter: TooltipFormatter;
 }
 
@@ -275,8 +284,11 @@ export interface FlagRunsViewModel {
   readonly showChartTypeSelect: boolean;
   readonly legend: readonly FlagRunLegendEntry[];
   readonly markerLegend: readonly FlagRunMarkerLegendEntry[];
+  readonly hasPlayerAdvantage: boolean;
+  readonly showPlayerAdvantage: boolean;
   readonly chart: FlagRunsChartViewModel;
   readonly onChartTypeChange: (value: string) => void;
+  readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }
 
 export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel | FlagRunsViewModel;

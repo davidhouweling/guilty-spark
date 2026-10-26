@@ -119,7 +119,7 @@ export function DeltaChart({
         {advantageDomain != null && (
           <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
-        {playerAdvantage != null && <Area {...playerAdvantageAreaProps()} data={playerAdvantage.points} />}
+        {playerAdvantage != null && <Area {...playerAdvantageAreaProps("score")} data={playerAdvantage.points} />}
         {zoneAdvantage != null && <Area {...zoneAdvantageAreaProps()} data={zoneAdvantage.points} />}
       </AreaChart>
     </ResponsiveContainer>

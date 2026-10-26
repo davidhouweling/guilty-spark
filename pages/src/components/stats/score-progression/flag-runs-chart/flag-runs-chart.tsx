@@ -13,11 +13,14 @@ import {
 import {
   AXIS_STROKE,
   CHART_HEIGHT,
-  CHART_MARGIN,
+  FLAG_ADVANTAGE_KEY,
   GRID_STROKE,
   TICK_STYLE,
+  chartMargin,
+  flagAdvantageAxisProps,
   flagAxisProps,
   formatTooltipLabel,
+  playerAdvantageAreaProps,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
@@ -29,14 +32,16 @@ export function FlagRunsChart({
   durationMs,
   runs,
   points,
+  advantageDomain,
   tooltipFormatter,
 }: FlagRunsChartViewModel): React.ReactElement {
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-      <AreaChart data={points} margin={CHART_MARGIN}>
+      <AreaChart data={points} margin={chartMargin(advantageDomain)}>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis {...flagAxisProps()} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        {advantageDomain != null && <YAxis {...flagAdvantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} />
         <Tooltip
           contentStyle={tooltipContentStyle}
@@ -71,6 +76,7 @@ export function FlagRunsChart({
             />
           ) : null,
         )}
+        {advantageDomain != null && <Area {...playerAdvantageAreaProps(FLAG_ADVANTAGE_KEY)} />}
         {runs.flatMap((run) =>
           run.markers.map((marker, markerIndex) => (
             <ReferenceDot

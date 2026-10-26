@@ -36,12 +36,38 @@ vi.mock("recharts", () => ({
     <div data-testid="reference-dot" data-x={x} data-y={y} />
   ),
   XAxis: (): null => null,
-  YAxis: ({ domain }: { domain?: readonly [number, number] }): React.ReactElement => (
-    <div data-testid="y-axis" data-domain={domain?.join(",")} />
+  YAxis: ({
+    yAxisId,
+    domain,
+    reversed,
+    tickFormatter,
+  }: {
+    yAxisId?: string;
+    domain?: readonly [number, number];
+    reversed?: boolean;
+    tickFormatter?: (value: number) => string;
+  }): React.ReactElement => (
+    <div
+      data-testid="y-axis"
+      data-axis={yAxisId}
+      data-domain={domain?.join(",")}
+      data-reversed={reversed}
+      data-tick={tickFormatter?.(-2)}
+    />
   ),
   Tooltip: (): null => null,
-  Area: ({ name, stroke, dataKey }: { name: string; stroke: string; dataKey: string }): React.ReactElement => (
-    <div data-testid="area" data-stroke={stroke} data-key={dataKey}>
+  Area: ({
+    name,
+    stroke,
+    dataKey,
+    yAxisId,
+  }: {
+    name: string;
+    stroke: string;
+    dataKey: string;
+    yAxisId?: string;
+  }): React.ReactElement => (
+    <div data-testid="area" data-stroke={stroke} data-key={dataKey} data-axis={yAxisId}>
       {name}
     </div>
   ),
@@ -73,6 +99,37 @@ describe("FlagRunsChart", () => {
     const dots = screen.getAllByTestId("reference-dot");
     expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "25", "100"]);
     expect(resetSegments()).toEqual(["60000:100 60000:0"]);
+  });
+
+  it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
+    const points = [
+      { timestampMs: 0, run1: null, playerAdvantage: 0 },
+      { timestampMs: 20000, run1: 0, playerAdvantage: 0 },
+      { timestampMs: 30000, run1: 25, playerAdvantage: -1 },
+      { timestampMs: 45000, run1: 60, playerAdvantage: -1 },
+      { timestampMs: 60000, run1: 100, playerAdvantage: -1 },
+      { timestampMs: 120000, run1: null, playerAdvantage: -1 },
+    ];
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ points, advantageDomain: [-1, 1] })} />);
+
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "6");
+    const areas = screen.getAllByTestId("area");
+    expect(areas.map((area) => area.textContent)).toEqual(["Eagle flag · Cobra carrying", "Player Advantage"]);
+    expect(areas[1]).toHaveAttribute("data-key", "playerAdvantage");
+    expect(areas[1]).toHaveAttribute("data-axis", "advantage");
+    expect(areas[0]).not.toHaveAttribute("data-axis");
+    const advantageAxes = screen.getAllByTestId("y-axis").filter((axis) => axis.getAttribute("data-axis") != null);
+    expect(advantageAxes).toHaveLength(1);
+    expect(advantageAxes[0]).toHaveAttribute("data-domain", "-1,1");
+    expect(advantageAxes[0]).toHaveAttribute("data-reversed", "true");
+    expect(advantageAxes[0]).toHaveAttribute("data-tick", "2");
+  });
+
+  it("renders no advantage axis or area while the overlay is off", () => {
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
+
+    expect(screen.getAllByTestId("y-axis")).toHaveLength(1);
+    expect(screen.getAllByTestId("area")).toHaveLength(1);
   });
 
   it("renders no reset segment or markers for a run cut off by the match end", () => {

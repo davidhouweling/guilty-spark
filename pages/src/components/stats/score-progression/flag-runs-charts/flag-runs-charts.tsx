@@ -4,6 +4,7 @@ import { ChartFrame } from "../chart-frame/chart-frame";
 import { FlagRunMarker } from "../flag-runs-chart/flag-run-marker/flag-run-marker";
 import { FlagRunsChart } from "../flag-runs-chart/flag-runs-chart";
 import { LegendItem } from "../legend-item/legend-item";
+import { PlayerAdvantageToggle } from "../player-advantage-toggle/player-advantage-toggle";
 import type { FlagRunsViewModel } from "../types";
 import styles from "../score-progression.module.css";
 
@@ -14,8 +15,11 @@ export function FlagRunsCharts({
   showChartTypeSelect,
   legend,
   markerLegend,
+  hasPlayerAdvantage,
+  showPlayerAdvantage,
   chart,
   onChartTypeChange,
+  onPlayerAdvantageChange,
 }: FlagRunsViewModel): React.ReactElement {
   return (
     <ChartFrame
@@ -23,6 +27,11 @@ export function FlagRunsCharts({
       chartType={effectiveChartType}
       chartTypeOptions={chartTypeOptions}
       showChartTypeSelect={showChartTypeSelect}
+      toolbarExtras={
+        hasPlayerAdvantage ? (
+          <PlayerAdvantageToggle checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} />
+        ) : undefined
+      }
       footer={
         <>
           <div className={classNames(styles.markerLegend, styles.flagLegend)}>

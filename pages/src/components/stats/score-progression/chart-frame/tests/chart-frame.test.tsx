@@ -4,6 +4,7 @@ import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { ChartFrame } from "../chart-frame";
+import styles from "../../score-progression.module.css";
 
 afterEach(() => {
   cleanup();
@@ -67,6 +68,7 @@ describe("ChartFrame", () => {
     );
 
     expect(screen.getByText("extras")).toBeInTheDocument();
+    expect(screen.getByText("extras").parentElement).toHaveClass(styles.toolbarToggles);
     expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
   });
 });

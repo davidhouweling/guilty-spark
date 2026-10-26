@@ -9,6 +9,10 @@ const ZONE_ADVANTAGE_STROKE = "#f0b849";
 // than inline in each chart
 export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
 export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
+export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
+// kept generic over the literal keys: Recharts' Area narrows dataKey against its data's shape,
+// so an own-data overlay must see "score" rather than the union
+type AdvantageDataKey = "score" | typeof FLAG_ADVANTAGE_KEY;
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {
@@ -106,9 +110,22 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
-interface AdvantageAreaProps {
+// the flag chart's upper half is where the second team carries the first team's flag, so the
+// second team's lead (negative in the shared sign) is drawn upward; the halves say whose lead
+// it is, so the ticks are unsigned like the flag axis's
+export function flagAdvantageAxisProps(domain: readonly [number, number]): ReturnType<typeof advantageAxisProps> & {
+  reversed: true;
+} {
+  return {
+    ...advantageAxisProps(domain),
+    reversed: true,
+    tickFormatter: (value: number): string => String(Math.abs(value)),
+  };
+}
+
+interface AdvantageAreaProps<K extends AdvantageDataKey> {
   yAxisId: string;
-  dataKey: "score";
+  dataKey: K;
   name: string;
   fill: "none";
   stroke: string;
@@ -119,10 +136,14 @@ interface AdvantageAreaProps {
   baseValue: number;
 }
 
-function advantageAreaProps(name: string, stroke: string): AdvantageAreaProps {
+function advantageAreaProps<K extends AdvantageDataKey>(
+  name: string,
+  stroke: string,
+  dataKey: K,
+): AdvantageAreaProps<K> {
   return {
     yAxisId: "advantage",
-    dataKey: "score",
+    dataKey,
     name,
     fill: "none",
     stroke,
@@ -136,12 +157,12 @@ function advantageAreaProps(name: string, stroke: string): AdvantageAreaProps {
 
 // the (series name, stroke) pairing is defined once so the tooltip-dispatch key can never be
 // paired with the wrong colour at a call site
-export function playerAdvantageAreaProps(): AdvantageAreaProps {
-  return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE);
+export function playerAdvantageAreaProps<K extends AdvantageDataKey>(dataKey: K): AdvantageAreaProps<K> {
+  return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE, dataKey);
 }
 
-export function zoneAdvantageAreaProps(): AdvantageAreaProps {
-  return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE);
+export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
+  return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE, "score");
 }
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
