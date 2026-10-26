@@ -155,7 +155,7 @@ export class ScoreProgressionPresenter {
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points: viewData.points,
+        points: playerAdvantage?.points ?? viewData.points,
         advantageDomain:
           playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore) : null,
         tooltipFormatter: (value, name): [string, string] =>

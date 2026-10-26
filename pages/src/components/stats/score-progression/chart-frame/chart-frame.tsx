@@ -32,7 +32,7 @@ export function ChartFrame({
           {showChartTypeSelect && (
             <ChartTypeSelect value={chartType} options={chartTypeOptions} onChange={onChartTypeChange} />
           )}
-          {toolbarExtras}
+          {toolbarExtras != null && <div className={styles.toolbarToggles}>{toolbarExtras}</div>}
         </div>
       )}
       <div role="img" aria-label={ariaLabel}>

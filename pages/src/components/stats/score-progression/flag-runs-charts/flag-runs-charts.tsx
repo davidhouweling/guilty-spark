@@ -29,9 +29,7 @@ export function FlagRunsCharts({
       showChartTypeSelect={showChartTypeSelect}
       toolbarExtras={
         hasPlayerAdvantage ? (
-          <div className={styles.toolbarToggles}>
-            <PlayerAdvantageToggle checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} />
-          </div>
+          <PlayerAdvantageToggle checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} />
         ) : undefined
       }
       footer={

@@ -8,6 +8,7 @@ import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake
 import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import { aFakeCtfViewDataWith } from "../fakes/ctf-view-data.fake";
+import { aFakeFlagAdvantageDataWith } from "../fakes/flag-advantage-data.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -862,23 +863,13 @@ describe("ScoreProgressionPresenter ctf", () => {
   });
 
   describe("player advantage overlay", () => {
-    const anAdvantage = (): PlayerAdvantageData => ({
-      points: [
-        { timestampMs: 0, score: 0 },
-        { timestampMs: 40000, score: -1 },
-        { timestampMs: 120000, score: -1 },
-      ],
-      minScore: -1,
-      maxScore: 0,
-    });
-
     it("offers the toggle only when the view data carries a player advantage", () => {
       const { store, presenter } = makePresenter();
 
       const without = asFlagRuns(
         presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
       );
-      const viewData = aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() });
+      const viewData = aFakeCtfViewDataWith({ playerAdvantage: aFakeFlagAdvantageDataWith() });
       const withAdvantage = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
 
       expect(without.hasPlayerAdvantage).toBe(false);
@@ -888,16 +879,17 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withAdvantage.chart.advantageDomain).toBeNull();
     });
 
-    it("draws the overlay on an axis mirrored around the home line once toggled on", () => {
+    it("swaps in the advantage rows on an axis mirrored around the home line once toggled on", () => {
       const { store, presenter } = makePresenter();
-      const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() }), ariaLabel: "x" };
+      const playerAdvantage = aFakeFlagAdvantageDataWith();
+      const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage }), ariaLabel: "x" };
 
       asFlagRuns(presenter.present(store.getSnapshot(), input)).onPlayerAdvantageChange(true);
       const model = asFlagRuns(presenter.present(store.getSnapshot(), input));
 
       expect(model.showPlayerAdvantage).toBe(true);
       expect(model.chart.advantageDomain).toEqual([-1, 1]);
-      expect(model.chart.points).toBe(input.viewData.points);
+      expect(model.chart.points).toBe(playerAdvantage.points);
     });
 
     it("mirrors the advantage axis around the widest lead", () => {
@@ -906,7 +898,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       const present = (minScore: number, maxScore: number): readonly [number, number] | null =>
         asFlagRuns(
           presenter.present(store.getSnapshot(), {
-            viewData: aFakeCtfViewDataWith({ playerAdvantage: { ...anAdvantage(), minScore, maxScore } }),
+            viewData: aFakeCtfViewDataWith({ playerAdvantage: aFakeFlagAdvantageDataWith({ minScore, maxScore }) }),
             ariaLabel: "x",
           }),
         ).chart.advantageDomain;
@@ -918,8 +910,8 @@ describe("ScoreProgressionPresenter ctf", () => {
     it("shares the toggle state with the score charts", () => {
       const { store, presenter } = makePresenter();
       const viewData = aFakeCtfViewDataWith({
-        playerAdvantage: anAdvantage(),
-        scoreLines: aFakeScoreLinesViewDataWith({ playerAdvantage: anAdvantage() }),
+        playerAdvantage: aFakeFlagAdvantageDataWith(),
+        scoreLines: aFakeScoreLinesViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() }),
       });
 
       asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" })).onPlayerAdvantageChange(true);
@@ -935,7 +927,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       store.update({ showPlayerAdvantage: true });
       const model = asFlagRuns(
         presenter.present(store.getSnapshot(), {
-          viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() }),
+          viewData: aFakeCtfViewDataWith({ playerAdvantage: aFakeFlagAdvantageDataWith() }),
           ariaLabel: "x",
         }),
       );

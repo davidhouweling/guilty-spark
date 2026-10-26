@@ -1,6 +1,7 @@
 import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
+import { stepSeriesAt } from "../../interpolate-series";
 import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
@@ -170,7 +171,7 @@ function buildCaptureMeterPercentage(
   }
   const key = String(teamId);
   const cumulativeAt = (timestampMs: number): number =>
-    events.findLast((event) => event.timestampMs <= timestampMs)?.runningScores[key] ?? 0;
+    stepSeriesAt(events, timestampMs, (event) => event.runningScores[key]) ?? 0;
   const ticksInHill = cumulativeAt(hillEndMs) - cumulativeAt(hillStartMs);
   return Math.min(99, Math.round((ticksInHill / METER_TICKS_PER_CAPTURE) * 100));
 }

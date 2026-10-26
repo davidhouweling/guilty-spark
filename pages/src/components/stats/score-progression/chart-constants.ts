@@ -10,6 +10,8 @@ const ZONE_ADVANTAGE_STROKE = "#f0b849";
 export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
 export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
 export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
+// own-data overlays read "score"; the flag chart reads the advantage out of its shared rows
+type AdvantageDataKey = "score" | typeof FLAG_ADVANTAGE_KEY;
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {
@@ -107,7 +109,7 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
-interface AdvantageAreaProps<K extends string> {
+interface AdvantageAreaProps<K extends AdvantageDataKey> {
   yAxisId: string;
   dataKey: K;
   name: string;
@@ -120,7 +122,11 @@ interface AdvantageAreaProps<K extends string> {
   baseValue: number;
 }
 
-function advantageAreaProps<K extends string>(name: string, stroke: string, dataKey: K): AdvantageAreaProps<K> {
+function advantageAreaProps<K extends AdvantageDataKey>(
+  name: string,
+  stroke: string,
+  dataKey: K,
+): AdvantageAreaProps<K> {
   return {
     yAxisId: "advantage",
     dataKey,
@@ -137,7 +143,7 @@ function advantageAreaProps<K extends string>(name: string, stroke: string, data
 
 // the (series name, stroke) pairing is defined once so the tooltip-dispatch key can never be
 // paired with the wrong colour at a call site
-export function playerAdvantageAreaProps<K extends string>(dataKey: K): AdvantageAreaProps<K> {
+export function playerAdvantageAreaProps<K extends AdvantageDataKey>(dataKey: K): AdvantageAreaProps<K> {
   return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE, dataKey);
 }
 
