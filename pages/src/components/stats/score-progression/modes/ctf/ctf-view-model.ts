@@ -1,7 +1,7 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { TICK_FILL } from "../../chart-constants";
+import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
 import { interpolateSeriesAt } from "../../interpolate-series";
 import type {
   FlagRunData,
@@ -10,6 +10,7 @@ import type {
   FlagRunMarkerKind,
   FlagRunPoint,
   FlagRunsChartPoint,
+  ScoreProgressionPoint,
 } from "../../types";
 
 const FULL_PROGRESS = 100;
@@ -146,14 +147,33 @@ export function buildFlagRunLegend(
   return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
 }
 
-export function buildFlagRunsChartPoints(runs: readonly FlagRunData[]): FlagRunsChartPoint[] {
-  const timestamps = [...new Set(runs.flatMap((run) => run.points.map((point) => point.timestampMs)))].sort(
-    (left, right) => left - right,
-  );
+function stepValueAt(points: readonly ScoreProgressionPoint[], timestampMs: number): number | null {
+  let value: number | null = null;
+  for (const point of points) {
+    if (point.timestampMs > timestampMs) {
+      break;
+    }
+    value = point.score;
+  }
+  return value;
+}
+
+// one row per distinct instant so every series, the step-wise advantage included, shares the
+// tooltip index
+export function buildFlagRunsChartPoints(
+  runs: readonly FlagRunData[],
+  advantagePoints: readonly ScoreProgressionPoint[] | null = null,
+): FlagRunsChartPoint[] {
+  const runTimestamps = runs.flatMap((run) => run.points.map((point) => point.timestampMs));
+  const advantageTimestamps = (advantagePoints ?? []).map((point) => point.timestampMs);
+  const timestamps = [...new Set([...runTimestamps, ...advantageTimestamps])].sort((left, right) => left - right);
   return timestamps.map((timestampMs) => {
     const row: Record<string, number | null> = {};
     for (const run of runs) {
       row[run.seriesKey] = interpolateSeriesAt(run.points, timestampMs, (point) => point.progress);
+    }
+    if (advantagePoints != null) {
+      row[FLAG_ADVANTAGE_KEY] = stepValueAt(advantagePoints, timestampMs);
     }
     return { ...row, timestampMs };
   });

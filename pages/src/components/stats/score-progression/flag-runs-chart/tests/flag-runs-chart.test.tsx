@@ -40,8 +40,18 @@ vi.mock("recharts", () => ({
     <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} />
   ),
   Tooltip: (): null => null,
-  Area: ({ name, stroke, dataKey }: { name: string; stroke: string; dataKey: string }): React.ReactElement => (
-    <div data-testid="area" data-stroke={stroke} data-key={dataKey}>
+  Area: ({
+    name,
+    stroke,
+    dataKey,
+    yAxisId,
+  }: {
+    name: string;
+    stroke: string;
+    dataKey: string;
+    yAxisId?: string;
+  }): React.ReactElement => (
+    <div data-testid="area" data-stroke={stroke} data-key={dataKey} data-axis={yAxisId}>
       {name}
     </div>
   ),
@@ -75,19 +85,14 @@ describe("FlagRunsChart", () => {
     expect(resetSegments()).toEqual(["60000:100 60000:0"]);
   });
 
-  it("renders the player advantage as a named area on its own mirrored axis", () => {
-    const playerAdvantage = {
-      points: [
-        { timestampMs: 0, score: 0 },
-        { timestampMs: 40000, score: -1 },
-      ],
-      minScore: -1,
-      maxScore: 0,
-    };
-    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ playerAdvantage, advantageDomain: [-1, 1] })} />);
+  it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ advantageDomain: [-1, 1] })} />);
 
-    const areaNames = screen.getAllByTestId("area").map((area) => area.textContent);
-    expect(areaNames).toEqual(["Eagle flag · Cobra carrying", "Player Advantage"]);
+    const areas = screen.getAllByTestId("area");
+    expect(areas.map((area) => area.textContent)).toEqual(["Eagle flag · Cobra carrying", "Player Advantage"]);
+    expect(areas[1]).toHaveAttribute("data-key", "playerAdvantage");
+    expect(areas[1]).toHaveAttribute("data-axis", "advantage");
+    expect(areas[0]).not.toHaveAttribute("data-axis");
     const advantageAxes = screen.getAllByTestId("y-axis").filter((axis) => axis.getAttribute("data-axis") != null);
     expect(advantageAxes).toHaveLength(1);
     expect(advantageAxes[0]).toHaveAttribute("data-domain", "-1,1");

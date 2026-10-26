@@ -184,8 +184,9 @@ export interface CtfViewData {
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
   readonly legend: readonly FlagRunLegendEntry[];
-  // ordered like the legend: the team whose flag is drawn above first
-  readonly teamNames: readonly string[];
+  // in the advantage's sign order: a positive lead belongs to the first team, whose flag the
+  // legend draws above
+  readonly teamNames: readonly [string, string];
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly scoreLines: ScoreLinesViewData | null;
 }
@@ -261,8 +262,8 @@ export interface TimelineGanttChartViewModel {
 export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
+  // while advantageDomain is set the rows also carry the advantage under FLAG_ADVANTAGE_KEY
   readonly points: readonly FlagRunsChartPoint[];
-  readonly playerAdvantage: PlayerAdvantageData | null;
   readonly advantageDomain: readonly [number, number] | null;
   readonly tooltipFormatter: TooltipFormatter;
 }

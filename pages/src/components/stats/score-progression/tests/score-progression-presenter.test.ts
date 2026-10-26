@@ -878,31 +878,34 @@ describe("ScoreProgressionPresenter ctf", () => {
       const without = asFlagRuns(
         presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
       );
-      const withAdvantage = asFlagRuns(
-        presenter.present(store.getSnapshot(), {
-          viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() }),
-          ariaLabel: "x",
-        }),
-      );
+      const viewData = aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() });
+      const withAdvantage = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
 
       expect(without.hasPlayerAdvantage).toBe(false);
       expect(withAdvantage.hasPlayerAdvantage).toBe(true);
       expect(withAdvantage.showPlayerAdvantage).toBe(false);
-      expect(withAdvantage.chart.playerAdvantage).toBeNull();
+      expect(withAdvantage.chart.points).toBe(viewData.points);
       expect(withAdvantage.chart.advantageDomain).toBeNull();
     });
 
-    it("draws the overlay on an axis mirrored around the home line once toggled on", () => {
+    it("merges the overlay into the chart rows on an axis mirrored around the home line once toggled on", () => {
       const { store, presenter } = makePresenter();
-      const advantage = anAdvantage();
-      const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage: advantage }), ariaLabel: "x" };
+      const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() }), ariaLabel: "x" };
 
       asFlagRuns(presenter.present(store.getSnapshot(), input)).onPlayerAdvantageChange(true);
       const model = asFlagRuns(presenter.present(store.getSnapshot(), input));
 
       expect(model.showPlayerAdvantage).toBe(true);
-      expect(model.chart.playerAdvantage).toBe(advantage);
       expect(model.chart.advantageDomain).toEqual([-1, 1]);
+      expect(model.chart.points.map((point) => point.timestampMs)).toEqual([
+        0, 20000, 30000, 40000, 45000, 60000, 120000,
+      ]);
+      expect(model.chart.points.map((point) => point.playerAdvantage)).toEqual([0, 0, 0, -1, -1, -1, -1]);
+      expect(model.chart.points[3]).toEqual({
+        timestampMs: 40000,
+        run1: 25 + (10000 / 15000) * 35,
+        playerAdvantage: -1,
+      });
     });
 
     it("mirrors the advantage axis around the widest lead, never narrower than one player", () => {
@@ -952,20 +955,6 @@ describe("ScoreProgressionPresenter ctf", () => {
         "50% of the way to the capture point",
         "Eagle flag · Cobra carrying",
       ]);
-    });
-
-    it("falls back to generic team names when the view data names none", () => {
-      const { store, presenter } = makePresenter();
-      store.update({ showPlayerAdvantage: true });
-      const model = asFlagRuns(
-        presenter.present(store.getSnapshot(), {
-          viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage(), teamNames: [] }),
-          ariaLabel: "x",
-        }),
-      );
-
-      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Team 1 +1", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(-1, "Player Advantage")).toEqual(["Team 2 +1", "Player Advantage"]);
     });
   });
 });

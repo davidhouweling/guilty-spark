@@ -250,6 +250,48 @@ describe("buildFlagRunsChartPoints", () => {
     expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: -50 });
   });
 
+  it("carries the player advantage as a step value on every row when given its points", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+    const advantage = [
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 40000, score: -1 },
+      { timestampMs: 48000, score: 0 },
+      { timestampMs: DURATION_MS, score: 0 },
+    ];
+
+    const points = buildFlagRunsChartPoints(runs, advantage);
+
+    expect(points.map((point) => point.timestampMs)).toEqual([
+      0,
+      20000,
+      30000,
+      40000,
+      45000,
+      48000,
+      60000,
+      70000,
+      80000,
+      90000,
+      100000,
+      DURATION_MS,
+    ]);
+    expect(points.map((point) => point.playerAdvantage)).toEqual([0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0]);
+    expect(points[0]).toEqual({ timestampMs: 0, run1: null, run2: null, playerAdvantage: 0 });
+    expect(points[4]?.run1).toBe(60);
+  });
+
+  it("leaves the advantage null on rows before its first point and off the rows without it", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+
+    expect(buildFlagRunsChartPoints(runs, [{ timestampMs: 50000, score: 1 }])[0]).toEqual({
+      timestampMs: 20000,
+      run1: 0,
+      run2: null,
+      playerAdvantage: null,
+    });
+    expect(buildFlagRunsChartPoints(runs)[0]).not.toHaveProperty("playerAdvantage");
+  });
+
   it("interpolates a run at the other run's sample times while both flags are out", () => {
     const [first, second] = aFakeCtfTimelineWith().runs;
     const timeline = aFakeCtfTimelineWith({

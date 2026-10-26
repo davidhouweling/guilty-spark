@@ -1,5 +1,6 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
+import { buildFlagRunsChartPoints } from "./modes/ctf/ctf-view-model";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -141,7 +142,7 @@ export class ScoreProgressionPresenter {
     const { showPlayerAdvantage } = snapshot;
     const hasPlayerAdvantage = viewData.playerAdvantage != null;
     const playerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
-    const [team0Name = "Team 1", team1Name = "Team 2"] = viewData.teamNames;
+    const [team0Name, team1Name] = viewData.teamNames;
     return {
       kind: "flag-runs",
       ariaLabel,
@@ -155,9 +156,10 @@ export class ScoreProgressionPresenter {
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points: viewData.points,
-        playerAdvantage,
-        advantageDomain: playerAdvantage != null ? this.buildSymmetricAdvantageDomain(playerAdvantage) : null,
+        points:
+          playerAdvantage != null ? buildFlagRunsChartPoints(viewData.runs, playerAdvantage.points) : viewData.points,
+        advantageDomain:
+          playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore, 1) : null,
         tooltipFormatter: (value, name): [string, string] =>
           this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
             this.formatFlagProgressTooltip(value, name),
@@ -168,10 +170,10 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  // the flag axis is fixed and mirrored around the home line, so the advantage axis mirrors too
-  // and both zero lines coincide
-  private buildSymmetricAdvantageDomain(advantage: PlayerAdvantageData): readonly [number, number] {
-    const extent = Math.max(Math.abs(advantage.minScore), Math.abs(advantage.maxScore), 1);
+  // a domain mirrored around zero so its zero line meets the other axis's; the flag chart asks
+  // for at least one player either side so a dead-even match still gets ticks
+  private mirrorDomain(minScore: number, maxScore: number, floor = 0): readonly [number, number] {
+    const extent = Math.max(Math.abs(minScore), Math.abs(maxScore), floor);
     return [-extent, extent];
   }
 
@@ -401,8 +403,8 @@ export class ScoreProgressionPresenter {
     if (!hasAdvantageOverlay) {
       return scoreDelta;
     }
-    const maxAbsDelta = Math.max(Math.abs(scoreDelta.minScore), Math.abs(scoreDelta.maxScore));
-    return { ...scoreDelta, minScore: -maxAbsDelta, maxScore: maxAbsDelta };
+    const [minScore, maxScore] = this.mirrorDomain(scoreDelta.minScore, scoreDelta.maxScore);
+    return { ...scoreDelta, minScore, maxScore };
   }
 
   private setChartType(value: string): void {

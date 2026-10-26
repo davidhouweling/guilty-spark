@@ -13,6 +13,7 @@ import {
 import {
   AXIS_STROKE,
   CHART_HEIGHT,
+  FLAG_ADVANTAGE_KEY,
   GRID_STROKE,
   TICK_STYLE,
   advantageAxisProps,
@@ -31,7 +32,6 @@ export function FlagRunsChart({
   durationMs,
   runs,
   points,
-  playerAdvantage,
   advantageDomain,
   tooltipFormatter,
 }: FlagRunsChartViewModel): React.ReactElement {
@@ -76,7 +76,7 @@ export function FlagRunsChart({
             />
           ) : null,
         )}
-        {playerAdvantage != null && <Area {...playerAdvantageAreaProps()} data={playerAdvantage.points} />}
+        {advantageDomain != null && <Area {...playerAdvantageAreaProps()} dataKey={FLAG_ADVANTAGE_KEY} />}
         {runs.flatMap((run) =>
           run.markers.map((marker, markerIndex) => (
             <ReferenceDot
