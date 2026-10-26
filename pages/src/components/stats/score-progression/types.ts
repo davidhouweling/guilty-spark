@@ -178,7 +178,6 @@ export interface FlagRunLegendEntry {
 
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
-// the flag chart rows with the player advantage stepped in under FLAG_ADVANTAGE_KEY
 export interface FlagAdvantageData {
   readonly minScore: number;
   readonly maxScore: number;

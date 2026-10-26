@@ -884,6 +884,15 @@ describe("formatScoreProgression ctf", () => {
     expect(result?.kind).toBe("score-lines");
   });
 
+  it("falls back to the capture score lines when the captures and runs name a single team", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [],
+    });
+    const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
+    expect(result?.kind).toBe("score-lines");
+  });
+
   it("falls back to the capture score lines when the records carry more than two teams", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "0": 0, "1": 1, "2": 0 } }],

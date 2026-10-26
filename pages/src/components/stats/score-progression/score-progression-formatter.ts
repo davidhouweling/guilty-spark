@@ -307,7 +307,6 @@ function resolveCtfTeams(
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
-// the flag chart mirrors one team's flag above the other's, so it needs exactly two teams
 function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
   if (teamIds.length !== 2) {
     return null;
