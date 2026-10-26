@@ -1419,32 +1419,11 @@ describe("LiveTrackerDO", () => {
       expect(text).toBe("Not Found");
     });
 
-    it("returns Generate Maps visibility for stopped trackers without discovered matches", async () => {
-      const trackerState = createMockTrackerState();
-      storageGetSpy.mockImplementation(async (key) =>
-        Promise.resolve(key === "trackerState" ? trackerState : key === "mapsCleared" ? true : null),
-      );
-      vi.spyOn(services.databaseService, "getGuildConfig").mockResolvedValue(
-        aFakeGuildConfigRow({ NeatQueueInformerMapsPost: MapsPostType.AUTO }),
-      );
-
-      const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
-      const data: { embedData?: Record<string, unknown> } = await response.json();
-
-      expect(data.embedData).toMatchObject({
-        status: "stopped",
-        showGenerateMapsButton: true,
-      });
-    });
-
-    it("returns enriched embed data when tracker has discovered matches", async () => {
+    it("stops a tracker with discovered matches without fetching Halo series data", async () => {
       const trackerState = createMockTrackerStateWithMatches();
       trackerState.status = "active";
       storageGetSpy.mockResolvedValue(trackerState);
-
-      // Mock the service dependencies - return empty array since matches are already discovered
-      vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
-      vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
+      const getSeriesFromDiscordQueueSpy = vi.spyOn(services.haloService, "getSeriesFromDiscordQueue");
 
       const response = await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -1452,15 +1431,8 @@ describe("LiveTrackerDO", () => {
       const data: { success: boolean; state: unknown; embedData?: unknown } = await response.json();
       expect(data.success).toBe(true);
       expect(data.state).toBeDefined();
-      expect(data.embedData).toBeDefined();
-      const embedData = data.embedData as Record<string, unknown>;
-      expect(embedData).toMatchObject({
-        status: "stopped",
-        isPaused: false,
-        seriesScore: "2:1",
-      });
-      expect(Array.isArray(embedData["enrichedMatches"])).toBe(true);
-      expect(embedData["nextCheck"]).toBeUndefined();
+      expect(data.embedData).toBeUndefined();
+      expect(getSeriesFromDiscordQueueSpy).not.toHaveBeenCalled();
       expect(storageDeleteAllSpy).toHaveBeenCalled();
       expect(storageDeleteAlarmSpy).toHaveBeenCalled();
     });
