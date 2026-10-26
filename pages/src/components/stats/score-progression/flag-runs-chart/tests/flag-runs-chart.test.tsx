@@ -6,6 +6,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { FlagRunsChart } from "../flag-runs-chart";
 import { aFakeFlagRunDataWith } from "../../fakes/flag-run-data.fake";
 import { aFakeFlagRunsChartViewModelWith } from "../../fakes/flag-runs-view-model.fake";
+import { buildFlagRunsChartPoints } from "../../modes/ctf/ctf-view-model";
 
 afterEach(() => {
   cleanup();
@@ -86,8 +87,14 @@ describe("FlagRunsChart", () => {
   });
 
   it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
-    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ advantageDomain: [-1, 1] })} />);
+    const runs = [aFakeFlagRunDataWith()];
+    const points = buildFlagRunsChartPoints(runs, [
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 40000, score: -1 },
+    ]);
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ runs, points, advantageDomain: [-1, 1] })} />);
 
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "6");
     const areas = screen.getAllByTestId("area");
     expect(areas.map((area) => area.textContent)).toEqual(["Eagle flag · Cobra carrying", "Player Advantage"]);
     expect(areas[1]).toHaveAttribute("data-key", "playerAdvantage");

@@ -221,10 +221,6 @@ describe("buildFlagRuns", () => {
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(Object.is(run.points[1].progress, 0)).toBe(true);
   });
-
-  it("returns nothing for a match that is not two teams", () => {
-    expect(buildFlagRuns(aFakeCtfTimelineWith(), [0], COLORS, DURATION_MS)).toEqual([]);
-  });
 });
 
 describe("buildFlagRunLegend", () => {
@@ -233,10 +229,6 @@ describe("buildFlagRunLegend", () => {
       { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
       { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
     ]);
-  });
-
-  it("returns nothing without two teams", () => {
-    expect(buildFlagRunLegend([0], COLORS)).toEqual([]);
   });
 });
 

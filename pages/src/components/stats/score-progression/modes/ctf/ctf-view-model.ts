@@ -2,7 +2,7 @@ import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/sha
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
-import { interpolateSeriesAt } from "../../interpolate-series";
+import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
   FlagRunData,
   FlagRunLegendEntry,
@@ -92,13 +92,10 @@ function buildRunReset(finished: boolean, endMs: number, endProgress: number): F
 
 export function buildFlagRuns(
   timeline: CtfTimeline,
-  teamIds: readonly number[],
+  teamIds: readonly [number, number],
   teamColorByTeamId: ReadonlyMap<number, string>,
   durationMs: number,
 ): FlagRunData[] {
-  if (teamIds.length !== 2) {
-    return [];
-  }
   const [firstTeamId] = teamIds;
   const runs: FlagRunData[] = [];
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
@@ -132,12 +129,9 @@ export function buildFlagRuns(
 }
 
 export function buildFlagRunLegend(
-  teamIds: readonly number[],
+  teamIds: readonly [number, number],
   teamColorByTeamId: ReadonlyMap<number, string>,
 ): FlagRunLegendEntry[] {
-  if (teamIds.length !== 2) {
-    return [];
-  }
   const [firstTeamId, secondTeamId] = teamIds;
   const entryFor = (flagTeamId: number, carrierTeamId: number, side: string): FlagRunLegendEntry => ({
     key: `flag-${String(flagTeamId)}`,
@@ -145,17 +139,6 @@ export function buildFlagRunLegend(
     text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
   });
   return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
-}
-
-function stepValueAt(points: readonly ScoreProgressionPoint[], timestampMs: number): number | null {
-  let value: number | null = null;
-  for (const point of points) {
-    if (point.timestampMs > timestampMs) {
-      break;
-    }
-    value = point.score;
-  }
-  return value;
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the
@@ -173,7 +156,7 @@ export function buildFlagRunsChartPoints(
       row[run.seriesKey] = interpolateSeriesAt(run.points, timestampMs, (point) => point.progress);
     }
     if (advantagePoints != null) {
-      row[FLAG_ADVANTAGE_KEY] = stepValueAt(advantagePoints, timestampMs);
+      row[FLAG_ADVANTAGE_KEY] = stepSeriesAt(advantagePoints, timestampMs, (point) => point.score);
     }
     return { ...row, timestampMs };
   });

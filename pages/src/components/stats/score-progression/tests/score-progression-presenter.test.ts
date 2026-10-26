@@ -888,7 +888,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withAdvantage.chart.advantageDomain).toBeNull();
     });
 
-    it("merges the overlay into the chart rows on an axis mirrored around the home line once toggled on", () => {
+    it("draws the overlay on an axis mirrored around the home line once toggled on", () => {
       const { store, presenter } = makePresenter();
       const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage: anAdvantage() }), ariaLabel: "x" };
 
@@ -897,15 +897,7 @@ describe("ScoreProgressionPresenter ctf", () => {
 
       expect(model.showPlayerAdvantage).toBe(true);
       expect(model.chart.advantageDomain).toEqual([-1, 1]);
-      expect(model.chart.points.map((point) => point.timestampMs)).toEqual([
-        0, 20000, 30000, 40000, 45000, 60000, 120000,
-      ]);
-      expect(model.chart.points.map((point) => point.playerAdvantage)).toEqual([0, 0, 0, -1, -1, -1, -1]);
-      expect(model.chart.points[3]).toEqual({
-        timestampMs: 40000,
-        run1: 25 + (10000 / 15000) * 35,
-        playerAdvantage: -1,
-      });
+      expect(model.chart.points).toBe(input.viewData.points);
     });
 
     it("mirrors the advantage axis around the widest lead, never narrower than one player", () => {

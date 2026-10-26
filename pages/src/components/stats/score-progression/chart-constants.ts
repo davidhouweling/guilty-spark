@@ -8,9 +8,8 @@ const ZONE_ADVANTAGE_STROKE = "#f0b849";
 // series names double as the tooltip-dispatch keys in the presenter, so they live here rather
 // than inline in each chart
 export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
-// the row key the flag chart carries the player advantage under, beside its per-run keys
-export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
 export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
+export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
 export const TICK_FONT_SIZE = 11;
 
 export const tooltipContentStyle = {

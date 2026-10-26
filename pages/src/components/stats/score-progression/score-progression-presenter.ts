@@ -1,6 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
-import { buildFlagRunsChartPoints } from "./modes/ctf/ctf-view-model";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -156,8 +155,7 @@ export class ScoreProgressionPresenter {
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points:
-          playerAdvantage != null ? buildFlagRunsChartPoints(viewData.runs, playerAdvantage.points) : viewData.points,
+        points: viewData.points,
         advantageDomain:
           playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore, 1) : null,
         tooltipFormatter: (value, name): [string, string] =>

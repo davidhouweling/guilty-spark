@@ -786,6 +786,21 @@ describe("formatScoreProgression ctf", () => {
       { timestampMs: 40000, score: -1 },
     ]);
     expect(result.playerAdvantage?.minScore).toBe(-4);
+    expect(result.points.map((point) => [point.timestampMs, point.playerAdvantage])).toEqual([
+      [0, 0],
+      [20000, 0],
+      [30000, 0],
+      [40000, -1],
+      [45000, -1],
+      [48000, 0],
+      [60000, 0],
+      [70000, 0],
+      [80000, 0],
+      [90000, -1],
+      [98000, 0],
+      [100000, 0],
+      [120000, 0],
+    ]);
   });
 
   it("keeps the player advantage on the flag view when nobody captured", () => {
@@ -860,8 +875,9 @@ describe("formatScoreProgression ctf", () => {
     expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
   });
 
-  it("exposes the shared chart rows alongside the runs", () => {
-    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
+  it("exposes the shared chart rows alongside the runs, without an advantage key when there is none", () => {
+    const timeline = aFakeCtfTimelineWith({ respawnDurationMs: null });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
     expect(result.points).toHaveLength(8);
   });

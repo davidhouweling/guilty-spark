@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interpolateSeriesAt } from "../interpolate-series";
+import { interpolateSeriesAt, stepSeriesAt } from "../interpolate-series";
 
 const points = [
   { timestampMs: 0, value: 0 },
@@ -8,6 +8,23 @@ const points = [
   { timestampMs: 300, value: 100 },
 ];
 const valueOf = (point: { value: number }): number => point.value;
+
+describe("stepSeriesAt", () => {
+  it("holds the last value at or before the instant, the later of two at a repeated timestamp", () => {
+    expect(stepSeriesAt(points, 50, valueOf)).toBe(0);
+    expect(stepSeriesAt(points, 100, valueOf)).toBe(60);
+    expect(stepSeriesAt(points, 299, valueOf)).toBe(60);
+  });
+
+  it("carries the last value forward past the series end", () => {
+    expect(stepSeriesAt(points, 1000, valueOf)).toBe(100);
+  });
+
+  it("returns null before the first point and for an empty series", () => {
+    expect(stepSeriesAt(points, -1, valueOf)).toBeNull();
+    expect(stepSeriesAt([], 0, valueOf)).toBeNull();
+  });
+});
 
 describe("interpolateSeriesAt", () => {
   it("interpolates linearly between neighbouring points", () => {

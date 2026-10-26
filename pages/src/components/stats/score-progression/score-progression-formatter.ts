@@ -306,12 +306,13 @@ function resolveCtfTeams(
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
-function resolveTeamNames(teamIds: readonly number[]): readonly [string, string] | null {
+// the flag chart mirrors one team's flag above the other's, so it needs exactly two teams
+function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
   if (teamIds.length !== 2) {
     return null;
   }
   const [firstTeamId, secondTeamId] = teamIds;
-  return [getTeamName(firstTeamId), getTeamName(secondTeamId)];
+  return [firstTeamId, secondTeamId];
 }
 
 export function formatScoreProgression(
@@ -395,18 +396,19 @@ export function formatScoreProgression(
       const playerAdvantage = buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize);
       const scoreLines =
         captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, playerAdvantage, durationMs) : null;
-      const runs = buildFlagRuns(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs);
-      const teamNames = resolveTeamNames(teams.teamIds);
-      if (runs.length === 0 || teamNames == null) {
+      const flagTeamIds = resolveFlagTeamIds(teams.teamIds);
+      const runs = flagTeamIds == null ? [] : buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
+      if (flagTeamIds == null || runs.length === 0) {
         return scoreLines;
       }
+      const [firstTeamId, secondTeamId] = flagTeamIds;
       return {
         kind: "ctf",
         durationMs,
         runs,
-        points: buildFlagRunsChartPoints(runs),
-        legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
-        teamNames,
+        points: buildFlagRunsChartPoints(runs, playerAdvantage?.points ?? null),
+        legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
+        teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
         playerAdvantage,
         scoreLines,
       };
