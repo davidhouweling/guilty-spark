@@ -487,6 +487,28 @@ describe("TrackCommand", () => {
         });
       });
 
+      it("uses the error path instead of cooldown handling when a refresh is already in progress", async () => {
+        const handleRefreshCooldownSpy = vi.spyOn(services.liveTrackerService, "handleRefreshCooldown");
+        const errorSpy = vi.spyOn(services.logService, "error");
+
+        refreshTrackerSpy.mockResolvedValue({
+          success: false,
+          error: "in_progress",
+          message: "Refresh already in progress",
+        });
+
+        const { jobToComplete } = trackCommand.execute(refreshButtonInteraction);
+        await jobToComplete?.();
+
+        expect(handleRefreshCooldownSpy).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith("Button action failed", expect.any(Map));
+        expect(editMessageSpy).toHaveBeenCalledWith(
+          refreshButtonInteraction.channel.id,
+          refreshButtonInteraction.message.id,
+          expect.any(Object),
+        );
+      });
+
       it("continues with normal error handling for non-cooldown failures", async () => {
         refreshTrackerSpy.mockRejectedValue(new Error("Internal Server Error"));
 

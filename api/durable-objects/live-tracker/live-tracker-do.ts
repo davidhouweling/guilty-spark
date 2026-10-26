@@ -477,28 +477,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Not Found", { status: 404 });
     }
 
-    let embedData: LiveTrackerEmbedData | undefined;
-    if (Object.keys(trackerState.discoveredMatches).length > 0) {
-      try {
-        embedData = await this.buildEnrichedEmbedData(trackerState, {
-          status: "stopped",
-          isPaused: false,
-        });
-      } catch (error) {
-        this.logService.warn(
-          "LiveTracker: Failed to enrich stop response, returning basic state",
-          new Map([["error", String(error)]]),
-        );
-      }
-    }
-
-    embedData ??= await this.buildBasicEmbedData(trackerState, { status: "stopped", isPaused: false });
-
     trackerState.status = "stopped";
 
     await this.dispose(trackerState, "Explicitly stopped via handleStop");
 
-    return this.createStopResponse(trackerState, embedData);
+    return this.createStopResponse(trackerState);
   }
 
   private async handleRefresh(request: Request): Promise<Response> {
@@ -509,17 +492,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     if (this.checkAndHandleStaleLock(trackerState)) {
       this.logService.debug("Refresh already in progress, ignoring concurrent request");
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "in_progress",
-          message: "A refresh is already in progress, please wait",
-        }),
-        {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return this.createRefreshInProgressResponse();
     }
 
     trackerState.refreshInProgress = true;
@@ -1040,10 +1013,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
   }
 
-  private createStopResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    return liveTrackerStopContract.toResponse(
-      embedData ? { success: true, state, embedData } : { success: true, state },
-    );
+  private createStopResponse(state: LiveTrackerState): Response {
+    return liveTrackerStopContract.toResponse({ success: true, state });
   }
 
   private createRefreshSuccessResponse(state: LiveTrackerState): Response {
@@ -1052,6 +1023,13 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
   private createRefreshCooldownResponse(message: string): Response {
     return liveTrackerRefreshContract.toResponse({ success: false, error: "cooldown", message }, { status: 429 });
+  }
+
+  private createRefreshInProgressResponse(): Response {
+    return liveTrackerRefreshContract.toResponse(
+      { success: false, error: "in_progress", message: "A refresh is already in progress, please wait" },
+      { status: 409 },
+    );
   }
 
   private createRefreshFailureResponse(state: LiveTrackerState): Response {

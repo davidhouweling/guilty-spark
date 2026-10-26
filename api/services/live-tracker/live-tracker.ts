@@ -265,7 +265,7 @@ export class LiveTrackerService {
       body: JSON.stringify(request),
     });
 
-    if (!response.ok && response.status !== 429) {
+    if (!response.ok && response.status !== 429 && response.status !== 409) {
       const error = `Failed to refresh live tracker: ${response.status.toString()}`;
       this.logService.error(error, this.createLogParams(context));
       throw new Error(error);
@@ -288,7 +288,8 @@ export class LiveTrackerService {
     const result = parsed.data;
 
     if (!response.ok) {
-      this.logService.warn("Refresh cooldown active", this.createLogParams(context));
+      const message = response.status === 409 ? "Refresh already in progress" : "Refresh cooldown active";
+      this.logService.warn(message, this.createLogParams(context));
       return result;
     }
 

@@ -1551,6 +1551,45 @@ export class DiscordService {
     });
   }
 
+  /**
+   * Best-effort thread rename: never throws, and fails fast on rate limits
+   * (Discord only allows a couple of renames per channel every 10 minutes).
+   */
+  async trySetThreadName(threadId: string, name: string, currentName?: string | null): Promise<void> {
+    if (name === currentName) {
+      return;
+    }
+
+    if (name.length > 100) {
+      this.logService.info(
+        "Skipping thread rename, name exceeds 100 characters",
+        new Map([
+          ["threadId", threadId],
+          ["name", name],
+        ]),
+      );
+      return;
+    }
+
+    try {
+      await this.fetch<APIChannel>(
+        Routes.channel(threadId),
+        { method: "PATCH", body: JSON.stringify({ name }) },
+        true,
+        true,
+      );
+    } catch (error) {
+      this.logService.info(
+        "Failed to rename thread",
+        new Map([
+          ["threadId", threadId],
+          ["name", name],
+          ["error", String(error)],
+        ]),
+      );
+    }
+  }
+
   async getUsers(guildId: string, discordIds: string[]): Promise<APIGuildMember[]> {
     // doing it sequentially to better handle rate limit
     const users: APIGuildMember[] = [];
@@ -1838,14 +1877,21 @@ export class DiscordService {
       method: "GET",
     },
     retry = false,
+    bestEffort = false,
   ): Promise<T> {
-    const rateLimit = await this.getRateLimitFromAppConfig(path);
+    // Best-effort requests (e.g. thread renames) have their own tighter Discord limits, so track them
+    // separately to avoid making regular requests on the same path wait on them.
+    const rateLimitPath = bestEffort ? `${path}#${options.method}` : path;
+    const rateLimit = await this.getRateLimitFromAppConfig(rateLimitPath);
 
     if (rateLimit?.remaining === 0 && rateLimit.reset != null) {
       const now = Date.now();
       const resetTimeMs = rateLimit.reset * 1000;
       if (now < resetTimeMs) {
         const timeUntilReset = resetTimeMs - now;
+        if (bestEffort) {
+          throw new Error(`Discord rate limit active for ${path}, resets in ${timeUntilReset.toString()}ms`);
+        }
         const maxWaitTime = 90 * 1000;
         const waitTime = Math.min(timeUntilReset, maxWaitTime);
         // Warn level: long waits here can push waitUntil jobs past the runtime's post-response limit.
@@ -1908,6 +1954,10 @@ export class DiscordService {
     const boundFetch = this.globalFetch.bind(null);
     const response = await boundFetch(url.toString(), fetchOptions);
     if (!response.ok) {
+      if (response.status === 429 && bestEffort) {
+        this.setRateLimitInAppConfig(rateLimitPath, this.getRateLimitFromRejection(response));
+      }
+
       if (response.status === 429 && !retry) {
         const rateLimitFromResponse = this.getRateLimitFromResponse(response);
         this.logService.warn(
@@ -1921,7 +1971,7 @@ export class DiscordService {
         this.logService.info("Response headers", new Map(Array.from((response.headers as fHeaders).entries())));
 
         if (rateLimitFromResponse.reset != null) {
-          this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+          this.setRateLimitInAppConfig(rateLimitPath, rateLimitFromResponse);
 
           return this.fetch<T>(path, options, true);
         }
@@ -1934,10 +1984,12 @@ export class DiscordService {
       } catch {
         error = new Error(`Failed to fetch data from Discord API (HTTP ${response.status.toString()}): ${body}`);
       }
-      this.logService.warn(error);
+      if (!bestEffort) {
+        this.logService.warn(error);
+      }
 
       if (error instanceof DiscordError && error.httpStatus === 429 && error.restError.code === 1015 && !retry) {
-        this.setRateLimitInAppConfig(path, {
+        this.setRateLimitInAppConfig(rateLimitPath, {
           limit: 0,
           remaining: 0,
           reset: Date.now() / 1000 + 10,
@@ -1952,7 +2004,7 @@ export class DiscordService {
     }
 
     const rateLimitFromResponse = this.getRateLimitFromResponse(response);
-    this.setRateLimitInAppConfig(path, rateLimitFromResponse);
+    this.setRateLimitInAppConfig(rateLimitPath, rateLimitFromResponse);
 
     if (response.status === 204) {
       return {} as T;
@@ -1996,6 +2048,22 @@ export class DiscordService {
     const bucket = this.getRateLimitFromHeader(headers, "X-RateLimit-Bucket");
 
     return { limit, remaining, reset, resetAfter, bucket };
+  }
+
+  private getRateLimitFromRejection(response: Response): RateLimit {
+    const rateLimit = this.getRateLimitFromResponse(response);
+    const retryAfter = this.getRateLimitFromHeader(response.headers, "Retry-After");
+    if (retryAfter == null) {
+      return { ...rateLimit, remaining: 0 };
+    }
+
+    // Retry-After can exceed the bucket reset (e.g. per-resource sub-limits like thread renames).
+    const retryAt = Date.now() / 1000 + retryAfter;
+    if (rateLimit.reset != null && rateLimit.reset >= retryAt) {
+      return { ...rateLimit, remaining: 0 };
+    }
+
+    return { ...rateLimit, remaining: 0, reset: retryAt, resetAfter: retryAfter };
   }
 
   private getRateLimitKey(path: string): string {

@@ -1493,6 +1493,38 @@ describe("NeatQueueService", () => {
         expect(passedMap).toBeInstanceOf(Map);
         expect(passedMap.get("xuid-1")).toBe("Gamertag1");
       });
+
+      it("falls back to timeline resolution when the live tracker refresh is already in progress", async () => {
+        vi.spyOn(liveTrackerService, "getTrackerStatus").mockResolvedValue({
+          state: aFakeLiveTrackerStateWith({ status: "active" }),
+        });
+        vi.spyOn(liveTrackerService, "refreshTracker").mockResolvedValue({
+          success: false,
+          error: "in_progress",
+          message: "A refresh is already in progress, please wait",
+        });
+        const getSeriesDataSpy = vi.spyOn(liveTrackerService, "getSeriesData");
+        const warnSpy = vi.spyOn(logService, "warn");
+
+        const { jobToComplete } = neatQueueService.handleRequest(
+          getFakeNeatQueueData("matchCompleted"),
+          neatQueueConfig,
+        );
+
+        await jobToComplete?.();
+
+        const fallbackCall = warnSpy.mock.calls.find(
+          ([message]) =>
+            message === "Live tracker refresh failed for MATCH_COMPLETED; falling back to timeline resolution",
+        );
+        const fallbackParams = Preconditions.checkExists(fallbackCall?.[1]);
+        expect(fallbackParams.get("error")).toBe("in_progress");
+        expect(getSeriesDataSpy).not.toHaveBeenCalled();
+        const resolveFailureCall = warnSpy.mock.calls.find(
+          ([, params]) => params?.get("reason") === "Failed to resolve series data for MATCH_COMPLETED",
+        );
+        expect(resolveFailureCall).toBeUndefined();
+      });
     });
 
     it("returns OK response for unknown action", () => {
@@ -1723,6 +1755,32 @@ describe("NeatQueueService", () => {
       const [, , failureUpdate] = Preconditions.checkExists(editMessageSpy.mock.lastCall);
       expect(failureUpdate.embeds).toHaveLength(10);
       expect(failureUpdate.embeds?.at(-1)?.description).toContain("**Create Public Threads**");
+    });
+
+    it("renames the existing thread instead of starting a new one when retrying inside a thread", async () => {
+      const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      getSeriesFromDiscordQueueSpy.mockResolvedValue([match]);
+      vi.spyOn(discordService, "getChannel").mockResolvedValue({
+        type: ChannelType.PublicThread,
+        id: "channel-123",
+        name: "Queue #1 series stats",
+      });
+      vi.spyOn(discordService, "createMessage").mockResolvedValue(apiMessage);
+      const startThreadFromMessageSpy = vi.spyOn(discordService, "startThreadFromMessage");
+      const trySetThreadNameSpy = vi.spyOn(discordService, "trySetThreadName").mockResolvedValue();
+
+      await neatQueueService.handleRetry({
+        errorEmbed: fakeErrorEmbed,
+        guildId: "guild-123",
+        message: fakeMessage,
+      });
+
+      expect(startThreadFromMessageSpy).not.toHaveBeenCalled();
+      expect(trySetThreadNameSpy).toHaveBeenCalledWith(
+        "channel-123",
+        expect.stringMatching(/^Queue #1 series stats \(.+\)$/) as string,
+        "Queue #1 series stats",
+      );
     });
 
     it("starts the stats thread from the clicked message when retrying from a button interaction", async () => {

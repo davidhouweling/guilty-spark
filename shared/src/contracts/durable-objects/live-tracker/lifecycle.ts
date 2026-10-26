@@ -151,7 +151,6 @@ export const liveTrackerStopContract = defineContract(
   z.object({
     success: z.literal(true),
     state: liveTrackerStateSchema,
-    embedData: liveTrackerEmbedDataSchema.optional(),
   }),
 );
 export type LiveTrackerStopResponse = z.infer<typeof liveTrackerStopContract.schema>;

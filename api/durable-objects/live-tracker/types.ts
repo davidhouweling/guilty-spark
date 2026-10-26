@@ -73,7 +73,7 @@ export function isErrorResponse<T extends { success: boolean }>(response: T): re
 export function isCooldownError(
   response: LiveTrackerRefreshResponse,
 ): response is LiveTrackerRefreshCooldownErrorResponse {
-  return !response.success && "error" in response;
+  return !response.success && "error" in response && response.error === "cooldown";
 }
 
 // Branded types for route validation

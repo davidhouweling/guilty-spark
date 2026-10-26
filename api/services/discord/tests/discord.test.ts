@@ -2793,4 +2793,138 @@ describe("DiscordService", () => {
       expect(response).toEqual({});
     });
   });
+
+  describe("trySetThreadName()", () => {
+    it("renames the thread", async () => {
+      mockFetch.mockResolvedValue(new Response(JSON.stringify({ id: "thread-id" })));
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)", "Queue #1 series stats");
+
+      expect(mockFetch).toHaveBeenCalledWith("https://discord.com/api/v10/channels/thread-id", {
+        body: JSON.stringify({ name: "Queue #1 series stats (2:1)" }),
+        headers: new Headers({
+          Authorization: "Bot DISCORD_TOKEN",
+          "content-type": "application/json;charset=UTF-8",
+        }),
+        method: "PATCH",
+      });
+    });
+
+    it("skips the rename when the thread already has the name", async () => {
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("skips the rename and logs info when the name exceeds 100 characters", async () => {
+      const infoSpy = vi.spyOn(logService, "info");
+
+      await discordService.trySetThreadName("thread-id", "a".repeat(101));
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith("Skipping thread rename, name exceeds 100 characters", expect.any(Map));
+    });
+
+    it("logs info without a warning and does not throw when discord returns an error", async () => {
+      const infoSpy = vi.spyOn(logService, "info");
+      const warnSpy = vi.spyOn(logService, "warn");
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ code: 50013, message: "Missing Permissions" }), { status: 403 }),
+      );
+
+      await expect(
+        discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)"),
+      ).resolves.toBeUndefined();
+
+      expect(infoSpy).toHaveBeenCalledWith("Failed to rename thread", expect.any(Map));
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("skips the rename without waiting when the rate limit is already exhausted", async () => {
+      const infoSpy = vi.spyOn(logService, "info");
+      const appConfigGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      appConfigGetSpy.mockImplementation(async () =>
+        Promise.resolve({ limit: 2, remaining: 0, reset: Date.now() / 1000 + 600, resetAfter: 600 }),
+      );
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith("Failed to rename thread", expect.any(Map));
+    });
+
+    it("does not retry when rate limited", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 300 }), {
+          status: 429,
+          headers: { "X-RateLimit-Reset": "9999999999", "X-RateLimit-Reset-After": "300" },
+        }),
+      );
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it("skips a subsequent rename while the rate limit from a 429 is active", async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 300 }), {
+          status: 429,
+          headers: { "Retry-After": "300" },
+        }),
+      );
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+    });
+
+    it("honours a Retry-After longer than the bucket reset", async () => {
+      vi.useFakeTimers();
+      try {
+        mockFetch.mockResolvedValue(
+          new Response(JSON.stringify({ code: 0, message: "You are being rate limited.", retry_after: 600 }), {
+            status: 429,
+            headers: {
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Date.now() / 1000 + 5),
+              "X-RateLimit-Reset-After": "5",
+              "Retry-After": "600",
+            },
+          }),
+        );
+
+        await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+        vi.setSystemTime(Date.now() + 60_000);
+        await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+
+        expect(mockFetch).toHaveBeenCalledOnce();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not make channel reads wait on an exhausted rename rate limit", async () => {
+      const warnSpy = vi.spyOn(logService, "warn");
+      mockFetch
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ id: "thread-id" }), {
+            headers: {
+              "X-RateLimit-Limit": "2",
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Date.now() / 1000 + 600),
+              "X-RateLimit-Reset-After": "600",
+            },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(JSON.stringify({ id: "thread-id" })));
+
+      await discordService.trySetThreadName("thread-id", "Queue #1 series stats (2:1)");
+      await discordService.getChannel("thread-id");
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(warnSpy).not.toHaveBeenCalledWith("Discord rate limit pre-emptive wait", expect.any(Map));
+    });
+  });
 });
