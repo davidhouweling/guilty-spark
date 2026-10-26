@@ -312,7 +312,7 @@ describe("buildFlagRunsChartPoints", () => {
 });
 
 describe("buildFlagAdvantageOverlay", () => {
-  it("steps the advantage into the run rows with the second team's lead positive", () => {
+  it("steps the advantage into the run rows and keeps its extents", () => {
     const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
 
     const overlay = buildFlagAdvantageOverlay(runs, {
@@ -325,20 +325,20 @@ describe("buildFlagAdvantageOverlay", () => {
       maxScore: 2,
     });
 
-    expect(overlay?.minScore).toBe(-2);
-    expect(overlay?.maxScore).toBe(1);
+    expect(overlay?.minScore).toBe(-1);
+    expect(overlay?.maxScore).toBe(2);
     expect(overlay?.rows.map((row) => [row.timestampMs, row.playerAdvantage])).toEqual([
       [0, 0],
       [20000, 0],
       [30000, 0],
-      [40000, 1],
-      [45000, 1],
-      [48000, -2],
-      [60000, -2],
-      [70000, -2],
-      [80000, -2],
-      [90000, -2],
-      [100000, -2],
+      [40000, -1],
+      [45000, -1],
+      [48000, 2],
+      [60000, 2],
+      [70000, 2],
+      [80000, 2],
+      [90000, 2],
+      [100000, 2],
     ]);
     expect(overlay?.rows[0]).toEqual({ timestampMs: 0, run1: null, run2: null, playerAdvantage: 0 });
   });

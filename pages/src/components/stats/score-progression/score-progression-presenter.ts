@@ -140,11 +140,10 @@ export class ScoreProgressionPresenter {
   ): FlagRunsViewModel {
     const { showPlayerAdvantage } = snapshot;
     const { hasPlayerAdvantage, playerAdvantage: overlay } = this.resolvePlayerAdvantage(
-      snapshot,
+      showPlayerAdvantage,
       viewData.advantageOverlay,
     );
-    // the overlay draws the second team's lead above the home line, with that team's attacks
-    const [secondLeadsName, firstLeadsName] = [...viewData.teamNames].reverse();
+    const [team0Name, team1Name] = viewData.teamNames;
     return {
       kind: "flag-runs",
       ariaLabel,
@@ -161,7 +160,7 @@ export class ScoreProgressionPresenter {
         points: overlay?.rows ?? viewData.points,
         advantageDomain: overlay != null ? this.mirrorDomain(overlay.minScore, overlay.maxScore) : null,
         tooltipFormatter: (value, name): [string, string] =>
-          this.formatSeriesTooltip(value, name, secondLeadsName, firstLeadsName, () =>
+          this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
             this.formatFlagProgressTooltip(value, name),
           ),
       },
@@ -170,14 +169,13 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  // the toggle is offered when the match has an advantage and honoured only then
   private resolvePlayerAdvantage<T>(
-    snapshot: ScoreProgressionSnapshot,
+    showPlayerAdvantage: boolean,
     playerAdvantage: T | null,
   ): { hasPlayerAdvantage: boolean; playerAdvantage: T | null } {
     return {
       hasPlayerAdvantage: playerAdvantage != null,
-      playerAdvantage: snapshot.showPlayerAdvantage ? playerAdvantage : null,
+      playerAdvantage: showPlayerAdvantage ? playerAdvantage : null,
     };
   }
 
@@ -266,7 +264,7 @@ export class ScoreProgressionPresenter {
     const effectiveChartType: ChartType =
       chartType === "delta" && viewData.scoreDelta != null ? "delta" : "progression";
     const { hasPlayerAdvantage, playerAdvantage: effectivePlayerAdvantage } = this.resolvePlayerAdvantage(
-      snapshot,
+      showPlayerAdvantage,
       viewData.playerAdvantage,
     );
     const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;

@@ -110,6 +110,19 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
+// the flag chart's upper half is where the second team carries the first team's flag, so the
+// second team's lead (negative in the shared sign) is drawn upward; the halves say whose lead
+// it is, so the ticks are unsigned like the flag axis's
+export function flagAdvantageAxisProps(domain: readonly [number, number]): ReturnType<typeof advantageAxisProps> & {
+  reversed: true;
+} {
+  return {
+    ...advantageAxisProps(domain),
+    reversed: true,
+    tickFormatter: (value: number): string => String(Math.abs(value)),
+  };
+}
+
 interface AdvantageAreaProps<K extends AdvantageDataKey> {
   yAxisId: string;
   dataKey: K;

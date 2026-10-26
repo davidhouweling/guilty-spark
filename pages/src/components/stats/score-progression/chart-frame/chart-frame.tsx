@@ -9,7 +9,7 @@ interface ChartFrameProps {
   readonly chartTypeOptions: readonly ChartTypeOption[];
   readonly showChartTypeSelect: boolean;
   readonly children: React.ReactNode;
-  readonly toolbarExtras?: React.ReactNode | undefined;
+  readonly toolbarExtras?: React.ReactElement | undefined;
   readonly footer?: React.ReactNode | undefined;
   readonly onChartTypeChange: (value: string) => void;
 }

@@ -164,12 +164,6 @@ export function buildFlagRunsChartPoints(
   });
 }
 
-function mirrorScore(point: ScoreProgressionPoint): ScoreProgressionPoint {
-  return { timestampMs: point.timestampMs, score: point.score === 0 ? 0 : -point.score };
-}
-
-// the chart's upper half is where the second team carries the first team's flag, so the second
-// team's lead is drawn positive to point the same way as its attacks
 export function buildFlagAdvantageOverlay(
   runs: readonly FlagRunData[],
   advantage: PlayerAdvantageData | null,
@@ -178,8 +172,8 @@ export function buildFlagAdvantageOverlay(
     return null;
   }
   return {
-    minScore: -advantage.maxScore,
-    maxScore: -advantage.minScore,
-    rows: buildFlagRunsChartPoints(runs, advantage.points.map(mirrorScore)),
+    minScore: advantage.minScore,
+    maxScore: advantage.maxScore,
+    rows: buildFlagRunsChartPoints(runs, advantage.points),
   };
 }

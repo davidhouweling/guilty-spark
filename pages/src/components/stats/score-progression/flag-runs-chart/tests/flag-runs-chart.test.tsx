@@ -36,8 +36,24 @@ vi.mock("recharts", () => ({
     <div data-testid="reference-dot" data-x={x} data-y={y} />
   ),
   XAxis: (): null => null,
-  YAxis: ({ yAxisId, domain }: { yAxisId?: string; domain?: readonly [number, number] }): React.ReactElement => (
-    <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} />
+  YAxis: ({
+    yAxisId,
+    domain,
+    reversed,
+    tickFormatter,
+  }: {
+    yAxisId?: string;
+    domain?: readonly [number, number];
+    reversed?: boolean;
+    tickFormatter?: (value: number) => string;
+  }): React.ReactElement => (
+    <div
+      data-testid="y-axis"
+      data-axis={yAxisId}
+      data-domain={domain?.join(",")}
+      data-reversed={reversed}
+      data-tick={tickFormatter?.(-2)}
+    />
   ),
   Tooltip: (): null => null,
   Area: ({
@@ -105,6 +121,8 @@ describe("FlagRunsChart", () => {
     const advantageAxes = screen.getAllByTestId("y-axis").filter((axis) => axis.getAttribute("data-axis") != null);
     expect(advantageAxes).toHaveLength(1);
     expect(advantageAxes[0]).toHaveAttribute("data-domain", "-1,1");
+    expect(advantageAxes[0]).toHaveAttribute("data-reversed", "true");
+    expect(advantageAxes[0]).toHaveAttribute("data-tick", "2");
   });
 
   it("renders no advantage axis or area while the overlay is off", () => {

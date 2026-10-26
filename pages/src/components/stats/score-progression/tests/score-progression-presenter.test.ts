@@ -934,7 +934,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(scoreLines.progressionViewModel.playerAdvantage).not.toBeNull();
     });
 
-    it("names the second team as leading on a positive overlay value and leaves run tooltips alone", () => {
+    it("names the leading team in the Player Advantage tooltip and leaves run tooltips alone", () => {
       const { store, presenter } = makePresenter();
       store.update({ showPlayerAdvantage: true });
       const model = asFlagRuns(
@@ -944,8 +944,8 @@ describe("ScoreProgressionPresenter ctf", () => {
         }),
       );
 
-      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Cobra +1", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Eagle +2", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Eagle +1", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Cobra +2", "Player Advantage"]);
       expect(model.chart.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
       expect(model.chart.tooltipFormatter(50, "Eagle flag · Cobra carrying")).toEqual([
         "50% of the way to the capture point",

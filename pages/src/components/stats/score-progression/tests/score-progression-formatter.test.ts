@@ -777,7 +777,7 @@ describe("formatScoreProgression ctf", () => {
     expect(scoreLines?.playerAdvantage).not.toBeNull();
   });
 
-  it("exposes the advantage overlay, second team's lead up, and the ordered team names on the flag view", () => {
+  it("exposes the advantage overlay rows and the ordered team names on the flag view", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS, 4));
 
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
@@ -787,13 +787,13 @@ describe("formatScoreProgression ctf", () => {
       [0, 0],
       [20000, 0],
       [30000, 0],
-      [40000, 1],
-      [45000, 1],
+      [40000, -1],
+      [45000, -1],
       [48000, 0],
       [60000, 0],
       [70000, 0],
       [80000, 0],
-      [90000, 1],
+      [90000, -1],
       [98000, 0],
       [100000, 0],
       [120000, 0],

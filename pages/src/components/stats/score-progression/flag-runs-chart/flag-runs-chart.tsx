@@ -16,8 +16,8 @@ import {
   FLAG_ADVANTAGE_KEY,
   GRID_STROKE,
   TICK_STYLE,
-  advantageAxisProps,
   chartMargin,
+  flagAdvantageAxisProps,
   flagAxisProps,
   formatTooltipLabel,
   playerAdvantageAreaProps,
@@ -41,7 +41,7 @@ export function FlagRunsChart({
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis {...flagAxisProps()} stroke={AXIS_STROKE} tick={TICK_STYLE} />
-        {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
+        {advantageDomain != null && <YAxis {...flagAdvantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} />
         <Tooltip
           contentStyle={tooltipContentStyle}
