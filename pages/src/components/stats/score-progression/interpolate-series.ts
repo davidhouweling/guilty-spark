@@ -2,7 +2,6 @@ export interface TimedValue {
   readonly timestampMs: number;
 }
 
-// the value a step-wise series holds at an instant: its last point at or before it
 export function stepSeriesAt<T extends TimedValue>(
   points: readonly T[],
   timestampMs: number,

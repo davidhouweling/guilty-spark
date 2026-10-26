@@ -900,7 +900,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(model.chart.points).toBe(input.viewData.points);
     });
 
-    it("mirrors the advantage axis around the widest lead, never narrower than one player", () => {
+    it("mirrors the advantage axis around the widest lead", () => {
       const { store, presenter } = makePresenter();
       store.update({ showPlayerAdvantage: true });
       const present = (minScore: number, maxScore: number): readonly [number, number] | null =>
@@ -912,7 +912,7 @@ describe("ScoreProgressionPresenter ctf", () => {
         ).chart.advantageDomain;
 
       expect(present(-1, 3)).toEqual([-3, 3]);
-      expect(present(0, 0)).toEqual([-1, 1]);
+      expect(present(-2, 1)).toEqual([-2, 2]);
     });
 
     it("shares the toggle state with the score charts", () => {

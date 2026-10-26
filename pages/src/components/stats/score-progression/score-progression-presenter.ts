@@ -157,7 +157,7 @@ export class ScoreProgressionPresenter {
         runs: viewData.runs,
         points: viewData.points,
         advantageDomain:
-          playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore, 1) : null,
+          playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore) : null,
         tooltipFormatter: (value, name): [string, string] =>
           this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
             this.formatFlagProgressTooltip(value, name),
@@ -168,10 +168,9 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  // a domain mirrored around zero so its zero line meets the other axis's; the flag chart asks
-  // for at least one player either side so a dead-even match still gets ticks
-  private mirrorDomain(minScore: number, maxScore: number, floor = 0): readonly [number, number] {
-    const extent = Math.max(Math.abs(minScore), Math.abs(maxScore), floor);
+  // a domain mirrored around zero so its zero line meets the other axis's
+  private mirrorDomain(minScore: number, maxScore: number): readonly [number, number] {
+    const extent = Math.max(Math.abs(minScore), Math.abs(maxScore));
     return [-extent, extent];
   }
 

@@ -76,7 +76,7 @@ export function FlagRunsChart({
             />
           ) : null,
         )}
-        {advantageDomain != null && <Area {...playerAdvantageAreaProps()} dataKey={FLAG_ADVANTAGE_KEY} />}
+        {advantageDomain != null && <Area {...playerAdvantageAreaProps(FLAG_ADVANTAGE_KEY)} />}
         {runs.flatMap((run) =>
           run.markers.map((marker, markerIndex) => (
             <ReferenceDot

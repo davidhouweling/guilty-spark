@@ -1,10 +1,10 @@
 import React from "react";
 import classNames from "classnames";
-import { Checkbox } from "../../../checkbox/checkbox";
 import { ChartFrame } from "../chart-frame/chart-frame";
 import { FlagRunMarker } from "../flag-runs-chart/flag-run-marker/flag-run-marker";
 import { FlagRunsChart } from "../flag-runs-chart/flag-runs-chart";
 import { LegendItem } from "../legend-item/legend-item";
+import { PlayerAdvantageToggle } from "../player-advantage-toggle/player-advantage-toggle";
 import type { FlagRunsViewModel } from "../types";
 import styles from "../score-progression.module.css";
 
@@ -30,7 +30,7 @@ export function FlagRunsCharts({
       toolbarExtras={
         hasPlayerAdvantage ? (
           <div className={styles.toolbarToggles}>
-            <Checkbox checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} label="Player Advantage" />
+            <PlayerAdvantageToggle checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} />
           </div>
         ) : undefined
       }

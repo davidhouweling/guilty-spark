@@ -397,8 +397,11 @@ export function formatScoreProgression(
       const scoreLines =
         captureEvents.length > 0 ? buildStepScoreLines(captureEvents, teams, playerAdvantage, durationMs) : null;
       const flagTeamIds = resolveFlagTeamIds(teams.teamIds);
-      const runs = flagTeamIds == null ? [] : buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      if (flagTeamIds == null || runs.length === 0) {
+      if (flagTeamIds == null) {
+        return scoreLines;
+      }
+      const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
+      if (runs.length === 0) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;

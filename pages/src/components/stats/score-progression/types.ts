@@ -262,8 +262,6 @@ export interface TimelineGanttChartViewModel {
 export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
-  // the rows carry the advantage under FLAG_ADVANTAGE_KEY whenever the match has one;
-  // advantageDomain says whether to draw it
   readonly points: readonly FlagRunsChartPoint[];
   readonly advantageDomain: readonly [number, number] | null;
   readonly tooltipFormatter: TooltipFormatter;

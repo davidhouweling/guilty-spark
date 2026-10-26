@@ -107,9 +107,9 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
-interface AdvantageAreaProps {
+interface AdvantageAreaProps<K extends string> {
   yAxisId: string;
-  dataKey: "score";
+  dataKey: K;
   name: string;
   fill: "none";
   stroke: string;
@@ -120,10 +120,10 @@ interface AdvantageAreaProps {
   baseValue: number;
 }
 
-function advantageAreaProps(name: string, stroke: string): AdvantageAreaProps {
+function advantageAreaProps<K extends string>(name: string, stroke: string, dataKey: K): AdvantageAreaProps<K> {
   return {
     yAxisId: "advantage",
-    dataKey: "score",
+    dataKey,
     name,
     fill: "none",
     stroke,
@@ -137,12 +137,12 @@ function advantageAreaProps(name: string, stroke: string): AdvantageAreaProps {
 
 // the (series name, stroke) pairing is defined once so the tooltip-dispatch key can never be
 // paired with the wrong colour at a call site
-export function playerAdvantageAreaProps(): AdvantageAreaProps {
-  return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE);
+export function playerAdvantageAreaProps<K extends string>(dataKey: K): AdvantageAreaProps<K> {
+  return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE, dataKey);
 }
 
-export function zoneAdvantageAreaProps(): AdvantageAreaProps {
-  return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE);
+export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
+  return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE, "score");
 }
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
