@@ -477,28 +477,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Not Found", { status: 404 });
     }
 
-    let embedData: LiveTrackerEmbedData | undefined;
-    if (Object.keys(trackerState.discoveredMatches).length > 0) {
-      try {
-        embedData = await this.buildEnrichedEmbedData(trackerState, {
-          status: "stopped",
-          isPaused: false,
-        });
-      } catch (error) {
-        this.logService.warn(
-          "LiveTracker: Failed to enrich stop response, returning basic state",
-          new Map([["error", String(error)]]),
-        );
-      }
-    }
-
-    embedData ??= await this.buildBasicEmbedData(trackerState, { status: "stopped", isPaused: false });
-
     trackerState.status = "stopped";
 
     await this.dispose(trackerState, "Explicitly stopped via handleStop");
 
-    return this.createStopResponse(trackerState, embedData);
+    return this.createStopResponse(trackerState);
   }
 
   private async handleRefresh(request: Request): Promise<Response> {
@@ -1030,10 +1013,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
   }
 
-  private createStopResponse(state: LiveTrackerState, embedData?: LiveTrackerEmbedData): Response {
-    return liveTrackerStopContract.toResponse(
-      embedData ? { success: true, state, embedData } : { success: true, state },
-    );
+  private createStopResponse(state: LiveTrackerState): Response {
+    return liveTrackerStopContract.toResponse({ success: true, state });
   }
 
   private createRefreshSuccessResponse(state: LiveTrackerState): Response {
