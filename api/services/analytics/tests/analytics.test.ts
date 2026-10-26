@@ -504,7 +504,7 @@ describe("AnalyticsService.getBatchMatchAnalytics", () => {
     expect(ctfTimeline?.events).toEqual([{ timestampMs: 95000, teamId: 1, runningScores: { "0": 0, "1": 1 } }]);
     expect(ctfTimeline?.runs).toEqual([run]);
     expect(ctfTimeline?.deathTimeline).toEqual([{ timestampMs: 45000, teamId: 1 }]);
-    expect(ctfTimeline?.respawnDurationMs).toBe(10000);
+    expect(ctfTimeline?.respawnDurationMs).toBe(8000);
   });
 
   it("returns no scoreProgression, without retries or warnings, for a CTF lobby larger than the decoder supports", async () => {
