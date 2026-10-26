@@ -396,6 +396,8 @@ export function formatScoreProgression(
         runs,
         points: buildFlagRunsChartPoints(runs),
         legend: buildFlagRunLegend(teams.teamIds, teams.teamColorByTeamId),
+        teamNames: teams.teamIds.map((teamId) => getTeamName(teamId)),
+        playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),
         scoreLines,
       };
     }

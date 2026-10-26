@@ -10,6 +10,8 @@ export function aFakeFlagRunsChartViewModelWith(
     durationMs: 120000,
     runs,
     points: buildFlagRunsChartPoints(runs),
+    playerAdvantage: null,
+    advantageDomain: null,
     tooltipFormatter: (value): [string, string] => [String(value ?? ""), ""],
     ...overrides,
   };
@@ -24,8 +26,11 @@ export function aFakeFlagRunsViewModelWith(overrides: Partial<FlagRunsViewModel>
     showChartTypeSelect: false,
     legend: [{ key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" }],
     markerLegend: [{ kind: "drop", text: "Carrier killed" }],
+    hasPlayerAdvantage: false,
+    showPlayerAdvantage: false,
     chart: aFakeFlagRunsChartViewModelWith(),
     onChartTypeChange: (): void => undefined,
+    onPlayerAdvantageChange: (): void => undefined,
     ...overrides,
   };
 }

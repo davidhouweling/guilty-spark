@@ -777,6 +777,31 @@ describe("formatScoreProgression ctf", () => {
     expect(scoreLines?.playerAdvantage).not.toBeNull();
   });
 
+  it("exposes the player advantage and the ordered team names on the flag view", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS, 4));
+
+    expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
+    expect(result.playerAdvantage?.points.slice(0, 2)).toEqual([
+      { timestampMs: 0, score: 0 },
+      { timestampMs: 40000, score: -1 },
+    ]);
+    expect(result.playerAdvantage?.minScore).toBe(-4);
+  });
+
+  it("keeps the player advantage on the flag view when nobody captured", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [] })), TEAM_COLORS));
+
+    expect(result.scoreLines).toBeNull();
+    expect(result.playerAdvantage).not.toBeNull();
+  });
+
+  it("offers no player advantage on the flag view without a respawn duration", () => {
+    const timeline = aFakeCtfTimelineWith({ respawnDurationMs: null });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.playerAdvantage).toBeNull();
+  });
+
   it("offers no score line when nobody captured but still resolves the teams from the runs", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [] })), TEAM_COLORS));
 

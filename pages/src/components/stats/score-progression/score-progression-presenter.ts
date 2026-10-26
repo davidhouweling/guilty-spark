@@ -102,7 +102,7 @@ export class ScoreProgressionPresenter {
         return this.presentMode(snapshot, ariaLabel, {
           timelineOption: FLAG_RUNS_OPTION,
           presentTimeline: (chartTypeOptions): FlagRunsViewModel =>
-            this.presentFlagRuns(viewData, ariaLabel, chartTypeOptions),
+            this.presentFlagRuns(snapshot, viewData, ariaLabel, chartTypeOptions),
           scoreLines: viewData.scoreLines,
           defaultChartType: "timeline",
         });
@@ -133,10 +133,15 @@ export class ScoreProgressionPresenter {
   }
 
   private presentFlagRuns(
+    snapshot: ScoreProgressionSnapshot,
     viewData: CtfViewData,
     ariaLabel: string,
     chartTypeOptions: readonly ChartTypeOption[],
   ): FlagRunsViewModel {
+    const { showPlayerAdvantage } = snapshot;
+    const hasPlayerAdvantage = viewData.playerAdvantage != null;
+    const playerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
+    const [team0Name = "Team 1", team1Name = "Team 2"] = viewData.teamNames;
     return {
       kind: "flag-runs",
       ariaLabel,
@@ -145,14 +150,29 @@ export class ScoreProgressionPresenter {
       showChartTypeSelect: chartTypeOptions.length > 1,
       legend: viewData.legend,
       markerLegend: FLAG_MARKER_LEGEND,
+      hasPlayerAdvantage,
+      showPlayerAdvantage,
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
         points: viewData.points,
-        tooltipFormatter: (value, name): [string, string] => this.formatFlagProgressTooltip(value, name),
+        playerAdvantage,
+        advantageDomain: playerAdvantage != null ? this.buildSymmetricAdvantageDomain(playerAdvantage) : null,
+        tooltipFormatter: (value, name): [string, string] =>
+          this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+            this.formatFlagProgressTooltip(value, name),
+          ),
       },
       onChartTypeChange: this.onChartTypeChange,
+      onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
+  }
+
+  // the flag axis is fixed and mirrored around the home line, so the advantage axis mirrors too
+  // and both zero lines coincide
+  private buildSymmetricAdvantageDomain(advantage: PlayerAdvantageData): readonly [number, number] {
+    const extent = Math.max(Math.abs(advantage.minScore), Math.abs(advantage.maxScore), 1);
+    return [-extent, extent];
   }
 
   private formatFlagProgressTooltip(

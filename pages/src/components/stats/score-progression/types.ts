@@ -184,6 +184,9 @@ export interface CtfViewData {
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
   readonly legend: readonly FlagRunLegendEntry[];
+  // ordered like the legend: the team whose flag is drawn above first
+  readonly teamNames: readonly string[];
+  readonly playerAdvantage: PlayerAdvantageData | null;
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
@@ -259,6 +262,8 @@ export interface FlagRunsChartViewModel {
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
+  readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly advantageDomain: readonly [number, number] | null;
   readonly tooltipFormatter: TooltipFormatter;
 }
 
@@ -275,8 +280,11 @@ export interface FlagRunsViewModel {
   readonly showChartTypeSelect: boolean;
   readonly legend: readonly FlagRunLegendEntry[];
   readonly markerLegend: readonly FlagRunMarkerLegendEntry[];
+  readonly hasPlayerAdvantage: boolean;
+  readonly showPlayerAdvantage: boolean;
   readonly chart: FlagRunsChartViewModel;
   readonly onChartTypeChange: (value: string) => void;
+  readonly onPlayerAdvantageChange: (checked: boolean) => void;
 }
 
 export type ScoreProgressionViewModel = ScoreLinesViewModel | TimelineGanttChartViewModel | FlagRunsViewModel;

@@ -1,5 +1,6 @@
 import React from "react";
 import classNames from "classnames";
+import { Checkbox } from "../../../checkbox/checkbox";
 import { ChartFrame } from "../chart-frame/chart-frame";
 import { FlagRunMarker } from "../flag-runs-chart/flag-run-marker/flag-run-marker";
 import { FlagRunsChart } from "../flag-runs-chart/flag-runs-chart";
@@ -14,8 +15,11 @@ export function FlagRunsCharts({
   showChartTypeSelect,
   legend,
   markerLegend,
+  hasPlayerAdvantage,
+  showPlayerAdvantage,
   chart,
   onChartTypeChange,
+  onPlayerAdvantageChange,
 }: FlagRunsViewModel): React.ReactElement {
   return (
     <ChartFrame
@@ -23,6 +27,13 @@ export function FlagRunsCharts({
       chartType={effectiveChartType}
       chartTypeOptions={chartTypeOptions}
       showChartTypeSelect={showChartTypeSelect}
+      toolbarExtras={
+        hasPlayerAdvantage ? (
+          <div className={styles.toolbarToggles}>
+            <Checkbox checked={showPlayerAdvantage} onChange={onPlayerAdvantageChange} label="Player Advantage" />
+          </div>
+        ) : undefined
+      }
       footer={
         <>
           <div className={classNames(styles.markerLegend, styles.flagLegend)}>
