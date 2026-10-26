@@ -139,9 +139,12 @@ export class ScoreProgressionPresenter {
     chartTypeOptions: readonly ChartTypeOption[],
   ): FlagRunsViewModel {
     const { showPlayerAdvantage } = snapshot;
-    const hasPlayerAdvantage = viewData.playerAdvantage != null;
-    const playerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
-    const [team0Name, team1Name] = viewData.teamNames;
+    const { hasPlayerAdvantage, playerAdvantage: overlay } = this.resolvePlayerAdvantage(
+      snapshot,
+      viewData.advantageOverlay,
+    );
+    // the overlay draws the second team's lead above the home line, with that team's attacks
+    const [secondLeadsName, firstLeadsName] = [...viewData.teamNames].reverse();
     return {
       kind: "flag-runs",
       ariaLabel,
@@ -155,16 +158,26 @@ export class ScoreProgressionPresenter {
       chart: {
         durationMs: viewData.durationMs,
         runs: viewData.runs,
-        points: viewData.points,
-        advantageDomain:
-          playerAdvantage != null ? this.mirrorDomain(playerAdvantage.minScore, playerAdvantage.maxScore) : null,
+        points: overlay?.rows ?? viewData.points,
+        advantageDomain: overlay != null ? this.mirrorDomain(overlay.minScore, overlay.maxScore) : null,
         tooltipFormatter: (value, name): [string, string] =>
-          this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+          this.formatSeriesTooltip(value, name, secondLeadsName, firstLeadsName, () =>
             this.formatFlagProgressTooltip(value, name),
           ),
       },
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
+    };
+  }
+
+  // the toggle is offered when the match has an advantage and honoured only then
+  private resolvePlayerAdvantage<T>(
+    snapshot: ScoreProgressionSnapshot,
+    playerAdvantage: T | null,
+  ): { hasPlayerAdvantage: boolean; playerAdvantage: T | null } {
+    return {
+      hasPlayerAdvantage: playerAdvantage != null,
+      playerAdvantage: snapshot.showPlayerAdvantage ? playerAdvantage : null,
     };
   }
 
@@ -252,7 +265,10 @@ export class ScoreProgressionPresenter {
     // data) resolves to the progression chart
     const effectiveChartType: ChartType =
       chartType === "delta" && viewData.scoreDelta != null ? "delta" : "progression";
-    const effectivePlayerAdvantage = showPlayerAdvantage ? viewData.playerAdvantage : null;
+    const { hasPlayerAdvantage, playerAdvantage: effectivePlayerAdvantage } = this.resolvePlayerAdvantage(
+      snapshot,
+      viewData.playerAdvantage,
+    );
     const effectiveZoneAdvantage = showZoneAdvantage ? viewData.zoneAdvantage : null;
     // markers only draw on the progression chart, so the toggle hides on the delta view rather
     // than sitting inert
@@ -284,7 +300,6 @@ export class ScoreProgressionPresenter {
           }
         : null;
 
-    const hasPlayerAdvantage = viewData.playerAdvantage != null;
     const hasZoneAdvantage = viewData.zoneAdvantage != null;
     const showChartTypeSelect = chartTypeOptions.length > 1;
 

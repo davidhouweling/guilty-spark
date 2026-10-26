@@ -11,6 +11,7 @@ import type { TeamColor } from "../../team-colors/team-colors";
 import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
+  buildFlagAdvantageOverlay,
   buildFlagRunLegend,
   buildFlagRuns,
   buildFlagRunsChartPoints,
@@ -408,10 +409,10 @@ export function formatScoreProgression(
         kind: "ctf",
         durationMs,
         runs,
-        points: buildFlagRunsChartPoints(runs, playerAdvantage?.points ?? null),
+        points: buildFlagRunsChartPoints(runs),
         legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
         teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
-        playerAdvantage,
+        advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),
         scoreLines,
       };
     }

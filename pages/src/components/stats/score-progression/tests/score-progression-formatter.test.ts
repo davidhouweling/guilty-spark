@@ -777,41 +777,42 @@ describe("formatScoreProgression ctf", () => {
     expect(scoreLines?.playerAdvantage).not.toBeNull();
   });
 
-  it("exposes the player advantage and the ordered team names on the flag view", () => {
+  it("exposes the advantage overlay, second team's lead up, and the ordered team names on the flag view", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS, 4));
 
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
-    expect(result.playerAdvantage?.minScore).toBe(-4);
-    expect(result.playerAdvantage?.maxScore).toBe(4);
-    expect(result.points.map((point) => [point.timestampMs, point.playerAdvantage])).toEqual([
+    expect(result.advantageOverlay?.minScore).toBe(-4);
+    expect(result.advantageOverlay?.maxScore).toBe(4);
+    expect(result.advantageOverlay?.rows.map((row) => [row.timestampMs, row.playerAdvantage])).toEqual([
       [0, 0],
       [20000, 0],
       [30000, 0],
-      [40000, -1],
-      [45000, -1],
+      [40000, 1],
+      [45000, 1],
       [48000, 0],
       [60000, 0],
       [70000, 0],
       [80000, 0],
-      [90000, -1],
+      [90000, 1],
       [98000, 0],
       [100000, 0],
       [120000, 0],
     ]);
+    expect(result.advantageOverlay?.rows[3]?.run1).toBe(25 + (10000 / 15000) * 35);
   });
 
-  it("keeps the player advantage on the flag view when nobody captured", () => {
+  it("keeps the advantage overlay on the flag view when nobody captured", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [] })), TEAM_COLORS));
 
     expect(result.scoreLines).toBeNull();
-    expect(result.playerAdvantage).not.toBeNull();
+    expect(result.advantageOverlay).not.toBeNull();
   });
 
-  it("offers no player advantage on the flag view without a respawn duration", () => {
+  it("offers no advantage overlay on the flag view without a respawn duration", () => {
     const timeline = aFakeCtfTimelineWith({ respawnDurationMs: null });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
 
-    expect(result.playerAdvantage).toBeNull();
+    expect(result.advantageOverlay).toBeNull();
   });
 
   it("offers no score line when nobody captured but still resolves the teams from the runs", () => {
@@ -872,9 +873,8 @@ describe("formatScoreProgression ctf", () => {
     expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
   });
 
-  it("exposes the shared chart rows alongside the runs, without an advantage column when there is none", () => {
-    const timeline = aFakeCtfTimelineWith({ respawnDurationMs: null });
-    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+  it("exposes the shared chart rows alongside the runs, without the advantage stepped in", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
     expect(result.points).toHaveLength(8);
   });

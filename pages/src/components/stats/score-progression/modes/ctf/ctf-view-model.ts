@@ -4,12 +4,14 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
+  FlagAdvantageOverlay,
   FlagRunData,
   FlagRunLegendEntry,
   FlagRunMarkerData,
   FlagRunMarkerKind,
   FlagRunPoint,
   FlagRunsChartPoint,
+  PlayerAdvantageData,
   ScoreProgressionPoint,
 } from "../../types";
 
@@ -160,4 +162,24 @@ export function buildFlagRunsChartPoints(
     }
     return { ...row, timestampMs };
   });
+}
+
+function mirrorScore(point: ScoreProgressionPoint): ScoreProgressionPoint {
+  return { timestampMs: point.timestampMs, score: point.score === 0 ? 0 : -point.score };
+}
+
+// the chart's upper half is where the second team carries the first team's flag, so the second
+// team's lead is drawn positive to point the same way as its attacks
+export function buildFlagAdvantageOverlay(
+  runs: readonly FlagRunData[],
+  advantage: PlayerAdvantageData | null,
+): FlagAdvantageOverlay | null {
+  if (advantage == null) {
+    return null;
+  }
+  return {
+    minScore: -advantage.maxScore,
+    maxScore: -advantage.minScore,
+    rows: buildFlagRunsChartPoints(runs, advantage.points.map(mirrorScore)),
+  };
 }

@@ -8,6 +8,7 @@ import { aFakeScoreLinesViewDataWith } from "../fakes/score-lines-view-data.fake
 import { aFakeTeamLineWith } from "../fakes/team-line.fake";
 import { aFakeZoneStripDataWith } from "../fakes/zone-strip-data.fake";
 import { aFakeCtfViewDataWith } from "../fakes/ctf-view-data.fake";
+import { aFakeFlagAdvantageOverlayWith } from "../fakes/flag-advantage-overlay.fake";
 import type {
   KothHillData,
   OddballRoundData,
@@ -862,38 +863,39 @@ describe("ScoreProgressionPresenter ctf", () => {
   });
 
   describe("player advantage overlay", () => {
-    it("offers the toggle only when the view data carries a player advantage", () => {
+    it("offers the toggle only when the view data carries an advantage overlay", () => {
       const { store, presenter } = makePresenter();
 
       const without = asFlagRuns(
         presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
       );
-      const viewData = aFakeCtfViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() });
-      const withAdvantage = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
+      const viewData = aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith() });
+      const withOverlay = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
 
       expect(without.hasPlayerAdvantage).toBe(false);
-      expect(withAdvantage.hasPlayerAdvantage).toBe(true);
-      expect(withAdvantage.showPlayerAdvantage).toBe(false);
-      expect(withAdvantage.chart.points).toBe(viewData.points);
-      expect(withAdvantage.chart.advantageDomain).toBeNull();
+      expect(withOverlay.hasPlayerAdvantage).toBe(true);
+      expect(withOverlay.showPlayerAdvantage).toBe(false);
+      expect(withOverlay.chart.points).toBe(viewData.points);
+      expect(withOverlay.chart.advantageDomain).toBeNull();
     });
 
-    it("draws the overlay on an axis mirrored around the home line once toggled on, keeping the rows", () => {
+    it("swaps in the overlay rows on an axis mirrored around the home line once toggled on", () => {
       const { store, presenter } = makePresenter();
-      const input = { viewData: aFakeCtfViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() }), ariaLabel: "x" };
+      const advantageOverlay = aFakeFlagAdvantageOverlayWith();
+      const input = { viewData: aFakeCtfViewDataWith({ advantageOverlay }), ariaLabel: "x" };
 
       asFlagRuns(presenter.present(store.getSnapshot(), input)).onPlayerAdvantageChange(true);
       const model = asFlagRuns(presenter.present(store.getSnapshot(), input));
 
       expect(model.showPlayerAdvantage).toBe(true);
       expect(model.chart.advantageDomain).toEqual([-1, 1]);
-      expect(model.chart.points).toBe(input.viewData.points);
+      expect(model.chart.points).toBe(advantageOverlay.rows);
     });
 
-    it("keeps the overlay off for a match without an advantage even when the toggle is on", () => {
+    it("keeps the overlay off for a match without one even when the toggle is on", () => {
       const { store, presenter } = makePresenter();
       store.update({ showPlayerAdvantage: true });
-      const viewData = aFakeCtfViewDataWith({ playerAdvantage: null });
+      const viewData = aFakeCtfViewDataWith({ advantageOverlay: null });
 
       const model = asFlagRuns(presenter.present(store.getSnapshot(), { viewData, ariaLabel: "x" }));
 
@@ -908,7 +910,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       const present = (minScore: number, maxScore: number): readonly [number, number] | null =>
         asFlagRuns(
           presenter.present(store.getSnapshot(), {
-            viewData: aFakeCtfViewDataWith({ playerAdvantage: { ...aFakePlayerAdvantageData(), minScore, maxScore } }),
+            viewData: aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith({ minScore, maxScore }) }),
             ariaLabel: "x",
           }),
         ).chart.advantageDomain;
@@ -920,7 +922,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     it("shares the toggle state with the score charts", () => {
       const { store, presenter } = makePresenter();
       const viewData = aFakeCtfViewDataWith({
-        playerAdvantage: aFakePlayerAdvantageData(),
+        advantageOverlay: aFakeFlagAdvantageOverlayWith(),
         scoreLines: aFakeScoreLinesViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() }),
       });
 
@@ -932,18 +934,18 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(scoreLines.progressionViewModel.playerAdvantage).not.toBeNull();
     });
 
-    it("names the leading team in the Player Advantage tooltip and leaves run tooltips alone", () => {
+    it("names the second team as leading on a positive overlay value and leaves run tooltips alone", () => {
       const { store, presenter } = makePresenter();
       store.update({ showPlayerAdvantage: true });
       const model = asFlagRuns(
         presenter.present(store.getSnapshot(), {
-          viewData: aFakeCtfViewDataWith({ playerAdvantage: aFakePlayerAdvantageData() }),
+          viewData: aFakeCtfViewDataWith({ advantageOverlay: aFakeFlagAdvantageOverlayWith() }),
           ariaLabel: "x",
         }),
       );
 
-      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Eagle +1", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Cobra +2", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Cobra +1", "Player Advantage"]);
+      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Eagle +2", "Player Advantage"]);
       expect(model.chart.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
       expect(model.chart.tooltipFormatter(50, "Eagle flag · Cobra carrying")).toEqual([
         "50% of the way to the capture point",

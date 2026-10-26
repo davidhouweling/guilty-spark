@@ -178,18 +178,20 @@ export interface FlagRunLegendEntry {
 
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
+export interface FlagAdvantageOverlay {
+  readonly minScore: number;
+  readonly maxScore: number;
+  readonly rows: readonly FlagRunsChartPoint[];
+}
+
 export interface CtfViewData {
   readonly kind: "ctf";
   readonly durationMs: number;
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
   readonly legend: readonly FlagRunLegendEntry[];
-  // in the advantage's sign order: a positive lead belongs to the first team, whose flag the
-  // legend draws above
   readonly teamNames: readonly [string, string];
-  // the rows carry the advantage under FLAG_ADVANTAGE_KEY whenever this is set; the toggle only
-  // adds the axis and the series, so the run areas keep their data between toggles
-  readonly playerAdvantage: PlayerAdvantageData | null;
+  readonly advantageOverlay: FlagAdvantageOverlay | null;
   readonly scoreLines: ScoreLinesViewData | null;
 }
 
