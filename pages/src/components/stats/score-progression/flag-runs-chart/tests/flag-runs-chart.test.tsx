@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { FlagRunsChart } from "../flag-runs-chart";
 import { aFakeFlagRunDataWith } from "../../fakes/flag-run-data.fake";
-import { aFakeFlagAdvantageDataWith } from "../../fakes/flag-advantage-data.fake";
 import { aFakeFlagRunsChartViewModelWith } from "../../fakes/flag-runs-view-model.fake";
 
 afterEach(() => {
@@ -87,7 +86,14 @@ describe("FlagRunsChart", () => {
   });
 
   it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
-    const { points } = aFakeFlagAdvantageDataWith();
+    const points = [
+      { timestampMs: 0, run1: null, playerAdvantage: 0 },
+      { timestampMs: 20000, run1: 0, playerAdvantage: 0 },
+      { timestampMs: 30000, run1: 25, playerAdvantage: -1 },
+      { timestampMs: 45000, run1: 60, playerAdvantage: -1 },
+      { timestampMs: 60000, run1: 100, playerAdvantage: -1 },
+      { timestampMs: 120000, run1: null, playerAdvantage: -1 },
+    ];
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ points, advantageDomain: [-1, 1] })} />);
 
     expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "6");

@@ -783,7 +783,7 @@ describe("formatScoreProgression ctf", () => {
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
     expect(result.playerAdvantage?.minScore).toBe(-4);
     expect(result.playerAdvantage?.maxScore).toBe(4);
-    expect(result.playerAdvantage?.points.map((point) => [point.timestampMs, point.playerAdvantage])).toEqual([
+    expect(result.points.map((point) => [point.timestampMs, point.playerAdvantage])).toEqual([
       [0, 0],
       [20000, 0],
       [30000, 0],
@@ -872,8 +872,9 @@ describe("formatScoreProgression ctf", () => {
     expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
   });
 
-  it("exposes the shared chart rows alongside the runs, without the advantage stepped in", () => {
-    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS));
+  it("exposes the shared chart rows alongside the runs, without an advantage column when there is none", () => {
+    const timeline = aFakeCtfTimelineWith({ respawnDurationMs: null });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.points.at(0)).toEqual({ timestampMs: 20000, run1: 0, run2: null });
     expect(result.points).toHaveLength(8);
   });

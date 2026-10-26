@@ -23,13 +23,11 @@ export interface ScoreDeltaData {
   readonly lineType: "step" | "linear";
 }
 
-export interface AdvantageData<TPoint> {
-  readonly points: readonly TPoint[];
+export interface PlayerAdvantageData {
+  readonly points: readonly ScoreProgressionPoint[];
   readonly minScore: number;
   readonly maxScore: number;
 }
-
-export type PlayerAdvantageData = AdvantageData<ScoreProgressionPoint>;
 
 export interface ScoreMarkerData {
   readonly timestampMs: number;
@@ -180,8 +178,6 @@ export interface FlagRunLegendEntry {
 
 export type FlagRunsChartPoint = { readonly timestampMs: number } & Readonly<Record<string, number | null>>;
 
-export type FlagAdvantageData = AdvantageData<FlagRunsChartPoint>;
-
 export interface CtfViewData {
   readonly kind: "ctf";
   readonly durationMs: number;
@@ -191,7 +187,9 @@ export interface CtfViewData {
   // in the advantage's sign order: a positive lead belongs to the first team, whose flag the
   // legend draws above
   readonly teamNames: readonly [string, string];
-  readonly playerAdvantage: FlagAdvantageData | null;
+  // the rows carry the advantage under FLAG_ADVANTAGE_KEY whenever this is set; the toggle only
+  // adds the axis and the series, so the run areas keep their data between toggles
+  readonly playerAdvantage: PlayerAdvantageData | null;
   readonly scoreLines: ScoreLinesViewData | null;
 }
 

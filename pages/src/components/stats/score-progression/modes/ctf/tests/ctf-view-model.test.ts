@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfFlagRunWith } from "../fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
-import { buildFlagAdvantage, buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "../ctf-view-model";
+import { buildFlagRunLegend, buildFlagRuns, buildFlagRunsChartPoints } from "../ctf-view-model";
 
 const TEAM_IDS = [0, 1] as const;
 const COLORS = new Map([
@@ -303,38 +303,5 @@ describe("buildFlagRunsChartPoints", () => {
       run1: 60 + ((50000 - 45000) / 15000) * 40,
       run2: 0,
     });
-  });
-});
-
-describe("buildFlagAdvantage", () => {
-  it("keeps the advantage extents and steps the advantage into the run rows", () => {
-    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
-    const advantage = buildFlagAdvantage(runs, {
-      points: [
-        { timestampMs: 0, score: 0 },
-        { timestampMs: 40000, score: 1 },
-      ],
-      minScore: -4,
-      maxScore: 4,
-    });
-
-    expect(advantage?.minScore).toBe(-4);
-    expect(advantage?.maxScore).toBe(4);
-    expect(advantage?.points.map((point) => [point.timestampMs, point.playerAdvantage])).toEqual([
-      [0, 0],
-      [20000, 0],
-      [30000, 0],
-      [40000, 1],
-      [45000, 1],
-      [60000, 1],
-      [70000, 1],
-      [80000, 1],
-      [90000, 1],
-      [100000, 1],
-    ]);
-  });
-
-  it("is null without a player advantage", () => {
-    expect(buildFlagAdvantage([], null)).toBeNull();
   });
 });

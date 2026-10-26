@@ -4,14 +4,12 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
-  FlagAdvantageData,
   FlagRunData,
   FlagRunLegendEntry,
   FlagRunMarkerData,
   FlagRunMarkerKind,
   FlagRunPoint,
   FlagRunsChartPoint,
-  PlayerAdvantageData,
   ScoreProgressionPoint,
 } from "../../types";
 
@@ -162,18 +160,4 @@ export function buildFlagRunsChartPoints(
     }
     return { ...row, timestampMs };
   });
-}
-
-export function buildFlagAdvantage(
-  runs: readonly FlagRunData[],
-  advantage: PlayerAdvantageData | null,
-): FlagAdvantageData | null {
-  if (advantage == null) {
-    return null;
-  }
-  return {
-    minScore: advantage.minScore,
-    maxScore: advantage.maxScore,
-    points: buildFlagRunsChartPoints(runs, advantage.points),
-  };
 }
