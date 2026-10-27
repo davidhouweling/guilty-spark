@@ -35,8 +35,10 @@ export class XboxService {
   private readonly env: Env;
   private readonly authenticate: typeof authenticate;
   private static readonly TOKEN_NAME = "xboxToken";
+  private static readonly PROFILE_TOKEN_NAME = "xboxProfileToken";
 
   tokenInfo: TokenInfo | null = null;
+  private profileTokenInfo: TokenInfo | null = null;
 
   constructor({ env, authenticate }: XboxServiceOpts) {
     this.env = env;
@@ -145,12 +147,10 @@ export class XboxService {
       throw new Error("Gamertag cannot be empty");
     }
 
-    await this.maybeRefreshXstsToken();
-    return this.withUnauthorizedRetry(async () => this.fetchUserByGamertag(gamertag));
+    return this.withProfileToken(async (tokenInfo) => this.fetchUserByGamertag(gamertag, tokenInfo));
   }
 
-  private async fetchUserByGamertag(gamertag: string): Promise<XboxUserInfo> {
-    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
+  private async fetchUserByGamertag(gamertag: string, tokenInfo: TokenInfo): Promise<XboxUserInfo> {
     const response = await XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
       `https://profile.xboxlive.com/users/gt(${gamertag})/profile/settings?settings=Gamertag`,
       {
@@ -164,17 +164,36 @@ export class XboxService {
     return profileUserToXboxUserInfo(profileUser);
   }
 
-  private async withUnauthorizedRetry<T>(fetch: () => Promise<T>): Promise<T> {
+  private async withProfileToken<T>(fetch: (tokenInfo: TokenInfo) => Promise<T>): Promise<T> {
     try {
-      return await fetch();
+      return await fetch(await this.getProfileToken());
     } catch (err) {
       if (this.isUnauthorizedError(err)) {
-        await this.clearToken();
-        await this.updateCredentials();
-        return fetch();
+        await this.clearProfileToken();
+        return fetch(await this.getProfileToken());
       }
       throw err;
     }
+  }
+
+  private async getProfileToken(): Promise<TokenInfo> {
+    if (this.profileTokenInfo == null || this.isExpired(this.profileTokenInfo)) {
+      this.profileTokenInfo = await this.env.APP_DATA.get<TokenInfo>(XboxService.PROFILE_TOKEN_NAME, "json");
+    }
+    if (this.profileTokenInfo == null || this.isExpired(this.profileTokenInfo)) {
+      this.profileTokenInfo = await this.authenticateForRelyingParty(XBOX_LIVE_XSTS_RELYING_PARTY);
+      await this.storeToken(XboxService.PROFILE_TOKEN_NAME, this.profileTokenInfo);
+    }
+    return this.profileTokenInfo;
+  }
+
+  private async clearProfileToken(): Promise<void> {
+    this.profileTokenInfo = null;
+    await this.env.APP_DATA.delete(XboxService.PROFILE_TOKEN_NAME);
+  }
+
+  private isExpired(tokenInfo: TokenInfo): boolean {
+    return new Date() >= new Date(tokenInfo.expiresOn);
   }
 
   private isUnauthorizedError(err: unknown): boolean {
@@ -186,63 +205,45 @@ export class XboxService {
       return [];
     }
 
-    await this.maybeRefreshXstsToken();
-    return this.withUnauthorizedRetry(async () => this.fetchUsersByXuids(xuids));
+    return this.withProfileToken(async (tokenInfo) => this.fetchUsersByXuids(xuids, tokenInfo));
   }
 
-  private async fetchUsersByXuids(xuids: string[]): Promise<XboxUserInfo[]> {
-    const tokenInfo = Preconditions.checkExists(this.tokenInfo, "Xbox token info is not loaded");
-
-    const response = await Promise.allSettled(
-      xuids.map(async (xuid) =>
-        XSAPIClient.get<{ profileUsers: ProfileUser[] }>(
-          `https://profile.xboxlive.com/users/xuid(${xuid})/profile/settings?settings=Gamertag`,
-          {
-            options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
-          },
-        ),
-      ),
+  private async fetchUsersByXuids(xuids: string[], tokenInfo: TokenInfo): Promise<XboxUserInfo[]> {
+    const response = await XSAPIClient.post<{ profileUsers: ProfileUser[] }>(
+      "https://profile.xboxlive.com/users/batch/profile/settings",
+      { userIds: xuids, settings: ["Gamertag"] },
+      {
+        options: { contractVersion: 2, userHash: tokenInfo.userHash, XSTSToken: tokenInfo.XSTSToken },
+      },
     );
 
-    const unauthorizedResult = response.find(
-      (r): r is PromiseRejectedResult => r.status === "rejected" && this.isUnauthorizedError(r.reason),
-    );
-    if (unauthorizedResult != null) {
-      throw unauthorizedResult.reason;
-    }
-
-    return response
-      .map((res) => {
-        if (res.status === "rejected") {
-          return null;
-        }
-        const [profileUser] = res.value.data.profileUsers;
-        if (!profileUser) {
-          return null;
-        }
-
-        return profileUserToXboxUserInfo(profileUser);
-      })
-      .filter((user): user is XboxUserInfo => user !== null);
+    return response.data.profileUsers.map((profileUser) => profileUserToXboxUserInfo(profileUser));
   }
 
   private async updateCredentials(): Promise<void> {
+    this.tokenInfo = await this.authenticateForRelyingParty(HALO_XSTS_RELYING_PARTY);
+    await this.storeToken(XboxService.TOKEN_NAME, this.tokenInfo);
+  }
+
+  private async authenticateForRelyingParty(relyingParty: string): Promise<TokenInfo> {
     const credentialsResponse = await this.authenticate(
       this.env.XBOX_USERNAME as `${string}@${string}.${string}`,
       this.env.XBOX_PASSWORD,
       {
-        XSTSRelyingParty: HALO_XSTS_RELYING_PARTY,
+        XSTSRelyingParty: relyingParty,
       },
     );
 
-    this.tokenInfo = {
+    return {
       XSTSToken: credentialsResponse.xsts_token,
       userHash: credentialsResponse.user_hash,
       expiresOn: new Date(credentialsResponse.expires_on),
     };
+  }
 
-    await this.env.APP_DATA.put(XboxService.TOKEN_NAME, JSON.stringify(this.tokenInfo), {
-      expirationTtl: differenceInSeconds(this.tokenInfo.expiresOn, new Date()),
+  private async storeToken(name: string, tokenInfo: TokenInfo): Promise<void> {
+    await this.env.APP_DATA.put(name, JSON.stringify(tokenInfo), {
+      expirationTtl: differenceInSeconds(tokenInfo.expiresOn, new Date()),
     });
   }
 }
