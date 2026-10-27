@@ -105,9 +105,12 @@ for (const [i, period] of hillPeriods.entries()) {
     events.findLast((e) => e.timestampMs <= timestampMs && String(teamId) in e.runningScores)?.runningScores[
       String(teamId)
     ] ?? 0;
+  // the first hill owns an event stamped on the match start; later hills start on a capture event
+  // that belongs to the hill before
+  const baselineAt = (teamId: number): number => (period.startMs === 0 ? 0 : cumulativeAt(teamId, period.startMs));
   const meters = TEAM_COLORS.map((t) => ({
     name: t.name,
-    ticks: cumulativeAt(t.teamId, period.endMs) - cumulativeAt(t.teamId, period.startMs),
+    ticks: cumulativeAt(t.teamId, period.endMs) - baselineAt(t.teamId),
   }));
 
   const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks`).join(", ");

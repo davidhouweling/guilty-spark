@@ -172,22 +172,32 @@ export function formatScoreValue(value: number, unit: ScoreUnit): string {
   return unit === "percent" ? `${String(Math.sign(value) * Math.round(Math.abs(value)))}%` : String(value);
 }
 
+const PERCENT_AXIS_WIDTH = 40;
+const SCORE_AXIS_WIDTH = 36;
+
 export function scoreAxisProps(unit: ScoreUnit): {
   domain: [number, number] | undefined;
   ticks: number[] | undefined;
+  width: number;
   tickFormatter: (value: number) => string;
 } {
   return {
     domain: unit === "percent" ? [0, 100] : undefined,
     ticks: unit === "percent" ? [...PERCENT_AXIS_TICKS] : undefined,
+    width: unit === "percent" ? PERCENT_AXIS_WIDTH : SCORE_AXIS_WIDTH,
     tickFormatter: (value: number): string => formatScoreValue(value, unit),
   };
+}
+
+export function deltaAxisProps(unit: ScoreUnit): { width: number; tickFormatter: (value: number) => string } {
+  const { width, tickFormatter } = scoreAxisProps(unit);
+  return { width, tickFormatter };
 }
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
 
 function formatFlagAxisTick(value: number): string {
-  return value === 0 ? "home" : `${String(Math.abs(value))}%`;
+  return value === 0 ? "home" : formatScoreValue(Math.abs(value), "percent");
 }
 
 export function flagAxisProps(): {
@@ -196,5 +206,10 @@ export function flagAxisProps(): {
   width: number;
   tickFormatter: (value: number) => string;
 } {
-  return { domain: [-100, 100], ticks: [...FLAG_AXIS_TICKS], width: 40, tickFormatter: formatFlagAxisTick };
+  return {
+    domain: [-100, 100],
+    ticks: [...FLAG_AXIS_TICKS],
+    width: PERCENT_AXIS_WIDTH,
+    tickFormatter: formatFlagAxisTick,
+  };
 }

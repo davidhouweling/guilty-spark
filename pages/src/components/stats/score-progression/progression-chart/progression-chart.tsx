@@ -46,7 +46,7 @@ export function ProgressionChart({
       <AreaChart margin={margin}>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
-        <YAxis {...scoreAxisProps(scoreUnit)} allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        <YAxis {...scoreAxisProps(scoreUnit)} allowDecimals={false} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         {roundBoundaries.map((boundaryMs) => (
           <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />

@@ -514,7 +514,6 @@ export class ScoreProgressionPresenter {
     team1Name: string,
     scoreScale: ScoreScale,
   ): [string, string] {
-    // a percent lead that rounds to nothing reads as tied rather than "+0%"
     const shown = typeof value === "number" && scoreScale.unit === "percent" ? Math.round(value) : value;
     return this.formatLeaderTooltip(
       shown,

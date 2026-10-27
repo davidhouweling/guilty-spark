@@ -1,12 +1,10 @@
-import type { KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { KothEvent, KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { KOTH_FULL_METER_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { carryScoresForward, zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
-
-type KothScoreEvent = KothTimeline["events"][number];
 
 const MIN_TRAILING_HILL_MS = 2_000;
 const FULL_METER_PERCENT = 100;
@@ -67,15 +65,16 @@ export interface KothHillEvent {
 
 export interface KothHillWindow extends KothHillPeriod {
   readonly events: readonly KothHillEvent[];
-  readonly hillTicks: Record<string, number>;
   readonly meter: KothHillMeter;
 }
 
 interface ScannedHill extends KothHillPeriod {
   readonly events: readonly KothHillEvent[];
-  readonly hillTicks: Record<string, number>;
   readonly winnerTeamId: number | null;
-  readonly winnerTicks: number;
+}
+
+function hillTicksOf(events: readonly KothHillEvent[], teamId: number): number {
+  return events.at(-1)?.ticksByTeam[String(teamId)] ?? 0;
 }
 
 function ticksSince(
@@ -98,7 +97,7 @@ interface HillScan {
 }
 
 function scanHillEvents(
-  events: readonly KothScoreEvent[],
+  events: readonly KothEvent[],
   fromIndex: number,
   untilMs: number,
   cumulative: Record<string, number>,
@@ -136,30 +135,35 @@ function scanHills(timeline: KothTimeline, teamIds: readonly number[], durationM
     // so they belong to the hill rather than being dropped
     const scan = scanHillEvents(events, cursor, period.captureTs ?? period.endMs, cumulative, keys);
     cursor = scan.nextIndex;
-    const hillTicks = scan.events.at(-1)?.ticksByTeam ?? zeroScores(teamIds);
     const winnerTeamId = period.captureTs != null ? findCaptureWinnerTeamId(scan.events, period.captureTs) : null;
-    const winnerTicks = winnerTeamId == null ? 0 : (hillTicks[String(winnerTeamId)] ?? 0);
-    hills.push({ ...period, events: scan.events, hillTicks, winnerTeamId, winnerTicks });
+    hills.push({ ...period, events: scan.events, winnerTeamId });
   }
   return hills;
+}
+
+function winnerTicksOf(hill: ScannedHill): number {
+  return hill.winnerTeamId == null ? 0 : hillTicksOf(hill.events, hill.winnerTeamId);
 }
 
 // A captured hill's meter filled by definition however many of its ticks the film kept (the
 // capture solver accepts as few as 5 recorded ticks, and more than the nominal 8 can be
 // recorded), so the winner's ticks at the capture are that hill's full meter. A hill without
-// one reads against the match's typical capture, or the nominal meter when nothing was captured.
+// them reads against the match's typical capture, or the nominal meter when nothing was captured.
 export function buildKothHillWindows(
   timeline: KothTimeline,
   teamIds: readonly number[],
   durationMs: number,
 ): KothHillWindow[] {
   const hills = scanHills(timeline, teamIds, durationMs);
-  const typicalCaptureTicks =
-    median(hills.filter((hill) => hill.winnerTicks > 0).map((hill) => hill.winnerTicks)) ?? KOTH_FULL_METER_TICKS;
-  return hills.map(({ winnerTeamId, winnerTicks, ...hill }) => ({
-    ...hill,
-    meter: { winnerTeamId, ticksPerFullMeter: winnerTicks > 0 ? winnerTicks : typicalCaptureTicks },
-  }));
+  const recordedCaptureTicks = hills.map(winnerTicksOf).filter((ticks) => ticks > 0);
+  const typicalCaptureTicks = median(recordedCaptureTicks) ?? KOTH_FULL_METER_TICKS;
+  return hills.map(({ winnerTeamId, ...period }) => {
+    const winnerTicks = winnerTicksOf({ ...period, winnerTeamId });
+    return {
+      ...period,
+      meter: { winnerTeamId, ticksPerFullMeter: winnerTicks > 0 ? winnerTicks : typicalCaptureTicks },
+    };
+  });
 }
 
 export interface KothScoreSeries {
@@ -167,13 +171,21 @@ export interface KothScoreSeries {
   readonly hillBoundaries: readonly number[];
 }
 
+// the winner's meter completed by definition at the capture, even when the film kept none of
+// its ticks
 function toMeterPercents(
-  ticksByTeam: Record<string, number>,
+  event: KothHillEvent,
+  hillWindow: KothHillWindow,
   teamIds: readonly number[],
-  meter: KothHillMeter,
 ): Record<string, number> {
+  const { meter, captureTs } = hillWindow;
   return Object.fromEntries(
-    teamIds.map((teamId) => [String(teamId), toMeterPercent(ticksByTeam[String(teamId)] ?? 0, teamId, meter)]),
+    teamIds.map((teamId) => [
+      String(teamId),
+      teamId === meter.winnerTeamId && event.timestampMs === captureTs
+        ? FULL_METER_PERCENT
+        : toMeterPercent(event.ticksByTeam[String(teamId)] ?? 0, teamId, meter),
+    ]),
   );
 }
 
@@ -195,7 +207,7 @@ export function buildKothScoreSeries(
     for (const event of hillWindow.events) {
       samples.push({
         timestampMs: Math.min(event.timestampMs, durationMs),
-        runningScores: toMeterPercents(event.ticksByTeam, teamIds, hillWindow.meter),
+        runningScores: toMeterPercents(event, hillWindow, teamIds),
       });
     }
   }
@@ -257,7 +269,7 @@ function buildCaptureMeterPercentage(hillWindow: KothHillWindow, teamId: number)
   if (teamId === hillWindow.meter.winnerTeamId) {
     return FULL_METER_PERCENT;
   }
-  return Math.round(toMeterPercent(hillWindow.hillTicks[String(teamId)] ?? 0, teamId, hillWindow.meter));
+  return Math.round(toMeterPercent(hillTicksOf(hillWindow.events, teamId), teamId, hillWindow.meter));
 }
 
 export function buildKothHills(

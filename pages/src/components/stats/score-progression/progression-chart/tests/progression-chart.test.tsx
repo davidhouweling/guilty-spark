@@ -32,13 +32,21 @@ vi.mock("recharts", () => ({
   YAxis: ({
     yAxisId,
     domain,
+    width,
     tickFormatter,
   }: {
     yAxisId?: string;
     domain?: readonly [number, number];
+    width?: number;
     tickFormatter?: (value: number) => string;
   }): React.ReactElement => (
-    <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} data-tick={tickFormatter?.(50)} />
+    <div
+      data-testid="y-axis"
+      data-axis={yAxisId}
+      data-domain={domain?.join(",")}
+      data-width={width}
+      data-tick={tickFormatter?.(50)}
+    />
   ),
   Tooltip: (): null => null,
   Area: ({ name }: { name: string }): React.ReactElement => <div data-testid="area">{name}</div>,
@@ -136,6 +144,7 @@ describe("ProgressionChart", () => {
     const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
     expect(scoreAxis).toHaveAttribute("data-domain", "0,100");
     expect(scoreAxis).toHaveAttribute("data-tick", "50%");
+    expect(scoreAxis).toHaveAttribute("data-width", "40");
   });
 
   it("leaves a points score axis to size itself with plain ticks", () => {

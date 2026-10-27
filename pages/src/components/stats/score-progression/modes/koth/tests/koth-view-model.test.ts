@@ -280,6 +280,18 @@ describe("buildKothHills", () => {
     expect(trailing.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 25]);
   });
 
+  it("fills a tickless winner's meter on the capture event in the score lines too", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "1": 2 } },
+      ],
+      hillCaptureTimestamps: [10000],
+    });
+    const { samples } = buildSeries(timeline);
+    expect(samples.find((sample) => sample.timestampMs === 10000)?.runningScores).toEqual({ "0": 100, "1": 25 });
+  });
+
   it("reads an early tickless capture against captures recorded later in the match", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
@@ -459,11 +471,6 @@ describe("buildKothHillWindows", () => {
       [32500, 1, { "0": 0, "1": 1 }],
       [45000, 1, { "0": 0, "1": 2 }],
       [55000, 1, { "0": 0, "1": 3 }],
-    ]);
-    expect(windows.map((hillWindow) => hillWindow.hillTicks)).toEqual([
-      { "0": 4, "1": 1 },
-      { "0": 0, "1": 3 },
-      { "0": 0, "1": 0 },
     ]);
     expect(windows.map((hillWindow) => hillWindow.meter)).toEqual([
       { winnerTeamId: 0, ticksPerFullMeter: 4 },
