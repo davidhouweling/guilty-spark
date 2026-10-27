@@ -880,7 +880,7 @@ describe("createResilientFetch", () => {
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
 
-      expect(logServiceDebugSpy).not.toHaveBeenCalled();
+      expect(logServiceDebugSpy).not.toHaveBeenCalledWith(expect.stringContaining("Cache "), expect.anything());
     });
   });
 
@@ -1008,6 +1008,54 @@ describe("createResilientFetch", () => {
       );
     });
 
+    it("caches immutable match stats for 7 days even when cache-control is private", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          body: { MatchId: "abc-123" },
+          headers: { "content-type": "application/json", "cache-control": "private, max-age=60" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/hi/matches/abc-123/stats");
+
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        "halo:responses:https://halostats.svc.halowaypoint.com/hi/matches/abc-123/stats",
+        expect.any(String),
+        { expirationTtl: 604800 },
+      );
+    });
+
+    it("logs the reason when a response is not cached", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json", "cache-control": "no-store" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+
+      expect(logServiceDebugSpy).toHaveBeenCalledWith(
+        "KV cache skip for https://halostats.svc.halowaypoint.com/test",
+        new Map([["reason", "cache-control no-store"]]),
+      );
+    });
+
     it("skips KV caching when input is a Request object with a non-GET method", async () => {
       kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(
@@ -1056,6 +1104,141 @@ describe("createResilientFetch", () => {
         expect.anything(),
         expect.anything(),
       );
+    });
+  });
+
+  describe("in-flight request sharing", () => {
+    const url = "https://halostats.svc.halowaypoint.com/hi/matches/abc-123/stats";
+
+    it("shares one network request between concurrent identical GETs", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          body: { MatchId: "abc-123" },
+          headers: { "content-type": "application/json" },
+        }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const [first, second] = await Promise.all([resilientFetch(url), resilientFetch(url)]);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(await first.json()).toEqual({ MatchId: "abc-123" });
+      expect(await second.json()).toEqual({ MatchId: "abc-123" });
+      expect(second.status).toBe(200);
+      expect(logServiceDebugSpy).toHaveBeenCalledWith(`Sharing in-flight request for ${url}`);
+    });
+
+    it("does not share between concurrent GETs with different headers", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockImplementation(async (_input, init) =>
+        Promise.resolve(
+          aFakeResponseWith({
+            status: 200,
+            body: { range: new Headers(init?.headers).get("range") },
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const [first, second, third] = await Promise.all([
+        resilientFetch(url, { headers: { Range: "bytes=0-9" } }),
+        resilientFetch(url, { headers: { Range: "bytes=10-19" } }),
+        resilientFetch(url, { headers: [["range", "bytes=0-9"]] }),
+      ]);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(await first.json()).toEqual({ range: "bytes=0-9" });
+      expect(await second.json()).toEqual({ range: "bytes=10-19" });
+      expect(await third.json()).toEqual({ range: "bytes=0-9" });
+    });
+
+    it("returns bodyless responses such as 204 without throwing", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(new Response(null, { status: 204 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const [first, second] = await Promise.all([resilientFetch(url), resilientFetch(url)]);
+
+      expect(first.status).toBe(204);
+      expect(second.status).toBe(204);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("makes a new request once the previous request has settled", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockImplementation(async () =>
+        Promise.resolve(aFakeResponseWith({ status: 200, body: {}, headers: { "content-type": "text/plain" } })),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch(url);
+      await resilientFetch(url);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not share requests that supply an abort signal", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockImplementation(async () =>
+        Promise.resolve(aFakeResponseWith({ status: 200, body: {}, headers: { "content-type": "text/plain" } })),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await Promise.all([
+        resilientFetch(url, { signal: new AbortController().signal }),
+        resilientFetch(url, { signal: new AbortController().signal }),
+      ]);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("rejects every sharer and clears the entry when the request fails", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockRejectedValueOnce(new Error("network down"));
+      fetchSpy.mockResolvedValueOnce(
+        aFakeResponseWith({ status: 200, body: {}, headers: { "content-type": "text/plain" } }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const results = await Promise.allSettled([resilientFetch(url), resilientFetch(url)]);
+      const retried = await resilientFetch(url);
+
+      expect(results.map(({ status }) => status)).toEqual(["rejected", "rejected"]);
+      expect(retried.status).toBe(200);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
   });
 
