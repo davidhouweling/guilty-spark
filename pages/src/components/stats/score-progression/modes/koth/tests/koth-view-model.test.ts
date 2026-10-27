@@ -232,7 +232,7 @@ describe("buildKothHills", () => {
     expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
   });
 
-  it("names the team that gained more in the hill when two teams tick on the capture instant", () => {
+  it("names the team whose event the capture sits on when two teams tick on the capture instant", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
         { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
@@ -242,8 +242,8 @@ describe("buildKothHills", () => {
       hillCaptureTimestamps: [30000],
     });
     const [hill] = buildHills(timeline);
-    expect(hill.winnerTeamId).toBe(0);
-    expect(hill.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 50]);
+    expect(hill.winnerTeamId).toBe(1);
+    expect(hill.teamCaptureProgress.map((p) => p.percentage)).toEqual([99, 100]);
   });
 
   it("reads an uncaptured hill against the nominal meter when nothing was captured, capped below a capture", () => {
@@ -278,6 +278,20 @@ describe("buildKothHills", () => {
     expect(captured.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
     // the trailing hill reads against the nominal meter: no real capture tick count was observed
     expect(trailing.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 25]);
+  });
+
+  it("reads an early tickless capture against captures recorded later in the match", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "1": 2 } },
+        { timestampMs: 20000, teamId: 1, runningScores: { "0": 0, "1": 6 } },
+      ],
+      hillCaptureTimestamps: [10000, 20000],
+    });
+    const [tickless] = buildHills(timeline, 60000);
+    // hill 2 was captured with 4 recorded ticks, so hill 1's 2 Cobra ticks are half a meter
+    expect(tickless.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 50]);
   });
 
   it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
@@ -440,8 +454,8 @@ describe("buildKothHillWindows", () => {
       [30000, 55000, 55000],
       [55000, 60000, null],
     ]);
-    expect(windows.map((hillWindow) => hillWindow.ticks.length)).toEqual([5, 3, 0]);
-    expect(windows[1]?.ticks.map((tick) => [tick.timestampMs, tick.teamId, tick.ticks])).toEqual([
+    expect(windows.map((hillWindow) => hillWindow.events.length)).toEqual([5, 3, 0]);
+    expect(windows[1]?.events.map((event) => [event.timestampMs, event.teamId, event.ticksByTeam])).toEqual([
       [32500, 1, { "0": 0, "1": 1 }],
       [45000, 1, { "0": 0, "1": 2 }],
       [55000, 1, { "0": 0, "1": 3 }],

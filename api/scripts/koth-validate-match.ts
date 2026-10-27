@@ -3,7 +3,6 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts <matchId>
  */
-import { KOTH_FULL_METER_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
 import { AnalyticsService } from "../services/analytics/analytics";
 import { createScriptServices, fmtMs } from "./script-services";
 
@@ -100,27 +99,22 @@ for (const [i, period] of hillPeriods.entries()) {
   const winnerName =
     winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
 
-  // Mirrors the pages koth view model: the winner's recorded ticks at the capture are that hill's
-  // full meter (the nominal meter stands in for an uncaptured hill), the winner reads 100%, and
-  // losers are estimated from their ticks inside the hill, capped below a capture.
+  // Raw ticks per team inside the hill; the pages koth view model turns these into meter
+  // percentages (winner's ticks at the capture = a full meter), so compare ticks, not percentages.
   const cumulativeAt = (teamId: number, timestampMs: number): number =>
     events.findLast((e) => e.timestampMs <= timestampMs && String(teamId) in e.runningScores)?.runningScores[
       String(teamId)
     ] ?? 0;
-  const ticksInHill = (teamId: number): number =>
-    cumulativeAt(teamId, period.endMs) - cumulativeAt(teamId, period.startMs);
-  const winnerTicks = winnerTeamId != null ? ticksInHill(winnerTeamId) : 0;
-  const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : KOTH_FULL_METER_TICKS;
   const meters = TEAM_COLORS.map((t) => ({
     name: t.name,
-    pct: t.teamId === winnerTeamId ? 100 : Math.min(99, Math.round((ticksInHill(t.teamId) / ticksPerFullMeter) * 100)),
+    ticks: cumulativeAt(t.teamId, period.endMs) - cumulativeAt(t.teamId, period.startMs),
   }));
 
-  const meterStr = meters.map((o) => `${o.name} ${String(o.pct)}%`).join(", ");
+  const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks`).join(", ");
 
   console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
   console.log(`  Winner: ${winnerName} (isCaptured=${String(period.isCaptured)})`);
-  console.log(`  Capture meters: ${meterStr}`);
+  console.log(`  Hill ticks: ${meterStr}`);
 }
 
 const EXPECTED: Record<string, string[]> = {
