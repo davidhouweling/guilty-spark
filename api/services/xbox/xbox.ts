@@ -177,14 +177,21 @@ export class XboxService {
   }
 
   private async getProfileToken(): Promise<TokenInfo> {
-    if (this.profileTokenInfo == null || this.isExpired(this.profileTokenInfo)) {
-      this.profileTokenInfo = await this.env.APP_DATA.get<TokenInfo>(XboxService.PROFILE_TOKEN_NAME, "json");
+    const inMemoryToken = this.profileTokenInfo;
+    if (inMemoryToken != null && !this.isExpired(inMemoryToken)) {
+      return inMemoryToken;
     }
-    if (this.profileTokenInfo == null || this.isExpired(this.profileTokenInfo)) {
-      this.profileTokenInfo = await this.authenticateForRelyingParty(XBOX_LIVE_XSTS_RELYING_PARTY);
-      await this.storeToken(XboxService.PROFILE_TOKEN_NAME, this.profileTokenInfo);
+
+    const storedToken = await this.env.APP_DATA.get<TokenInfo>(XboxService.PROFILE_TOKEN_NAME, "json");
+    if (storedToken != null && !this.isExpired(storedToken)) {
+      this.profileTokenInfo = storedToken;
+      return storedToken;
     }
-    return this.profileTokenInfo;
+
+    const authenticatedToken = await this.authenticateForRelyingParty(XBOX_LIVE_XSTS_RELYING_PARTY);
+    this.profileTokenInfo = authenticatedToken;
+    await this.storeToken(XboxService.PROFILE_TOKEN_NAME, authenticatedToken);
+    return authenticatedToken;
   }
 
   private async clearProfileToken(): Promise<void> {

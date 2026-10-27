@@ -525,6 +525,29 @@ describe("Xbox Service", () => {
       });
     });
 
+    it("keeps each lookup's own token when a concurrent KV miss resolves during a token write", async () => {
+      const delayedKvMiss = Promise.withResolvers<null>();
+      const delayedPut = Promise.withResolvers<undefined>();
+      const delayedAuthenticate = Promise.withResolvers<typeof validAuthenticateResponse>();
+      kvAppDataGetSpy.mockResolvedValueOnce(null).mockReturnValueOnce(delayedKvMiss.promise);
+      authenticate.mockResolvedValueOnce(validAuthenticateResponse).mockReturnValueOnce(delayedAuthenticate.promise);
+      vi.spyOn(env.APP_DATA, "put").mockReturnValueOnce(delayedPut.promise).mockResolvedValue(undefined);
+      xsapiClientPostSpy.mockResolvedValue(createMockXSAPIResponse([]));
+
+      const first = xboxService.getUsersByXuids(["1"]);
+      const second = xboxService.getUsersByXuids(["2"]);
+      await vi.advanceTimersByTimeAsync(0);
+      delayedKvMiss.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      delayedPut.resolve(undefined);
+      delayedAuthenticate.resolve(validAuthenticateResponse);
+
+      await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+      expect(xsapiClientPostSpy).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
+        options: { contractVersion: 2, userHash: "user_hash", XSTSToken: "xsts_token" },
+      });
+    });
+
     it("throws non-Unauthorized errors", async () => {
       xsapiClientPostSpy.mockRejectedValueOnce(new Error("Network error"));
 
