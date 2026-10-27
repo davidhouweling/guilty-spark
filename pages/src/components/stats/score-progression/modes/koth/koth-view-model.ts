@@ -5,16 +5,10 @@ import { TICK_FILL } from "../../chart-constants";
 import { carryScoresForward, zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
-import type { KothHillEvent, KothHillWindow } from "./types";
+import type { KothHillEvent, KothHillPeriod, KothHillWindow, ScannedKothHill } from "./types";
 
 const MIN_TRAILING_HILL_MS = 2_000;
 const FULL_METER_PERCENT = 100;
-
-interface KothHillPeriod {
-  readonly startMs: number;
-  readonly endMs: number;
-  readonly captureTs: number | null;
-}
 
 // The one derivation of hill windows both koth views share, so the gantt and the score lines
 // always agree on how many hills the match had and where each one ends.
@@ -37,11 +31,6 @@ function buildKothHillPeriods(hillCaptureTimestamps: readonly number[], duration
     periods.push({ startMs: hillStart, endMs: durationMs, captureTs: null });
   }
   return periods;
-}
-
-interface ScannedHill extends KothHillPeriod {
-  readonly events: readonly KothHillEvent[];
-  readonly winnerTeamId: number | null;
 }
 
 function toMeterPercent(ticks: number, teamId: number, hillWindow: KothHillWindow): number {
@@ -104,11 +93,11 @@ function scanHillEvents(
   return { events: hillEvents, nextIndex: index };
 }
 
-function scanHills(timeline: KothTimeline, teamIds: readonly number[], durationMs: number): ScannedHill[] {
+function scanHills(timeline: KothTimeline, teamIds: readonly number[], durationMs: number): ScannedKothHill[] {
   const keys = teamIds.map(String);
   const { events } = timeline;
   const cumulative: Record<string, number> = {};
-  const hills: ScannedHill[] = [];
+  const hills: ScannedKothHill[] = [];
   let cursor = 0;
 
   for (const period of buildKothHillPeriods(timeline.hillCaptureTimestamps, durationMs)) {
@@ -126,19 +115,19 @@ function scanHills(timeline: KothTimeline, teamIds: readonly number[], durationM
   return hills;
 }
 
-function winnerTicksOf(hill: ScannedHill): number {
+function winnerTicksOf(hill: ScannedKothHill): number {
   return hill.winnerTeamId == null ? 0 : hillTicksOf(hill.events, hill.winnerTeamId);
 }
 
 // a winner the film kept no ticks for still filled the meter: credit it on the capture event so
 // both views read it off the same ticks
-function creditWinnerAtCapture(hill: ScannedHill, ticksPerFullMeter: number): readonly KothHillEvent[] {
+function creditWinnerAtCapture(hill: ScannedKothHill, ticksPerFullMeter: number): readonly KothHillEvent[] {
   const { winnerTeamId, captureTs } = hill;
   if (winnerTeamId == null || winnerTicksOf(hill) > 0) {
     return hill.events;
   }
   return hill.events.map((event) =>
-    event.timestampMs === captureTs
+    event.timestampMs === captureTs && event.teamId === winnerTeamId
       ? { ...event, ticksByTeam: { ...event.ticksByTeam, [String(winnerTeamId)]: ticksPerFullMeter } }
       : event,
   );

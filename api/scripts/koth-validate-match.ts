@@ -78,7 +78,8 @@ const TEAM_COLORS = [
 interface HillPeriod {
   startMs: number;
   endMs: number;
-  isCaptured: boolean;
+  // the raw capture instant; ticks attribute through it even when it lands past the match end
+  captureTs: number | null;
 }
 // Mirrors buildKothHills in the pages formatter: trailing slivers under 2s are dropped and the
 // winner comes from the capturing team's score event at the hill boundary.
@@ -90,16 +91,17 @@ for (const captureTs of hillCaptureTimestamps) {
   if (endMs <= hillStart) {
     continue;
   }
-  hillPeriods.push({ startMs: hillStart, endMs, isCaptured: true });
+  hillPeriods.push({ startMs: hillStart, endMs, captureTs });
   hillStart = endMs;
 }
 if (progression.durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
-  hillPeriods.push({ startMs: hillStart, endMs: progression.durationMs, isCaptured: false });
+  hillPeriods.push({ startMs: hillStart, endMs: progression.durationMs, captureTs: null });
 }
 
 for (const [i, period] of hillPeriods.entries()) {
   const hillIndex = i + 1;
-  const capturingEvent = period.isCaptured ? events.findLast((e) => e.timestampMs === period.endMs) : null;
+  const attributionEndMs = period.captureTs ?? period.endMs;
+  const capturingEvent = period.captureTs != null ? events.findLast((e) => e.timestampMs === period.captureTs) : null;
   const winnerTeamId = capturingEvent?.teamId ?? null;
   const winnerName =
     winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
@@ -114,7 +116,7 @@ for (const [i, period] of hillPeriods.entries()) {
   // the first hill owns an event stamped on the match start; later hills start on a capture event
   // that belongs to the hill before
   const baselineAt = (teamId: number): number => (period.startMs === 0 ? 0 : cumulativeAt(teamId, period.startMs));
-  const hillTicks = (teamId: number): number => cumulativeAt(teamId, period.endMs) - baselineAt(teamId);
+  const hillTicks = (teamId: number): number => cumulativeAt(teamId, attributionEndMs) - baselineAt(teamId);
   const winnerTicks = winnerTeamId != null ? hillTicks(winnerTeamId) : 0;
   const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : KOTH_FULL_METER_TICKS;
   const meters = TEAM_COLORS.map((t) => ({
@@ -126,7 +128,7 @@ for (const [i, period] of hillPeriods.entries()) {
   const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks ≈ ${String(o.pct)}%`).join(", ");
 
   console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
-  console.log(`  Winner: ${winnerName} (isCaptured=${String(period.isCaptured)})`);
+  console.log(`  Winner: ${winnerName} (captured=${String(period.captureTs != null)})`);
   console.log(`  Hill ticks: ${meterStr}`);
 }
 
