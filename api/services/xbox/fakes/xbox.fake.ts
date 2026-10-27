@@ -1,6 +1,7 @@
 import type { authenticate, AuthenticateResponse, XNETExchangeTokensResponse } from "@xboxreplay/xboxlive-auth";
 import { addHours } from "date-fns";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import type { XboxServiceOpts } from "../xbox";
 import { XboxService } from "../xbox";
 
@@ -38,6 +39,7 @@ export function aFakeXboxServiceWith(opts: Partial<XboxServiceOpts> = {}): XboxS
 
   return new XboxService({
     env,
+    logService: opts.logService ?? aFakeLogServiceWith(),
     authenticate: authenticateToUse,
   });
 }

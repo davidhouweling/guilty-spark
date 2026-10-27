@@ -68,7 +68,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     databaseService,
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
-  const xboxService = new XboxService({ env, authenticate });
+  const xboxService = new XboxService({ env, logService, authenticate });
   const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
   const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
 
