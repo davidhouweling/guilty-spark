@@ -409,19 +409,29 @@ export function createResilientFetch({
     return response;
   }
 
-  async function shareInFlightRequest(url: string, load: () => Promise<Response>): Promise<Response> {
-    const existing = inFlightRequests.get(url);
+  function getInFlightRequestKey(url: string, init: RequestInit): string {
+    const headers = [...new Headers(init.headers).entries()].sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify([url, headers]);
+  }
+
+  async function shareInFlightRequest(
+    url: string,
+    init: RequestInit,
+    load: () => Promise<Response>,
+  ): Promise<Response> {
+    const key = getInFlightRequestKey(url, init);
+    const existing = inFlightRequests.get(key);
     if (existing != null) {
       logService.debug(`Sharing in-flight request for ${url}`);
       return toResponse(await existing);
     }
 
     const pending = bufferResponse(load());
-    inFlightRequests.set(url, pending);
+    inFlightRequests.set(key, pending);
     try {
       return toResponse(await pending);
     } finally {
-      inFlightRequests.delete(url);
+      inFlightRequests.delete(key);
     }
   }
 
@@ -528,7 +538,7 @@ export function createResilientFetch({
     const cacheInit: RequestInit =
       input instanceof Request ? { ...init, method: init?.method ?? input.method } : { ...init };
     if (isShareableRequest(input, url, cacheInit)) {
-      return shareInFlightRequest(url, async () => fetchAndCache(input, init, url, cacheInit));
+      return shareInFlightRequest(url, cacheInit, async () => fetchAndCache(input, init, url, cacheInit));
     }
     return fetchAndCache(input, init, url, cacheInit);
   };

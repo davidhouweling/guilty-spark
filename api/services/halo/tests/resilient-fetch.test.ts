@@ -1135,6 +1135,36 @@ describe("createResilientFetch", () => {
       expect(logServiceDebugSpy).toHaveBeenCalledWith(`Sharing in-flight request for ${url}`);
     });
 
+    it("does not share between concurrent GETs with different headers", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockImplementation(async (_input, init) =>
+        Promise.resolve(
+          aFakeResponseWith({
+            status: 200,
+            body: { range: new Headers(init?.headers).get("range") },
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const [first, second, third] = await Promise.all([
+        resilientFetch(url, { headers: { Range: "bytes=0-9" } }),
+        resilientFetch(url, { headers: { Range: "bytes=10-19" } }),
+        resilientFetch(url, { headers: [["range", "bytes=0-9"]] }),
+      ]);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(await first.json()).toEqual({ range: "bytes=0-9" });
+      expect(await second.json()).toEqual({ range: "bytes=10-19" });
+      expect(await third.json()).toEqual({ range: "bytes=0-9" });
+    });
+
     it("returns bodyless responses such as 204 without throwing", async () => {
       kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(new Response(null, { status: 204 }));
