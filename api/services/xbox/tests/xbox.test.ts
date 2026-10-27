@@ -4,6 +4,8 @@ import type { FetchResponse, authenticate as xboxliveAuthenticate } from "@xboxr
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { XSAPIClient } from "@xboxreplay/xboxlive-auth";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
+import type { LogService } from "../../log/types";
+import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { XboxService } from "../xbox";
 import type { ProfileUser } from "../types";
 
@@ -42,13 +44,15 @@ describe("Xbox Service", () => {
   let xboxService: XboxService;
   let authenticate: Mock<typeof xboxliveAuthenticate>;
   let kvAppDataGetSpy: MockInstance;
+  let logService: LogService;
 
   beforeEach(() => {
     const fakeEnv = aFakeEnvWith();
     env = fakeEnv;
     authenticate = vi.fn();
     const castAuthenticate = authenticate as unknown as typeof xboxliveAuthenticate;
-    xboxService = new XboxService({ env, authenticate: castAuthenticate });
+    logService = aFakeLogServiceWith();
+    xboxService = new XboxService({ env, logService, authenticate: castAuthenticate });
 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2025-01-01T00:00:00.000Z"));
@@ -546,6 +550,39 @@ describe("Xbox Service", () => {
       expect(xsapiClientPostSpy).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
         options: { contractVersion: 2, userHash: "user_hash", XSTSToken: "xsts_token" },
       });
+    });
+
+    it("shares one profile token refresh between overlapping cold lookups", async () => {
+      kvAppDataGetSpy.mockResolvedValue(null);
+      authenticate.mockResolvedValue(validAuthenticateResponse);
+      const kvPutSpy = vi.spyOn(env.APP_DATA, "put");
+      xsapiClientPostSpy.mockResolvedValue(createMockXSAPIResponse([]));
+
+      await Promise.all([xboxService.getUsersByXuids(["1"]), xboxService.getUsersByXuids(["2"])]);
+
+      expect(authenticate).toHaveBeenCalledTimes(1);
+      expect(kvPutSpy).toHaveBeenCalledTimes(1);
+      expect(xsapiClientPostSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it("completes overlapping lookups and logs a warning when the profile token KV write is throttled", async () => {
+      const throttled = new Error("KV PUT failed: 429 Too Many Requests");
+      kvAppDataGetSpy.mockResolvedValue(null);
+      authenticate.mockResolvedValue(validAuthenticateResponse);
+      vi.spyOn(env.APP_DATA, "put").mockRejectedValue(throttled);
+      const warnSpy = vi.spyOn(logService, "warn");
+      xsapiClientPostSpy.mockResolvedValue(createMockXSAPIResponse([]));
+
+      await expect(
+        Promise.all([xboxService.getUsersByXuids(["1"]), xboxService.getUsersByXuids(["2"])]),
+      ).resolves.toEqual([[], []]);
+      expect(xsapiClientPostSpy).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
+        options: { contractVersion: 2, userHash: "user_hash", XSTSToken: "xsts_token" },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        throttled,
+        new Map([["context", "Failed to store Xbox profile token in KV"]]),
+      );
     });
 
     it("throws non-Unauthorized errors", async () => {

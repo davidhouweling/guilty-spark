@@ -2,6 +2,7 @@ import { XSAPIClient, xnet } from "@xboxreplay/xboxlive-auth";
 import type { authenticate } from "@xboxreplay/xboxlive-auth";
 import { differenceInSeconds } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { LogService } from "../log/types";
 import type { TokenInfo, XboxUserInfo, ProfileUser } from "./types";
 
 const HALO_XSTS_RELYING_PARTY = "https://prod.xsts.halowaypoint.com/";
@@ -17,6 +18,7 @@ class NonRetryableXboxError extends Error {}
 
 export interface XboxServiceOpts {
   env: Env;
+  logService: LogService;
   authenticate: typeof authenticate;
 }
 
@@ -33,15 +35,18 @@ function profileUserToXboxUserInfo(profileUser: ProfileUser): XboxUserInfo {
 
 export class XboxService {
   private readonly env: Env;
+  private readonly logService: LogService;
   private readonly authenticate: typeof authenticate;
   private static readonly TOKEN_NAME = "xboxToken";
   private static readonly PROFILE_TOKEN_NAME = "xboxProfileToken";
 
   tokenInfo: TokenInfo | null = null;
   private profileTokenInfo: TokenInfo | null = null;
+  private profileTokenRefresh: Promise<TokenInfo> | null = null;
 
-  constructor({ env, authenticate }: XboxServiceOpts) {
+  constructor({ env, logService, authenticate }: XboxServiceOpts) {
     this.env = env;
+    this.logService = logService;
     this.authenticate = authenticate;
   }
 
@@ -191,10 +196,28 @@ export class XboxService {
   }
 
   private async refreshProfileToken(): Promise<TokenInfo> {
+    this.profileTokenRefresh ??= this.authenticateAndStoreProfileToken();
+    try {
+      return await this.profileTokenRefresh;
+    } finally {
+      this.profileTokenRefresh = null;
+    }
+  }
+
+  private async authenticateAndStoreProfileToken(): Promise<TokenInfo> {
     const authenticatedToken = await this.authenticateForRelyingParty(XBOX_LIVE_XSTS_RELYING_PARTY);
     this.profileTokenInfo = authenticatedToken;
-    await this.storeToken(XboxService.PROFILE_TOKEN_NAME, authenticatedToken);
+    await this.tryStoreProfileToken(authenticatedToken);
     return authenticatedToken;
+  }
+
+  // KV allows one write per second per key, so a throttled write must not fail a lookup that already has a token
+  private async tryStoreProfileToken(tokenInfo: TokenInfo): Promise<void> {
+    try {
+      await this.storeToken(XboxService.PROFILE_TOKEN_NAME, tokenInfo);
+    } catch (error) {
+      this.logService.warn(error, new Map([["context", "Failed to store Xbox profile token in KV"]]));
+    }
   }
 
   private isExpired(tokenInfo: TokenInfo): boolean {
