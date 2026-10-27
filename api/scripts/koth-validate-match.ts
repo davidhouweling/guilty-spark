@@ -3,7 +3,7 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts <matchId>
  */
-import { KOTH_FULL_METER_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
+import { KOTH_FULL_METER_TICKS, KOTH_MIN_CAPTURE_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
 import { AnalyticsService } from "../services/analytics/analytics";
 import { createScriptServices, fmtMs } from "./script-services";
 
@@ -98,37 +98,61 @@ if (progression.durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
   hillPeriods.push({ startMs: hillStart, endMs: progression.durationMs, captureTs: null });
 }
 
-for (const [i, period] of hillPeriods.entries()) {
-  const hillIndex = i + 1;
-  const attributionEndMs = period.captureTs ?? period.endMs;
-  const capturingEvent = period.captureTs != null ? events.findLast((e) => e.timestampMs === period.captureTs) : null;
-  const winnerTeamId = capturingEvent?.teamId ?? null;
-  const winnerName =
-    winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
+const cumulativeAt = (teamId: number, timestampMs: number): number =>
+  events.findLast((e) => e.timestampMs <= timestampMs && String(teamId) in e.runningScores)?.runningScores[
+    String(teamId)
+  ] ?? 0;
 
-  // Raw ticks per team inside the hill, with the pages view model's meter reading beside them:
-  // the winner's ticks at the capture are a full meter; an uncaptured hill reads against the
-  // nominal meter here (the pages model uses the match's typical capture instead).
-  const cumulativeAt = (teamId: number, timestampMs: number): number =>
-    events.findLast((e) => e.timestampMs <= timestampMs && String(teamId) in e.runningScores)?.runningScores[
-      String(teamId)
-    ] ?? 0;
-  // the first hill owns an event stamped on the match start; later hills start on a capture event
-  // that belongs to the hill before
+// Mirrors the pages koth view model: ticks attribute through the raw capture instant, the first
+// hill owns an event stamped on the match start while later hills start on a capture event that
+// belongs to the hill before, and the winner's ticks at the capture are that hill's full meter.
+const scannedHills = hillPeriods.map((period) => {
+  const attributionEndMs = period.captureTs ?? period.endMs;
+  const winnerTeamId =
+    period.captureTs != null ? (events.findLast((e) => e.timestampMs === period.captureTs)?.teamId ?? null) : null;
   const baselineAt = (teamId: number): number => (period.startMs === 0 ? 0 : cumulativeAt(teamId, period.startMs));
   const hillTicks = (teamId: number): number => cumulativeAt(teamId, attributionEndMs) - baselineAt(teamId);
-  const winnerTicks = winnerTeamId != null ? hillTicks(winnerTeamId) : 0;
-  const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : KOTH_FULL_METER_TICKS;
-  const meters = TEAM_COLORS.map((t) => ({
-    name: t.name,
-    ticks: hillTicks(t.teamId),
-    pct: t.teamId === winnerTeamId ? 100 : Math.min(99, Math.round((hillTicks(t.teamId) / ticksPerFullMeter) * 100)),
-  }));
+  return {
+    ...period,
+    winnerTeamId,
+    winnerTicks: winnerTeamId != null ? hillTicks(winnerTeamId) : 0,
+    ticksByTeam: new Map(TEAM_COLORS.map((t) => [t.teamId, hillTicks(t.teamId)])),
+  };
+});
 
-  const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks ≈ ${String(o.pct)}%`).join(", ");
+// a hill without a recorded capture reads against the match's typical one, floored at the
+// solver's minimum, as the pages model does
+const median = (values: number[]): number | null => {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+};
+const typicalCaptureTicks = Math.max(
+  KOTH_MIN_CAPTURE_TICKS,
+  median(scannedHills.map((hill) => hill.winnerTicks).filter((ticks) => ticks > 0)) ?? KOTH_FULL_METER_TICKS,
+);
 
-  console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
-  console.log(`  Winner: ${winnerName} (captured=${String(period.captureTs != null)})`);
+for (const [i, hill] of scannedHills.entries()) {
+  const hillIndex = i + 1;
+  const winnerName =
+    hill.winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === hill.winnerTeamId)?.name ?? "?") : "(none)";
+  const ticksPerFullMeter = hill.winnerTicks > 0 ? hill.winnerTicks : typicalCaptureTicks;
+  const meters = TEAM_COLORS.map((t) => {
+    const ticks = hill.ticksByTeam.get(t.teamId) ?? 0;
+    return {
+      name: t.name,
+      ticks,
+      pct: t.teamId === hill.winnerTeamId ? 100 : Math.min(99, Math.round((ticks / ticksPerFullMeter) * 100)),
+    };
+  });
+
+  const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks = ${String(o.pct)}%`).join(", ");
+
+  console.log(`\nHill ${String(hillIndex)} [${fmtMs(hill.startMs)} → ${fmtMs(hill.endMs)}]`);
+  console.log(`  Winner: ${winnerName} (captured=${String(hill.captureTs != null)})`);
   console.log(`  Hill ticks: ${meterStr}`);
 }
 
