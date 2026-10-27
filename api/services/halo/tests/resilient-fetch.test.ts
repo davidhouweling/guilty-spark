@@ -910,6 +910,49 @@ describe("createResilientFetch", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("does not read or write the response cache for batch user lookups", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({ status: 200, body: [], headers: { "content-type": "application/json" } }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://profile.svc.halowaypoint.com/users?xuids=1,2,3");
+
+      expect(kvGetSpy).not.toHaveBeenCalledWith(expect.stringContaining("halo:responses:"), "json");
+      expect(kvPutSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("halo:responses:"),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("still caches single gamertag user lookups", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({ status: 200, body: {}, headers: { "content-type": "application/json" } }),
+      );
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      await resilientFetch("https://profile.svc.halowaypoint.com/users/gt(Player)");
+
+      expect(kvPutSpy).toHaveBeenCalledWith(
+        "halo:responses:https://profile.svc.halowaypoint.com/users/gt(Player)",
+        expect.any(String),
+        expect.anything(),
+      );
+    });
+
     it("returns null from getKvCachedResponse when KV throws instead of propagating error", async () => {
       kvGetSpy.mockImplementation(async (key) => {
         if (String(key).startsWith("halo:responses:")) {

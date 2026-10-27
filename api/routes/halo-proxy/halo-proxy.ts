@@ -1,4 +1,5 @@
 import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import { z } from "zod";
 import {
   buildHaloProxyCacheControl,
   isHaloProxyOperationName,
@@ -15,6 +16,11 @@ type InstallServices = ({ env }: { env: Env }) => Services;
 interface ResolvedHaloProxyClient {
   readonly client: HaloInfiniteClient;
 }
+
+type HaloProxyResult =
+  { readonly ok: true; readonly result: unknown } | { readonly ok: false; readonly response: Response };
+
+const getUsersArgsSchema = z.tuple([z.array(z.string())]).rest(z.unknown());
 
 type ResolveHaloProxyClientResult =
   | { readonly ok: true; readonly resolved: ResolvedHaloProxyClient }
@@ -111,6 +117,43 @@ function callHaloProxyOperation(
   return Reflect.apply(method, client, args);
 }
 
+async function getUsersFromPerPlayerCache(services: Services, args: unknown[]): Promise<HaloProxyResult> {
+  const parsed = getUsersArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return { ok: false, response: new Response("Invalid query arguments", { status: 400 }) };
+  }
+
+  const [xuids] = parsed.data;
+  return { ok: true, result: await services.haloService.getUsersByXuids(xuids) };
+}
+
+async function callHaloProxyOperationWithResolvedClient(
+  request: Request,
+  services: Services,
+  operation: HaloProxyOperationName,
+  args: unknown[],
+): Promise<HaloProxyResult> {
+  const clientResult = await resolveHaloProxyClient(request, services);
+  if (!clientResult.ok) {
+    return clientResult;
+  }
+
+  return { ok: true, result: await callHaloProxyOperation(clientResult.resolved.client, operation, args) };
+}
+
+async function resolveHaloProxyResult(
+  request: Request,
+  services: Services,
+  operation: HaloProxyOperationName,
+  args: unknown[],
+): Promise<HaloProxyResult> {
+  if (operation === "getUsers") {
+    return getUsersFromPerPlayerCache(services, args);
+  }
+
+  return callHaloProxyOperationWithResolvedClient(request, services, operation, args);
+}
+
 export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices: InstallServices) => {
   router.all("/proxy/halo-infinite/:operation", async (request, env: Env, ctx: ExecutionContext) => {
     const services = installServices({ env });
@@ -142,14 +185,12 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
         return argsResult.response;
       }
 
-      const clientResult = await resolveHaloProxyClient(request, services);
-      if (!clientResult.ok) {
-        return clientResult.response;
+      const proxyResult = await resolveHaloProxyResult(request, services, operation, argsResult.args);
+      if (!proxyResult.ok) {
+        return proxyResult.response;
       }
 
-      const result = await callHaloProxyOperation(clientResult.resolved.client, operation, argsResult.args);
-
-      const response = Response.json(result, {
+      const response = Response.json(proxyResult.result, {
         status: 200,
         headers: { "Cache-Control": buildHaloProxyCacheControl(operationDefinition) },
       });
