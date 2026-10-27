@@ -12,7 +12,7 @@ import {
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../score-progression/types";
-import { SCORE_SCALE } from "../score-progression/score-progression-formatter";
+import { SCORE_SCALE } from "../score-progression/score-scales";
 
 afterEach(() => {
   cleanup();

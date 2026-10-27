@@ -169,10 +169,9 @@ export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
 const PERCENT_AXIS_TICKS = [0, 25, 50, 75, 100];
 
 export function formatScoreValue(value: number, unit: ScoreUnit): string {
-  return unit === "percent" ? `${String(Math.round(value))}%` : String(value);
+  return unit === "percent" ? `${String(Math.sign(value) * Math.round(Math.abs(value)))}%` : String(value);
 }
 
-// a percent scale is pinned to 0–100 so every hill reads against the full capture meter
 export function scoreAxisProps(unit: ScoreUnit): {
   domain: [number, number] | undefined;
   ticks: number[] | undefined;

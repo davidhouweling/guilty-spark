@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { formatScoreProgression } from "../score-progression-formatter";
+import { HILL_PROGRESS_SCALE, ROUND_POINTS_SCALE } from "../score-scales";
 import { aFakeScoreProgressionWith } from "../fakes/score-progression.fake";
 import { aFakeKothTimelineWith } from "../modes/koth/fakes/koth-timeline.fake";
 import { aFakeOddballTimelineWith } from "../modes/oddball/fakes/oddball-timeline.fake";
@@ -539,11 +540,7 @@ describe("formatScoreProgression", () => {
         throw new Error("expected koth view data");
       }
       // hill 1's winner fills the meter at the capture, then it resets for the next hill
-      expect(result.scoreLines?.scoreScale).toEqual({
-        unit: "percent",
-        progressionLabel: "Hill Progress",
-        deltaLabel: "Hill Progress Delta",
-      });
+      expect(result.scoreLines?.scoreScale).toEqual(HILL_PROGRESS_SCALE);
       expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 100 });
       expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 0 });
       // the trailing uncaptured hill holds at zero through the match end
@@ -571,11 +568,7 @@ describe("formatScoreProgression", () => {
     it("labels the oddball delta as round points", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 60000, timeline: aFakeOddballTimelineWith() });
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
-      expect(result.scoreLines?.scoreScale).toEqual({
-        unit: "points",
-        progressionLabel: "Score Progression",
-        deltaLabel: "Round Points Delta",
-      });
+      expect(result.scoreLines?.scoreScale).toEqual(ROUND_POINTS_SCALE);
     });
 
     it("returns oddball view data for an oddball timeline", () => {

@@ -16,8 +16,8 @@ import {
   buildFlagRuns,
   buildFlagRunsChartPoints,
 } from "./modes/ctf/ctf-view-model";
-import { HILL_PROGRESS_SCALE, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
-import { ROUND_POINTS_SCALE, buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
+import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
+import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
   buildStrongholdsMarkers,
   buildZoneAdvantage,
@@ -25,6 +25,7 @@ import {
   buildZoneCountWindows,
 } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
+import { HILL_PROGRESS_SCALE, ROUND_POINTS_SCALE, SCORE_SCALE } from "./score-scales";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
@@ -35,12 +36,6 @@ import type {
   ScoreProgressionViewData,
   ScoreSample,
 } from "./types";
-
-export const SCORE_SCALE: ScoreScale = {
-  unit: "points",
-  progressionLabel: "Score Progression",
-  deltaLabel: "Score Delta",
-};
 
 function buildScoreDelta(
   teamIds: readonly number[],
@@ -352,11 +347,12 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const { samples, hillBoundaries } = buildKothScoreSeries(timeline, teams.teamIds, durationMs);
+      const hillWindows = buildKothHillWindows(timeline, teams.teamIds, durationMs);
+      const { samples, hillBoundaries } = buildKothScoreSeries(hillWindows, teams.teamIds, durationMs);
       return {
         kind: "koth",
         durationMs,
-        hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
+        hills: buildKothHills(timeline, hillWindows, teams.teamIds, teams.teamColorByTeamId),
         scoreLines: buildSampledScoreLines(
           samples,
           hillBoundaries,

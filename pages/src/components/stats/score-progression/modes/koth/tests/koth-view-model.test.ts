@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildKothHills, buildKothScoreSeries } from "../koth-view-model";
+import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "../koth-view-model";
 import { aFakeKothTimelineWith } from "../fakes/koth-timeline.fake";
 
 const TEAM_IDS = [0, 1] as const;
@@ -10,7 +10,19 @@ const TEAM_COLOR_BY_TEAM_ID = new Map<number, string>([
 const DURATION_MS = 60000;
 
 function buildHills(timeline = aFakeKothTimelineWith(), durationMs = DURATION_MS): ReturnType<typeof buildKothHills> {
-  return buildKothHills(timeline, TEAM_IDS, TEAM_COLOR_BY_TEAM_ID, durationMs);
+  return buildKothHills(
+    timeline,
+    buildKothHillWindows(timeline, TEAM_IDS, durationMs),
+    TEAM_IDS,
+    TEAM_COLOR_BY_TEAM_ID,
+  );
+}
+
+function buildSeries(
+  timeline = aFakeKothTimelineWith(),
+  durationMs = DURATION_MS,
+): ReturnType<typeof buildKothScoreSeries> {
+  return buildKothScoreSeries(buildKothHillWindows(timeline, TEAM_IDS, durationMs), TEAM_IDS, durationMs);
 }
 
 describe("buildKothHills", () => {
@@ -255,7 +267,7 @@ describe("buildKothHills", () => {
 
 describe("buildKothScoreSeries", () => {
   it("builds per-hill meter curves that fill at each capture and reset for the next hill", () => {
-    const { samples, hillBoundaries } = buildKothScoreSeries(aFakeKothTimelineWith(), [0, 1], 60000);
+    const { samples, hillBoundaries } = buildSeries();
 
     expect(hillBoundaries).toEqual([30000, 55000]);
     const share = (ticks: number): number => (ticks / 3) * 100;
@@ -279,7 +291,7 @@ describe("buildKothScoreSeries", () => {
 
   it("builds one cumulative window with no boundaries when no captures are identified", () => {
     const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [] });
-    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples, hillBoundaries } = buildSeries(timeline);
 
     expect(hillBoundaries).toEqual([]);
     expect(samples[0]).toEqual({ timestampMs: 0, runningScores: { "0": 0, "1": 0 } });
@@ -288,7 +300,7 @@ describe("buildKothScoreSeries", () => {
 
   it("omits the trailing window and boundary for a sub-2-second post-capture sliver, matching the hills", () => {
     const timeline = aFakeKothTimelineWith({ hillCaptureTimestamps: [30000, 59100] });
-    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples, hillBoundaries } = buildSeries(timeline);
 
     expect(hillBoundaries).toEqual([30000]);
     expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 37.5 } });
@@ -302,7 +314,7 @@ describe("buildKothScoreSeries", () => {
       ],
       hillCaptureTimestamps: [],
     });
-    const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples } = buildSeries(timeline);
 
     expect(samples).toEqual([
       { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
@@ -319,7 +331,7 @@ describe("buildKothScoreSeries", () => {
       ],
       hillCaptureTimestamps: [30000],
     });
-    const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples } = buildSeries(timeline);
 
     const share = (ticks: number): number => (ticks / 3) * 100;
     expect(samples).toEqual([
@@ -338,7 +350,7 @@ describe("buildKothScoreSeries", () => {
       ],
       hillCaptureTimestamps: [10000],
     });
-    const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples } = buildSeries(timeline);
 
     expect(samples.map((sample) => sample.runningScores["0"])).toEqual([0, 80, 100, 0]);
   });
@@ -351,7 +363,7 @@ describe("buildKothScoreSeries", () => {
       ],
       hillCaptureTimestamps: [],
     });
-    expect(buildKothScoreSeries(timeline, [0, 1], 60000)).toEqual({ samples: [], hillBoundaries: [] });
+    expect(buildSeries(timeline)).toEqual({ samples: [], hillBoundaries: [] });
   });
 
   it("clamps ticks from a match-ending capture past the duration onto the axis edge", () => {
@@ -363,7 +375,7 @@ describe("buildKothScoreSeries", () => {
       ],
       hillCaptureTimestamps: [30000, 60350],
     });
-    const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
+    const { samples, hillBoundaries } = buildSeries(timeline);
 
     expect(hillBoundaries).toEqual([30000]);
     expect(samples.at(-1)).toEqual({ timestampMs: 60000, runningScores: { "0": 0, "1": 100 } });

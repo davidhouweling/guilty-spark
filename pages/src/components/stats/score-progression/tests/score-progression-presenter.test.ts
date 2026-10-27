@@ -22,7 +22,7 @@ import type {
   TimelineGanttChartViewModel,
   ZoneStripData,
 } from "../types";
-import { SCORE_SCALE } from "../score-progression-formatter";
+import { HILL_PROGRESS_SCALE, ROUND_POINTS_SCALE, SCORE_SCALE } from "../score-scales";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -591,7 +591,7 @@ describe("ScoreProgressionPresenter", () => {
       const scoreLines: ScoreLinesViewData = {
         kind: "score-lines",
         durationMs: 600000,
-        scoreScale: { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Round Points Delta" },
+        scoreScale: ROUND_POINTS_SCALE,
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta,
         playerAdvantage: null,
@@ -695,7 +695,7 @@ describe("ScoreProgressionPresenter", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const scoreLines = aFakeScoreLinesViewDataWith({
-        scoreScale: { unit: "percent", progressionLabel: "Hill Progress", deltaLabel: "Hill Progress Delta" },
+        scoreScale: HILL_PROGRESS_SCALE,
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta: aFakeScoreDeltaData(),
       });

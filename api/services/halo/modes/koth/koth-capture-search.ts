@@ -11,10 +11,9 @@ const MIN_CAPTURE_TICKS = 5;
 // on a ~5 000 ms cadence while a hill is occupied; the shortest post-capture quiet gap observed in
 // real matches is ~11 100 ms, so 8 000 ms separates same-hill ticking from a relocation.
 const RELOCATION_GAP_MS = 8_000;
-// A capture needs the meter full (shared/halo/koth-capture-meter). A gap larger than 1.5
-// cadences between the capturer's own ticks can hide one dropped film tick (or paused-meter
-// time), granting one extra tick of credit. A perfect-cadence 7-tick run is therefore ~35s —
-// short of a capture.
+// A gap larger than 1.5 cadences between the capturer's own ticks can hide one dropped film
+// tick (or paused-meter time), granting one extra tick of credit. A perfect-cadence 7-tick run
+// is therefore ~35s — short of a capture.
 const HIDDEN_TICK_GAP_MS = 7_500;
 const MAX_SEARCH_NODES = 50_000;
 

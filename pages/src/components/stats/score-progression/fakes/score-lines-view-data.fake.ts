@@ -1,5 +1,5 @@
 import type { ScoreLinesViewData } from "../types";
-import { SCORE_SCALE } from "../score-progression-formatter";
+import { SCORE_SCALE } from "../score-scales";
 
 export function aFakeScoreLinesViewDataWith(overrides: Partial<ScoreLinesViewData> = {}): ScoreLinesViewData {
   return {
