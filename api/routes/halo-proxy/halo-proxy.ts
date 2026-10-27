@@ -18,7 +18,8 @@ interface ResolvedHaloProxyClient {
 }
 
 type HaloProxyResult =
-  { readonly ok: true; readonly result: unknown } | { readonly ok: false; readonly response: Response };
+  | { readonly ok: true; readonly result: unknown; readonly cacheable: boolean }
+  | { readonly ok: false; readonly response: Response };
 
 const getUsersArgsSchema = z.tuple([z.array(z.string())]).rest(z.unknown());
 
@@ -117,6 +118,11 @@ function callHaloProxyOperation(
   return Reflect.apply(method, client, args);
 }
 
+function hasEveryRequestedUser(xuids: readonly string[], users: readonly { xuid: string }[]): boolean {
+  const returnedXuids = new Set(users.map(({ xuid }) => xuid));
+  return xuids.every((xuid) => returnedXuids.has(xuid));
+}
+
 async function getUsersFromPerPlayerCache(services: Services, args: unknown[]): Promise<HaloProxyResult> {
   const parsed = getUsersArgsSchema.safeParse(args);
   if (!parsed.success) {
@@ -124,7 +130,9 @@ async function getUsersFromPerPlayerCache(services: Services, args: unknown[]): 
   }
 
   const [xuids] = parsed.data;
-  return { ok: true, result: await services.haloService.getUsersByXuids(xuids) };
+  const users = await services.haloService.getUsersByXuids(xuids);
+  const result = users.map(({ xuid, gamertag }) => ({ xuid, gamertag }));
+  return { ok: true, result, cacheable: hasEveryRequestedUser(xuids, result) };
 }
 
 async function callHaloProxyOperationWithResolvedClient(
@@ -138,7 +146,11 @@ async function callHaloProxyOperationWithResolvedClient(
     return clientResult;
   }
 
-  return { ok: true, result: await callHaloProxyOperation(clientResult.resolved.client, operation, args) };
+  return {
+    ok: true,
+    result: await callHaloProxyOperation(clientResult.resolved.client, operation, args),
+    cacheable: true,
+  };
 }
 
 async function resolveHaloProxyResult(
@@ -188,6 +200,10 @@ export const haloProxyRoutesRegisterHandler: RoutesRegisterHandler = (router, in
       const proxyResult = await resolveHaloProxyResult(request, services, operation, argsResult.args);
       if (!proxyResult.ok) {
         return proxyResult.response;
+      }
+
+      if (!proxyResult.cacheable) {
+        return Response.json(proxyResult.result, { status: 200, headers: { "Cache-Control": "no-store" } });
       }
 
       const response = Response.json(proxyResult.result, {
