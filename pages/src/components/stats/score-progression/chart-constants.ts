@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ScoreUnit } from "./types";
 
 export const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
 export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
@@ -163,6 +164,25 @@ export function playerAdvantageAreaProps<K extends AdvantageDataKey>(dataKey: K)
 
 export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
   return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE, "score");
+}
+
+const PERCENT_AXIS_TICKS = [0, 25, 50, 75, 100];
+
+export function formatScoreValue(value: number, unit: ScoreUnit): string {
+  return unit === "percent" ? `${String(value)}%` : String(value);
+}
+
+// a percent scale is pinned to 0–100 so every hill reads against the full capture meter
+export function scoreAxisProps(unit: ScoreUnit): {
+  domain: [number, number] | undefined;
+  ticks: number[] | undefined;
+  tickFormatter: (value: number) => string;
+} {
+  return {
+    domain: unit === "percent" ? [0, 100] : undefined,
+    ticks: unit === "percent" ? [...PERCENT_AXIS_TICKS] : undefined,
+    tickFormatter: (value: number): string => formatScoreValue(value, unit),
+  };
 }
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];

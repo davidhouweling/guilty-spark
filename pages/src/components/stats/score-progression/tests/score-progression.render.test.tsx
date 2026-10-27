@@ -52,6 +52,7 @@ function aScoreLinesViewModelWith(overrides: Partial<ScoreLinesViewModel> = {}):
     deltaViewModel: null,
     progressionViewModel: {
       durationMs: 600000,
+      scoreUnit: "points",
       teamLines: [],
       playerAdvantage: null,
       zoneAdvantage: null,

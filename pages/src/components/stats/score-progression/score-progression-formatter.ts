@@ -29,11 +29,16 @@ import type {
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
+  ScoreScale,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
   ScoreSample,
 } from "./types";
+
+const SCORE_SCALE: ScoreScale = { unit: "points", deltaLabel: "Score Delta" };
+const HILL_PROGRESS_SCALE: ScoreScale = { unit: "percent", deltaLabel: "Hill Progress Delta" };
+const ROUND_POINTS_SCALE: ScoreScale = { unit: "points", deltaLabel: "Round Points Delta" };
 
 function buildScoreDelta(
   teamIds: readonly number[],
@@ -222,6 +227,7 @@ function buildStepScoreLines(
   return {
     kind: "score-lines",
     durationMs,
+    scoreScale: SCORE_SCALE,
     teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
     playerAdvantage,
@@ -234,6 +240,7 @@ function buildStepScoreLines(
 function buildSampledScoreLines(
   samples: readonly ScoreSample[],
   roundBoundaries: readonly number[],
+  scoreScale: ScoreScale,
   teams: ResolvedTeams,
   overlaySource: DeathOverlay,
   durationMs: number,
@@ -246,6 +253,7 @@ function buildSampledScoreLines(
   return {
     kind: "score-lines",
     durationMs,
+    scoreScale,
     teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
     playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
@@ -347,7 +355,15 @@ export function formatScoreProgression(
         kind: "koth",
         durationMs,
         hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreLines: buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize),
+        scoreLines: buildSampledScoreLines(
+          samples,
+          hillBoundaries,
+          HILL_PROGRESS_SCALE,
+          teams,
+          timeline,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     case "oddball": {
@@ -360,7 +376,15 @@ export function formatScoreProgression(
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
-        scoreLines: buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize),
+        scoreLines: buildSampledScoreLines(
+          samples,
+          roundBoundaries,
+          ROUND_POINTS_SCALE,
+          teams,
+          timeline,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     case "strongholds": {
@@ -378,6 +402,7 @@ export function formatScoreProgression(
         scoreLines: {
           kind: "score-lines",
           durationMs,
+          scoreScale: SCORE_SCALE,
           teamLines,
           scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
           playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),

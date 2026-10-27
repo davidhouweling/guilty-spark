@@ -102,9 +102,19 @@ export interface TimelineGanttViewModel {
   readonly rows: readonly TimelineGanttRowViewModel[];
 }
 
+export type ScoreUnit = "points" | "percent";
+
+// what a mode's score lines measure: the unit the axis and tooltips show and the name of the
+// delta chart between the teams
+export interface ScoreScale {
+  readonly unit: ScoreUnit;
+  readonly deltaLabel: string;
+}
+
 export interface ScoreLinesViewData {
   readonly kind: "score-lines";
   readonly durationMs: number;
+  readonly scoreScale: ScoreScale;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly scoreDelta: ScoreDeltaData | null;
   readonly playerAdvantage: PlayerAdvantageData | null;
@@ -212,6 +222,7 @@ export interface ChartTypeOption {
 
 export interface ScoreProgressionDeltaViewModel {
   readonly durationMs: number;
+  readonly scoreUnit: ScoreUnit;
   readonly scoreDelta: ScoreDeltaData;
   readonly team0Color: string;
   readonly team1Color: string;
@@ -224,6 +235,7 @@ export interface ScoreProgressionDeltaViewModel {
 
 export interface ScoreProgressionProgressionViewModel {
   readonly durationMs: number;
+  readonly scoreUnit: ScoreUnit;
   readonly teamLines: readonly ScoreProgressionTeamLine[];
   readonly playerAdvantage: PlayerAdvantageData | null;
   readonly zoneAdvantage: PlayerAdvantageData | null;

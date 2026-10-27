@@ -20,6 +20,7 @@ import {
   chartMargin,
   roundBoundaryLineProps,
   playerAdvantageAreaProps,
+  formatScoreValue,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
@@ -70,6 +71,7 @@ function DeltaChartGradients({
 
 export function DeltaChart({
   durationMs,
+  scoreUnit,
   scoreDelta,
   team0Color,
   team1Color,
@@ -95,7 +97,14 @@ export function DeltaChart({
         />
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
-        <YAxis allowDecimals={false} width={36} domain={[minScore, maxScore]} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        <YAxis
+          allowDecimals={false}
+          width={36}
+          domain={[minScore, maxScore]}
+          stroke={AXIS_STROKE}
+          tick={TICK_STYLE}
+          tickFormatter={(value: number): string => formatScoreValue(value, scoreUnit)}
+        />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />
         {roundBoundaries.map((boundaryMs) => (

@@ -229,6 +229,7 @@ describe("MatchStats", () => {
     const scoreProgressionViewData: ScoreProgressionViewData = {
       kind: "score-lines",
       durationMs: 600000,
+      scoreScale: { unit: "points", deltaLabel: "Score Delta" },
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,

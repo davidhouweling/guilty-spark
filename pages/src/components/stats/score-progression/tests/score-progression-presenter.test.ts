@@ -58,6 +58,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
     viewData: {
       kind: "score-lines",
       durationMs: 600000,
+      scoreScale: { unit: "points", deltaLabel: "Score Delta" },
       teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
       scoreDelta: null,
       playerAdvantage: null,
@@ -589,6 +590,7 @@ describe("ScoreProgressionPresenter", () => {
       const scoreLines: ScoreLinesViewData = {
         kind: "score-lines",
         durationMs: 600000,
+        scoreScale: { unit: "points", deltaLabel: "Round Points Delta" },
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta,
         playerAdvantage: null,
@@ -602,12 +604,30 @@ describe("ScoreProgressionPresenter", () => {
       };
     }
 
-    it("shows the rounds timeline by default with all chart types offered", () => {
+    it("shows the score progression by default with the rounds timeline as a trailing chart type", () => {
       const { store, presenter } = makePresenter();
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
+      );
+      expect(model.effectiveChartType).toBe("progression");
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta", "timeline"]);
+    });
+
+    it("shows the rounds timeline when the chart type is timeline", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "timeline" });
       const model = asTimelineGantt(
         presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
       );
-      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+      expect(model.timeline.rows).toHaveLength(1);
+    });
+
+    it("labels the delta chart type with the mode's own delta name", () => {
+      const { store, presenter } = makePresenter();
+      const model = asScoreLines(
+        presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
+      );
+      expect(model.chartTypeOptions.find((option) => option.value === "delta")?.label).toBe("Round Points Delta");
     });
 
     it("presents the score lines when the chart type is progression", () => {
@@ -617,7 +637,7 @@ describe("ScoreProgressionPresenter", () => {
         presenter.present(store.getSnapshot(), anOddballInputWithScoreLines(aFakeScoreDeltaData())),
       );
       expect(model.effectiveChartType).toBe("progression");
-      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta", "timeline"]);
       expect(model.progressionViewModel.roundBoundaries).toEqual([300000]);
     });
 
@@ -667,7 +687,38 @@ describe("ScoreProgressionPresenter", () => {
         }),
       );
       expect(model.effectiveChartType).toBe("progression");
-      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["timeline", "progression", "delta"]);
+      expect(model.chartTypeOptions.map((option) => option.value)).toEqual(["progression", "delta", "timeline"]);
+    });
+
+    it("presents koth score lines by default on a percent scale with the hill-progress delta", () => {
+      const { store, presenter } = makePresenter();
+      store.update({ chartType: "delta" });
+      const scoreLines = aFakeScoreLinesViewDataWith({
+        scoreScale: { unit: "percent", deltaLabel: "Hill Progress Delta" },
+        teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
+        scoreDelta: aFakeScoreDeltaData(),
+      });
+      const input: ScoreProgressionInput = {
+        viewData: {
+          kind: "koth",
+          durationMs: 600000,
+          hills: [aFakeKothHillDataWith({ teamCaptureProgress: [] })],
+          scoreLines,
+        },
+        ariaLabel: "test chart",
+      };
+
+      const model = asScoreLines(presenter.present(store.getSnapshot(), input));
+
+      expect(model.chartTypeOptions.find((option) => option.value === "delta")?.label).toBe("Hill Progress Delta");
+      expect(model.progressionViewModel.scoreUnit).toBe("percent");
+      expect(model.progressionViewModel.tooltipFormatter(62.5, "Eagle")).toEqual(["62.5%", "Eagle"]);
+      expect(model.deltaViewModel?.scoreUnit).toBe("percent");
+      expect(model.deltaViewModel?.tooltipFormatter(25, undefined)).toEqual(["Eagle +25%", "Hill Progress Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-12.5, undefined)).toEqual(["Cobra +12.5%", "Hill Progress Delta"]);
+
+      store.update({ chartType: null });
+      expect(presenter.present(store.getSnapshot(), input).effectiveChartType).toBe("progression");
     });
   });
 

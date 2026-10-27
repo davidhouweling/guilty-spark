@@ -28,6 +28,7 @@ vi.mock("recharts", () => ({
 function aDeltaViewModelWith(lineType: "step" | "linear"): ScoreProgressionDeltaViewModel {
   return {
     durationMs: 600000,
+    scoreUnit: "points",
     scoreDelta: {
       points: [
         { timestampMs: 0, score: 0 },

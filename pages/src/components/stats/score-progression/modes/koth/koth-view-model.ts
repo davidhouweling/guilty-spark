@@ -7,6 +7,16 @@ import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment 
 
 const MIN_TRAILING_HILL_MS = 2_000;
 
+// The capture meter fills over 8 scoring ticks (~5s each, the 40s HCS meter) — mirrors the
+// constants in api/services/halo/koth-capture-search.ts. Ticks past the capture are overshoot,
+// so progress is capped at a full meter.
+const METER_TICKS_PER_CAPTURE = 8;
+const FULL_METER_PERCENT = 100;
+
+function toMeterPercent(ticks: number): number {
+  return Math.min(FULL_METER_PERCENT, (ticks / METER_TICKS_PER_CAPTURE) * FULL_METER_PERCENT);
+}
+
 // A capture timestamp is the capturing team's last score-event timestamp, so the co-timestamped
 // event identifies the winner.
 function findCaptureWinnerTeamId(events: KothTimeline["events"], captureTs: number): number | null {
@@ -47,10 +57,10 @@ export interface KothScoreSeries {
   readonly hillBoundaries: readonly number[];
 }
 
-// Each hill is its own capture race: both teams' scoring ticks climb from zero until one team
+// Each hill is its own capture race: both teams' capture meters climb from zero until one team
 // captures, then the meter resets for the next hill — mirroring oddball's per-round curves.
-// runningScores are cumulative across the match, so each hill's ticks are measured against the
-// totals standing when the hill spawned.
+// runningScores are cumulative tick counts across the match, so each hill's ticks are measured
+// against the totals standing when the hill spawned and read as a share of the meter.
 export function buildKothScoreSeries(
   timeline: KothTimeline,
   teamIds: readonly number[],
@@ -91,7 +101,7 @@ export function buildKothScoreSeries(
       absorbEvent(events[cursor]);
       const hillTicks: Record<string, number> = {};
       for (const key of keys) {
-        hillTicks[key] = (cumulative[key] ?? 0) - (baseline[key] ?? 0);
+        hillTicks[key] = toMeterPercent((cumulative[key] ?? 0) - (baseline[key] ?? 0));
       }
       samples.push({ timestampMs: Math.min(events[cursor].timestampMs, durationMs), runningScores: hillTicks });
       hasEventSamples = true;
@@ -152,12 +162,8 @@ function buildHillSegments(
   return tileSegments(hillStart, hillEnd, overlapping, teamColorByTeamId);
 }
 
-// The capture meter fills over 8 scoring ticks (~5s each, the 40s HCS meter) — mirrors the
-// constants in api/services/halo/koth-capture-search.ts. The winner's meter completed by
-// definition; a loser's meter is estimated from their scoring ticks inside the hill and capped
-// below 100 so it can never read as a capture.
-const METER_TICKS_PER_CAPTURE = 8;
-
+// The winner's meter completed by definition; a loser's meter is estimated from their scoring
+// ticks inside the hill and capped below 100 so it can never read as a capture.
 function buildCaptureMeterPercentage(
   events: KothTimeline["events"],
   teamId: number,
@@ -172,7 +178,7 @@ function buildCaptureMeterPercentage(
   const cumulativeAt = (timestampMs: number): number =>
     events.findLast((event) => event.timestampMs <= timestampMs)?.runningScores[key] ?? 0;
   const ticksInHill = cumulativeAt(hillEndMs) - cumulativeAt(hillStartMs);
-  return Math.min(99, Math.round((ticksInHill / METER_TICKS_PER_CAPTURE) * 100));
+  return Math.min(99, Math.round(toMeterPercent(ticksInHill)));
 }
 
 export function buildKothHills(
