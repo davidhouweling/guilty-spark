@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ScoreUnit } from "./types";
 
 export const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
 export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
@@ -165,10 +166,50 @@ export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
   return advantageAreaProps(ZONE_ADVANTAGE_SERIES, ZONE_ADVANTAGE_STROKE, "score");
 }
 
+const PERCENT_AXIS_TICKS = [0, 25, 50, 75, 100];
+
+// rounds away from zero on both sides so a lead and its mirror image read the same
+export function roundPercent(value: number): number {
+  return Math.sign(value) * Math.round(Math.abs(value));
+}
+
+export function formatScoreValue(value: number, unit: ScoreUnit): string {
+  return unit === "percent" ? `${String(roundPercent(value))}%` : String(value);
+}
+
+const PERCENT_AXIS_WIDTH = 40;
+const SCORE_AXIS_WIDTH = 36;
+const TICK_FORMATTER_BY_UNIT: Record<ScoreUnit, (value: number) => string> = {
+  percent: (value) => formatScoreValue(value, "percent"),
+  points: (value) => formatScoreValue(value, "points"),
+};
+
+export function scoreAxisWidth(unit: ScoreUnit): number {
+  return unit === "percent" ? PERCENT_AXIS_WIDTH : SCORE_AXIS_WIDTH;
+}
+
+export function scoreTickFormatter(unit: ScoreUnit): (value: number) => string {
+  return TICK_FORMATTER_BY_UNIT[unit];
+}
+
+export function scoreAxisProps(unit: ScoreUnit): {
+  domain: [number, number] | undefined;
+  ticks: number[] | undefined;
+  width: number;
+  tickFormatter: (value: number) => string;
+} {
+  return {
+    domain: unit === "percent" ? [0, 100] : undefined,
+    ticks: unit === "percent" ? [...PERCENT_AXIS_TICKS] : undefined,
+    width: scoreAxisWidth(unit),
+    tickFormatter: scoreTickFormatter(unit),
+  };
+}
+
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];
 
 function formatFlagAxisTick(value: number): string {
-  return value === 0 ? "home" : `${String(Math.abs(value))}%`;
+  return value === 0 ? "home" : formatScoreValue(Math.abs(value), "percent");
 }
 
 export function flagAxisProps(): {
@@ -177,5 +218,10 @@ export function flagAxisProps(): {
   width: number;
   tickFormatter: (value: number) => string;
 } {
-  return { domain: [-100, 100], ticks: [...FLAG_AXIS_TICKS], width: 40, tickFormatter: formatFlagAxisTick };
+  return {
+    domain: [-100, 100],
+    ticks: [...FLAG_AXIS_TICKS],
+    width: PERCENT_AXIS_WIDTH,
+    tickFormatter: formatFlagAxisTick,
+  };
 }

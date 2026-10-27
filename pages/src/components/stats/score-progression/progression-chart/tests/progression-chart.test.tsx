@@ -29,8 +29,24 @@ vi.mock("recharts", () => ({
     <div data-testid="reference-dot" data-x={x} data-y={y} data-fill={fill} data-stroke={stroke} />
   ),
   XAxis: (): null => null,
-  YAxis: ({ yAxisId, domain }: { yAxisId?: string; domain?: readonly [number, number] }): React.ReactElement => (
-    <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} />
+  YAxis: ({
+    yAxisId,
+    domain,
+    width,
+    tickFormatter,
+  }: {
+    yAxisId?: string;
+    domain?: readonly [number, number];
+    width?: number;
+    tickFormatter?: (value: number) => string;
+  }): React.ReactElement => (
+    <div
+      data-testid="y-axis"
+      data-axis={yAxisId}
+      data-domain={domain?.join(",")}
+      data-width={width}
+      data-tick={tickFormatter?.(50)}
+    />
   ),
   Tooltip: (): null => null,
   Area: ({ name }: { name: string }): React.ReactElement => <div data-testid="area">{name}</div>,
@@ -46,6 +62,7 @@ function aProgressionViewModelWith(
 ): ScoreProgressionProgressionViewModel {
   return {
     durationMs: 600000,
+    scoreUnit: "points",
     teamLines,
     playerAdvantage: null,
     zoneAdvantage: null,
@@ -120,6 +137,21 @@ describe("ProgressionChart", () => {
     render(<ProgressionChart {...aProgressionViewModelWith({ roundBoundaries: [200000, 400000] })} />);
     const boundaryLines = screen.getAllByTestId("reference-line").filter((line) => line.getAttribute("data-x") != null);
     expect(boundaryLines.map((line) => line.getAttribute("data-x"))).toEqual(["200000", "400000"]);
+  });
+
+  it("pins a percent score axis to the full meter with percent ticks", () => {
+    render(<ProgressionChart {...aProgressionViewModelWith({ scoreUnit: "percent" })} />);
+    const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
+    expect(scoreAxis).toHaveAttribute("data-domain", "0,100");
+    expect(scoreAxis).toHaveAttribute("data-tick", "50%");
+    expect(scoreAxis).toHaveAttribute("data-width", "40");
+  });
+
+  it("leaves a points score axis to size itself with plain ticks", () => {
+    render(<ProgressionChart {...aProgressionViewModelWith()} />);
+    const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
+    expect(scoreAxis).not.toHaveAttribute("data-domain");
+    expect(scoreAxis).toHaveAttribute("data-tick", "50");
   });
 
   it("renders no advantage axis when no overlay is enabled", () => {

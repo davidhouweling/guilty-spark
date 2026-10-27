@@ -1,5 +1,11 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES } from "./chart-constants";
+import {
+  PLAYER_ADVANTAGE_SERIES,
+  TICK_FILL,
+  ZONE_ADVANTAGE_SERIES,
+  formatScoreValue,
+  roundPercent,
+} from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -14,6 +20,8 @@ import type {
   ScoreLinesViewData,
   ScoreLinesViewModel,
   ScoreProgressionDeltaViewModel,
+  ScoreScale,
+  ScoreUnit,
   ScoreProgressionViewData,
   ScoreProgressionViewModel,
   TimelineGanttChartViewModel,
@@ -31,11 +39,7 @@ export interface ScoreProgressionInput {
   readonly ariaLabel: string;
 }
 
-const DELTA_LABEL = "Score Delta";
-
 const TIMELINE_OPTION: ChartTypeOption = { value: "timeline", label: "Objective Timeline" };
-const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Score Progression" };
-const DELTA_OPTION: ChartTypeOption = { value: "delta", label: DELTA_LABEL };
 const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
 const FLAG_PROGRESS_LABEL = "of the way to the capture point";
 const FLAG_MARKER_LEGEND: readonly FlagRunMarkerLegendEntry[] = [
@@ -88,14 +92,14 @@ export class ScoreProgressionPresenter {
         return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.hills.map((hill) => this.buildKothRow(hill)),
           scoreLines: viewData.scoreLines,
-          defaultChartType: "timeline",
+          defaultChartType: "progression",
         });
       }
       case "oddball": {
         return this.presentGanttMode(snapshot, ariaLabel, viewData.durationMs, {
           buildRows: (): TimelineGanttRowViewModel[] => viewData.rounds.map((round) => this.buildOddballRow(round)),
           scoreLines: viewData.scoreLines,
-          defaultChartType: "timeline",
+          defaultChartType: "progression",
         });
       }
       case "ctf": {
@@ -193,7 +197,7 @@ export class ScoreProgressionPresenter {
     if (typeof value !== "number" || Number.isNaN(value)) {
       return [String(value ?? ""), label];
     }
-    return [`${String(Math.abs(Math.round(value)))}% ${FLAG_PROGRESS_LABEL}`, label];
+    return [`${formatScoreValue(Math.abs(value), "percent")} ${FLAG_PROGRESS_LABEL}`, label];
   }
 
   private toTooltipLabel(name: string | number | undefined): string {
@@ -249,7 +253,10 @@ export class ScoreProgressionPresenter {
     if (viewData == null) {
       return [];
     }
-    return [PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [DELTA_OPTION] : [])];
+    const { progressionLabel, deltaLabel } = viewData.scoreScale;
+    const progressionOption: ChartTypeOption = { value: "progression", label: progressionLabel };
+    const deltaOption: ChartTypeOption = { value: "delta", label: deltaLabel };
+    return [progressionOption, ...(viewData.scoreDelta != null ? [deltaOption] : [])];
   }
 
   private presentScoreLines(
@@ -284,6 +291,7 @@ export class ScoreProgressionPresenter {
       effectiveChartType === "delta" && syncedScoreDelta != null
         ? {
             durationMs: viewData.durationMs,
+            scoreUnit: viewData.scoreScale.unit,
             roundBoundaries: viewData.roundBoundaries,
             scoreDelta: syncedScoreDelta,
             team0Color: viewData.teamLines[0]?.color ?? TICK_FILL,
@@ -294,7 +302,7 @@ export class ScoreProgressionPresenter {
             tooltipFormatter: (
               value: number | string | readonly (number | string)[] | undefined,
               name: string | number | undefined,
-            ): [string, string] => this.formatDeltaChartTooltip(value, name, team0Name, team1Name),
+            ): [string, string] => this.formatDeltaChartTooltip(value, name, team0Name, team1Name, viewData.scoreScale),
           }
         : null;
 
@@ -316,6 +324,7 @@ export class ScoreProgressionPresenter {
       deltaViewModel,
       progressionViewModel: {
         durationMs: viewData.durationMs,
+        scoreUnit: viewData.scoreScale.unit,
         roundBoundaries: viewData.roundBoundaries,
         teamLines: viewData.teamLines,
         playerAdvantage: effectivePlayerAdvantage,
@@ -325,7 +334,8 @@ export class ScoreProgressionPresenter {
         tooltipFormatter: (
           value: number | string | readonly (number | string)[] | undefined,
           name: string | number | undefined,
-        ): [string, string] => this.formatProgressionTooltip(value, name, team0Name, team1Name),
+        ): [string, string] =>
+          this.formatProgressionTooltip(value, name, team0Name, team1Name, viewData.scoreScale.unit),
       },
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
@@ -432,9 +442,10 @@ export class ScoreProgressionPresenter {
     name: string | number | undefined,
     team0Name: string,
     team1Name: string,
+    unit: ScoreUnit,
   ): [string, string] {
     return this.formatSeriesTooltip(value, name, team0Name, team1Name, () => [
-      String(value ?? ""),
+      typeof value === "number" ? formatScoreValue(value, unit) : String(value ?? ""),
       this.toTooltipLabel(name),
     ]);
   }
@@ -444,9 +455,10 @@ export class ScoreProgressionPresenter {
     name: string | number | undefined,
     team0Name: string,
     team1Name: string,
+    scoreScale: ScoreScale,
   ): [string, string] {
     return this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
-      this.formatDeltaTooltip(value, team0Name, team1Name),
+      this.formatDeltaTooltip(value, team0Name, team1Name, scoreScale),
     );
   }
 
@@ -506,7 +518,16 @@ export class ScoreProgressionPresenter {
     value: number | string | readonly (number | string)[] | undefined,
     team0Name: string,
     team1Name: string,
+    scoreScale: ScoreScale,
   ): [string, string] {
-    return this.formatLeaderTooltip(value, team0Name, team1Name, DELTA_LABEL, "Tied");
+    const shown = typeof value === "number" && scoreScale.unit === "percent" ? roundPercent(value) : value;
+    return this.formatLeaderTooltip(
+      shown,
+      team0Name,
+      team1Name,
+      scoreScale.deltaLabel,
+      "Tied",
+      (lead) => `+${formatScoreValue(lead, scoreScale.unit)}`,
+    );
   }
 }

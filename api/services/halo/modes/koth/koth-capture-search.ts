@@ -1,19 +1,20 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import {
+  KOTH_CAPTURE_METER_MS,
+  KOTH_FULL_METER_TICKS,
+  KOTH_MIN_CAPTURE_TICKS,
+  KOTH_TICK_SCORING_MS,
+} from "@guilty-spark/shared/halo/koth-capture-meter";
 import type { KothControlPeriod, KothProgressionEvent } from "../../types";
 
-const MIN_CAPTURE_TICKS = 5;
 // A capture relocates the hill, so no team can score for the travel time afterwards. Ticks arrive
 // on a ~5 000 ms cadence while a hill is occupied; the shortest post-capture quiet gap observed in
 // real matches is ~11 100 ms, so 8 000 ms separates same-hill ticking from a relocation.
 const RELOCATION_GAP_MS = 8_000;
-// A capture needs the meter full: 40 seconds of scoring (HCS King of the Hill settings). Each
-// film tick represents ~5 seconds of scoring, and a gap larger than 1.5 cadences between the
-// capturer's own ticks can hide one dropped film tick (or paused-meter time), granting one
-// extra tick of credit. A perfect-cadence 7-tick run is therefore ~35s — short of a capture.
-const TICK_SCORING_MS = 5_000;
-const CAPTURE_METER_MS = 40_000;
-const HIDDEN_TICK_GAP_MS = 7_500;
-const FULL_METER_TICKS = CAPTURE_METER_MS / TICK_SCORING_MS;
+// A gap larger than 1.5 cadences between the capturer's own ticks can hide one dropped film
+// tick (or paused-meter time), granting one extra tick of credit. A perfect-cadence 7-tick run
+// is therefore ~35s — short of a capture.
+const HIDDEN_TICK_GAP_MS = 1.5 * KOTH_TICK_SCORING_MS;
 const MAX_SEARCH_NODES = 50_000;
 
 interface CaptureStep {
@@ -113,7 +114,7 @@ class KothCaptureSearch {
         continue;
       }
       const perHillTicks = (event.runningScores[String(event.teamId)] ?? 0) - (hillBaseline[String(event.teamId)] ?? 0);
-      if (perHillTicks < MIN_CAPTURE_TICKS) {
+      if (perHillTicks < KOTH_MIN_CAPTURE_TICKS) {
         continue;
       }
       if (!this.isFollowedByRelocationGap(index)) {
@@ -156,7 +157,7 @@ class KothCaptureSearch {
       // Strictly greater: equal tick counts are common dedup jitter, not an implausibility.
       // A full meter's worth of opponent ticks is a violation regardless — that team's meter
       // would have completed first, so this hill cannot still be open for the capturer.
-      if (otherTeamTicks > perHillTicks || otherTeamTicks >= FULL_METER_TICKS) {
+      if (otherTeamTicks > perHillTicks || otherTeamTicks >= KOTH_FULL_METER_TICKS) {
         overtaken += 1;
       }
     }
@@ -172,13 +173,13 @@ class KothCaptureSearch {
       if (event.teamId !== captureEvent.teamId) {
         continue;
       }
-      scoringMs += TICK_SCORING_MS;
+      scoringMs += KOTH_TICK_SCORING_MS;
       if (previousOwnTickMs != null && event.timestampMs - previousOwnTickMs > HIDDEN_TICK_GAP_MS) {
-        scoringMs += TICK_SCORING_MS;
+        scoringMs += KOTH_TICK_SCORING_MS;
       }
       previousOwnTickMs = event.timestampMs;
     }
-    return scoringMs < CAPTURE_METER_MS;
+    return scoringMs < KOTH_CAPTURE_METER_MS;
   }
 
   // Control periods attribute each film window to the team with the majority of mode events in
@@ -230,7 +231,7 @@ class KothCaptureSearch {
       capturesPlaced: perHillCounts.length,
       violations,
       byte2Contradictions: this.steps.reduce((acc, step) => acc + (step.byte2Contradicted ? 1 : 0), 0),
-      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, FULL_METER_TICKS - count), 0),
+      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, KOTH_FULL_METER_TICKS - count), 0),
       variance: varianceOf(perHillCounts),
       windowMismatches: this.steps.reduce((acc, step) => acc + (step.windowMismatched ? 1 : 0), 0),
       totalTicks: perHillCounts.reduce((acc, count) => acc + count, 0),
@@ -260,7 +261,7 @@ class KothCaptureSearch {
 /**
  * Finds the most plausible ordered set of hill-capture events given each team's known capture
  * count (match score, minus any hills pre-awarded in the lobby). A capture candidate is a score
- * tick whose per-hill tick count has reached MIN_CAPTURE_TICKS and that is followed by a
+ * tick whose per-hill tick count has reached KOTH_MIN_CAPTURE_TICKS and that is followed by a
  * relocation-sized quiet gap. Among assignments that place the most captures, prefers fewest
  * physical implausibilities (another team holding more per-hill ticks than the capturer, or a
  * trailing uncaptured hill with capture-worthy ticks), then fewest byte2 control-period

@@ -20,7 +20,13 @@ vi.mock("recharts", () => ({
   ReferenceLine: ({ x }: { x?: number }): React.ReactElement => <div data-testid="reference-line" data-x={x} />,
   Tooltip: (): null => null,
   XAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="x-axis" data-axis={yAxisId} />,
-  YAxis: ({ yAxisId }: { yAxisId?: string }): React.ReactElement => <div data-testid="y-axis" data-axis={yAxisId} />,
+  YAxis: ({
+    yAxisId,
+    tickFormatter,
+  }: {
+    yAxisId?: string;
+    tickFormatter?: (value: number) => string;
+  }): React.ReactElement => <div data-testid="y-axis" data-axis={yAxisId} data-tick={tickFormatter?.(-25)} />,
   usePlotArea: (): null => null,
   useYAxisScale: (): null => null,
 }));
@@ -28,6 +34,7 @@ vi.mock("recharts", () => ({
 function aDeltaViewModelWith(lineType: "step" | "linear"): ScoreProgressionDeltaViewModel {
   return {
     durationMs: 600000,
+    scoreUnit: "points",
     scoreDelta: {
       points: [
         { timestampMs: 0, score: 0 },
@@ -58,6 +65,18 @@ describe("DeltaChart", () => {
     render(<DeltaChart {...aDeltaViewModelWith("linear")} />);
     const areas = screen.getAllByTestId("area");
     expect(areas[0]).toHaveAttribute("data-type", "linear");
+  });
+
+  it("formats a percent delta axis with percent ticks", () => {
+    render(<DeltaChart {...aDeltaViewModelWith("linear")} scoreUnit="percent" />);
+    const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
+    expect(scoreAxis).toHaveAttribute("data-tick", "-25%");
+  });
+
+  it("formats a points delta axis with plain ticks", () => {
+    render(<DeltaChart {...aDeltaViewModelWith("linear")} />);
+    const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
+    expect(scoreAxis).toHaveAttribute("data-tick", "-25");
   });
 
   it("renders both advantage overlays on the shared advantage axis when enabled", () => {
