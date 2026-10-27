@@ -48,6 +48,7 @@ import type {
   UserInfo,
   CachedUserInfo,
   MatchHistoryEntry,
+  EnrichedMatchHistory,
 } from "./types";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types";
 
@@ -691,8 +692,16 @@ export class HaloService {
       throw error;
     }
 
+    return this.getRecentMatchHistoryByXuid(user.xuid, matchType, count);
+  }
+
+  private async getRecentMatchHistoryByXuid(
+    xuid: string,
+    matchType: MatchType,
+    count: number,
+  ): Promise<PlayerMatchHistory[]> {
     try {
-      return await this.getPlayerMatches(user.xuid, matchType, count, 0);
+      return await this.getPlayerMatches(xuid, matchType, count, 0);
     } catch (error) {
       this.logService.error(error);
 
@@ -705,15 +714,32 @@ export class HaloService {
     locale: string,
     matchType: MatchType = MatchType.All,
     count = 25,
-  ): Promise<{
-    gamertag: string;
-    xuid: string;
-    matches: MatchHistoryEntry[];
-    suggestedGroupings: string[][];
-  }> {
+  ): Promise<EnrichedMatchHistory> {
     const user = await this.getUserByGamertag(gamertag);
     const matches = await this.getRecentMatchHistory(gamertag, matchType, count);
 
+    return this.enrichMatchHistory(user, matches, locale);
+  }
+
+  /**
+   * Looks up history by the already-known xuid, so a stale cached gamertag is only used for display.
+   */
+  async getEnrichedMatchHistoryForUser(
+    user: UserInfo,
+    locale: string,
+    matchType: MatchType = MatchType.All,
+    count = 25,
+  ): Promise<EnrichedMatchHistory> {
+    const matches = await this.getRecentMatchHistoryByXuid(user.xuid, matchType, count);
+
+    return this.enrichMatchHistory(user, matches, locale);
+  }
+
+  private async enrichMatchHistory(
+    user: UserInfo,
+    matches: PlayerMatchHistory[],
+    locale: string,
+  ): Promise<EnrichedMatchHistory> {
     const matchIds = matches.map((match) => match.MatchId);
     const matchDetails = await this.getMatchDetails(matchIds);
     const matchDetailsById = new Map(matchDetails.map((match) => [match.MatchId, match]));

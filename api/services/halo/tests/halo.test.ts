@@ -3117,6 +3117,36 @@ describe("Halo service", () => {
     });
   });
 
+  describe("getEnrichedMatchHistoryForUser()", () => {
+    it("fetches history by the known xuid without resolving a possibly renamed gamertag", async () => {
+      const result = await haloService.getEnrichedMatchHistoryForUser(
+        { xuid: "0000000000001", gamertag: "OldGamertag" },
+        "en-US",
+        MatchType.Custom,
+        25,
+      );
+
+      expect(infiniteClient.getUser).not.toHaveBeenCalled();
+      expect(infiniteClient.getPlayerMatches).toHaveBeenCalledWith(
+        "0000000000001",
+        MatchType.Custom,
+        25,
+        0,
+        expect.anything(),
+      );
+      expect(result.gamertag).toBe("OldGamertag");
+      expect(result.xuid).toBe("0000000000001");
+    });
+
+    it("throws an end user error when the history lookup fails", async () => {
+      infiniteClient.getPlayerMatches.mockRejectedValue(new Error("Error"));
+
+      return expect(
+        haloService.getEnrichedMatchHistoryForUser({ xuid: "0000000000001", gamertag: "OldGamertag" }, "en-US"),
+      ).rejects.toThrow("Unable to retrieve match history");
+    });
+  });
+
   describe("updateDiscordAssociations()", () => {
     it("updates the discord associations with the user cache", async () => {
       const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
