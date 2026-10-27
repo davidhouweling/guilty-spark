@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -19,6 +19,7 @@ import {
   chartMargin,
   roundBoundaryLineProps,
   playerAdvantageAreaProps,
+  scoreAxisProps,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
@@ -29,6 +30,7 @@ import type { ScoreProgressionProgressionViewModel } from "../types";
 
 export function ProgressionChart({
   durationMs,
+  scoreUnit,
   teamLines,
   playerAdvantage,
   zoneAdvantage,
@@ -38,13 +40,14 @@ export function ProgressionChart({
   tooltipFormatter,
 }: ScoreProgressionProgressionViewModel): React.ReactElement {
   const margin = chartMargin(advantageDomain);
+  const scoreAxis = useMemo(() => scoreAxisProps(scoreUnit), [scoreUnit]);
 
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
       <AreaChart margin={margin}>
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
-        <YAxis allowDecimals={false} width={36} stroke={AXIS_STROKE} tick={TICK_STYLE} />
+        <YAxis {...scoreAxis} allowDecimals={false} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         {roundBoundaries.map((boundaryMs) => (
           <ReferenceLine key={boundaryMs} {...roundBoundaryLineProps(boundaryMs)} />

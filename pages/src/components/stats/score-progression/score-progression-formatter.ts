@@ -16,7 +16,7 @@ import {
   buildFlagRuns,
   buildFlagRunsChartPoints,
 } from "./modes/ctf/ctf-view-model";
-import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
+import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
   buildStrongholdsMarkers,
@@ -25,10 +25,12 @@ import {
   buildZoneCountWindows,
 } from "./modes/strongholds/strongholds-view-model";
 import { buildSampledTeamLines } from "./sampled-team-lines";
+import { HILL_PROGRESS_SCALE, ROUND_POINTS_SCALE, SCORE_SCALE } from "./score-scales";
 import type {
   PlayerAdvantageData,
   ScoreDeltaData,
   ScoreLinesViewData,
+  ScoreScale,
   ScoreProgressionPoint,
   ScoreProgressionTeamLine,
   ScoreProgressionViewData,
@@ -222,6 +224,7 @@ function buildStepScoreLines(
   return {
     kind: "score-lines",
     durationMs,
+    scoreScale: SCORE_SCALE,
     teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
     playerAdvantage,
@@ -234,6 +237,7 @@ function buildStepScoreLines(
 function buildSampledScoreLines(
   samples: readonly ScoreSample[],
   roundBoundaries: readonly number[],
+  scoreScale: ScoreScale,
   teams: ResolvedTeams,
   overlaySource: DeathOverlay,
   durationMs: number,
@@ -246,6 +250,7 @@ function buildSampledScoreLines(
   return {
     kind: "score-lines",
     durationMs,
+    scoreScale,
     teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
     scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
     playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
@@ -342,12 +347,21 @@ export function formatScoreProgression(
       if (teams == null) {
         return null;
       }
-      const { samples, hillBoundaries } = buildKothScoreSeries(timeline, teams.teamIds, durationMs);
+      const hillWindows = buildKothHillWindows(timeline, teams.teamIds, durationMs);
+      const { samples, hillBoundaries } = buildKothScoreSeries(hillWindows, teams.teamIds, durationMs);
       return {
         kind: "koth",
         durationMs,
-        hills: buildKothHills(timeline, teams.teamIds, teams.teamColorByTeamId, durationMs),
-        scoreLines: buildSampledScoreLines(samples, hillBoundaries, teams, timeline, durationMs, teamSize),
+        hills: buildKothHills(timeline, hillWindows, teams.teamIds, teams.teamColorByTeamId),
+        scoreLines: buildSampledScoreLines(
+          samples,
+          hillBoundaries,
+          HILL_PROGRESS_SCALE,
+          teams,
+          timeline,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     case "oddball": {
@@ -360,7 +374,15 @@ export function formatScoreProgression(
         kind: "oddball",
         durationMs,
         rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
-        scoreLines: buildSampledScoreLines(samples, roundBoundaries, teams, timeline, durationMs, teamSize),
+        scoreLines: buildSampledScoreLines(
+          samples,
+          roundBoundaries,
+          ROUND_POINTS_SCALE,
+          teams,
+          timeline,
+          durationMs,
+          teamSize,
+        ),
       };
     }
     case "strongholds": {
@@ -378,6 +400,7 @@ export function formatScoreProgression(
         scoreLines: {
           kind: "score-lines",
           durationMs,
+          scoreScale: SCORE_SCALE,
           teamLines,
           scoreDelta: buildScoreDelta(teams.teamIds, timeline.events, durationMs, "linear"),
           playerAdvantage: buildPlayerAdvantage(teams.teamIds, timeline, durationMs, teamSize),

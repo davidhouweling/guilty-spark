@@ -12,6 +12,7 @@ import {
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../score-progression/types";
+import { SCORE_SCALE } from "../score-progression/score-scales";
 
 afterEach(() => {
   cleanup();
@@ -229,6 +230,7 @@ describe("MatchStats", () => {
     const scoreProgressionViewData: ScoreProgressionViewData = {
       kind: "score-lines",
       durationMs: 600000,
+      scoreScale: SCORE_SCALE,
       teamLines: [],
       scoreDelta: null,
       playerAdvantage: null,
