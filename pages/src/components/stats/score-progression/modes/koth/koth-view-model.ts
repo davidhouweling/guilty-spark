@@ -9,25 +9,6 @@ import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment 
 const MIN_TRAILING_HILL_MS = 2_000;
 const FULL_METER_PERCENT = 100;
 
-export interface KothHillMeter {
-  readonly winnerTeamId: number | null;
-  readonly ticksPerFullMeter: number;
-}
-
-function toMeterPercent(ticks: number, teamId: number, meter: KothHillMeter): number {
-  const cap = teamId === meter.winnerTeamId ? FULL_METER_PERCENT : FULL_METER_PERCENT - 1;
-  return Math.min(cap, (ticks / meter.ticksPerFullMeter) * FULL_METER_PERCENT);
-}
-
-function median(values: readonly number[]): number | null {
-  if (values.length === 0) {
-    return null;
-  }
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
 interface KothHillPeriod {
   readonly startMs: number;
   readonly endMs: number;
@@ -63,14 +44,27 @@ export interface KothHillEvent {
   readonly ticksByTeam: Record<string, number>;
 }
 
-export interface KothHillWindow extends KothHillPeriod {
-  readonly events: readonly KothHillEvent[];
-  readonly meter: KothHillMeter;
-}
-
 interface ScannedHill extends KothHillPeriod {
   readonly events: readonly KothHillEvent[];
   readonly winnerTeamId: number | null;
+}
+
+export interface KothHillWindow extends ScannedHill {
+  readonly ticksPerFullMeter: number;
+}
+
+function toMeterPercent(ticks: number, teamId: number, hillWindow: KothHillWindow): number {
+  const cap = teamId === hillWindow.winnerTeamId ? FULL_METER_PERCENT : FULL_METER_PERCENT - 1;
+  return Math.min(cap, (ticks / hillWindow.ticksPerFullMeter) * FULL_METER_PERCENT);
+}
+
+function median(values: readonly number[]): number | null {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function hillTicksOf(events: readonly KothHillEvent[], teamId: number): number {
@@ -145,10 +139,23 @@ function winnerTicksOf(hill: ScannedHill): number {
   return hill.winnerTeamId == null ? 0 : hillTicksOf(hill.events, hill.winnerTeamId);
 }
 
-// A captured hill's meter filled by definition however many of its ticks the film kept (the
-// capture solver accepts as few as 5 recorded ticks, and more than the nominal 8 can be
-// recorded), so the winner's ticks at the capture are that hill's full meter. A hill without
-// them reads against the match's typical capture, or the nominal meter when nothing was captured.
+// a winner the film kept no ticks for still filled the meter: credit it on the capture event so
+// both views read it off the same ticks
+function creditWinnerAtCapture(hill: ScannedHill, ticksPerFullMeter: number): readonly KothHillEvent[] {
+  const { winnerTeamId, captureTs } = hill;
+  if (winnerTeamId == null || winnerTicksOf(hill) > 0) {
+    return hill.events;
+  }
+  return hill.events.map((event) =>
+    event.timestampMs === captureTs
+      ? { ...event, ticksByTeam: { ...event.ticksByTeam, [String(winnerTeamId)]: ticksPerFullMeter } }
+      : event,
+  );
+}
+
+// the capture solver accepts as few as 5 recorded ticks (and the film can keep more than the
+// nominal 8), so the winner's ticks at the capture are that hill's full meter; a hill without a
+// recorded capture reads against the match's typical one
 export function buildKothHillWindows(
   timeline: KothTimeline,
   teamIds: readonly number[],
@@ -157,12 +164,10 @@ export function buildKothHillWindows(
   const hills = scanHills(timeline, teamIds, durationMs);
   const recordedCaptureTicks = hills.map(winnerTicksOf).filter((ticks) => ticks > 0);
   const typicalCaptureTicks = median(recordedCaptureTicks) ?? KOTH_FULL_METER_TICKS;
-  return hills.map(({ winnerTeamId, ...period }) => {
-    const winnerTicks = winnerTicksOf({ ...period, winnerTeamId });
-    return {
-      ...period,
-      meter: { winnerTeamId, ticksPerFullMeter: winnerTicks > 0 ? winnerTicks : typicalCaptureTicks },
-    };
+  return hills.map((hill) => {
+    const winnerTicks = winnerTicksOf(hill);
+    const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : typicalCaptureTicks;
+    return { ...hill, events: creditWinnerAtCapture(hill, ticksPerFullMeter), ticksPerFullMeter };
   });
 }
 
@@ -171,21 +176,13 @@ export interface KothScoreSeries {
   readonly hillBoundaries: readonly number[];
 }
 
-// the winner's meter completed by definition at the capture, even when the film kept none of
-// its ticks
 function toMeterPercents(
-  event: KothHillEvent,
-  hillWindow: KothHillWindow,
+  ticksByTeam: Record<string, number>,
   teamIds: readonly number[],
+  hillWindow: KothHillWindow,
 ): Record<string, number> {
-  const { meter, captureTs } = hillWindow;
   return Object.fromEntries(
-    teamIds.map((teamId) => [
-      String(teamId),
-      teamId === meter.winnerTeamId && event.timestampMs === captureTs
-        ? FULL_METER_PERCENT
-        : toMeterPercent(event.ticksByTeam[String(teamId)] ?? 0, teamId, meter),
-    ]),
+    teamIds.map((teamId) => [String(teamId), toMeterPercent(ticksByTeam[String(teamId)] ?? 0, teamId, hillWindow)]),
   );
 }
 
@@ -207,7 +204,7 @@ export function buildKothScoreSeries(
     for (const event of hillWindow.events) {
       samples.push({
         timestampMs: Math.min(event.timestampMs, durationMs),
-        runningScores: toMeterPercents(event, hillWindow, teamIds),
+        runningScores: toMeterPercents(event.ticksByTeam, teamIds, hillWindow),
       });
     }
   }
@@ -266,10 +263,7 @@ function buildHillSegments(
 }
 
 function buildCaptureMeterPercentage(hillWindow: KothHillWindow, teamId: number): number {
-  if (teamId === hillWindow.meter.winnerTeamId) {
-    return FULL_METER_PERCENT;
-  }
-  return Math.round(toMeterPercent(hillTicksOf(hillWindow.events, teamId), teamId, hillWindow.meter));
+  return Math.round(toMeterPercent(hillTicksOf(hillWindow.events, teamId), teamId, hillWindow));
 }
 
 export function buildKothHills(
@@ -280,7 +274,7 @@ export function buildKothHills(
 ): KothHillData[] {
   return hillWindows.map((hillWindow, periodIndex) => {
     const segments = buildHillSegments(hillWindow.startMs, hillWindow.endMs, timeline, teamColorByTeamId);
-    const { winnerTeamId } = hillWindow.meter;
+    const { winnerTeamId } = hillWindow;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
     const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
 

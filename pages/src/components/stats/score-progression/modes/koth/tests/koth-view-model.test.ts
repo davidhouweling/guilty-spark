@@ -472,10 +472,10 @@ describe("buildKothHillWindows", () => {
       [45000, 1, { "0": 0, "1": 2 }],
       [55000, 1, { "0": 0, "1": 3 }],
     ]);
-    expect(windows.map((hillWindow) => hillWindow.meter)).toEqual([
-      { winnerTeamId: 0, ticksPerFullMeter: 4 },
-      { winnerTeamId: 1, ticksPerFullMeter: 3 },
-      { winnerTeamId: null, ticksPerFullMeter: 3.5 },
+    expect(windows.map((hillWindow) => [hillWindow.winnerTeamId, hillWindow.ticksPerFullMeter])).toEqual([
+      [0, 4],
+      [1, 3],
+      [null, 3.5],
     ]);
   });
 });

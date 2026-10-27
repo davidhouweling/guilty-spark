@@ -3,6 +3,7 @@
  *
  * Run: DOTENV_CONFIG_PATH=api/.dev.vars npx tsx api/scripts/koth-validate-match.ts <matchId>
  */
+import { KOTH_FULL_METER_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
 import { AnalyticsService } from "../services/analytics/analytics";
 import { createScriptServices, fmtMs } from "./script-services";
 
@@ -99,8 +100,9 @@ for (const [i, period] of hillPeriods.entries()) {
   const winnerName =
     winnerTeamId != null ? (TEAM_COLORS.find((t) => t.teamId === winnerTeamId)?.name ?? "?") : "(none)";
 
-  // Raw ticks per team inside the hill; the pages koth view model turns these into meter
-  // percentages (winner's ticks at the capture = a full meter), so compare ticks, not percentages.
+  // Raw ticks per team inside the hill, with the pages view model's meter reading beside them:
+  // the winner's ticks at the capture are a full meter; an uncaptured hill reads against the
+  // nominal meter here (the pages model uses the match's typical capture instead).
   const cumulativeAt = (teamId: number, timestampMs: number): number =>
     events.findLast((e) => e.timestampMs <= timestampMs && String(teamId) in e.runningScores)?.runningScores[
       String(teamId)
@@ -108,12 +110,16 @@ for (const [i, period] of hillPeriods.entries()) {
   // the first hill owns an event stamped on the match start; later hills start on a capture event
   // that belongs to the hill before
   const baselineAt = (teamId: number): number => (period.startMs === 0 ? 0 : cumulativeAt(teamId, period.startMs));
+  const hillTicks = (teamId: number): number => cumulativeAt(teamId, period.endMs) - baselineAt(teamId);
+  const winnerTicks = winnerTeamId != null ? hillTicks(winnerTeamId) : 0;
+  const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : KOTH_FULL_METER_TICKS;
   const meters = TEAM_COLORS.map((t) => ({
     name: t.name,
-    ticks: cumulativeAt(t.teamId, period.endMs) - baselineAt(t.teamId),
+    ticks: hillTicks(t.teamId),
+    pct: Math.min(t.teamId === winnerTeamId ? 100 : 99, Math.round((hillTicks(t.teamId) / ticksPerFullMeter) * 100)),
   }));
 
-  const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks`).join(", ");
+  const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks ≈ ${String(o.pct)}%`).join(", ");
 
   console.log(`\nHill ${String(hillIndex)} [${fmtMs(period.startMs)} → ${fmtMs(period.endMs)}]`);
   console.log(`  Winner: ${winnerName} (isCaptured=${String(period.isCaptured)})`);

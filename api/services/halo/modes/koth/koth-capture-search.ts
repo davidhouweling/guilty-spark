@@ -14,7 +14,7 @@ const RELOCATION_GAP_MS = 8_000;
 // A gap larger than 1.5 cadences between the capturer's own ticks can hide one dropped film
 // tick (or paused-meter time), granting one extra tick of credit. A perfect-cadence 7-tick run
 // is therefore ~35s — short of a capture.
-const HIDDEN_TICK_GAP_MS = 7_500;
+const HIDDEN_TICK_GAP_MS = 1.5 * KOTH_TICK_SCORING_MS;
 const MAX_SEARCH_NODES = 50_000;
 
 interface CaptureStep {

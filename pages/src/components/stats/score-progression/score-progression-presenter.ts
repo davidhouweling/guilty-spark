@@ -191,7 +191,7 @@ export class ScoreProgressionPresenter {
     if (typeof value !== "number" || Number.isNaN(value)) {
       return [String(value ?? ""), label];
     }
-    return [`${String(Math.abs(Math.round(value)))}% ${FLAG_PROGRESS_LABEL}`, label];
+    return [`${formatScoreValue(Math.abs(value), "percent")} ${FLAG_PROGRESS_LABEL}`, label];
   }
 
   private toTooltipLabel(name: string | number | undefined): string {
@@ -514,7 +514,10 @@ export class ScoreProgressionPresenter {
     team1Name: string,
     scoreScale: ScoreScale,
   ): [string, string] {
-    const shown = typeof value === "number" && scoreScale.unit === "percent" ? Math.round(value) : value;
+    const shown =
+      typeof value === "number" && scoreScale.unit === "percent"
+        ? Math.sign(value) * Math.round(Math.abs(value))
+        : value;
     return this.formatLeaderTooltip(
       shown,
       team0Name,
