@@ -9,6 +9,7 @@ import type { XboxService } from "../../../services/xbox/xbox";
 import type { UserTokenProvider } from "../../../services/halo/user-token-provider";
 import type { DatabaseService } from "../../../services/database/database";
 import type { AuthService } from "../../../services/auth/auth";
+import type { HaloService } from "../../../services/halo/halo";
 import { createApiRouter } from "../../../base/router";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeCacheStorage } from "../../../base/fakes/cache.fake";
@@ -454,6 +455,99 @@ describe("/proxy/halo-infinite/:operation route", () => {
 
     const res = (await router.fetch(
       getRequest("http://localhost/proxy/halo-infinite/getUser?arg=not-json"),
+      env,
+      ctx,
+    )) as Response;
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("Invalid query arguments");
+  });
+
+  it("serves getUsers from the per-player HaloService cache without resolving a client", async () => {
+    let getUsersByXuidsSpy!: MockInstance<HaloService["getUsersByXuids"]>;
+    let validateSessionSpy!: MockInstance<AuthService["validateSessionWithAuthMetadata"]>;
+    const usersWithExtraFields = [
+      { xuid: "1", gamertag: "One", fetchedAt: "2024-01-01T00:00:00.000Z" },
+      { xuid: "2", gamertag: "Two", gamerpic: { small: "s" } },
+    ];
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      getUsersByXuidsSpy = vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue(usersWithExtraFields);
+      validateSessionSpy = vi.spyOn(services.authService, "validateSessionWithAuthMetadata");
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const args = encodeURIComponent(JSON.stringify(["1", "2"]));
+    const res = (await router.fetch(
+      getRequest(`http://localhost/proxy/halo-infinite/getUsers?arg=${args}`),
+      env,
+      ctx,
+    )) as Response;
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toStrictEqual([
+      { xuid: "1", gamertag: "One" },
+      { xuid: "2", gamertag: "Two" },
+    ]);
+    expect(getUsersByXuidsSpy).toHaveBeenCalledWith(["1", "2"]);
+    expect(validateSessionSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not cache an incomplete getUsers result so a later request can recover", async () => {
+    const getUsersByXuidsSpy = vi.fn<HaloService["getUsersByXuids"]>();
+    getUsersByXuidsSpy.mockResolvedValueOnce([{ xuid: "1", gamertag: "One" }]).mockResolvedValueOnce([
+      { xuid: "1", gamertag: "One" },
+      { xuid: "2", gamertag: "Two" },
+    ]);
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.haloService, "getUsersByXuids").mockImplementation(getUsersByXuidsSpy);
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+    const waitUntilSpy = vi.spyOn(ctx, "waitUntil");
+    const url = `http://localhost/proxy/halo-infinite/getUsers?arg=${encodeURIComponent(JSON.stringify(["1", "2"]))}`;
+
+    const incompleteRes = (await router.fetch(getRequest(url), env, ctx)) as Response;
+
+    expect(incompleteRes.headers.get("Cache-Control")).toBe("no-store");
+    expect(waitUntilSpy).not.toHaveBeenCalled();
+    expect(await caches.default.match(getRequest(url))).toBeUndefined();
+
+    const completeRes = (await router.fetch(getRequest(url), env, ctx)) as Response;
+
+    expect(await completeRes.json()).toStrictEqual([
+      { xuid: "1", gamertag: "One" },
+      { xuid: "2", gamertag: "Two" },
+    ]);
+    expect(completeRes.headers.get("Cache-Control")).not.toBe("no-store");
+    expect(waitUntilSpy).toHaveBeenCalledTimes(1);
+    expect(getUsersByXuidsSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches a complete getUsers result when xuids are requested in wrapped form", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
+      const services = installFakeServicesWith({ env });
+      vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "1", gamertag: "One" }]);
+      return services;
+    });
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+    const waitUntilSpy = vi.spyOn(ctx, "waitUntil");
+    const url = `http://localhost/proxy/halo-infinite/getUsers?arg=${encodeURIComponent(JSON.stringify(["xuid(1)"]))}`;
+
+    const res = (await router.fetch(getRequest(url), env, ctx)) as Response;
+
+    expect(res.headers.get("Cache-Control")).not.toBe("no-store");
+    expect(waitUntilSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 400 when getUsers args are not a list of xuids", async () => {
+    const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => installFakeServicesWith({ env }));
+    haloProxyRoutesRegisterHandler(router, localInstallServices);
+
+    const res = (await router.fetch(
+      getRequest("http://localhost/proxy/halo-infinite/getUsers?arg=%22not-a-list%22"),
       env,
       ctx,
     )) as Response;

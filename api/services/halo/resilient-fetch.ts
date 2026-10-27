@@ -179,6 +179,19 @@ function resolveResponseCacheTtlSeconds(url: string, headers: Headers): number {
   return 3600;
 }
 
+/**
+ * Batch profile lookups are keyed by their exact xuid combination, so they rarely hit.
+ * HaloService caches each player individually instead.
+ */
+function isBatchUserLookupUrl(url: string): boolean {
+  try {
+    const { pathname, searchParams } = new URL(url);
+    return pathname.toLowerCase() === "/users" && searchParams.has("xuids");
+  } catch {
+    return false;
+  }
+}
+
 export function createResilientFetch({
   env,
   logService,
@@ -228,7 +241,7 @@ export function createResilientFetch({
   }
 
   function isKvResponseCacheableRequest(url: string, init?: RequestInit): boolean {
-    return isGetRequest(init) && isHaloWaypointUrl(url);
+    return isGetRequest(init) && isHaloWaypointUrl(url) && !isBatchUserLookupUrl(url);
   }
 
   async function getKvCachedResponse(url: string, init?: RequestInit): Promise<Response | null> {
