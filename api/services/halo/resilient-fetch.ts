@@ -1,6 +1,11 @@
 import { addMilliseconds, differenceInSeconds } from "date-fns";
 import type { LogService } from "../log/types";
 import { DEFAULT_FETCH_TIMEOUT_MS, withTimeoutSignal } from "./fetch-timeout";
+import {
+  getKvCacheSkipReason,
+  IMMUTABLE_RESPONSE_TTL_SECONDS,
+  isImmutableHaloResource,
+} from "./kv-response-cache-policy";
 import { ProxyType, KV_KEYS, CIRCUIT_BREAKER_CONFIG, ISSUE_STATUS_CODES } from "./types";
 import type { CircuitBreakerState, ErrorWindow, ProxyConfig } from "./types";
 
@@ -21,6 +26,29 @@ interface KvCachedResponse {
   status: number;
   headers: [string, string][];
   body: string;
+}
+
+interface BufferedResponse {
+  status: number;
+  statusText: string;
+  headers: [string, string][];
+  body: ArrayBuffer;
+}
+
+async function bufferResponse(response: Promise<Response>): Promise<BufferedResponse> {
+  const resolved = await response;
+  return {
+    status: resolved.status,
+    statusText: resolved.statusText,
+    headers: Array.from(resolved.headers.entries()),
+    body: await resolved.arrayBuffer(),
+  };
+}
+
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
+function toResponse({ status, statusText, headers, body }: BufferedResponse): Response {
+  return new Response(NULL_BODY_STATUSES.has(status) ? null : body.slice(0), { status, statusText, headers });
 }
 
 function isValidUrl(url: string): boolean {
@@ -182,6 +210,7 @@ export function createResilientFetch({
   const responseCacheKeyPrefix = kvKeyNamespace != null ? `${kvKeyNamespace}:responses` : "halo:responses";
 
   const kvDebounceMap = new Map<string, DebounceEntry>();
+  const inFlightRequests = new Map<string, Promise<BufferedResponse>>();
 
   async function getMasterToggle(): Promise<boolean> {
     const value = await env.APP_DATA.get(KV_KEYS.PROXY_ENABLED);
@@ -236,26 +265,14 @@ export function createResilientFetch({
     }
   }
 
-  function isCacheControlPrivateOrNoStore(headers: Headers): boolean {
-    const cacheControl = headers.get("cache-control");
-    if (cacheControl == null) {
-      return false;
-    }
-    const lower = cacheControl.toLowerCase();
-    return lower.includes("no-store") || lower.includes("private");
-  }
-
   async function maybeCacheResponseInKv(url: string, init: RequestInit | undefined, response: Response): Promise<void> {
-    if (!isKvResponseCacheableRequest(url, init) || response.status !== 200) {
+    if (!isKvResponseCacheableRequest(url, init)) {
       return;
     }
 
-    if (isCacheControlPrivateOrNoStore(response.headers)) {
-      return;
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.toLowerCase().includes("application/json")) {
+    const skipReason = getKvCacheSkipReason(url, response);
+    if (skipReason != null) {
+      logService.debug(`KV cache skip for ${url}`, new Map([["reason", skipReason]]));
       return;
     }
 
@@ -263,7 +280,9 @@ export function createResilientFetch({
       const cacheKey = buildResponseCacheKey(url);
       const cloned = response.clone();
       const body = await cloned.text();
-      const ttlSeconds = resolveResponseCacheTtlSeconds(url, cloned.headers);
+      const ttlSeconds = isImmutableHaloResource(url)
+        ? IMMUTABLE_RESPONSE_TTL_SECONDS
+        : resolveResponseCacheTtlSeconds(url, cloned.headers);
       const payload: KvCachedResponse = {
         status: cloned.status,
         headers: Array.from(cloned.headers.entries()),
@@ -403,10 +422,42 @@ export function createResilientFetch({
     return response;
   }
 
-  return async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const cacheInit: RequestInit =
-      input instanceof Request ? { ...init, method: init?.method ?? input.method } : { ...init };
+  function getInFlightRequestKey(url: string, init: RequestInit): string {
+    const headers = [...new Headers(init.headers).entries()].sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify([url, headers]);
+  }
+
+  async function shareInFlightRequest(
+    url: string,
+    init: RequestInit,
+    load: () => Promise<Response>,
+  ): Promise<Response> {
+    const key = getInFlightRequestKey(url, init);
+    const existing = inFlightRequests.get(key);
+    if (existing != null) {
+      logService.debug(`Sharing in-flight request for ${url}`);
+      return toResponse(await existing);
+    }
+
+    const pending = bufferResponse(load());
+    inFlightRequests.set(key, pending);
+    try {
+      return toResponse(await pending);
+    } finally {
+      inFlightRequests.delete(key);
+    }
+  }
+
+  function isShareableRequest(input: RequestInfo | URL, url: string, init: RequestInit): boolean {
+    return !(input instanceof Request) && init.signal == null && isKvResponseCacheableRequest(url, init);
+  }
+
+  async function fetchAndCache(
+    input: RequestInfo | URL,
+    init: RequestInit | undefined,
+    url: string,
+    cacheInit: RequestInit,
+  ): Promise<Response> {
     const kvCachedResponse = await getKvCachedResponse(url, cacheInit);
     if (kvCachedResponse != null) {
       return kvCachedResponse;
@@ -493,5 +544,15 @@ export function createResilientFetch({
       );
       throw error;
     }
+  }
+
+  return async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const cacheInit: RequestInit =
+      input instanceof Request ? { ...init, method: init?.method ?? input.method } : { ...init };
+    if (isShareableRequest(input, url, cacheInit)) {
+      return shareInFlightRequest(url, cacheInit, async () => fetchAndCache(input, init, url, cacheInit));
+    }
+    return fetchAndCache(input, init, url, cacheInit);
   };
 }
