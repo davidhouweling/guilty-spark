@@ -128,7 +128,9 @@ const median = (values: number[]): number | null => {
   }
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  const upper = sorted[middle] ?? 0;
+  const lower = sorted[middle - 1] ?? upper;
+  return sorted.length % 2 === 1 ? upper : (lower + upper) / 2;
 };
 const typicalCaptureTicks = Math.max(
   KOTH_MIN_CAPTURE_TICKS,
