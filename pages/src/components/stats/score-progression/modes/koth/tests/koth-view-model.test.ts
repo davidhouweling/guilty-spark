@@ -160,9 +160,10 @@ describe("buildKothHills", () => {
     const hills = buildHills(timeline);
     expect(hills).toHaveLength(2);
     expect(hills[0]?.winnerTeamId).toBe(0);
-    // hill 1 was captured with 2 recorded ticks, so one Cobra tick in the uncaptured hill 2 is half a meter
+    // hill 1's capture kept only 2 ticks, under the solver's minimum of 5, so the uncaptured hill 2
+    // reads one Cobra tick against five
     expect(hills[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 0]);
-    expect(hills[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 50]);
+    expect(hills[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 20]);
   });
 
   it("renders a control window straddling a capture boundary as unoccupied in the next hill", () => {
@@ -259,10 +260,15 @@ describe("buildKothHills", () => {
 
   it("reads a trailing uncaptured hill against the match's typical capture tick count", () => {
     const timeline = aFakeKothTimelineWith({
-      events: [...aFakeKothTimelineWith().events, { timestampMs: 57000, teamId: 0, runningScores: { "0": 5, "1": 4 } }],
+      events: [
+        { timestampMs: 10000, teamId: 0, runningScores: { "0": 6, "1": 0 } },
+        { timestampMs: 30000, teamId: 1, runningScores: { "0": 6, "1": 8 } },
+        { timestampMs: 40000, teamId: 0, runningScores: { "0": 7, "1": 8 } },
+      ],
+      hillCaptureTimestamps: [10000, 30000],
     });
-    // captures took 4 and 3 recorded ticks, so one tick in the trailing hill is 1 / 3.5 of a meter
-    expect(buildHills(timeline)[2]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([29, 0]);
+    // captures kept 6 and 8 ticks, so one tick in the trailing hill is 1 / 7 of a meter
+    expect(buildHills(timeline)[2]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([14, 0]);
   });
 
   it("pins a winner the film kept no ticks for at 100% without counting it as a capture meter", () => {
@@ -292,18 +298,30 @@ describe("buildKothHills", () => {
     expect(samples.find((sample) => sample.timestampMs === 10000)?.runningScores).toEqual({ "0": 100, "1": 25 });
   });
 
+  it("never calibrates an uncaptured hill below the solver's minimum capture ticks", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 20000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+      ],
+      hillCaptureTimestamps: [5000],
+    });
+    // the one recorded capture kept a single tick, so the trailing hill reads against five
+    expect(buildHills(timeline)[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 20]);
+  });
+
   it("reads an early tickless capture against captures recorded later in the match", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
         { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
         { timestampMs: 10000, teamId: 0, runningScores: { "1": 2 } },
-        { timestampMs: 20000, teamId: 1, runningScores: { "0": 0, "1": 6 } },
+        { timestampMs: 20000, teamId: 1, runningScores: { "0": 0, "1": 8 } },
       ],
       hillCaptureTimestamps: [10000, 20000],
     });
     const [tickless] = buildHills(timeline, 60000);
-    // hill 2 was captured with 4 recorded ticks, so hill 1's 2 Cobra ticks are half a meter
-    expect(tickless.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 50]);
+    // hill 2 was captured with 6 recorded ticks, so hill 1's 2 Cobra ticks are a third of a meter
+    expect(tickless.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 33]);
   });
 
   it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
@@ -377,8 +395,9 @@ describe("buildKothScoreSeries", () => {
     const { samples, hillBoundaries } = buildSeries(timeline);
 
     expect(hillBoundaries).toEqual([30000]);
-    // no event sits on the 59100 capture, so hill 2 has no winner and reads against hill 1's 4-tick capture
-    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 75 } });
+    // no event sits on the 59100 capture, so hill 2 has no winner and reads against the match's
+    // typical capture: hill 1 kept 4 ticks, floored to the solver's minimum of 5
+    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 60 } });
   });
 
   it("counts a score event at the match start toward the first hill instead of the baseline", () => {
@@ -475,7 +494,7 @@ describe("buildKothHillWindows", () => {
     expect(windows.map((hillWindow) => [hillWindow.winnerTeamId, hillWindow.ticksPerFullMeter])).toEqual([
       [0, 4],
       [1, 3],
-      [null, 3.5],
+      [null, 5],
     ]);
   });
 });

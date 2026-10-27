@@ -3,3 +3,5 @@
 export const KOTH_TICK_SCORING_MS = 5_000;
 export const KOTH_CAPTURE_METER_MS = 40_000;
 export const KOTH_FULL_METER_TICKS = KOTH_CAPTURE_METER_MS / KOTH_TICK_SCORING_MS;
+// the film drops ticks, so a capture is accepted once this many of the capturer's ticks were kept
+export const KOTH_MIN_CAPTURE_TICKS = 5;

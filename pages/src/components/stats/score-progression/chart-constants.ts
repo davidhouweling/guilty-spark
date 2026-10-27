@@ -168,12 +168,29 @@ export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {
 
 const PERCENT_AXIS_TICKS = [0, 25, 50, 75, 100];
 
+// rounds away from zero on both sides so a lead and its mirror image read the same
+export function roundPercent(value: number): number {
+  return Math.sign(value) * Math.round(Math.abs(value));
+}
+
 export function formatScoreValue(value: number, unit: ScoreUnit): string {
-  return unit === "percent" ? `${String(Math.sign(value) * Math.round(Math.abs(value)))}%` : String(value);
+  return unit === "percent" ? `${String(roundPercent(value))}%` : String(value);
 }
 
 const PERCENT_AXIS_WIDTH = 40;
 const SCORE_AXIS_WIDTH = 36;
+const TICK_FORMATTER_BY_UNIT: Record<ScoreUnit, (value: number) => string> = {
+  percent: (value) => formatScoreValue(value, "percent"),
+  points: (value) => formatScoreValue(value, "points"),
+};
+
+export function scoreAxisWidth(unit: ScoreUnit): number {
+  return unit === "percent" ? PERCENT_AXIS_WIDTH : SCORE_AXIS_WIDTH;
+}
+
+export function scoreTickFormatter(unit: ScoreUnit): (value: number) => string {
+  return TICK_FORMATTER_BY_UNIT[unit];
+}
 
 export function scoreAxisProps(unit: ScoreUnit): {
   domain: [number, number] | undefined;
@@ -184,14 +201,9 @@ export function scoreAxisProps(unit: ScoreUnit): {
   return {
     domain: unit === "percent" ? [0, 100] : undefined,
     ticks: unit === "percent" ? [...PERCENT_AXIS_TICKS] : undefined,
-    width: unit === "percent" ? PERCENT_AXIS_WIDTH : SCORE_AXIS_WIDTH,
-    tickFormatter: (value: number): string => formatScoreValue(value, unit),
+    width: scoreAxisWidth(unit),
+    tickFormatter: scoreTickFormatter(unit),
   };
-}
-
-export function deltaAxisProps(unit: ScoreUnit): { width: number; tickFormatter: (value: number) => string } {
-  const { width, tickFormatter } = scoreAxisProps(unit);
-  return { width, tickFormatter };
 }
 
 const FLAG_AXIS_TICKS = [-100, -50, 0, 50, 100];

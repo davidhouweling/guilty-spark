@@ -1,10 +1,11 @@
 import type { KothEvent, KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { KOTH_FULL_METER_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
+import { KOTH_FULL_METER_TICKS, KOTH_MIN_CAPTURE_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { carryScoresForward, zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
+import type { KothHillEvent, KothHillWindow } from "./types";
 
 const MIN_TRAILING_HILL_MS = 2_000;
 const FULL_METER_PERCENT = 100;
@@ -38,19 +39,9 @@ function buildKothHillPeriods(hillCaptureTimestamps: readonly number[], duration
   return periods;
 }
 
-export interface KothHillEvent {
-  readonly timestampMs: number;
-  readonly teamId: number;
-  readonly ticksByTeam: Record<string, number>;
-}
-
 interface ScannedHill extends KothHillPeriod {
   readonly events: readonly KothHillEvent[];
   readonly winnerTeamId: number | null;
-}
-
-export interface KothHillWindow extends ScannedHill {
-  readonly ticksPerFullMeter: number;
 }
 
 function toMeterPercent(ticks: number, teamId: number, hillWindow: KothHillWindow): number {
@@ -163,7 +154,7 @@ export function buildKothHillWindows(
 ): KothHillWindow[] {
   const hills = scanHills(timeline, teamIds, durationMs);
   const recordedCaptureTicks = hills.map(winnerTicksOf).filter((ticks) => ticks > 0);
-  const typicalCaptureTicks = median(recordedCaptureTicks) ?? KOTH_FULL_METER_TICKS;
+  const typicalCaptureTicks = Math.max(KOTH_MIN_CAPTURE_TICKS, median(recordedCaptureTicks) ?? KOTH_FULL_METER_TICKS);
   return hills.map((hill) => {
     const winnerTicks = winnerTicksOf(hill);
     const ticksPerFullMeter = winnerTicks > 0 ? winnerTicks : typicalCaptureTicks;

@@ -20,7 +20,8 @@ import {
   chartMargin,
   roundBoundaryLineProps,
   playerAdvantageAreaProps,
-  deltaAxisProps,
+  scoreAxisWidth,
+  scoreTickFormatter,
   timeAxisProps,
   tooltipContentStyle,
   tooltipLabelStyle,
@@ -98,11 +99,12 @@ export function DeltaChart({
         <CartesianGrid strokeDasharray="4 4" stroke={GRID_STROKE} />
         <XAxis {...timeAxisProps(durationMs)} />
         <YAxis
-          {...deltaAxisProps(scoreUnit)}
           allowDecimals={false}
+          width={scoreAxisWidth(scoreUnit)}
           domain={[minScore, maxScore]}
           stroke={AXIS_STROKE}
           tick={TICK_STYLE}
+          tickFormatter={scoreTickFormatter(scoreUnit)}
         />
         {advantageDomain != null && <YAxis {...advantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} strokeDasharray="3 3" />

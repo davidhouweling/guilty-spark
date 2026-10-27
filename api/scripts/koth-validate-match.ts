@@ -86,8 +86,12 @@ const MIN_TRAILING_HILL_MS = 2_000;
 const hillPeriods: HillPeriod[] = [];
 let hillStart = 0;
 for (const captureTs of hillCaptureTimestamps) {
-  hillPeriods.push({ startMs: hillStart, endMs: captureTs, isCaptured: true });
-  hillStart = captureTs;
+  const endMs = Math.min(captureTs, progression.durationMs);
+  if (endMs <= hillStart) {
+    continue;
+  }
+  hillPeriods.push({ startMs: hillStart, endMs, isCaptured: true });
+  hillStart = endMs;
 }
 if (progression.durationMs - hillStart >= MIN_TRAILING_HILL_MS) {
   hillPeriods.push({ startMs: hillStart, endMs: progression.durationMs, isCaptured: false });
@@ -116,7 +120,7 @@ for (const [i, period] of hillPeriods.entries()) {
   const meters = TEAM_COLORS.map((t) => ({
     name: t.name,
     ticks: hillTicks(t.teamId),
-    pct: Math.min(t.teamId === winnerTeamId ? 100 : 99, Math.round((hillTicks(t.teamId) / ticksPerFullMeter) * 100)),
+    pct: t.teamId === winnerTeamId ? 100 : Math.min(99, Math.round((hillTicks(t.teamId) / ticksPerFullMeter) * 100)),
   }));
 
   const meterStr = meters.map((o) => `${o.name} ${String(o.ticks)} ticks ≈ ${String(o.pct)}%`).join(", ");

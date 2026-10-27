@@ -1,5 +1,11 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { PLAYER_ADVANTAGE_SERIES, TICK_FILL, ZONE_ADVANTAGE_SERIES, formatScoreValue } from "./chart-constants";
+import {
+  PLAYER_ADVANTAGE_SERIES,
+  TICK_FILL,
+  ZONE_ADVANTAGE_SERIES,
+  formatScoreValue,
+  roundPercent,
+} from "./chart-constants";
 import type { ScoreProgressionSnapshot, ScoreProgressionStore } from "./score-progression-store";
 import type {
   ChartType,
@@ -514,10 +520,7 @@ export class ScoreProgressionPresenter {
     team1Name: string,
     scoreScale: ScoreScale,
   ): [string, string] {
-    const shown =
-      typeof value === "number" && scoreScale.unit === "percent"
-        ? Math.sign(value) * Math.round(Math.abs(value))
-        : value;
+    const shown = typeof value === "number" && scoreScale.unit === "percent" ? roundPercent(value) : value;
     return this.formatLeaderTooltip(
       shown,
       team0Name,
