@@ -11,6 +11,7 @@ interface ConnectHistoryEmbedServices {
 
 interface ConnectHistoryEmbedData {
   gamertag: string;
+  xuid?: string | undefined;
   locale: string;
   title?: string;
   description?: string;
@@ -27,8 +28,11 @@ export class ConnectHistoryEmbed {
 
   async getEmbed(): Promise<APIEmbed> {
     const { discordService, haloService } = this.services;
-    const { gamertag, locale, title, description } = this.data;
-    const matchHistory = await haloService.getEnrichedMatchHistory(gamertag, locale, MatchType.Custom, 10);
+    const { gamertag, xuid, locale, title, description } = this.data;
+    const matchHistory =
+      xuid == null
+        ? await haloService.getEnrichedMatchHistory(gamertag, locale, MatchType.Custom, 10)
+        : await haloService.getEnrichedMatchHistoryForUser({ xuid, gamertag }, locale, MatchType.Custom, 10);
 
     return {
       title: title ?? `Recent custom game matches for "${gamertag}"`,

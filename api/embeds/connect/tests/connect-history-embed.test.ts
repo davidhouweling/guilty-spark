@@ -45,6 +45,28 @@ describe("ConnectHistoryEmbed", () => {
     expect(result.fields?.[2]?.value).toBe("<t:1732615200:R>");
   });
 
+  it("looks up history by xuid when one is provided", async () => {
+    const getEnrichedMatchHistorySpy = vi.spyOn(haloService, "getEnrichedMatchHistory");
+    const getEnrichedMatchHistoryForUserSpy = vi
+      .spyOn(haloService, "getEnrichedMatchHistoryForUser")
+      .mockResolvedValue({ gamertag: "OldName", xuid: "xuid-123", matches: [], suggestedGroupings: [] });
+
+    const embed = new ConnectHistoryEmbed(
+      { discordService, haloService },
+      { gamertag: "OldName", xuid: "xuid-123", locale: "en-US" },
+    );
+
+    await embed.getEmbed();
+
+    expect(getEnrichedMatchHistoryForUserSpy).toHaveBeenCalledWith(
+      { xuid: "xuid-123", gamertag: "OldName" },
+      "en-US",
+      2,
+      10,
+    );
+    expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
+  });
+
   it("uses custom title and description when provided", async () => {
     vi.spyOn(haloService, "getEnrichedMatchHistory").mockResolvedValue({
       gamertag: "TestPlayer",

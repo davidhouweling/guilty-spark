@@ -1205,16 +1205,23 @@ export class HaloService {
         cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
       );
     });
-    const unknownGameSimilarityUsersResult = await this.getUsersByXuids(
-      unknownGameSimilarityUsers.map((user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId),
+    const unknownGameSimilarityXuids = unknownGameSimilarityUsers.map(
+      (user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId,
+    );
+    const unknownGameSimilarityUsersByXuid = new Map(
+      (await this.getUsersByXuids(unknownGameSimilarityXuids)).map((result) => [result.xuid, result]),
     );
     await Promise.all(
-      unknownGameSimilarityUsersResult.map(async (result, index) =>
-        processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
+      unknownGameSimilarityXuids.map(async (xuid, index) => {
+        const result = unknownGameSimilarityUsersByXuid.get(xuid);
+        if (result == null) {
+          return;
+        }
+        await processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
           status: "fulfilled",
           value: result,
-        }),
-      ),
+        });
+      }),
     );
     this.logService.debug(
       `HaloService: Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,

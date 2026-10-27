@@ -1,3 +1,4 @@
+import { MatchType } from "halo-infinite-api";
 import type { MockInstance } from "vitest";
 import { describe, beforeEach, vi, it, expect, afterEach } from "vitest";
 import type {
@@ -197,6 +198,29 @@ describe("ConnectCommand", () => {
               expect(getUsersByXuidsSpy).toHaveBeenCalled();
               expect(getUsersByXuidsSpy).toHaveBeenCalledWith(["0000000000001"]);
             });
+
+            it("looks up recent history by the linked xuid rather than the cached gamertag", async () => {
+              getUsersByXuidsSpy.mockResolvedValue([{ xuid: "0000000000001", gamertag: "PreviousGamertag" }]);
+              const getEnrichedMatchHistorySpy = vi.spyOn(services.haloService, "getEnrichedMatchHistory");
+              const getEnrichedMatchHistoryForUserSpy = vi
+                .spyOn(services.haloService, "getEnrichedMatchHistoryForUser")
+                .mockResolvedValue({
+                  gamertag: "PreviousGamertag",
+                  xuid: "0000000000001",
+                  matches: [],
+                  suggestedGroupings: [],
+                });
+
+              await jobToComplete?.();
+
+              expect(getEnrichedMatchHistoryForUserSpy).toHaveBeenCalledWith(
+                { xuid: "0000000000001", gamertag: "PreviousGamertag" },
+                expect.any(String),
+                MatchType.Custom,
+                10,
+              );
+              expect(getEnrichedMatchHistorySpy).not.toHaveBeenCalled();
+            });
           } else {
             it("does not call getUsersByXuids", async () => {
               await jobToComplete?.();
@@ -214,6 +238,12 @@ describe("ConnectCommand", () => {
 
           it("returns expected response when no history", async () => {
             vi.spyOn(services.haloService, "getRecentMatchHistory").mockResolvedValue([]);
+            vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser").mockResolvedValue({
+              gamertag: "gamertag0000000000001",
+              xuid: "0000000000001",
+              matches: [],
+              suggestedGroupings: [],
+            });
             await jobToComplete?.();
 
             expect(updateDeferredReplySpy).toHaveBeenCalledOnce();

@@ -75,6 +75,59 @@ describe("Halo service", () => {
   });
 
   describe("getSeriesFromDiscordQueue()", () => {
+    it("keeps each game similarity association on its own xuid when cached and fetched users are reordered", async () => {
+      vi.spyOn(databaseService, "getDiscordAssociations").mockImplementation(async (discordIds: string[]) =>
+        Promise.resolve(
+          discordIds.map((id) => {
+            if (id === "000000000000000001") {
+              return aFakeDiscordAssociationsRow({
+                DiscordId: id,
+                XboxId: "0000000000001",
+                GamesRetrievable: GamesRetrievable.YES,
+                AssociationReason: AssociationReason.USERNAME_SEARCH,
+              });
+            }
+            const xuid =
+              id === "000000000000000002"
+                ? "0200000000000000"
+                : id === "000000000000000003"
+                  ? "0500000000000000"
+                  : null;
+            return xuid == null
+              ? aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: "",
+                  GamesRetrievable: GamesRetrievable.NO,
+                  AssociationReason: AssociationReason.DISPLAY_NAME_SEARCH,
+                })
+              : aFakeDiscordAssociationsRow({
+                  DiscordId: id,
+                  XboxId: xuid,
+                  GamesRetrievable: GamesRetrievable.UNKNOWN,
+                  AssociationReason: AssociationReason.GAME_SIMILARITY,
+                });
+          }),
+        ),
+      );
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockImplementation((key, type) =>
+        type === "json" && key === "cache.halo.xuid.0500000000000000"
+          ? { xuid: "0500000000000000", gamertag: "user_03", fetchedAt: Date.now() - 3600000 * 2 }
+          : null,
+      );
+      const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
+
+      await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
+      await haloService.updateDiscordAssociations();
+
+      expect(upsertDiscordAssociationsSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ DiscordId: "000000000000000002", XboxId: "0200000000000000" }),
+          expect.objectContaining({ DiscordId: "000000000000000003", XboxId: "0500000000000000" }),
+        ]),
+      );
+    });
+
     it.each([false, true])(
       "discards a lone bot warm-up with bot PresentAtBeginning=%s",
       async (botPresentAtBeginning) => {
