@@ -45,8 +45,10 @@ async function bufferResponse(response: Promise<Response>): Promise<BufferedResp
   };
 }
 
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
 function toResponse({ status, statusText, headers, body }: BufferedResponse): Response {
-  return new Response(body.slice(0), { status, statusText, headers });
+  return new Response(NULL_BODY_STATUSES.has(status) ? null : body.slice(0), { status, statusText, headers });
 }
 
 function isValidUrl(url: string): boolean {

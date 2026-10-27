@@ -1135,6 +1135,23 @@ describe("createResilientFetch", () => {
       expect(logServiceDebugSpy).toHaveBeenCalledWith(`Sharing in-flight request for ${url}`);
     });
 
+    it("returns bodyless responses such as 204 without throwing", async () => {
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(new Response(null, { status: 204 }));
+
+      const resilientFetch = createResilientFetch({
+        env,
+        logService,
+        proxyUrl: "",
+      });
+
+      const [first, second] = await Promise.all([resilientFetch(url), resilientFetch(url)]);
+
+      expect(first.status).toBe(204);
+      expect(second.status).toBe(204);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("makes a new request once the previous request has settled", async () => {
       kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockImplementation(async () =>
