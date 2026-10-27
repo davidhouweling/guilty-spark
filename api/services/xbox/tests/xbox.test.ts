@@ -490,18 +490,16 @@ describe("Xbox Service", () => {
       });
     });
 
-    it("re-authenticates the profile token without touching the Halo token on Unauthorized", async () => {
+    it("re-authenticates the profile token on Unauthorized even when KV still returns the rejected token", async () => {
       const unauthorizedErr = new Error("Unauthorized");
       unauthorizedErr.name = "XRFetchClientException";
       authenticate.mockResolvedValueOnce(validAuthenticateResponse);
-      const kvDeleteSpy = vi.spyOn(env.APP_DATA, "delete");
-      kvAppDataGetSpy
-        .mockResolvedValueOnce({
-          XSTSToken: "profile_token",
-          userHash: "profile_hash",
-          expiresOn: "2025-01-01T03:00:00.000Z",
-        })
-        .mockResolvedValueOnce(null);
+      const kvPutSpy = vi.spyOn(env.APP_DATA, "put");
+      kvAppDataGetSpy.mockResolvedValue({
+        XSTSToken: "profile_token",
+        userHash: "profile_hash",
+        expiresOn: "2025-01-01T03:00:00.000Z",
+      });
       xsapiClientPostSpy.mockRejectedValueOnce(unauthorizedErr).mockResolvedValueOnce(
         createMockXSAPIResponse([
           {
@@ -516,7 +514,9 @@ describe("Xbox Service", () => {
       const result = await xboxService.getUsersByXuids(["2533274844642438"]);
 
       expect(result).toEqual([{ xuid: "2533274844642438", gamertag: "TestPlayer1" }]);
-      expect(kvDeleteSpy).toHaveBeenCalledExactlyOnceWith("xboxProfileToken");
+      expect(kvPutSpy).toHaveBeenCalledWith("xboxProfileToken", expect.stringContaining('"XSTSToken":"xsts_token"'), {
+        expirationTtl: 21600,
+      });
       expect(authenticate).toHaveBeenCalledExactlyOnceWith(env.XBOX_USERNAME, env.XBOX_PASSWORD, {
         XSTSRelyingParty: "http://xboxlive.com",
       });

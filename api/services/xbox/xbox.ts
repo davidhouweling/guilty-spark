@@ -169,8 +169,7 @@ export class XboxService {
       return await fetch(await this.getProfileToken());
     } catch (err) {
       if (this.isUnauthorizedError(err)) {
-        await this.clearProfileToken();
-        return fetch(await this.getProfileToken());
+        return fetch(await this.refreshProfileToken());
       }
       throw err;
     }
@@ -188,15 +187,14 @@ export class XboxService {
       return storedToken;
     }
 
+    return this.refreshProfileToken();
+  }
+
+  private async refreshProfileToken(): Promise<TokenInfo> {
     const authenticatedToken = await this.authenticateForRelyingParty(XBOX_LIVE_XSTS_RELYING_PARTY);
     this.profileTokenInfo = authenticatedToken;
     await this.storeToken(XboxService.PROFILE_TOKEN_NAME, authenticatedToken);
     return authenticatedToken;
-  }
-
-  private async clearProfileToken(): Promise<void> {
-    this.profileTokenInfo = null;
-    await this.env.APP_DATA.delete(XboxService.PROFILE_TOKEN_NAME);
   }
 
   private isExpired(tokenInfo: TokenInfo): boolean {
