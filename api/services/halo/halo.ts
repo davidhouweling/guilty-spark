@@ -80,6 +80,7 @@ export class HaloService {
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
   private readonly refreshingXuids = new Set<string>();
+  private readonly staleGamertagXuids = new Set<string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
@@ -353,6 +354,9 @@ export class HaloService {
     }
 
     const { cachedUsers, staleXuids, missingXuids } = await this.partitionUsersByKVCache(xuids);
+    for (const xuid of staleXuids) {
+      this.staleGamertagXuids.add(xuid);
+    }
     this.refreshStaleUsersInBackground(staleXuids);
 
     if (missingXuids.length === 0) {
@@ -1688,7 +1692,8 @@ export class HaloService {
   }
 
   /**
-   * Gets Xbox gamertag map for the given xuids, using cache first then fetching if needed
+   * Gets Xbox gamertag map for the given xuids, using cache first then fetching if needed.
+   * Stale cached gamertags are excluded because a renamed player's old tag may now belong to someone else.
    */
   private async getXboxGamertagMap(xboxXuids: string[]): Promise<{
     xboxGamertags: string[];
@@ -1701,7 +1706,7 @@ export class HaloService {
     const xboxGamertags: string[] = [];
     for (const xuid of xboxXuids) {
       const gamertag = this.xuidToGamerTagCache.get(xuid);
-      if (gamertag != null) {
+      if (gamertag != null && !this.staleGamertagXuids.has(xuid)) {
         xboxGamertags.push(gamertag);
         xboxGamertagMap.set(xuid, gamertag);
       }
@@ -1713,6 +1718,9 @@ export class HaloService {
         const users = await this.getUsersByXuids(xboxXuids);
         for (const user of users) {
           this.xuidToGamerTagCache.set(user.xuid, user.gamertag);
+          if (this.staleGamertagXuids.has(user.xuid)) {
+            continue;
+          }
           xboxGamertags.push(user.gamertag);
           xboxGamertagMap.set(user.xuid, user.gamertag);
         }
