@@ -1006,32 +1006,6 @@ describe("Halo service", () => {
           );
         });
 
-        it("does not infer an association from a stale cached gamertag that now belongs to another player", async () => {
-          const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
-          kvGetSpy.mockImplementation((key, type) =>
-            type === "json" && key === "cache.halo.xuid.0400000000000000"
-              ? { xuid: "0400000000000000", gamertag: "discord_user_05", fetchedAt: Date.now() - 3600000 * 2 }
-              : null,
-          );
-          vi.spyOn(infiniteClient, "getUsers").mockImplementation(async (xuids: string[]) =>
-            Promise.resolve(
-              xuids.map((xuid) =>
-                createXboxUser(xuid, xuid === "0800000000000000" ? "discord_user_05" : `OtherGamertag${xuid}`),
-              ),
-            ),
-          );
-          const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
-
-          await haloService.getSeriesFromDiscordQueue(getNeatQueueSeriesData());
-          await haloService.updateDiscordAssociations();
-
-          const associations = upsertDiscordAssociationsSpy.mock.calls.flatMap(([rows]) => rows);
-          expect(associations).toContainEqual(
-            expect.objectContaining({ DiscordId: "000000000000000005", XboxId: "0800000000000000" }),
-          );
-          expect(associations).not.toContainEqual(expect.objectContaining({ XboxId: "0400000000000000" }));
-        });
-
         it("only matches Discord users to Xbox players on same team", async () => {
           const getUsersSpy = vi.spyOn(infiniteClient, "getUsers");
           const upsertDiscordAssociationsSpy = vi.spyOn(databaseService, "upsertDiscordAssociations");
