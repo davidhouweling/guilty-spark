@@ -67,15 +67,16 @@ describe("DeltaChart", () => {
     expect(areas[0]).toHaveAttribute("data-type", "linear");
   });
 
-  it("formats the delta axis in the score unit", () => {
+  it("formats a percent delta axis with percent ticks", () => {
     render(<DeltaChart {...aDeltaViewModelWith("linear")} scoreUnit="percent" />);
     const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
     expect(scoreAxis).toHaveAttribute("data-tick", "-25%");
+  });
 
-    cleanup();
+  it("formats a points delta axis with plain ticks", () => {
     render(<DeltaChart {...aDeltaViewModelWith("linear")} />);
-    const pointsAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
-    expect(pointsAxis).toHaveAttribute("data-tick", "-25");
+    const scoreAxis = screen.getAllByTestId("y-axis").find((axis) => axis.getAttribute("data-axis") == null);
+    expect(scoreAxis).toHaveAttribute("data-tick", "-25");
   });
 
   it("renders both advantage overlays on the shared advantage axis when enabled", () => {

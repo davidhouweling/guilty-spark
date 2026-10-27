@@ -1,8 +1,8 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
-  KOTH_CAPTURE_METER_MS as CAPTURE_METER_MS,
-  KOTH_FULL_METER_TICKS as FULL_METER_TICKS,
-  KOTH_TICK_SCORING_MS as TICK_SCORING_MS,
+  KOTH_CAPTURE_METER_MS,
+  KOTH_FULL_METER_TICKS,
+  KOTH_TICK_SCORING_MS,
 } from "@guilty-spark/shared/halo/koth-capture-meter";
 import type { KothControlPeriod, KothProgressionEvent } from "../../types";
 
@@ -158,7 +158,7 @@ class KothCaptureSearch {
       // Strictly greater: equal tick counts are common dedup jitter, not an implausibility.
       // A full meter's worth of opponent ticks is a violation regardless — that team's meter
       // would have completed first, so this hill cannot still be open for the capturer.
-      if (otherTeamTicks > perHillTicks || otherTeamTicks >= FULL_METER_TICKS) {
+      if (otherTeamTicks > perHillTicks || otherTeamTicks >= KOTH_FULL_METER_TICKS) {
         overtaken += 1;
       }
     }
@@ -174,13 +174,13 @@ class KothCaptureSearch {
       if (event.teamId !== captureEvent.teamId) {
         continue;
       }
-      scoringMs += TICK_SCORING_MS;
+      scoringMs += KOTH_TICK_SCORING_MS;
       if (previousOwnTickMs != null && event.timestampMs - previousOwnTickMs > HIDDEN_TICK_GAP_MS) {
-        scoringMs += TICK_SCORING_MS;
+        scoringMs += KOTH_TICK_SCORING_MS;
       }
       previousOwnTickMs = event.timestampMs;
     }
-    return scoringMs < CAPTURE_METER_MS;
+    return scoringMs < KOTH_CAPTURE_METER_MS;
   }
 
   // Control periods attribute each film window to the team with the majority of mode events in
@@ -232,7 +232,7 @@ class KothCaptureSearch {
       capturesPlaced: perHillCounts.length,
       violations,
       byte2Contradictions: this.steps.reduce((acc, step) => acc + (step.byte2Contradicted ? 1 : 0), 0),
-      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, FULL_METER_TICKS - count), 0),
+      underTickCost: perHillCounts.reduce((acc, count) => acc + Math.max(0, KOTH_FULL_METER_TICKS - count), 0),
       variance: varianceOf(perHillCounts),
       windowMismatches: this.steps.reduce((acc, step) => acc + (step.windowMismatched ? 1 : 0), 0),
       totalTicks: perHillCounts.reduce((acc, count) => acc + count, 0),

@@ -22,6 +22,7 @@ import type {
   TimelineGanttChartViewModel,
   ZoneStripData,
 } from "../types";
+import { SCORE_SCALE } from "../score-progression-formatter";
 
 const aFakeScoreDeltaData = (): ScoreDeltaData => ({
   points: [
@@ -58,7 +59,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
     viewData: {
       kind: "score-lines",
       durationMs: 600000,
-      scoreScale: { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Score Delta" },
+      scoreScale: SCORE_SCALE,
       teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
       scoreDelta: null,
       playerAdvantage: null,

@@ -36,7 +36,11 @@ import type {
   ScoreSample,
 } from "./types";
 
-const SCORE_SCALE: ScoreScale = { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Score Delta" };
+export const SCORE_SCALE: ScoreScale = {
+  unit: "points",
+  progressionLabel: "Score Progression",
+  deltaLabel: "Score Delta",
+};
 
 function buildScoreDelta(
   teamIds: readonly number[],

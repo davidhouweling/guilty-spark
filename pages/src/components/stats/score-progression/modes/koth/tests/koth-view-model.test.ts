@@ -197,6 +197,18 @@ describe("buildKothHills", () => {
     expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 99]);
   });
 
+  it("counts a score event at the match start toward the first hill, as the score lines do", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 0, teamId: 0, runningScores: { "0": 1, "1": 0 } },
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 1, "1": 1 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "0": 4, "1": 1 } },
+      ],
+      hillCaptureTimestamps: [10000],
+    });
+    expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
+  });
+
   it("carries a team's meter forward across a sparse event that omits it", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
