@@ -48,9 +48,9 @@ export async function createScriptServices(): Promise<ScriptServices> {
     XBOX_USERNAME: process.env.XBOX_USERNAME,
     XBOX_PASSWORD: process.env.XBOX_PASSWORD,
   });
-  const xboxService = new XboxService({ env, authenticate });
-  const databaseService = aFakeDatabaseServiceWith();
   const logService = aFakeLogServiceWith();
+  const xboxService = new XboxService({ env, logService, authenticate });
+  const databaseService = aFakeDatabaseServiceWith();
   const haloService = new HaloService({
     env,
     logService,
