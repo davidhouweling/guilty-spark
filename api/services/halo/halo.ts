@@ -48,6 +48,7 @@ import type {
   UserInfo,
   CachedUserInfo,
   MatchHistoryEntry,
+  EnrichedMatchHistory,
 } from "./types";
 import { noMatchError, TimeInSeconds, FetchablePlaylist } from "./types";
 
@@ -78,6 +79,7 @@ export class HaloService {
   private readonly gameTypeCache = new Map<string, string>();
   private readonly userCache = new Map<DiscordAssociationsRow["DiscordId"], DiscordAssociationsRow>();
   private readonly xuidToGamerTagCache = new Map<string, string>();
+  private readonly refreshingXuids = new Set<string>();
   private readonly playerMatchesCache = new Map<string, PlayerMatchHistory[]>();
   private metadataJsonCache: ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> | undefined;
 
@@ -350,65 +352,95 @@ export class HaloService {
       return [];
     }
 
-    const kvCachedUsers = await Promise.all(xuids.map(async (xuid) => this.getUserByXuidFromKVCache(xuid)));
-    const freshUsers: UserInfo[] = [];
-    const staleUsers: CachedUserInfo[] = [];
-    const missingXuids: string[] = [];
-
-    for (const [index, cachedUser] of kvCachedUsers.entries()) {
-      if (cachedUser == null) {
-        missingXuids.push(Preconditions.checkExists(xuids[index]));
-      } else if (differenceInHours(new Date(), new Date(cachedUser.fetchedAt)) < 1) {
-        freshUsers.push(cachedUser);
-      } else {
-        staleUsers.push(cachedUser);
-        missingXuids.push(Preconditions.checkExists(xuids[index]));
-      }
-    }
+    const { cachedUsers, staleXuids, missingXuids } = await this.partitionUsersByKVCache(xuids);
+    this.refreshStaleUsersInBackground(staleXuids);
 
     if (missingXuids.length === 0) {
-      return freshUsers;
+      return cachedUsers;
     }
 
     this.logService.debug(
       `HaloService: Fetching ${missingXuids.length.toString()} users by xuid`,
       new Map([
         ["missingXuids", missingXuids.join(", ")],
-        ["freshCount", freshUsers.length.toString()],
-        ["staleCount", staleUsers.length.toString()],
+        ["cachedCount", cachedUsers.length.toString()],
+        ["staleCount", staleXuids.length.toString()],
       ]),
     );
+    const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids);
+    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers);
+    return [...cachedUsers, ...fetchedUsers, ...snapshotUsers];
+  }
+
+  private async partitionUsersByKVCache(
+    xuids: string[],
+  ): Promise<{ cachedUsers: CachedUserInfo[]; staleXuids: string[]; missingXuids: string[] }> {
+    const kvCachedUsers = await Promise.all(xuids.map(async (xuid) => this.getUserByXuidFromKVCache(xuid)));
+    const cachedUsers: CachedUserInfo[] = [];
+    const staleXuids: string[] = [];
+    const missingXuids: string[] = [];
+
+    for (const [index, cachedUser] of kvCachedUsers.entries()) {
+      const xuid = Preconditions.checkExists(xuids[index]);
+      if (cachedUser == null) {
+        missingXuids.push(xuid);
+        continue;
+      }
+      cachedUsers.push(cachedUser);
+      if (differenceInHours(new Date(), new Date(cachedUser.fetchedAt)) >= 1) {
+        staleXuids.push(xuid);
+      }
+    }
+
+    return { cachedUsers, staleXuids, missingXuids };
+  }
+
+  private refreshStaleUsersInBackground(staleXuids: string[]): void {
+    const xuidsToRefresh = staleXuids.filter((xuid) => !this.refreshingXuids.has(xuid));
+    if (xuidsToRefresh.length === 0) {
+      return;
+    }
+
+    for (const xuid of xuidsToRefresh) {
+      this.refreshingXuids.add(xuid);
+    }
+    void this.refreshStaleUsersAsync(xuidsToRefresh);
+  }
+
+  private async refreshStaleUsersAsync(xuids: string[]): Promise<void> {
+    try {
+      await this.fetchAndCacheUsersByXuids(xuids);
+    } catch (error) {
+      this.logService.info(
+        error,
+        new Map([["context", `Background refresh of ${xuids.length.toString()} stale cached users failed`]]),
+      );
+    } finally {
+      for (const xuid of xuids) {
+        this.refreshingXuids.delete(xuid);
+      }
+    }
+  }
+
+  private async fetchAndCacheUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
     const fetchedUsers = await this.fetchWithResilientFallback(
       async () =>
-        this.infiniteClient.getUsers(missingXuids, {
+        this.infiniteClient.getUsers(xuids, {
           cf: {
             cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 },
           },
         }),
       async () => {
-        const xboxUsers = await this.xboxService.getUsersByXuids(missingXuids);
+        const xboxUsers = await this.xboxService.getUsersByXuids(xuids);
         return xboxUsers.map((xboxUser) => ({ xuid: xboxUser.xuid, gamertag: xboxUser.gamertag }));
       },
-      staleUsers,
-      `${missingXuids.length.toString()} xuids`,
+      [],
+      `${xuids.length.toString()} xuids`,
       true,
     );
 
-    const fetchedByXuid = new Map(fetchedUsers.map((user) => [user.xuid, user]));
-    const staleCandidates = staleUsers.filter((staleUser) => !fetchedByXuid.has(staleUser.xuid));
-
-    if (fetchedUsers.length < missingXuids.length && staleCandidates.length > 0) {
-      this.logService.info(
-        `HaloService: Using ${staleCandidates.length.toString()} stale KV cached users as partial fallback`,
-        new Map([["xuids", staleCandidates.map((u) => u.xuid).join(", ")]]),
-      );
-    }
-
     await Promise.all(fetchedUsers.map(async (user) => this.updateUserKVCache(user)));
-    const resolvedUsers: UserInfo[] = [...fetchedUsers, ...staleCandidates];
-    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, resolvedUsers);
-    const allUsers: UserInfo[] = [...freshUsers, ...resolvedUsers, ...snapshotUsers];
-    return allUsers;
+    return fetchedUsers;
   }
 
   private async getLeaderboardSnapshotUsers(missingXuids: string[], resolvedUsers: UserInfo[]): Promise<UserInfo[]> {
@@ -660,8 +692,16 @@ export class HaloService {
       throw error;
     }
 
+    return this.getRecentMatchHistoryByXuid(user.xuid, matchType, count);
+  }
+
+  private async getRecentMatchHistoryByXuid(
+    xuid: string,
+    matchType: MatchType,
+    count: number,
+  ): Promise<PlayerMatchHistory[]> {
     try {
-      return await this.getPlayerMatches(user.xuid, matchType, count, 0);
+      return await this.getPlayerMatches(xuid, matchType, count, 0);
     } catch (error) {
       this.logService.error(error);
 
@@ -674,15 +714,32 @@ export class HaloService {
     locale: string,
     matchType: MatchType = MatchType.All,
     count = 25,
-  ): Promise<{
-    gamertag: string;
-    xuid: string;
-    matches: MatchHistoryEntry[];
-    suggestedGroupings: string[][];
-  }> {
+  ): Promise<EnrichedMatchHistory> {
     const user = await this.getUserByGamertag(gamertag);
     const matches = await this.getRecentMatchHistory(gamertag, matchType, count);
 
+    return this.enrichMatchHistory(user, matches, locale);
+  }
+
+  /**
+   * Looks up history by the already-known xuid, so a stale cached gamertag is only used for display.
+   */
+  async getEnrichedMatchHistoryForUser(
+    user: UserInfo,
+    locale: string,
+    matchType: MatchType = MatchType.All,
+    count = 25,
+  ): Promise<EnrichedMatchHistory> {
+    const matches = await this.getRecentMatchHistoryByXuid(user.xuid, matchType, count);
+
+    return this.enrichMatchHistory(user, matches, locale);
+  }
+
+  private async enrichMatchHistory(
+    user: UserInfo,
+    matches: PlayerMatchHistory[],
+    locale: string,
+  ): Promise<EnrichedMatchHistory> {
     const matchIds = matches.map((match) => match.MatchId);
     const matchDetails = await this.getMatchDetails(matchIds);
     const matchDetailsById = new Map(matchDetails.map((match) => [match.MatchId, match]));
@@ -1148,16 +1205,23 @@ export class HaloService {
         cachedUser.GamesRetrievable === GamesRetrievable.UNKNOWN
       );
     });
-    const unknownGameSimilarityUsersResult = await this.getUsersByXuids(
-      unknownGameSimilarityUsers.map((user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId),
+    const unknownGameSimilarityXuids = unknownGameSimilarityUsers.map(
+      (user) => Preconditions.checkExists(this.userCache.get(user.id)).XboxId,
+    );
+    const unknownGameSimilarityUsersByXuid = new Map(
+      (await this.getUsersByXuids(unknownGameSimilarityXuids)).map((result) => [result.xuid, result]),
     );
     await Promise.all(
-      unknownGameSimilarityUsersResult.map(async (result, index) =>
-        processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
+      unknownGameSimilarityXuids.map(async (xuid, index) => {
+        const result = unknownGameSimilarityUsersByXuid.get(xuid);
+        if (result == null) {
+          return;
+        }
+        await processResult(unknownGameSimilarityUsers, AssociationReason.GAME_SIMILARITY, index, {
           status: "fulfilled",
           value: result,
-        }),
-      ),
+        });
+      }),
     );
     this.logService.debug(
       `HaloService: Searched for ${unknownGameSimilarityUsers.length.toString()} previously unknown game similarities to put into user cache: ${unknownGameSimilarityUsers.map((user) => user.id).join(", ")}`,

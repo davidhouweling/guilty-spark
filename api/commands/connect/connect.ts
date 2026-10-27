@@ -266,6 +266,7 @@ export class ConnectCommand extends BaseCommand {
         { discordService, haloService },
         {
           gamertag: searchedGamertag,
+          xuid: association.XboxId,
           locale,
           title: "Recent game history",
           description: "Here are your most recent games:",

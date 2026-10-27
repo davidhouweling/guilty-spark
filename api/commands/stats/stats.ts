@@ -897,7 +897,12 @@ export class StatsCommand extends BaseCommand {
       throw new EndUserError("Could not find a Halo account for that player.");
     }
 
-    const matchHistory = await haloService.getEnrichedMatchHistory(user.gamertag, locale, MatchType.Custom, 25);
+    const matchHistory = await haloService.getEnrichedMatchHistoryForUser(
+      { xuid: association.XboxId, gamertag: user.gamertag },
+      locale,
+      MatchType.Custom,
+      25,
+    );
     if (matchHistory.matches.length === 0) {
       throw new EndUserError("No recent custom games were found for that player.");
     }

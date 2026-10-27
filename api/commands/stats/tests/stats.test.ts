@@ -1578,7 +1578,7 @@ describe("StatsCommand", () => {
         aFakeDiscordAssociationsRow({ DiscordId: "invoker-id", XboxId: "xuid-1" }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+      vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser").mockResolvedValue({
         gamertag: "player-one",
         xuid: "xuid-1",
         suggestedGroupings: [],
@@ -1695,7 +1695,7 @@ describe("StatsCommand", () => {
           aFakeNeatQueueConfigRow({ ChannelId: "queue-b" }),
         ]);
         vi.spyOn(services.discordService, "getGuildChannels").mockResolvedValue([]);
-        const getEnrichedMatchHistorySpy = vi.spyOn(services.haloService, "getEnrichedMatchHistory");
+        const getEnrichedMatchHistorySpy = vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser");
 
         await runManualCommandWith(new Map([["queue_number", 42]]));
 
@@ -3353,7 +3353,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+      vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser").mockResolvedValue({
         gamertag: "player-one",
         xuid: "xuid-1",
         suggestedGroupings: [],
@@ -3486,7 +3486,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+      vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser").mockResolvedValue({
         gamertag: "player-one",
         xuid: "xuid-1",
         suggestedGroupings: [],
@@ -3569,7 +3569,7 @@ describe("StatsCommand", () => {
         }),
       ]);
       vi.spyOn(services.haloService, "getUsersByXuids").mockResolvedValue([{ xuid: "xuid-1", gamertag: "player-one" }]);
-      vi.spyOn(services.haloService, "getEnrichedMatchHistory").mockResolvedValue({
+      vi.spyOn(services.haloService, "getEnrichedMatchHistoryForUser").mockResolvedValue({
         gamertag: "player-one",
         xuid: "xuid-1",
         suggestedGroupings: [],
