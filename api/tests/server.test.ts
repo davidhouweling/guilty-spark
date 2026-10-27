@@ -137,25 +137,14 @@ describe("Server", () => {
 
     it("returns 200 for the multi-user GET operation with the array argument round-tripped through the query", async () => {
       vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
-      const arg = encodeURIComponent(JSON.stringify(["xuid0000000000001"]));
+      const arg = encodeURIComponent(JSON.stringify(["0000000000001"]));
       const req = new Request(`http://localhost/proxy/halo-infinite/getUsers?arg=${arg}`, {
         method: "GET",
       });
       const res = await server.router.fetch(req, env, ctx);
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body).toEqual([
-        {
-          xuid: "0000000000001",
-          gamerpic: {
-            small: "small0000000000001.png",
-            medium: "medium0000000000001.png",
-            large: "large0000000000001.png",
-            xlarge: "xlarge0000000000001.png",
-          },
-          gamertag: "gamertag0000000000001",
-        },
-      ]);
+      expect(body).toStrictEqual([{ xuid: "0000000000001", gamertag: "gamertag0000000000001" }]);
       expect(res.headers.get("Cache-Control")).toBe("public, max-age=3600, stale-while-revalidate=3600");
     });
 

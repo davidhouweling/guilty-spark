@@ -7,6 +7,7 @@ import {
   resolveHaloProxyOperation,
 } from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
 import type { HaloProxyOperationName } from "@guilty-spark/shared/halo/halo-infinite-proxy-operations";
+import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { Services } from "../../services/install";
 import type { SessionTokenPayload } from "../../services/auth/types";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -120,7 +121,7 @@ function callHaloProxyOperation(
 
 function hasEveryRequestedUser(xuids: readonly string[], users: readonly { xuid: string }[]): boolean {
   const returnedXuids = new Set(users.map(({ xuid }) => xuid));
-  return xuids.every((xuid) => returnedXuids.has(xuid));
+  return xuids.every((xuid) => returnedXuids.has(unwrapXuid(xuid)));
 }
 
 async function getUsersFromPerPlayerCache(services: Services, args: unknown[]): Promise<HaloProxyResult> {
