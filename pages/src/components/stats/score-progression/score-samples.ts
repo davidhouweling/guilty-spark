@@ -4,7 +4,6 @@ export function zeroScores(teamIds: readonly number[]): Record<string, number> {
   return Object.fromEntries(teamIds.map((teamId) => [String(teamId), 0]));
 }
 
-// a sparse record omits a team whose score is unchanged, so only the keys it carries move
 export function carryScoresForward(
   cumulative: Record<string, number>,
   sample: ScoreSample,

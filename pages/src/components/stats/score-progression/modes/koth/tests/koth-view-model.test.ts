@@ -160,9 +160,9 @@ describe("buildKothHills", () => {
     const hills = buildHills(timeline);
     expect(hills).toHaveLength(2);
     expect(hills[0]?.winnerTeamId).toBe(0);
-    // hill 1 winner reads 100%; hill 2 has one Cobra tick of the 8-tick meter (13%)
+    // hill 1 was captured with 2 recorded ticks, so one Cobra tick in the uncaptured hill 2 is half a meter
     expect(hills[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 0]);
-    expect(hills[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 13]);
+    expect(hills[1]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 50]);
   });
 
   it("renders a control window straddling a capture boundary as unoccupied in the next hill", () => {
@@ -230,6 +230,39 @@ describe("buildKothHills", () => {
       hillCaptureTimestamps: [10000],
     });
     expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
+  });
+
+  it("names the team that gained more in the hill when two teams tick on the capture instant", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 0, runningScores: { "0": 2, "1": 0 } },
+        { timestampMs: 30000, teamId: 0, runningScores: { "0": 4, "1": 0 } },
+        { timestampMs: 30000, teamId: 1, runningScores: { "0": 4, "1": 2 } },
+      ],
+      hillCaptureTimestamps: [30000],
+    });
+    const [hill] = buildHills(timeline);
+    expect(hill.winnerTeamId).toBe(0);
+    expect(hill.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 50]);
+  });
+
+  it("reads an uncaptured hill against the nominal meter when nothing was captured, capped below a capture", () => {
+    const [hill] = buildHills(aFakeKothTimelineWith({ hillCaptureTimestamps: [] }));
+    expect(hill.teamCaptureProgress.map((p) => p.percentage)).toEqual([50, 50]);
+
+    const overshoot = aFakeKothTimelineWith({
+      events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 9, "1": 0 } }],
+      hillCaptureTimestamps: [],
+    });
+    expect(buildHills(overshoot)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([99, 0]);
+  });
+
+  it("reads a trailing uncaptured hill against the match's typical capture tick count", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [...aFakeKothTimelineWith().events, { timestampMs: 57000, teamId: 0, runningScores: { "0": 5, "1": 4 } }],
+    });
+    // captures took 4 and 3 recorded ticks, so one tick in the trailing hill is 1 / 3.5 of a meter
+    expect(buildHills(timeline)[2]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([29, 0]);
   });
 
   it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
@@ -303,7 +336,8 @@ describe("buildKothScoreSeries", () => {
     const { samples, hillBoundaries } = buildSeries(timeline);
 
     expect(hillBoundaries).toEqual([30000]);
-    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 37.5 } });
+    // no event sits on the 59100 capture, so hill 2 has no winner and reads against hill 1's 4-tick capture
+    expect(samples.at(-1)).toEqual({ timestampMs: 55000, runningScores: { "0": 0, "1": 75 } });
   });
 
   it("counts a score event at the match start toward the first hill instead of the baseline", () => {
@@ -379,5 +413,29 @@ describe("buildKothScoreSeries", () => {
 
     expect(hillBoundaries).toEqual([30000]);
     expect(samples.at(-1)).toEqual({ timestampMs: 60000, runningScores: { "0": 0, "1": 100 } });
+  });
+});
+
+describe("buildKothHillWindows", () => {
+  it("attributes each hill's events, ticks and meter once for both views", () => {
+    const windows = buildKothHillWindows(aFakeKothTimelineWith(), TEAM_IDS, DURATION_MS);
+
+    expect(windows.map((hillWindow) => [hillWindow.startMs, hillWindow.endMs, hillWindow.captureTs])).toEqual([
+      [0, 30000, 30000],
+      [30000, 55000, 55000],
+      [55000, 60000, null],
+    ]);
+    expect(windows.map((hillWindow) => hillWindow.hillEvents.length)).toEqual([5, 3, 0]);
+    expect(windows.map((hillWindow) => hillWindow.baseline)).toEqual([{}, { "0": 4, "1": 1 }, { "0": 4, "1": 4 }]);
+    expect(windows.map((hillWindow) => hillWindow.hillTicks)).toEqual([
+      { "0": 4, "1": 1 },
+      { "0": 0, "1": 3 },
+      { "0": 0, "1": 0 },
+    ]);
+    expect(windows.map((hillWindow) => hillWindow.meter)).toEqual([
+      { winnerTeamId: 0, ticksPerFullMeter: 4 },
+      { winnerTeamId: 1, ticksPerFullMeter: 3 },
+      { winnerTeamId: null, ticksPerFullMeter: 3.5 },
+    ]);
   });
 });
