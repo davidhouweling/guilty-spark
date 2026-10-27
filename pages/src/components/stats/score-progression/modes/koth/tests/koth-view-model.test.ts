@@ -265,6 +265,21 @@ describe("buildKothHills", () => {
     expect(buildHills(timeline)[2]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([29, 0]);
   });
 
+  it("pins a winner the film kept no ticks for at 100% without counting it as a capture meter", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 2 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "1": 2 } },
+        { timestampMs: 20000, teamId: 1, runningScores: { "0": 0, "1": 4 } },
+      ],
+      hillCaptureTimestamps: [10000],
+    });
+    const [captured, trailing] = buildHills(timeline, 60000);
+    expect(captured.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
+    // the trailing hill reads against the nominal meter: no real capture tick count was observed
+    expect(trailing.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 25]);
+  });
+
   it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
     const timeline = aFakeKothTimelineWith({
       events: [{ timestampMs: 5000, teamId: 0, runningScores: { "0": 1, "1": 0 } }],
@@ -425,8 +440,12 @@ describe("buildKothHillWindows", () => {
       [30000, 55000, 55000],
       [55000, 60000, null],
     ]);
-    expect(windows.map((hillWindow) => hillWindow.hillEvents.length)).toEqual([5, 3, 0]);
-    expect(windows.map((hillWindow) => hillWindow.baseline)).toEqual([{}, { "0": 4, "1": 1 }, { "0": 4, "1": 4 }]);
+    expect(windows.map((hillWindow) => hillWindow.ticks.length)).toEqual([5, 3, 0]);
+    expect(windows[1]?.ticks.map((tick) => [tick.timestampMs, tick.teamId, tick.ticks])).toEqual([
+      [32500, 1, { "0": 0, "1": 1 }],
+      [45000, 1, { "0": 0, "1": 2 }],
+      [55000, 1, { "0": 0, "1": 3 }],
+    ]);
     expect(windows.map((hillWindow) => hillWindow.hillTicks)).toEqual([
       { "0": 4, "1": 1 },
       { "0": 0, "1": 3 },

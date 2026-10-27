@@ -721,6 +721,7 @@ describe("ScoreProgressionPresenter", () => {
       expect(model.deltaViewModel?.scoreUnit).toBe("percent");
       expect(model.deltaViewModel?.tooltipFormatter(25, undefined)).toEqual(["Eagle +25%", "Hill Progress Delta"]);
       expect(model.deltaViewModel?.tooltipFormatter(-33.4, undefined)).toEqual(["Cobra +33%", "Hill Progress Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(0.3, undefined)).toEqual(["Tied", "Hill Progress Delta"]);
 
       store.update({ chartType: null });
       expect(presenter.present(store.getSnapshot(), input).effectiveChartType).toBe("progression");
