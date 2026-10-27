@@ -16,8 +16,8 @@ import {
   buildFlagRuns,
   buildFlagRunsChartPoints,
 } from "./modes/ctf/ctf-view-model";
-import { buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
-import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
+import { HILL_PROGRESS_SCALE, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
+import { ROUND_POINTS_SCALE, buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
 import {
   buildStrongholdsMarkers,
   buildZoneAdvantage,
@@ -36,9 +36,7 @@ import type {
   ScoreSample,
 } from "./types";
 
-const SCORE_SCALE: ScoreScale = { unit: "points", deltaLabel: "Score Delta" };
-const HILL_PROGRESS_SCALE: ScoreScale = { unit: "percent", deltaLabel: "Hill Progress Delta" };
-const ROUND_POINTS_SCALE: ScoreScale = { unit: "points", deltaLabel: "Round Points Delta" };
+const SCORE_SCALE: ScoreScale = { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Score Delta" };
 
 function buildScoreDelta(
   teamIds: readonly number[],

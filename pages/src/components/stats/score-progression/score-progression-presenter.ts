@@ -34,7 +34,6 @@ export interface ScoreProgressionInput {
 }
 
 const TIMELINE_OPTION: ChartTypeOption = { value: "timeline", label: "Objective Timeline" };
-const PROGRESSION_OPTION: ChartTypeOption = { value: "progression", label: "Score Progression" };
 const FLAG_RUNS_OPTION: ChartTypeOption = { value: "timeline", label: "Flag Runs" };
 const FLAG_PROGRESS_LABEL = "of the way to the capture point";
 const FLAG_MARKER_LEGEND: readonly FlagRunMarkerLegendEntry[] = [
@@ -248,8 +247,10 @@ export class ScoreProgressionPresenter {
     if (viewData == null) {
       return [];
     }
-    const deltaOption: ChartTypeOption = { value: "delta", label: viewData.scoreScale.deltaLabel };
-    return [PROGRESSION_OPTION, ...(viewData.scoreDelta != null ? [deltaOption] : [])];
+    const { progressionLabel, deltaLabel } = viewData.scoreScale;
+    const progressionOption: ChartTypeOption = { value: "progression", label: progressionLabel };
+    const deltaOption: ChartTypeOption = { value: "delta", label: deltaLabel };
+    return [progressionOption, ...(viewData.scoreDelta != null ? [deltaOption] : [])];
   }
 
   private presentScoreLines(

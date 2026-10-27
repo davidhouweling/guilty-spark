@@ -180,10 +180,32 @@ describe("buildKothHills", () => {
 
   it("pins the winner's capture progress at 100% and estimates the loser from their ticks", () => {
     const [hill1, hill2] = buildHills();
-    // Team 0 captures hill 1 at 30000 → 100%; Team 1 had 1 of 8 meter ticks inside it → 13%
-    expect(hill1.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 13]);
+    // Team 0 captures hill 1 at 30000 with 4 recorded ticks → 100%; Team 1's 1 tick is a quarter of that meter
+    expect(hill1.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
     // Team 1 captures hill 2 → 100%; Team 0 never scored inside it → 0%
     expect(hill2.teamCaptureProgress.map((p) => p.percentage)).toEqual([0, 100]);
+  });
+
+  it("caps a loser's meter just below a capture even when they out-ticked the winner", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 3 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "0": 2, "1": 3 } },
+      ],
+      hillCaptureTimestamps: [10000],
+    });
+    expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 99]);
+  });
+
+  it("carries a team's meter forward across a sparse event that omits it", () => {
+    const timeline = aFakeKothTimelineWith({
+      events: [
+        { timestampMs: 5000, teamId: 1, runningScores: { "0": 0, "1": 1 } },
+        { timestampMs: 10000, teamId: 0, runningScores: { "0": 4 } },
+      ],
+      hillCaptureTimestamps: [10000],
+    });
+    expect(buildHills(timeline)[0]?.teamCaptureProgress.map((p) => p.percentage)).toEqual([100, 25]);
   });
 
   it("returns a single uncaptured hill when hillCaptureTimestamps is empty", () => {
@@ -220,22 +242,24 @@ describe("buildKothHills", () => {
 });
 
 describe("buildKothScoreSeries", () => {
-  it("builds per-hill meter curves, as a share of the capture meter, that reset to zero at each capture", () => {
+  it("builds per-hill meter curves that fill at each capture and reset for the next hill", () => {
     const { samples, hillBoundaries } = buildKothScoreSeries(aFakeKothTimelineWith(), [0, 1], 60000);
 
     expect(hillBoundaries).toEqual([30000, 55000]);
+    const share = (ticks: number): number => (ticks / 3) * 100;
     expect(samples).toEqual([
+      // hill 1: team 0 captures with 4 recorded ticks, so each of its ticks is a quarter of the meter
       { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
-      { timestampMs: 2500, runningScores: { "0": 12.5, "1": 0 } },
-      { timestampMs: 5000, runningScores: { "0": 25, "1": 0 } },
-      { timestampMs: 12500, runningScores: { "0": 25, "1": 12.5 } },
-      { timestampMs: 20000, runningScores: { "0": 37.5, "1": 12.5 } },
-      { timestampMs: 30000, runningScores: { "0": 50, "1": 12.5 } },
-      // hill 2: ticks measured against the totals standing at the capture, 12.5% each
+      { timestampMs: 2500, runningScores: { "0": 25, "1": 0 } },
+      { timestampMs: 5000, runningScores: { "0": 50, "1": 0 } },
+      { timestampMs: 12500, runningScores: { "0": 50, "1": 25 } },
+      { timestampMs: 20000, runningScores: { "0": 75, "1": 25 } },
+      { timestampMs: 30000, runningScores: { "0": 100, "1": 25 } },
+      // hill 2: team 1 captures with 3 ticks measured against the totals standing at the capture
       { timestampMs: 30000, runningScores: { "0": 0, "1": 0 } },
-      { timestampMs: 32500, runningScores: { "0": 0, "1": 12.5 } },
-      { timestampMs: 45000, runningScores: { "0": 0, "1": 25 } },
-      { timestampMs: 55000, runningScores: { "0": 0, "1": 37.5 } },
+      { timestampMs: 32500, runningScores: { "0": 0, "1": share(1) } },
+      { timestampMs: 45000, runningScores: { "0": 0, "1": share(2) } },
+      { timestampMs: 55000, runningScores: { "0": 0, "1": 100 } },
       // trailing hill: contested but never captured
       { timestampMs: 55000, runningScores: { "0": 0, "1": 0 } },
     ]);
@@ -285,15 +309,16 @@ describe("buildKothScoreSeries", () => {
     });
     const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
 
+    const share = (ticks: number): number => (ticks / 3) * 100;
     expect(samples).toEqual([
       { timestampMs: 0, runningScores: { "0": 0, "1": 0 } },
-      { timestampMs: 5000, runningScores: { "0": 25, "1": 12.5 } },
-      { timestampMs: 30000, runningScores: { "0": 25, "1": 37.5 } },
+      { timestampMs: 5000, runningScores: { "0": share(2), "1": share(1) } },
+      { timestampMs: 30000, runningScores: { "0": share(2), "1": 100 } },
       { timestampMs: 30000, runningScores: { "0": 0, "1": 0 } },
     ]);
   });
 
-  it("caps a hill's meter at a full capture when the ticks overshoot it", () => {
+  it("reads a captured hill against the winner's ticks at the capture, so overshoot still ends at a full meter", () => {
     const timeline = aFakeKothTimelineWith({
       events: [
         { timestampMs: 5000, teamId: 0, runningScores: { "0": 8, "1": 0 } },
@@ -303,7 +328,7 @@ describe("buildKothScoreSeries", () => {
     });
     const { samples } = buildKothScoreSeries(timeline, [0, 1], 60000);
 
-    expect(samples.map((sample) => sample.runningScores["0"])).toEqual([0, 100, 100, 0]);
+    expect(samples.map((sample) => sample.runningScores["0"])).toEqual([0, 80, 100, 0]);
   });
 
   it("returns an empty series when every event lands past the match duration", () => {
@@ -329,6 +354,6 @@ describe("buildKothScoreSeries", () => {
     const { samples, hillBoundaries } = buildKothScoreSeries(timeline, [0, 1], 60000);
 
     expect(hillBoundaries).toEqual([30000]);
-    expect(samples.at(-1)).toEqual({ timestampMs: 60000, runningScores: { "0": 0, "1": 25 } });
+    expect(samples.at(-1)).toEqual({ timestampMs: 60000, runningScores: { "0": 0, "1": 100 } });
   });
 });

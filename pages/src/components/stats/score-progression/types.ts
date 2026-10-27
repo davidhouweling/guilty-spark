@@ -104,10 +104,9 @@ export interface TimelineGanttViewModel {
 
 export type ScoreUnit = "points" | "percent";
 
-// what a mode's score lines measure: the unit the axis and tooltips show and the name of the
-// delta chart between the teams
 export interface ScoreScale {
   readonly unit: ScoreUnit;
+  readonly progressionLabel: string;
   readonly deltaLabel: string;
 }
 

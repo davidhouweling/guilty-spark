@@ -3,7 +3,13 @@ import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
 import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
-import type { OddballRoundData, OddballRoundTeamScore, ScoreSample } from "../../types";
+import type { OddballRoundData, OddballRoundTeamScore, ScoreSample, ScoreScale } from "../../types";
+
+export const ROUND_POINTS_SCALE: ScoreScale = {
+  unit: "points",
+  progressionLabel: "Score Progression",
+  deltaLabel: "Round Points Delta",
+};
 
 export interface OddballScoreSeries {
   readonly samples: readonly ScoreSample[];

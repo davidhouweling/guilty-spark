@@ -58,7 +58,7 @@ function aScoreLinesInput(overrides: Partial<Omit<ScoreLinesViewData, "kind">> =
     viewData: {
       kind: "score-lines",
       durationMs: 600000,
-      scoreScale: { unit: "points", deltaLabel: "Score Delta" },
+      scoreScale: { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Score Delta" },
       teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
       scoreDelta: null,
       playerAdvantage: null,
@@ -590,7 +590,7 @@ describe("ScoreProgressionPresenter", () => {
       const scoreLines: ScoreLinesViewData = {
         kind: "score-lines",
         durationMs: 600000,
-        scoreScale: { unit: "points", deltaLabel: "Round Points Delta" },
+        scoreScale: { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Round Points Delta" },
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta,
         playerAdvantage: null,
@@ -694,7 +694,7 @@ describe("ScoreProgressionPresenter", () => {
       const { store, presenter } = makePresenter();
       store.update({ chartType: "delta" });
       const scoreLines = aFakeScoreLinesViewDataWith({
-        scoreScale: { unit: "percent", deltaLabel: "Hill Progress Delta" },
+        scoreScale: { unit: "percent", progressionLabel: "Hill Progress", deltaLabel: "Hill Progress Delta" },
         teamLines: [aFakeTeamLine("Eagle", "#f00", 0), aFakeTeamLine("Cobra", "#00f", 1)],
         scoreDelta: aFakeScoreDeltaData(),
       });
@@ -710,12 +710,16 @@ describe("ScoreProgressionPresenter", () => {
 
       const model = asScoreLines(presenter.present(store.getSnapshot(), input));
 
-      expect(model.chartTypeOptions.find((option) => option.value === "delta")?.label).toBe("Hill Progress Delta");
+      expect(model.chartTypeOptions.map((option) => option.label)).toEqual([
+        "Hill Progress",
+        "Hill Progress Delta",
+        "Objective Timeline",
+      ]);
       expect(model.progressionViewModel.scoreUnit).toBe("percent");
-      expect(model.progressionViewModel.tooltipFormatter(62.5, "Eagle")).toEqual(["62.5%", "Eagle"]);
+      expect(model.progressionViewModel.tooltipFormatter(62.5, "Eagle")).toEqual(["63%", "Eagle"]);
       expect(model.deltaViewModel?.scoreUnit).toBe("percent");
       expect(model.deltaViewModel?.tooltipFormatter(25, undefined)).toEqual(["Eagle +25%", "Hill Progress Delta"]);
-      expect(model.deltaViewModel?.tooltipFormatter(-12.5, undefined)).toEqual(["Cobra +12.5%", "Hill Progress Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-33.4, undefined)).toEqual(["Cobra +33%", "Hill Progress Delta"]);
 
       store.update({ chartType: null });
       expect(presenter.present(store.getSnapshot(), input).effectiveChartType).toBe("progression");

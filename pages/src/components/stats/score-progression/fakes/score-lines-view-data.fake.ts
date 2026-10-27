@@ -4,7 +4,7 @@ export function aFakeScoreLinesViewDataWith(overrides: Partial<ScoreLinesViewDat
   return {
     kind: "score-lines",
     durationMs: 600000,
-    scoreScale: { unit: "points", deltaLabel: "Score Delta" },
+    scoreScale: { unit: "points", progressionLabel: "Score Progression", deltaLabel: "Score Delta" },
     teamLines: [],
     scoreDelta: null,
     playerAdvantage: null,

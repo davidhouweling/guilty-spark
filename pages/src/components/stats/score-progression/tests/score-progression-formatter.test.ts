@@ -538,9 +538,13 @@ describe("formatScoreProgression", () => {
       if (result?.kind !== "koth") {
         throw new Error("expected koth view data");
       }
-      // hill 1 peaks at 4 ticks (half the meter) for team 0, then the meter resets at the capture
-      expect(result.scoreLines?.scoreScale).toEqual({ unit: "percent", deltaLabel: "Hill Progress Delta" });
-      expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 50 });
+      // hill 1's winner fills the meter at the capture, then it resets for the next hill
+      expect(result.scoreLines?.scoreScale).toEqual({
+        unit: "percent",
+        progressionLabel: "Hill Progress",
+        deltaLabel: "Hill Progress Delta",
+      });
+      expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 100 });
       expect(result.scoreLines?.teamLines[0]?.points).toContainEqual({ timestampMs: 30000, score: 0 });
       // the trailing uncaptured hill holds at zero through the match end
       expect(result.scoreLines?.teamLines[1]?.points.at(-1)).toEqual({ timestampMs: 60000, score: 0 });
@@ -567,7 +571,11 @@ describe("formatScoreProgression", () => {
     it("labels the oddball delta as round points", () => {
       const data = aFakeScoreProgressionWith({ durationMs: 60000, timeline: aFakeOddballTimelineWith() });
       const result = asOddball(formatScoreProgression(data, TEAM_COLORS));
-      expect(result.scoreLines?.scoreScale).toEqual({ unit: "points", deltaLabel: "Round Points Delta" });
+      expect(result.scoreLines?.scoreScale).toEqual({
+        unit: "points",
+        progressionLabel: "Score Progression",
+        deltaLabel: "Round Points Delta",
+      });
     });
 
     it("returns oddball view data for an oddball timeline", () => {
