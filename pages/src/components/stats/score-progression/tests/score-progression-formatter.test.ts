@@ -980,6 +980,28 @@ describe("formatScoreProgression ctf", () => {
     expect(result.advantageOverlay?.rows.map((row) => row.playerAdvantage)).toEqual([0, 1, 0, -1, 0, 1, 0, 0]);
   });
 
+  it("completes a one-team capture record from the deaths and still draws the capture score lines", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+  });
+
+  it("lets no run past the match end vouch for a team", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [aFakeCtfFlagRunWith({ flagTeamId: 2, carrierTeamId: 1, startMs: 125000, endMs: 130000 })],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+  });
+
   it("ignores deaths stamped after the match when the deaths name the teams", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [],

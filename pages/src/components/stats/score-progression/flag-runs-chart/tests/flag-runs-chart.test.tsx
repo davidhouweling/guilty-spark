@@ -97,7 +97,11 @@ describe("FlagRunsChart", () => {
   it("renders the axes and home line over the seeded rows, with no areas, markers or tooltip, when there are no runs", () => {
     render(
       <FlagRunsChart
-        {...aFakeFlagRunsChartViewModelWith({ runs: [], points: [{ timestampMs: 0 }, { timestampMs: 120000 }] })}
+        {...aFakeFlagRunsChartViewModelWith({
+          runs: [],
+          points: [{ timestampMs: 0 }, { timestampMs: 120000 }],
+          showTooltip: false,
+        })}
       />,
     );
 
@@ -107,20 +111,6 @@ describe("FlagRunsChart", () => {
     expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "2");
     expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
     expect(screen.getByTestId("reference-line")).toHaveAttribute("data-y", "0");
-  });
-
-  it("keeps the tooltip without runs while the player advantage is shown", () => {
-    render(
-      <FlagRunsChart
-        {...aFakeFlagRunsChartViewModelWith({
-          runs: [],
-          points: [{ timestampMs: 0, playerAdvantage: 0 }],
-          advantageDomain: [-4, 4],
-        })}
-      />,
-    );
-
-    expect(screen.getByTestId("tooltip")).toBeInTheDocument();
   });
 
   it("renders a marker per flag event and a reset segment back to the home line", () => {

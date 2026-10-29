@@ -285,22 +285,18 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-function rankTeamIdsByCount(counts: ReadonlyMap<number, number>): number[] {
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
-}
-
-function tallyTeamIds(teamIds: Iterable<number>): Map<number, number> {
+function rankByFrequency(teamIds: Iterable<number>): number[] {
   const counts = new Map<number, number>();
   for (const teamId of teamIds) {
     counts.set(teamId, (counts.get(teamId) ?? 0) + 1);
   }
-  return counts;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
 }
 
-function runTeamIds(runs: CtfTimeline["runs"]): number[] {
-  // a run carried by the flag's own team is malformed and cannot vouch for a roster
+// only a run the chart will draw can vouch for a roster
+function drawableRunTeamIds(runs: CtfTimeline["runs"], durationMs: number): number[] {
   return runs
-    .filter((run) => run.carrierTeamId !== run.flagTeamId)
+    .filter((run) => run.carrierTeamId !== run.flagTeamId && run.startMs < durationMs && run.endMs > run.startMs)
     .flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
 }
 
@@ -326,13 +322,21 @@ function resolveCtfTeams(
   const teamIds = new Set(
     Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
   );
-  if (teamIds.size < 2) {
-    fillTeamIds(teamIds, rankTeamIdsByCount(tallyTeamIds(runTeamIds(timeline.runs))));
-  }
-  if (teamIds.size < 2) {
-    fillTeamIds(teamIds, rankTeamIdsByCount(tallyTeamIds(inMatchDeathTeamIds(timeline.deathTimeline, durationMs))));
+  const fallbackSources = [
+    (): number[] => drawableRunTeamIds(timeline.runs, durationMs),
+    (): number[] => inMatchDeathTeamIds(timeline.deathTimeline, durationMs),
+  ];
+  for (const source of fallbackSources) {
+    if (teamIds.size >= 2) {
+      break;
+    }
+    fillTeamIds(teamIds, rankByFrequency(source()));
   }
   return resolveTeamsFromIds([...teamIds], teamColors);
+}
+
+function isFlagDecodeEmpty(timeline: CtfTimeline, scoreLines: ScoreLinesViewData | null): boolean {
+  return scoreLines == null && timeline.runs.length === 0;
 }
 
 function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
@@ -447,9 +451,7 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      // the empty flag chart stands in only for a film that decoded no run at all; runs the chart
-      // had to reject still read as missing data, and captures without runs as a score line
-      if (runs.length === 0 && (scoreLines != null || timeline.runs.length > 0)) {
+      if (runs.length === 0 && !isFlagDecodeEmpty(timeline, scoreLines)) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;

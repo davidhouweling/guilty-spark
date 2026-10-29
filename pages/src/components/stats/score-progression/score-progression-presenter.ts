@@ -163,6 +163,7 @@ export class ScoreProgressionPresenter {
         runs: viewData.runs,
         points: overlay?.rows ?? viewData.points,
         advantageDomain: overlay != null ? this.mirrorDomain(overlay.minScore, overlay.maxScore) : null,
+        showTooltip: viewData.runs.length > 0 || overlay != null,
         tooltipFormatter: (value, name): [string, string] =>
           this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
             this.formatFlagProgressTooltip(value, name),

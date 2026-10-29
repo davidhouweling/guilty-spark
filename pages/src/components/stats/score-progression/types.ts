@@ -279,6 +279,7 @@ export interface FlagRunsChartViewModel {
   readonly runs: readonly FlagRunData[];
   readonly points: readonly FlagRunsChartPoint[];
   readonly advantageDomain: readonly [number, number] | null;
+  readonly showTooltip: boolean;
   readonly tooltipFormatter: TooltipFormatter;
 }
 

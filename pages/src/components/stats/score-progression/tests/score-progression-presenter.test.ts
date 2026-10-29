@@ -936,6 +936,25 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withOverlay.chart.advantageDomain).toBeNull();
     });
 
+    it("offers a tooltip only while there is a run or a shown overlay to hover", () => {
+      const { store, presenter } = makePresenter();
+      const empty = aFakeCtfViewDataWith({ runs: [], points: [{ timestampMs: 0 }, { timestampMs: 120000 }] });
+      const withOverlay = aFakeCtfViewDataWith({ runs: [], advantageOverlay: aFakeFlagAdvantageOverlayWith() });
+
+      const withRuns = asFlagRuns(
+        presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+      );
+      const emptyModel = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: empty, ariaLabel: "x" }));
+      const overlayOff = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
+      overlayOff.onPlayerAdvantageChange(true);
+      const overlayOn = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
+
+      expect(withRuns.chart.showTooltip).toBe(true);
+      expect(emptyModel.chart.showTooltip).toBe(false);
+      expect(overlayOff.chart.showTooltip).toBe(false);
+      expect(overlayOn.chart.showTooltip).toBe(true);
+    });
+
     it("swaps in the overlay rows on an axis mirrored around the home line once toggled on", () => {
       const { store, presenter } = makePresenter();
       const advantageOverlay = aFakeFlagAdvantageOverlayWith();

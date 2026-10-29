@@ -11,6 +11,7 @@ export function aFakeFlagRunsChartViewModelWith(
     runs,
     points: buildFlagRunsChartPoints(runs),
     advantageDomain: null,
+    showTooltip: true,
     tooltipFormatter: (value): [string, string] => [String(value ?? ""), ""],
     ...overrides,
   };
