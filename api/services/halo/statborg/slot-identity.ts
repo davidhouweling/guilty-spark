@@ -1,5 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { hasOvertimeRound, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { ParsedHighlightEvent } from "../types";
 import { counterFinalPoints, isTeamSlot } from "./stat-counters";
 import type { CounterPoint } from "./stat-counters";
@@ -95,12 +95,6 @@ function playerLinesAt(
   });
 }
 
-// an overtime is a round of its own in the API's eyes
-export function isOvertimeMatch(matchStats: MatchStats): boolean {
-  const stats = matchStats.Teams[0]?.Stats.CoreStats;
-  return stats != null && stats.RoundsWon + stats.RoundsLost + stats.RoundsTied > 1;
-}
-
 function playerSlotsOf(records: readonly StatRecord[]): Set<number> {
   const slots = new Set<number>();
   for (const record of records) {
@@ -144,7 +138,6 @@ function slotTripletsOf(records: readonly StatRecord[], points: CoreCounterPoint
   return triplets;
 }
 
-// when the player kill and death counters last plausibly rose
 function lastCoreCounterMsOf(points: CoreCounterPoints): number {
   let latest = -Infinity;
   for (const point of [...points.kills.values(), ...points.deaths.values()]) {
@@ -170,13 +163,6 @@ function settleClaims(claims: ReadonlyMap<number, string>): Map<number, string> 
   return identities;
 }
 
-// several lines within the assists bound narrow to the one whose assists match exactly
-function soleCandidate(triplet: StatTriplet, candidates: readonly PlayerLine[]): PlayerLine | null {
-  const exact = candidates.filter((line) => line.assists === triplet.assists);
-  const [candidate] = candidates.length === 1 ? candidates : exact;
-  return (candidates.length === 1 || exact.length === 1) && candidate != null ? candidate : null;
-}
-
 function claimSlots(
   triplets: ReadonlyMap<number, StatTriplet>,
   lines: readonly PlayerLine[],
@@ -184,11 +170,9 @@ function claimSlots(
 ): Map<number, string> {
   const claims = new Map<number, string>();
   for (const [slot, triplet] of triplets) {
-    const candidate = soleCandidate(
-      triplet,
-      lines.filter((line) => matches(triplet, line)),
-    );
-    if (candidate?.placeable === true) {
+    const candidates = lines.filter((line) => matches(triplet, line));
+    const [candidate] = candidates;
+    if (candidates.length === 1 && candidate?.placeable === true) {
       claims.set(slot, candidate.xuid);
     }
   }
@@ -201,8 +185,6 @@ const matchesWholeMatch: SlotMatcher = (slot, line) =>
 const matchesAtCutoff: SlotMatcher = (slot, line) =>
   slot.kills === line.kills && slot.deaths === line.deaths && slot.assists <= line.assists;
 
-// the halfway point of the first quiet gap after the last counter change, or null when the
-// counters run to the end of the feed
 function recordCutoffBoundaryMs(cutoffMs: number, highlightEvents: readonly ParsedHighlightEvent[]): number | null {
   if (cutoffMs === -Infinity) {
     return null;
@@ -234,7 +216,7 @@ export function resolveSlotIdentities(
   const triplets = slotTripletsOf(records, points);
   const lines = playerLinesOf(matchStats);
   const wholeMatch = claimSlots(triplets, lines, matchesWholeMatch);
-  if (triplets.size === wholeMatch.size || !isOvertimeMatch(matchStats)) {
+  if (triplets.size === wholeMatch.size || !hasOvertimeRound(matchStats)) {
     return wholeMatch;
   }
   const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMsOf(points), highlightEvents);

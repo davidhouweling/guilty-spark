@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { getPlayerXuid, getTeamPlayersFromMatches, unwrapXuid, wrapXuid, getTeamIdsByXuid } from "../match-stats";
+import {
+  getPlayerXuid,
+  getTeamPlayersFromMatches,
+  hasOvertimeRound,
+  unwrapXuid,
+  wrapXuid,
+  getTeamIdsByXuid,
+} from "../match-stats";
 import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith, aFakeTeamWith } from "../fakes/data";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 
@@ -30,6 +37,20 @@ describe("getPlayerXuid", () => {
     const result = getPlayerXuid(player);
 
     expect(result).toBe("1234567890");
+  });
+});
+
+describe("hasOvertimeRound", () => {
+  it("reports an overtime when a team carries a tied round", () => {
+    const overtime = aFakeTeamWith({ TeamId: 0 });
+    overtime.Stats.CoreStats.RoundsTied = 1;
+    expect(hasOvertimeRound(aFakeMatchStatsWith({ Teams: [overtime, aFakeTeamWith({ TeamId: 1 })] }))).toBe(true);
+  });
+
+  it("reports no overtime for a match decided in its rounds", () => {
+    expect(
+      hasOvertimeRound(aFakeMatchStatsWith({ Teams: [aFakeTeamWith({ TeamId: 0 }), aFakeTeamWith({ TeamId: 1 })] })),
+    ).toBe(false);
   });
 });
 

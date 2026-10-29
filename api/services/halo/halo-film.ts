@@ -2,7 +2,7 @@ import { inflateSync } from "node:zlib";
 import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { wrapXuid, unwrapXuid, getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamIdsByXuid, hasOvertimeRound, unwrapXuid, wrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
 import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
@@ -43,7 +43,6 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { isOvertimeMatch } from "./statborg/slot-identity";
 import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
@@ -219,26 +218,17 @@ export class HaloFilmService {
         records.push(record);
       }
     }
-    const fromCounters = buildCtfFlagEventsFromRecords(records, matchStats);
-    if (fromCounters.unresolvedSlots.length === 0 || !isOvertimeMatch(matchStats)) {
-      return fromCounters;
-    }
-    return this.retryWithFeed(records, matchStats, fromCounters);
+    const highlightEvents = hasOvertimeRound(matchStats) ? await this.tryLoadEnrichedEvents(matchStats) : [];
+    return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
   }
 
-  // the feed only enriches the counters' result, so the result in hand stands when it cannot be read
-  private async retryWithFeed(
-    records: readonly StatRecord[],
-    matchStats: MatchStats,
-    fromCounters: CtfFlagEvents,
-  ): Promise<CtfFlagEvents> {
-    let highlightEvents: ParsedHighlightEvent[];
+  // the feed only enriches the counters' result on an overtime film, so losing it is not fatal
+  private async tryLoadEnrichedEvents(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     try {
-      highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
+      return await this.loadEnrichedEventsForMatch(matchStats);
     } catch {
-      return fromCounters;
+      return [];
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {

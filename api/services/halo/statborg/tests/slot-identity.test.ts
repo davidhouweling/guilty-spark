@@ -173,18 +173,16 @@ describe("resolveSlotIdentities", () => {
     expect(identities.has(12)).toBe(false);
   });
 
-  it("narrows several lines within the assists bound to the one whose assists match exactly", () => {
+  it("leaves a slot that sits inside two players' assists bounds unresolved rather than picking the closer one", () => {
     const matchStats = anOvertimeMatchStatsWith(
-      new Map([["0200000000000000", { kills: 16, deaths: 17, assists: 15 }]]),
+      new Map([["0200000000000000", { kills: 14, deaths: 15, assists: 15 }]]),
     );
-    const records = [...coreStatsRecords(10, 16, 17, 12), ...coreStatsRecords(12, 16, 17, 15)];
+    const records = [...coreStatsRecords(10, 14, 15, 12), ...coreStatsRecords(12, 14, 15, 15)];
     const identities = resolveSlotIdentities(records, matchStats, [
-      ...feed("0100000000000000", 16, 17, 50),
-      ...feed("0200000000000000", 16, 17, 50),
-      ...feed("0500000000000000", 12, 14, 50),
-      ...feed("0500000000000000", 1, 0, 30_100),
+      ...overtimeFeed,
+      ...feed("0200000000000000", 14, 15, 50),
     ]);
-    expect(identities.get(10)).toBe("0100000000000000");
+    expect(identities.has(10)).toBe(false);
     expect(identities.get(12)).toBe("0200000000000000");
   });
 

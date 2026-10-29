@@ -25,6 +25,11 @@ export function getTeamIdsByXuid(matchStats: Pick<MatchStats, "Players">): Map<s
   return teamIds;
 }
 
+// the API records an overtime as a tied round before the deciding one
+export function hasOvertimeRound(matchStats: Pick<MatchStats, "Teams">): boolean {
+  return matchStats.Teams.some((team) => team.Stats.CoreStats.RoundsTied > 0);
+}
+
 export function getTeamPlayersFromMatches(matches: MatchStats[], team: MatchStats["Teams"][0]): MatchStats["Players"] {
   const uniquePlayersMap = new Map<string, MatchStats["Players"][0]>();
   for (const match of matches) {
