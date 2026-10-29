@@ -33,6 +33,7 @@ export function FlagRunsChart({
   runs,
   points,
   advantageDomain,
+  showTooltip,
   tooltipFormatter,
 }: FlagRunsChartViewModel): React.ReactElement {
   return (
@@ -43,12 +44,14 @@ export function FlagRunsChart({
         <YAxis {...flagAxisProps()} stroke={AXIS_STROKE} tick={TICK_STYLE} />
         {advantageDomain != null && <YAxis {...flagAdvantageAxisProps(advantageDomain)} />}
         <ReferenceLine y={0} stroke={AXIS_STROKE} />
-        <Tooltip
-          contentStyle={tooltipContentStyle}
-          labelStyle={tooltipLabelStyle}
-          labelFormatter={formatTooltipLabel}
-          formatter={tooltipFormatter}
-        />
+        {showTooltip && (
+          <Tooltip
+            contentStyle={tooltipContentStyle}
+            labelStyle={tooltipLabelStyle}
+            labelFormatter={formatTooltipLabel}
+            formatter={tooltipFormatter}
+          />
+        )}
         {runs.map((run) => (
           <Area
             key={run.seriesKey}

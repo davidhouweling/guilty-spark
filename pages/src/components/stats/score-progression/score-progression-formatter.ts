@@ -4,6 +4,7 @@ import type {
   DeathOverlay,
   KillRaceEvent,
   MatchAnalytics,
+  TeamDeathEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -12,9 +13,10 @@ import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
   buildFlagAdvantageOverlay,
+  buildFlagChartPoints,
   buildFlagRunLegend,
   buildFlagRuns,
-  buildFlagRunsChartPoints,
+  isDrawableFlagRun,
 } from "./modes/ctf/ctf-view-model";
 import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
@@ -83,6 +85,11 @@ function buildScoreDelta(
   return { points, minScore, maxScore, lineType };
 }
 
+// producers clamp server-side; kept as boundary defense for payloads from an older api deploy
+function inMatchDeathEvents(deathTimeline: readonly TeamDeathEvent[], durationMs: number): TeamDeathEvent[] {
+  return deathTimeline.filter((death) => death.timestampMs <= durationMs);
+}
+
 function buildPlayerAdvantage(
   teamIds: readonly number[],
   { deathTimeline, respawnDurationMs }: DeathOverlay,
@@ -92,8 +99,7 @@ function buildPlayerAdvantage(
   if (respawnDurationMs == null) {
     return null;
   }
-  // producers clamp server-side; kept as boundary defense for payloads from an older api deploy
-  const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
+  const inMatchDeaths = inMatchDeathEvents(deathTimeline, durationMs);
   if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
   }
@@ -284,32 +290,50 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-function resolveCtfTeams(
-  captureEvents: readonly KillRaceEvent[],
-  runs: CtfTimeline["runs"],
-  teamColors: readonly TeamColor[],
-): ResolvedTeams | null {
-  const teamIds = new Set(
-    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
-  );
-  const runCounts = new Map<number, number>();
-  for (const run of runs) {
-    // a run carried by the flag's own team is malformed and cannot vouch for a roster
-    if (run.carrierTeamId === run.flagTeamId) {
-      continue;
-    }
-    for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
-      runCounts.set(teamId, (runCounts.get(teamId) ?? 0) + 1);
-    }
+function rankByFrequency(teamIds: Iterable<number>): number[] {
+  const counts = new Map<number, number>();
+  for (const teamId of teamIds) {
+    counts.set(teamId, (counts.get(teamId) ?? 0) + 1);
   }
-  const runTeamIds = [...runCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
-  for (const teamId of runTeamIds) {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
+}
+
+function drawableRunTeamIds(runs: CtfTimeline["runs"], durationMs: number): number[] {
+  return runs.filter((run) => isDrawableFlagRun(run, durationMs)).flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
+}
+
+function pickRosterTeamIds(primary: readonly number[], fallbacks: readonly (readonly number[])[]): number[] {
+  const teamIds = new Set(primary);
+  for (const teamId of fallbacks.flat()) {
     if (teamIds.size >= 2) {
       break;
     }
     teamIds.add(teamId);
   }
-  return resolveTeamsFromIds([...teamIds], teamColors);
+  return [...teamIds];
+}
+
+// the deaths carry the API's own team ids, so they outrank the film-decoded runs
+function resolveCtfTeams(
+  captureEvents: readonly KillRaceEvent[],
+  timeline: CtfTimeline,
+  teamCount: number,
+  durationMs: number,
+  teamColors: readonly TeamColor[],
+): ResolvedTeams | null {
+  const captureTeamIds = Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number);
+  if (teamCount !== 2) {
+    return resolveTeamsFromIds(captureTeamIds, teamColors);
+  }
+  const teamIds = pickRosterTeamIds(captureTeamIds, [
+    rankByFrequency(inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId)),
+    rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
+  ]);
+  return resolveTeamsFromIds(teamIds, teamColors);
+}
+
+function isFlagDecodeEmpty(timeline: CtfTimeline): boolean {
+  return timeline.events.length === 0 && timeline.runs.length === 0;
 }
 
 function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
@@ -329,7 +353,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline } = scoreProgression;
+  const { durationMs, timeline, teamCount } = scoreProgression;
 
   switch (timeline.type) {
     case "kill-race": {
@@ -412,7 +436,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       const captureEvents = clampEventsToDuration(timeline.events, durationMs);
-      const teams = resolveCtfTeams(captureEvents, timeline.runs, teamColors);
+      const teams = resolveCtfTeams(captureEvents, timeline, teamCount, durationMs, teamColors);
       if (teams == null) {
         return null;
       }
@@ -424,7 +448,7 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      if (runs.length === 0) {
+      if (runs.length === 0 && !isFlagDecodeEmpty(timeline)) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;
@@ -432,7 +456,7 @@ export function formatScoreProgression(
         kind: "ctf",
         durationMs,
         runs,
-        points: buildFlagRunsChartPoints(runs),
+        points: buildFlagChartPoints(runs, durationMs),
         legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
         teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
         advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),

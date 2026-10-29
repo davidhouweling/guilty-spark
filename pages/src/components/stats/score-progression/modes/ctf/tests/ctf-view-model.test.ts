@@ -6,7 +6,9 @@ import {
   buildFlagAdvantageOverlay,
   buildFlagRunLegend,
   buildFlagRuns,
+  buildFlagChartPoints,
   buildFlagRunsChartPoints,
+  isDrawableFlagRun,
 } from "../ctf-view-model";
 
 const TEAM_IDS = [0, 1] as const;
@@ -234,6 +236,31 @@ describe("buildFlagRunLegend", () => {
       { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
       { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
     ]);
+  });
+});
+
+describe("isDrawableFlagRun", () => {
+  it("accepts a run between two teams that starts inside the match and lasts", () => {
+    expect(isDrawableFlagRun(aFakeCtfFlagRunWith(), DURATION_MS)).toBe(true);
+  });
+
+  it("rejects a run carried by the flag's own team, one starting at the match end and one that never lasts", () => {
+    expect(isDrawableFlagRun(aFakeCtfFlagRunWith({ carrierTeamId: 0 }), DURATION_MS)).toBe(false);
+    expect(isDrawableFlagRun(aFakeCtfFlagRunWith({ startMs: DURATION_MS, endMs: DURATION_MS + 1 }), DURATION_MS)).toBe(
+      false,
+    );
+    expect(isDrawableFlagRun(aFakeCtfFlagRunWith({ startMs: 20000, endMs: 20000 }), DURATION_MS)).toBe(false);
+  });
+});
+
+describe("buildFlagChartPoints", () => {
+  it("seeds the home line with a row at the start and one at the end when there are no runs", () => {
+    expect(buildFlagChartPoints([], 90000)).toEqual([{ timestampMs: 0 }, { timestampMs: 90000 }]);
+  });
+
+  it("builds the shared run rows when there are runs", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+    expect(buildFlagChartPoints(runs, DURATION_MS)).toEqual(buildFlagRunsChartPoints(runs));
   });
 });
 

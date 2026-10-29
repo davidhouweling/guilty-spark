@@ -92,6 +92,10 @@ function buildRunReset(finished: boolean, endMs: number, endProgress: number): F
   return finished ? { timestampMs: endMs, fromProgress: endProgress } : null;
 }
 
+export function isDrawableFlagRun(run: CtfFlagRun, durationMs: number): boolean {
+  return run.carrierTeamId !== run.flagTeamId && run.startMs < durationMs && run.endMs > run.startMs;
+}
+
 export function buildFlagRuns(
   timeline: CtfTimeline,
   teamIds: readonly [number, number],
@@ -103,13 +107,7 @@ export function buildFlagRuns(
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
   for (const run of orderedRuns) {
     const color = teamColorByTeamId.get(run.carrierTeamId);
-    if (
-      color == null ||
-      !teamIds.includes(run.flagTeamId) ||
-      run.carrierTeamId === run.flagTeamId ||
-      run.startMs >= durationMs ||
-      run.endMs <= run.startMs
-    ) {
+    if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
       continue;
     }
     const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;
@@ -162,6 +160,12 @@ export function buildFlagRunsChartPoints(
     }
     return { ...row, timestampMs };
   });
+}
+
+// Recharts draws nothing over an empty data array, so a match without a single run is seeded
+// with the home line's two endpoints and still shows its axes
+export function buildFlagChartPoints(runs: readonly FlagRunData[], durationMs: number): FlagRunsChartPoint[] {
+  return runs.length === 0 ? [{ timestampMs: 0 }, { timestampMs: durationMs }] : buildFlagRunsChartPoints(runs);
 }
 
 export function buildFlagAdvantageOverlay(

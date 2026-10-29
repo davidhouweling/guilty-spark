@@ -55,7 +55,7 @@ vi.mock("recharts", () => ({
       data-tick={tickFormatter?.(-2)}
     />
   ),
-  Tooltip: (): null => null,
+  Tooltip: (): React.ReactElement => <div data-testid="tooltip" />,
   Area: ({
     name,
     stroke,
@@ -89,8 +89,20 @@ describe("FlagRunsChart", () => {
     expect(areas[0]).toHaveTextContent("Eagle flag · Cobra carrying");
     expect(areas[0]).toHaveAttribute("data-stroke", "#ff0000");
     expect(areas[0]).toHaveAttribute("data-key", "run1");
+    expect(screen.getByTestId("tooltip")).toBeInTheDocument();
     expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "4");
     expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
+  });
+
+  it("renders the axes and home line over the seeded rows, with no areas, markers or tooltip, when there are no runs", () => {
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ runs: [], showTooltip: false })} />);
+
+    expect(screen.queryAllByTestId("area")).toHaveLength(0);
+    expect(screen.queryAllByTestId("reference-dot")).toHaveLength(0);
+    expect(screen.queryByTestId("tooltip")).toBeNull();
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "2");
+    expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
+    expect(screen.getByTestId("reference-line")).toHaveAttribute("data-y", "0");
   });
 
   it("renders a marker per flag event and a reset segment back to the home line", () => {
