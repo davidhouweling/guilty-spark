@@ -92,6 +92,10 @@ function buildRunReset(finished: boolean, endMs: number, endProgress: number): F
   return finished ? { timestampMs: endMs, fromProgress: endProgress } : null;
 }
 
+export function isDrawableFlagRun(run: CtfFlagRun, durationMs: number): boolean {
+  return run.carrierTeamId !== run.flagTeamId && run.startMs < durationMs && run.endMs > run.startMs;
+}
+
 export function buildFlagRuns(
   timeline: CtfTimeline,
   teamIds: readonly [number, number],
@@ -103,13 +107,7 @@ export function buildFlagRuns(
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
   for (const run of orderedRuns) {
     const color = teamColorByTeamId.get(run.carrierTeamId);
-    if (
-      color == null ||
-      !teamIds.includes(run.flagTeamId) ||
-      run.carrierTeamId === run.flagTeamId ||
-      run.startMs >= durationMs ||
-      run.endMs <= run.startMs
-    ) {
+    if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
       continue;
     }
     const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;

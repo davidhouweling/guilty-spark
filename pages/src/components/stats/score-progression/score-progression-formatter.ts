@@ -4,6 +4,7 @@ import type {
   DeathOverlay,
   KillRaceEvent,
   MatchAnalytics,
+  TeamDeathEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
@@ -16,6 +17,7 @@ import {
   buildFlagRunLegend,
   buildFlagRuns,
   buildFlagRunsChartPoints,
+  isDrawableFlagRun,
 } from "./modes/ctf/ctf-view-model";
 import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
 import { buildOddballRounds, buildOddballScoreSeries } from "./modes/oddball/oddball-view-model";
@@ -84,6 +86,11 @@ function buildScoreDelta(
   return { points, minScore, maxScore, lineType };
 }
 
+// producers clamp server-side; kept as boundary defense for payloads from an older api deploy
+function inMatchDeathEvents(deathTimeline: readonly TeamDeathEvent[], durationMs: number): TeamDeathEvent[] {
+  return deathTimeline.filter((death) => death.timestampMs <= durationMs);
+}
+
 function buildPlayerAdvantage(
   teamIds: readonly number[],
   { deathTimeline, respawnDurationMs }: DeathOverlay,
@@ -93,8 +100,7 @@ function buildPlayerAdvantage(
   if (respawnDurationMs == null) {
     return null;
   }
-  // producers clamp server-side; kept as boundary defense for payloads from an older api deploy
-  const inMatchDeaths = deathTimeline.filter((death) => death.timestampMs <= durationMs);
+  const inMatchDeaths = inMatchDeathEvents(deathTimeline, durationMs);
   if (teamIds.length !== 2 || inMatchDeaths.length === 0) {
     return null;
   }
@@ -293,15 +299,8 @@ function rankByFrequency(teamIds: Iterable<number>): number[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
 }
 
-// only a run the chart will draw can vouch for a roster
 function drawableRunTeamIds(runs: CtfTimeline["runs"], durationMs: number): number[] {
-  return runs
-    .filter((run) => run.carrierTeamId !== run.flagTeamId && run.startMs < durationMs && run.endMs > run.startMs)
-    .flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
-}
-
-function inMatchDeathTeamIds(deaths: CtfTimeline["deathTimeline"], durationMs: number): number[] {
-  return deaths.filter((death) => death.timestampMs <= durationMs).map((death) => death.teamId);
+  return runs.filter((run) => isDrawableFlagRun(run, durationMs)).flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
 }
 
 function fillTeamIds(teamIds: Set<number>, rankedTeamIds: readonly number[]): void {
@@ -322,21 +321,16 @@ function resolveCtfTeams(
   const teamIds = new Set(
     Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
   );
-  const fallbackSources = [
-    (): number[] => drawableRunTeamIds(timeline.runs, durationMs),
-    (): number[] => inMatchDeathTeamIds(timeline.deathTimeline, durationMs),
-  ];
-  for (const source of fallbackSources) {
-    if (teamIds.size >= 2) {
-      break;
-    }
-    fillTeamIds(teamIds, rankByFrequency(source()));
-  }
+  fillTeamIds(teamIds, rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)));
+  fillTeamIds(
+    teamIds,
+    rankByFrequency(inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId)),
+  );
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
-function isFlagDecodeEmpty(timeline: CtfTimeline, scoreLines: ScoreLinesViewData | null): boolean {
-  return scoreLines == null && timeline.runs.length === 0;
+function isFlagDecodeEmpty(captureEvents: readonly KillRaceEvent[], timeline: CtfTimeline): boolean {
+  return captureEvents.length === 0 && timeline.runs.length === 0;
 }
 
 function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
@@ -451,7 +445,7 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      if (runs.length === 0 && !isFlagDecodeEmpty(timeline, scoreLines)) {
+      if (runs.length === 0 && !isFlagDecodeEmpty(captureEvents, timeline)) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;
