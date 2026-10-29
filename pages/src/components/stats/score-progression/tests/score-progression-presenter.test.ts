@@ -952,6 +952,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withRuns.chart.showTooltip).toBe(true);
       expect(withRuns.markerLegend).not.toHaveLength(0);
       expect(emptyModel.chart.showTooltip).toBe(false);
+      expect(emptyModel.chart.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
       expect(emptyModel.markerLegend).toEqual([]);
       expect(overlayOff.chart.showTooltip).toBe(false);
       expect(overlayOn.chart.showTooltip).toBe(true);

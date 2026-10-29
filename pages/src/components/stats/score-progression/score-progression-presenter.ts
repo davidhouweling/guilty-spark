@@ -155,7 +155,7 @@ export class ScoreProgressionPresenter {
       chartTypeOptions,
       showChartTypeSelect: chartTypeOptions.length > 1,
       legend: viewData.legend,
-      markerLegend: viewData.runs.length > 0 ? FLAG_MARKER_LEGEND : [],
+      markerLegend: viewData.runs.some((run) => run.markers.length > 0) ? FLAG_MARKER_LEGEND : [],
       hasPlayerAdvantage,
       showPlayerAdvantage,
       chart: {

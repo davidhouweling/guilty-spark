@@ -43,15 +43,17 @@ export function FlagRunsCharts({
               />
             ))}
           </div>
-          <div className={classNames(styles.markerLegend, styles.flagLegend)}>
-            {markerLegend.map((entry) => (
-              <LegendItem
-                key={entry.kind}
-                swatch={<FlagRunMarker kind={entry.kind} color="currentColor" cx={7} cy={7} />}
-                text={entry.text}
-              />
-            ))}
-          </div>
+          {markerLegend.length > 0 && (
+            <div className={classNames(styles.markerLegend, styles.flagLegend)}>
+              {markerLegend.map((entry) => (
+                <LegendItem
+                  key={entry.kind}
+                  swatch={<FlagRunMarker kind={entry.kind} color="currentColor" cx={7} cy={7} />}
+                  text={entry.text}
+                />
+              ))}
+            </div>
+          )}
         </>
       }
       onChartTypeChange={onChartTypeChange}

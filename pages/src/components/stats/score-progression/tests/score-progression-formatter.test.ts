@@ -1002,6 +1002,23 @@ describe("formatScoreProgression ctf", () => {
     expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
   });
 
+  it("shows the empty flag chart without an overlay when the decode is empty and no respawn duration is known", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      respawnDurationMs: null,
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS, 4));
+
+    expect(result.runs).toEqual([]);
+    expect(result.advantageOverlay).toBeNull();
+    expect(result.scoreLines).toBeNull();
+  });
+
   it("ignores deaths stamped after the match when the deaths name the teams", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [],

@@ -27,6 +27,13 @@ describe("FlagRunsCharts", () => {
     expect(screen.queryByLabelText("Player Advantage")).not.toBeInTheDocument();
   });
 
+  it("leaves out the marker legend row when there are no markers to explain", () => {
+    render(<FlagRunsCharts {...aFakeFlagRunsViewModelWith({ markerLegend: [] })} />);
+
+    expect(screen.getByText("Above: Eagle's flag, carried by Cobra")).toBeInTheDocument();
+    expect(screen.queryByText("Carrier killed")).not.toBeInTheDocument();
+  });
+
   it("offers the player advantage toggle and reports a change when the overlay is available", async () => {
     const onPlayerAdvantageChange = vi.fn<(checked: boolean) => void>();
     render(<FlagRunsCharts {...aFakeFlagRunsViewModelWith({ hasPlayerAdvantage: true, onPlayerAdvantageChange })} />);
