@@ -51,7 +51,7 @@ import { decodeCtfFilm } from "./modes/ctf/decode-ctf-film";
 import { toDeathEvents } from "./positions/death-events";
 import { walkChunk } from "./statborg/bit-reader";
 import type { DeathEvent, PlayerPositions } from "./positions/types";
-import type { CtfFlagEvents, StatRecord } from "./statborg/types";
+import type { CtfFlagEvents } from "./statborg/types";
 
 type WeaponTimeline = Map<number, Map<number, { weaponId: string; name: string }>>;
 interface ChunkTiming {
@@ -212,14 +212,21 @@ export class HaloFilmService {
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
-    const highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
-    const records: StatRecord[] = [];
-    for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
-      for (const record of scanWalkedChunkStatRecords(walkChunk(chunk))) {
-        records.push(record);
-      }
-    }
+    const [highlightEvents, chunks] = await Promise.all([
+      this.tryLoadEnrichedEventsForMatch(matchStats),
+      this.getCompleteReplicationChunks(matchStats.MatchId),
+    ]);
+    const records = chunks.flatMap((chunk) => scanWalkedChunkStatRecords(walkChunk(chunk)));
     return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
+  }
+
+  // the feed only backs up slot identity on an overtime film, so a film without one still decodes
+  private async tryLoadEnrichedEventsForMatch(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
+    try {
+      return await this.loadEnrichedEventsForMatch(matchStats);
+    } catch {
+      return [];
+    }
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {

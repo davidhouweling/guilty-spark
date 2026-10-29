@@ -1,5 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { OFFSET_SEARCH_MS } from "../positions/death-pairing";
 import type { ParsedHighlightEvent } from "../types";
 import { counterTotals, isTeamSlot } from "./stat-counters";
 import type { StatRecord } from "./types";
@@ -8,8 +9,10 @@ import type { StatRecord } from "./types";
 // and deaths (B), component 3 carries assists (A).
 const KILLS_DEATHS_COMPONENT = 2;
 const ASSISTS_COMPONENT = 3;
-// a counter record lands within this of the kill or death it counts
-const RECORD_LAG_TOLERANCE_MS = 100;
+// The counters stop at the end of regulation while the feed's kills and deaths run on through
+// overtime; the intermission between the two is far longer than the feed's clock offset from
+// the film, so the halfway point of that gap splits the match cleanly.
+const MIN_RECORD_GAP_MS = 10_000;
 
 interface StatTriplet {
   kills: number;
@@ -39,25 +42,24 @@ function isKillOrDeath(event: ParsedHighlightEvent): boolean {
   return event.eventType === "kill" || event.eventType === "death";
 }
 
-// The feed keeps its kills and deaths through overtime while the counters stop at the end of
-// regulation, so a player's line at the moment the records stop is counted from the feed; the
-// assists stay at the whole-match total as an upper bound.
+// A player's line at the cut-off is the whole-match total less the feed's kills and deaths
+// after it; the assists stay at the whole-match total as an upper bound.
 function playerLinesAt(
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[],
-  cutoffMs: number,
+  boundaryMs: number,
 ): PlayerLine[] {
-  const lines = playerLinesOf(matchStats).map((line) => ({ ...line, kills: 0, deaths: 0 }));
+  const lines = playerLinesOf(matchStats);
   const lineByXuid = new Map(lines.map((line) => [line.xuid, line]));
   for (const event of highlightEvents) {
     const line = lineByXuid.get(event.xuid);
-    if (line == null || event.timeMs > cutoffMs + RECORD_LAG_TOLERANCE_MS) {
+    if (line == null || event.timeMs < boundaryMs) {
       continue;
     }
     if (event.eventType === "kill") {
-      line.kills += 1;
+      line.kills -= 1;
     } else if (event.eventType === "death") {
-      line.deaths += 1;
+      line.deaths -= 1;
     }
   }
   return lines;
@@ -142,17 +144,38 @@ const matchesAtCutoff: SlotMatcher = (slot, line) =>
   slot.kills === line.kills && slot.deaths === line.deaths && slot.assists <= line.assists;
 
 function lastTimestampOf(records: readonly StatRecord[]): number {
-  return Math.max(...records.map((record) => record.timestampMs));
+  return records.reduce((latest, record) => Math.max(latest, record.timestampMs), -Infinity);
 }
 
-function lastKillOrDeathMs(highlightEvents: readonly ParsedHighlightEvent[]): number {
-  return Math.max(-Infinity, ...highlightEvents.filter(isKillOrDeath).map((event) => event.timeMs));
+function firstKillOrDeathAfter(highlightEvents: readonly ParsedHighlightEvent[], afterMs: number): number | null {
+  let earliest: number | null = null;
+  for (const event of highlightEvents) {
+    if (isKillOrDeath(event) && event.timeMs > afterMs && (earliest == null || event.timeMs < earliest)) {
+      earliest = event.timeMs;
+    }
+  }
+  return earliest;
+}
+
+// the halfway point of the quiet gap between the last record and the feed resuming, or null
+// when the records run to the end of the feed; a feed stamp within the clock offset of the
+// last record still belongs to that record
+function recordCutoffBoundaryMs(
+  records: readonly StatRecord[],
+  highlightEvents: readonly ParsedHighlightEvent[],
+): number | null {
+  const cutoffMs = lastTimestampOf(records);
+  const resumeMs = firstKillOrDeathAfter(highlightEvents, cutoffMs + OFFSET_SEARCH_MS);
+  if (resumeMs == null || resumeMs - cutoffMs < MIN_RECORD_GAP_MS) {
+    return null;
+  }
+  return cutoffMs + (resumeMs - cutoffMs) / 2;
 }
 
 // Resolves which player each statborg entity slot belongs to by matching the slot's final
-// (kills, deaths, assists) against the match roster. When the counters stop before the feed's
-// last kill or death (an overtime film), the slots still unresolved are matched against each
-// player's kills and deaths at the moment the records stopped.
+// (kills, deaths, assists) against the match roster. When the counters stop long before the
+// feed does (an overtime film), the slots still unresolved are matched against each player's
+// kills and deaths at the moment the records stopped.
 export function resolveSlotIdentities(
   records: readonly StatRecord[],
   matchStats: MatchStats,
@@ -164,12 +187,12 @@ export function resolveSlotIdentities(
   if (unresolved.size === 0) {
     return identities;
   }
-  const cutoffMs = lastTimestampOf(records);
-  if (cutoffMs + RECORD_LAG_TOLERANCE_MS >= lastKillOrDeathMs(highlightEvents)) {
+  const boundaryMs = recordCutoffBoundaryMs(records, highlightEvents);
+  if (boundaryMs == null) {
     return identities;
   }
   const claimedXuids = new Set(identities.values());
-  const linesAtCutoff = playerLinesAt(matchStats, highlightEvents, cutoffMs).filter(
+  const linesAtCutoff = playerLinesAt(matchStats, highlightEvents, boundaryMs).filter(
     (line) => !claimedXuids.has(line.xuid),
   );
   return new Map([...identities, ...claimSlots(unresolved, linesAtCutoff, matchesAtCutoff)]);

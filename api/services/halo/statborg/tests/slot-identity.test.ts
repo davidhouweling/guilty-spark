@@ -21,9 +21,10 @@ function feed(xuid: string, kills: number, deaths: number, timeMs: number): Pars
   ];
 }
 
-// an overtime film: 0100… ends regulation on 14/15/12, then adds 2 kills and 2 deaths the
-// counters never record, so the API line reads 16/17/12
-const overtimeFeed = [...feed("0100000000000000", 14, 15, 50), ...feed("0100000000000000", 2, 2, 5000)];
+// an overtime film: 0100… ends regulation on 14/15/12 with the last record at 100, then adds
+// 2 kills and 2 deaths after a 30s intermission that the counters never record, so the API
+// line reads 16/17/12
+const overtimeFeed = [...feed("0100000000000000", 14, 15, 50), ...feed("0100000000000000", 2, 2, 30_100)];
 
 describe("resolveSlotIdentities", () => {
   it("resolves a slot whose kills, deaths and assists match exactly one player", () => {
@@ -143,11 +144,19 @@ describe("resolveSlotIdentities", () => {
     expect(resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith()).has(10)).toBe(false);
   });
 
-  it("counts a kill or death landing just after the last record as recorded", () => {
+  it("does not treat a death the feed stamps a couple of seconds after the last record as an overtime", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
+      ...feed("0100000000000000", 14, 15, 50),
+      ...feed("0100000000000000", 2, 2, 2_600),
+    ]);
+    expect(identities.has(10)).toBe(false);
+  });
+
+  it("keeps a kill the feed stamps a little after the last record on the regulation side of the gap", () => {
     const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
       ...feed("0100000000000000", 13, 15, 50),
-      ...feed("0100000000000000", 1, 0, 150),
-      ...feed("0100000000000000", 2, 2, 5000),
+      ...feed("0100000000000000", 1, 0, 1_600),
+      ...feed("0100000000000000", 2, 2, 30_100),
     ]);
     expect(identities.get(10)).toBe("0100000000000000");
   });
@@ -156,7 +165,7 @@ describe("resolveSlotIdentities", () => {
     const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), aFakeCtfMatchStatsWith(), [
       ...overtimeFeed,
       ...feed("0200000000000000", 14, 15, 50),
-      ...feed("0200000000000000", 8, 0, 5000),
+      ...feed("0200000000000000", 8, 0, 30_100),
     ]);
     expect(identities.has(10)).toBe(false);
   });
