@@ -2,6 +2,7 @@ import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import { UnsupportedFilmError } from "../film-errors";
+import type { ParsedHighlightEvent } from "../types";
 import { resolveSlotIdentities } from "./slot-identity";
 import { sortStatRecords } from "./stat-records";
 import { counterIncrementTimes } from "./stat-counters";
@@ -56,9 +57,13 @@ export function assertCtfMatchSupported(matchStats: MatchStats): void {
   }
 }
 
-export function buildCtfFlagEventsFromRecords(unsorted: readonly StatRecord[], matchStats: MatchStats): CtfFlagEvents {
+export function buildCtfFlagEventsFromRecords(
+  unsorted: readonly StatRecord[],
+  matchStats: MatchStats,
+  highlightEvents: readonly ParsedHighlightEvent[] = [],
+): CtfFlagEvents {
   const records = sortStatRecords(unsorted);
-  const identities = resolveSlotIdentities(records, matchStats);
+  const identities = resolveSlotIdentities(records, matchStats, highlightEvents);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];
   const unresolvedSlots = new Set<number>();

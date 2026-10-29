@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { aFakeParsedHighlightEventWith } from "../../fakes/parsed-highlight-event.fake";
 import { aFakeCtfMatchStatsWith } from "../fakes/ctf-match-stats.fake";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
 import { resolveSlotIdentities } from "../slot-identity";
+import type { ParsedHighlightEvent } from "../../types";
 import type { StatRecord } from "../types";
 
 // fixture roster: 0100…=16/17/12, 0200…=22/15/10, 0500…=12/14/8, 0400…=19/16/6
@@ -11,6 +13,17 @@ function coreStatsRecords(slot: number, kills: number, deaths: number, assists: 
     aFakeStatRecordWith({ timestampMs: 100, slot, components: { 3: { a: assists, b: 0 } } }),
   ];
 }
+
+function feed(xuid: string, kills: number, deaths: number, timeMs: number): ParsedHighlightEvent[] {
+  return [
+    ...Array.from({ length: kills }, () => aFakeParsedHighlightEventWith({ xuid, eventType: "kill", timeMs })),
+    ...Array.from({ length: deaths }, () => aFakeParsedHighlightEventWith({ xuid, eventType: "death", timeMs })),
+  ];
+}
+
+// an overtime film: 0100… ends regulation on 14/15/12, then adds 2 kills and 2 deaths the
+// counters never record, so the API line reads 16/17/12
+const overtimeFeed = [...feed("0100000000000000", 14, 15, 50), ...feed("0100000000000000", 2, 2, 5000)];
 
 describe("resolveSlotIdentities", () => {
   it("resolves a slot whose kills, deaths and assists match exactly one player", () => {
@@ -93,5 +106,58 @@ describe("resolveSlotIdentities", () => {
     const matchStats = aFakeCtfMatchStatsWith(new Map([["0500000000000000", { kills: 3, deaths: 4, assists: 0 }]]));
     const records = [aFakeStatRecordWith({ slot: 16, components: { 2: { a: 3, b: 4 } } })];
     expect(resolveSlotIdentities(records, matchStats).get(16)).toBe("0500000000000000");
+  });
+
+  it("matches a slot the whole-match line rejects against the player's kills and deaths when the records stopped", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), overtimeFeed);
+    expect(identities.get(10)).toBe("0100000000000000");
+  });
+
+  it("keeps the whole-match matches and only matches the leftover slots at the cut-off", () => {
+    const records = [...coreStatsRecords(10, 14, 15, 12), ...coreStatsRecords(12, 22, 15, 10)];
+    const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), [
+      ...overtimeFeed,
+      ...feed("0200000000000000", 14, 15, 50),
+    ]);
+    expect(identities.get(10)).toBe("0100000000000000");
+    expect(identities.get(12)).toBe("0200000000000000");
+  });
+
+  it("accepts fewer assists at the cut-off than the whole match but never more", () => {
+    const fewer = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 11), aFakeCtfMatchStatsWith(), overtimeFeed);
+    const more = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 13), aFakeCtfMatchStatsWith(), overtimeFeed);
+    expect(fewer.get(10)).toBe("0100000000000000");
+    expect(more.has(10)).toBe(false);
+  });
+
+  it("leaves the cut-off match alone when the records run to the feed's last kill or death", () => {
+    const identities = resolveSlotIdentities(
+      coreStatsRecords(10, 14, 15, 12),
+      aFakeCtfMatchStatsWith(),
+      feed("0100000000000000", 14, 15, 50),
+    );
+    expect(identities.has(10)).toBe(false);
+  });
+
+  it("leaves the cut-off match alone without a feed", () => {
+    expect(resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith()).has(10)).toBe(false);
+  });
+
+  it("counts a kill or death landing just after the last record as recorded", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
+      ...feed("0100000000000000", 13, 15, 50),
+      ...feed("0100000000000000", 1, 0, 150),
+      ...feed("0100000000000000", 2, 2, 5000),
+    ]);
+    expect(identities.get(10)).toBe("0100000000000000");
+  });
+
+  it("leaves a slot unresolved when two players share its kills and deaths at the cut-off", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), aFakeCtfMatchStatsWith(), [
+      ...overtimeFeed,
+      ...feed("0200000000000000", 14, 15, 50),
+      ...feed("0200000000000000", 8, 0, 5000),
+    ]);
+    expect(identities.has(10)).toBe(false);
   });
 });

@@ -212,13 +212,14 @@ export class HaloFilmService {
 
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
+    const highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
     const records: StatRecord[] = [];
     for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
       for (const record of scanWalkedChunkStatRecords(walkChunk(chunk))) {
         records.push(record);
       }
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats);
+    return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
@@ -227,7 +228,7 @@ export class HaloFilmService {
       this.loadEnrichedEventsForMatch(matchStats),
       this.getCompleteReplicationChunks(matchStats.MatchId),
     ]);
-    const decoded = decodeCtfFilm(chunks, matchStats, toDeathEvents(highlightEvents));
+    const decoded = decodeCtfFilm(chunks, matchStats, highlightEvents);
     return buildCtfProgression({ ...decoded, highlightEvents, matchStats, durationMs });
   }
 
