@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
-import { counterFinalTimes, counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counters";
+import { counterFinalPoints, counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counters";
 
 const GRABS = { component: 22, side: "a" } as const;
 
@@ -172,14 +172,14 @@ describe("isTeamSlot", () => {
   });
 });
 
-describe("counterFinalTimes", () => {
-  it("dates each slot's final value at its last plausible emission and ignores a trailing jump", () => {
+describe("counterFinalPoints", () => {
+  it("dates each slot's final value at the emission that last raised it, past flat re-emissions and a trailing jump", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 14, b: 15 } } }),
       aFakeStatRecordWith({ timestampMs: 2_000, slot: 10, components: { 2: { a: 15, b: 15 } } }),
       aFakeStatRecordWith({ timestampMs: 31_000, slot: 10, components: { 2: { a: 64, b: 15 } } }),
     ];
-    expect(counterFinalTimes(records, { component: 2, side: "a" }).get(10)).toBe(2_000);
-    expect(counterFinalTimes(records, { component: 2, side: "b" }).get(10)).toBe(31_000);
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)).toEqual({ timestampMs: 2_000, value: 15 });
+    expect(counterFinalPoints(records, { component: 2, side: "b" }).get(10)).toEqual({ timestampMs: 100, value: 15 });
   });
 });

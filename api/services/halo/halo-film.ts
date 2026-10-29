@@ -43,9 +43,8 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { hasUnresolvedSlots, resolveSlotIdentities } from "./statborg/slot-identity";
-import { scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
-import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
+import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
+import { MissingHighlightChunkError, noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
 import { decodeCtfFilm } from "./modes/ctf/decode-ctf-film";
@@ -219,17 +218,21 @@ export class HaloFilmService {
         records.push(record);
       }
     }
-    const sorted = sortStatRecords(records);
-    const needsFeed = hasUnresolvedSlots(sorted, resolveSlotIdentities(sorted, matchStats));
-    return buildCtfFlagEventsFromRecords(sorted, matchStats, needsFeed ? await this.tryLoadFeed(matchStats) : []);
+    const fromCounters = buildCtfFlagEventsFromRecords(records, matchStats);
+    if (fromCounters.unresolvedSlots.length === 0) {
+      return fromCounters;
+    }
+    return buildCtfFlagEventsFromRecords(records, matchStats, await this.loadEnrichedEventsIfPresent(matchStats));
   }
 
-  // the counters' own result stands when the feed that would back up an overtime film cannot be read
-  private async tryLoadFeed(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
+  private async loadEnrichedEventsIfPresent(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
     try {
       return await this.loadEnrichedEventsForMatch(matchStats);
-    } catch {
-      return [];
+    } catch (error) {
+      if (error instanceof MissingHighlightChunkError) {
+        return [];
+      }
+      throw error;
     }
   }
 
@@ -537,7 +540,7 @@ export class HaloFilmService {
     const highlightChunk = this.tryFindHighlightChunk(filmMetadata);
 
     if (highlightChunk == null) {
-      throw new Error(`No highlight chunk found for match ${matchId}`);
+      throw new MissingHighlightChunkError(matchId);
     }
 
     return highlightChunk;

@@ -114,11 +114,11 @@ describe("resolveSlotIdentities", () => {
     expect(identities.get(10)).toBe("0100000000000000");
   });
 
-  it("keeps the whole-match matches and only matches the leftover slots at the cut-off", () => {
+  it("places a player with no overtime activity at the cut-off on their unchanged line", () => {
     const records = [...coreStatsRecords(10, 14, 15, 12), ...coreStatsRecords(12, 22, 15, 10)];
     const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), [
       ...overtimeFeed,
-      ...feed("0200000000000000", 14, 15, 50),
+      ...feed("0200000000000000", 22, 15, 50),
     ]);
     expect(identities.get(10)).toBe("0100000000000000");
     expect(identities.get(12)).toBe("0200000000000000");
@@ -201,14 +201,14 @@ describe("resolveSlotIdentities", () => {
     expect(identities.has(10)).toBe(false);
   });
 
-  it("never hands a player two slots claimed at the whole match a third one at the cut-off", () => {
+  it("places a player on the slot carrying their regulation line, not on slots carrying their whole-match line", () => {
     const records = [
       ...coreStatsRecords(10, 16, 17, 12),
       ...coreStatsRecords(12, 16, 17, 12),
       ...coreStatsRecords(14, 14, 15, 12),
     ];
     const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), overtimeFeed);
-    expect(identities.size).toBe(0);
+    expect([...identities.entries()]).toEqual([[14, "0100000000000000"]]);
   });
 
   it("ignores a junk counter record late in the film when finding where the counters stopped", () => {
