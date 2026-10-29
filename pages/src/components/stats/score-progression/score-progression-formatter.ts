@@ -302,20 +302,18 @@ function drawableRunTeamIds(runs: CtfTimeline["runs"], durationMs: number): numb
   return runs.filter((run) => isDrawableFlagRun(run, durationMs)).flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
 }
 
-// the capture record names the roster first; each fallback only fills what is still missing
 function pickRosterTeamIds(primary: readonly number[], fallbacks: readonly (readonly number[])[]): number[] {
   const teamIds = new Set(primary);
-  for (const source of fallbacks) {
-    for (const teamId of source) {
-      if (teamIds.size >= 2) {
-        return [...teamIds];
-      }
-      teamIds.add(teamId);
+  for (const teamId of fallbacks.flat()) {
+    if (teamIds.size >= 2) {
+      break;
     }
+    teamIds.add(teamId);
   }
   return [...teamIds];
 }
 
+// the deaths carry the API's own team ids, so they outrank the film-decoded runs
 function resolveCtfTeams(
   captureEvents: readonly KillRaceEvent[],
   timeline: CtfTimeline,
@@ -327,8 +325,8 @@ function resolveCtfTeams(
   const deathTeamIds =
     teamCount === 2 ? inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId) : [];
   const teamIds = pickRosterTeamIds(captureTeamIds, [
-    rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
     rankByFrequency(deathTeamIds),
+    rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
   ]);
   return resolveTeamsFromIds(teamIds, teamColors);
 }

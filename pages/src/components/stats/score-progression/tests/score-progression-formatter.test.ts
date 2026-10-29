@@ -991,6 +991,17 @@ describe("formatScoreProgression ctf", () => {
     expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
   });
 
+  it("trusts the deaths over a decoded run when both could name the missing team", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [aFakeCtfFlagRunWith({ flagTeamId: 1, carrierTeamId: 2 })],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+  });
+
   it("lets no run past the match end vouch for a team", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
