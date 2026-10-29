@@ -1019,6 +1019,19 @@ describe("formatScoreProgression ctf", () => {
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
   });
 
+  it("returns null when the only capture was dropped as bad data and nothing else was decoded", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 200000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
+  });
+
   it("returns null when nobody captured and every decoded run had to be rejected", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [],

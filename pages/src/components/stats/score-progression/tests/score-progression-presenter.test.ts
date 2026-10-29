@@ -936,9 +936,9 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withOverlay.chart.advantageDomain).toBeNull();
     });
 
-    it("offers a tooltip only while there is a run or a shown overlay to hover", () => {
+    it("offers a tooltip only while there is a run or a shown overlay to hover, and the marker legend only with runs", () => {
       const { store, presenter } = makePresenter();
-      const empty = aFakeCtfViewDataWith({ runs: [], points: [{ timestampMs: 0 }, { timestampMs: 120000 }] });
+      const empty = aFakeCtfViewDataWith({ runs: [] });
       const withOverlay = aFakeCtfViewDataWith({ runs: [], advantageOverlay: aFakeFlagAdvantageOverlayWith() });
 
       const withRuns = asFlagRuns(
@@ -950,7 +950,9 @@ describe("ScoreProgressionPresenter ctf", () => {
       const overlayOn = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
 
       expect(withRuns.chart.showTooltip).toBe(true);
+      expect(withRuns.markerLegend).not.toHaveLength(0);
       expect(emptyModel.chart.showTooltip).toBe(false);
+      expect(emptyModel.markerLegend).toEqual([]);
       expect(overlayOff.chart.showTooltip).toBe(false);
       expect(overlayOn.chart.showTooltip).toBe(true);
     });

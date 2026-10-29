@@ -329,8 +329,8 @@ function resolveCtfTeams(
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
-function isFlagDecodeEmpty(captureEvents: readonly KillRaceEvent[], timeline: CtfTimeline): boolean {
-  return captureEvents.length === 0 && timeline.runs.length === 0;
+function isFlagDecodeEmpty(timeline: CtfTimeline): boolean {
+  return timeline.events.length === 0 && timeline.runs.length === 0;
 }
 
 function resolveFlagTeamIds(teamIds: readonly number[]): readonly [number, number] | null {
@@ -445,7 +445,7 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      if (runs.length === 0 && !isFlagDecodeEmpty(captureEvents, timeline)) {
+      if (runs.length === 0 && !isFlagDecodeEmpty(timeline)) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;

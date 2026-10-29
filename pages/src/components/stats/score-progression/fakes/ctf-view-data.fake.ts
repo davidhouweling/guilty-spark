@@ -3,7 +3,7 @@ import { buildFlagRunsChartPoints } from "../modes/ctf/ctf-view-model";
 import { aFakeFlagRunDataWith } from "./flag-run-data.fake";
 
 export function aFakeCtfViewDataWith(overrides: Partial<CtfViewData> = {}): CtfViewData {
-  const runs = [aFakeFlagRunDataWith()];
+  const runs = overrides.runs ?? [aFakeFlagRunDataWith()];
   return {
     kind: "ctf",
     durationMs: 120000,
