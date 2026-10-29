@@ -2400,6 +2400,44 @@ describe("HaloFilmService replication chunks", () => {
     expect(unresolvedSlots).toEqual([]);
   });
 
+  it("names the slots at the record cut-off from the cached feed when an overtime film stops its counters", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const regulationFrames = [
+      {
+        timestampUs: 1_000_000n,
+        records: [
+          { slot: 10, components: [{ index: 2, a: 14, b: 15 }] },
+          { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+        ],
+      },
+      { timestampUs: 3_500_000n, records: [{ slot: 10, components: [{ index: 24, a: 1, b: 0 }] }] },
+    ];
+    const env = aFakeCacheBackedEnvWith();
+    await env.APP_DATA.put(
+      "halo:film:match:match-ctf",
+      JSON.stringify(
+        (["kill", "kill", "death", "death"] as const).map((eventType) =>
+          aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType, timeMs: 60_000 }),
+        ),
+      ),
+    );
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([[1, deflateSync(buildReplicationChunkBytes(regulationFrames))]]),
+      env,
+    );
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
+
+    expect(events).toEqual([{ timestampMs: 3500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
+    expect(unresolvedSlots).toEqual([]);
+  });
+
   it("surfaces a failed chunk download in film order and degrades the byte-2 scan to empty", async () => {
     const metadata = aChunkMetadata([
       { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },

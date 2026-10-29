@@ -81,27 +81,24 @@ function totalOrZero(totals: ReadonlyMap<number, number | null>, slot: number): 
   return totals.has(slot) ? (totals.get(slot) ?? null) : 0;
 }
 
-function slotTripletsOf(records: readonly StatRecord[]): Map<number, StatTriplet | null> {
+// a slot with a rejected counter is left out: it cannot be matched at all
+function slotTripletsOf(records: readonly StatRecord[]): Map<number, StatTriplet> {
   const kills = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "a" });
   const deaths = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "b" });
   const assists = counterTotals(records, { component: ASSISTS_COMPONENT, side: "a" });
-  const triplets = new Map<number, StatTriplet | null>();
+  const triplets = new Map<number, StatTriplet>();
   for (const slot of playerSlotsOf(records)) {
     const slotKills = totalOrZero(kills, slot);
     const slotDeaths = totalOrZero(deaths, slot);
     const slotAssists = totalOrZero(assists, slot);
-    triplets.set(
-      slot,
-      slotKills == null || slotDeaths == null || slotAssists == null
-        ? null
-        : { kills: slotKills, deaths: slotDeaths, assists: slotAssists },
-    );
+    if (slotKills != null && slotDeaths != null && slotAssists != null) {
+      triplets.set(slot, { kills: slotKills, deaths: slotDeaths, assists: slotAssists });
+    }
   }
   return triplets;
 }
 
-// A player claimed by several slots is dropped from all of them: attributing events to the
-// wrong player would be invisible and credible.
+// attributing events to the wrong player would be invisible and credible
 function dropContestedPlayers(claims: ReadonlyMap<number, string>): Map<number, string> {
   const slotsByXuid = new Map<string, number[]>();
   for (const [slot, xuid] of claims) {
@@ -117,17 +114,13 @@ function dropContestedPlayers(claims: ReadonlyMap<number, string>): Map<number, 
   return identities;
 }
 
-// A slot whose triplet fits zero or several players stays unresolved.
 function claimSlots(
-  triplets: ReadonlyMap<number, StatTriplet | null>,
+  triplets: ReadonlyMap<number, StatTriplet>,
   lines: readonly PlayerLine[],
   matches: SlotMatcher,
 ): Map<number, string> {
   const claims = new Map<number, string>();
   for (const [slot, triplet] of triplets) {
-    if (triplet == null) {
-      continue;
-    }
     const candidates = lines.filter((line) => matches(triplet, line));
     const [candidate] = candidates;
     if (candidates.length === 1 && candidate != null) {
@@ -143,8 +136,15 @@ const matchesWholeMatch: SlotMatcher = (slot, line) =>
 const matchesAtCutoff: SlotMatcher = (slot, line) =>
   slot.kills === line.kills && slot.deaths === line.deaths && slot.assists <= line.assists;
 
-function lastTimestampOf(records: readonly StatRecord[]): number {
-  return records.reduce((latest, record) => Math.max(latest, record.timestampMs), -Infinity);
+// only the player core counters tell when the counters stopped; a team slot may keep emitting
+function lastCoreCounterMs(records: readonly StatRecord[]): number {
+  return records.reduce(
+    (latest, record) =>
+      !isTeamSlot(record.slot) && record.components.has(KILLS_DEATHS_COMPONENT)
+        ? Math.max(latest, record.timestampMs)
+        : latest,
+    -Infinity,
+  );
 }
 
 function firstKillOrDeathAfter(highlightEvents: readonly ParsedHighlightEvent[], afterMs: number): number | null {
@@ -164,7 +164,7 @@ function recordCutoffBoundaryMs(
   records: readonly StatRecord[],
   highlightEvents: readonly ParsedHighlightEvent[],
 ): number | null {
-  const cutoffMs = lastTimestampOf(records);
+  const cutoffMs = lastCoreCounterMs(records);
   const resumeMs = firstKillOrDeathAfter(highlightEvents, cutoffMs + OFFSET_SEARCH_MS);
   if (resumeMs == null || resumeMs - cutoffMs < MIN_RECORD_GAP_MS) {
     return null;

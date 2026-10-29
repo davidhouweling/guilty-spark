@@ -161,6 +161,15 @@ describe("resolveSlotIdentities", () => {
     expect(identities.get(10)).toBe("0100000000000000");
   });
 
+  it("reads the cut-off from the player counters even when a team slot keeps emitting through overtime", () => {
+    const records = [
+      ...coreStatsRecords(10, 14, 15, 12),
+      aFakeStatRecordWith({ timestampMs: 30_050, slot: 4, components: { 0: { a: 3, b: 0 } } }),
+    ];
+    const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), overtimeFeed);
+    expect(identities.get(10)).toBe("0100000000000000");
+  });
+
   it("leaves a slot unresolved when two players share its kills and deaths at the cut-off", () => {
     const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), aFakeCtfMatchStatsWith(), [
       ...overtimeFeed,
