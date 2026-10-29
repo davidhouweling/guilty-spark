@@ -289,26 +289,23 @@ function rankTeamIdsByCount(counts: ReadonlyMap<number, number>): number[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
 }
 
-function countRunTeams(runs: CtfTimeline["runs"]): Map<number, number> {
+function tallyTeamIds(teamIds: Iterable<number>): Map<number, number> {
   const counts = new Map<number, number>();
-  for (const run of runs) {
-    // a run carried by the flag's own team is malformed and cannot vouch for a roster
-    if (run.carrierTeamId === run.flagTeamId) {
-      continue;
-    }
-    for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
-      counts.set(teamId, (counts.get(teamId) ?? 0) + 1);
-    }
+  for (const teamId of teamIds) {
+    counts.set(teamId, (counts.get(teamId) ?? 0) + 1);
   }
   return counts;
 }
 
-function countDeathTeams(deaths: CtfTimeline["deathTimeline"]): Map<number, number> {
-  const counts = new Map<number, number>();
-  for (const death of deaths) {
-    counts.set(death.teamId, (counts.get(death.teamId) ?? 0) + 1);
-  }
-  return counts;
+function runTeamIds(runs: CtfTimeline["runs"]): number[] {
+  // a run carried by the flag's own team is malformed and cannot vouch for a roster
+  return runs
+    .filter((run) => run.carrierTeamId !== run.flagTeamId)
+    .flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
+}
+
+function inMatchDeathTeamIds(deaths: CtfTimeline["deathTimeline"], durationMs: number): number[] {
+  return deaths.filter((death) => death.timestampMs <= durationMs).map((death) => death.teamId);
 }
 
 function fillTeamIds(teamIds: Set<number>, rankedTeamIds: readonly number[]): void {
@@ -320,18 +317,21 @@ function fillTeamIds(teamIds: Set<number>, rankedTeamIds: readonly number[]): vo
   }
 }
 
-// the captures name the roster first, then the runs, then the deaths: a film whose flag decode
-// came back empty still has both teams dying in it
 function resolveCtfTeams(
   captureEvents: readonly KillRaceEvent[],
   timeline: CtfTimeline,
+  durationMs: number,
   teamColors: readonly TeamColor[],
 ): ResolvedTeams | null {
   const teamIds = new Set(
     Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
   );
-  fillTeamIds(teamIds, rankTeamIdsByCount(countRunTeams(timeline.runs)));
-  fillTeamIds(teamIds, rankTeamIdsByCount(countDeathTeams(timeline.deathTimeline)));
+  if (teamIds.size < 2) {
+    fillTeamIds(teamIds, rankTeamIdsByCount(tallyTeamIds(runTeamIds(timeline.runs))));
+  }
+  if (teamIds.size < 2) {
+    fillTeamIds(teamIds, rankTeamIdsByCount(tallyTeamIds(inMatchDeathTeamIds(timeline.deathTimeline, durationMs))));
+  }
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
@@ -435,7 +435,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       const captureEvents = clampEventsToDuration(timeline.events, durationMs);
-      const teams = resolveCtfTeams(captureEvents, timeline, teamColors);
+      const teams = resolveCtfTeams(captureEvents, timeline, durationMs, teamColors);
       if (teams == null) {
         return null;
       }
@@ -447,9 +447,9 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      // captures without runs read better as a score line; with neither, the empty flag chart
-      // keeps the match on the same view as every other CTF match instead of a missing-data note
-      if (runs.length === 0 && scoreLines != null) {
+      // the empty flag chart stands in only for a film that decoded no run at all; runs the chart
+      // had to reject still read as missing data, and captures without runs as a score line
+      if (runs.length === 0 && (scoreLines != null || timeline.runs.length > 0)) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;

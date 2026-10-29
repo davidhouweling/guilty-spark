@@ -893,10 +893,11 @@ describe("formatScoreProgression ctf", () => {
     expect(result?.kind).toBe("score-lines");
   });
 
-  it("falls back to the capture score lines when the captures and runs name a single team", () => {
+  it("falls back to the capture score lines when the captures, runs and deaths name a single team", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
       runs: [],
+      deathTimeline: [{ timestampMs: 40000, teamId: 1 }],
     });
     const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
     expect(result?.kind).toBe("score-lines");
@@ -977,6 +978,36 @@ describe("formatScoreProgression ctf", () => {
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
     expect(result.scoreLines).toBeNull();
     expect(result.advantageOverlay?.rows.map((row) => row.playerAdvantage)).toEqual([0, 1, 0, -1, 0, 1, 0, 0]);
+  });
+
+  it("ignores deaths stamped after the match when the deaths name the teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+        { timestampMs: 130000, teamId: 2 },
+        { timestampMs: 131000, teamId: 2 },
+        { timestampMs: 132000, teamId: 2 },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
+  });
+
+  it("returns null when nobody captured and every decoded run had to be rejected", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [aFakeCtfFlagRunWith({ startMs: 125000, endMs: 130000 })],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
   });
 
   it("returns null when the timeline has no captures, runs or deaths to name the teams", () => {
