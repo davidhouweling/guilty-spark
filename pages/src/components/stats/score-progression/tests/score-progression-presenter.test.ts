@@ -874,7 +874,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     expect(model.chart.durationMs).toBe(120000);
     expect(model.chart.points).toBe(viewData.points);
     expect(model.legend).toBe(viewData.legend);
-    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "drop", "return", "capture"]);
+    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "capture"]);
   });
 
   it("hides the chart type select when no capture happened", () => {
@@ -936,7 +936,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withOverlay.chart.advantageDomain).toBeNull();
     });
 
-    it("offers a tooltip only while there is a run or a shown overlay to hover, and the marker legend only with runs", () => {
+    it("offers a tooltip only while there is a run or a shown overlay to hover, and a legend for the markers drawn", () => {
       const { store, presenter } = makePresenter();
       const empty = aFakeCtfViewDataWith({ runs: [] });
       const withOverlay = aFakeCtfViewDataWith({ runs: [], advantageOverlay: aFakeFlagAdvantageOverlayWith() });
@@ -950,7 +950,7 @@ describe("ScoreProgressionPresenter ctf", () => {
       const overlayOn = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
 
       expect(withRuns.chart.showTooltip).toBe(true);
-      expect(withRuns.markerLegend).not.toHaveLength(0);
+      expect(withRuns.markerLegend.map((entry) => entry.text)).toEqual(["Steal", "Pickup", "Captured"]);
       expect(emptyModel.chart.showTooltip).toBe(false);
       expect(emptyModel.chart.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
       expect(emptyModel.markerLegend).toEqual([]);

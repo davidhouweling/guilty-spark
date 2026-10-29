@@ -1,15 +1,15 @@
 import type { FlagRunsChartViewModel, FlagRunsViewModel } from "../types";
-import { buildFlagRunsChartPoints } from "../modes/ctf/ctf-view-model";
+import { buildFlagHomeLinePoints, buildFlagRunsChartPoints } from "../modes/ctf/ctf-view-model";
 import { aFakeFlagRunDataWith } from "./flag-run-data.fake";
 
 export function aFakeFlagRunsChartViewModelWith(
   overrides: Partial<FlagRunsChartViewModel> = {},
 ): FlagRunsChartViewModel {
-  const runs = [aFakeFlagRunDataWith()];
+  const runs = overrides.runs ?? [aFakeFlagRunDataWith()];
   return {
     durationMs: 120000,
     runs,
-    points: buildFlagRunsChartPoints(runs),
+    points: runs.length === 0 ? buildFlagHomeLinePoints(120000) : buildFlagRunsChartPoints(runs),
     advantageDomain: null,
     showTooltip: true,
     tooltipFormatter: (value): [string, string] => [String(value ?? ""), ""],

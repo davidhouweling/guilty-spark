@@ -95,15 +95,7 @@ describe("FlagRunsChart", () => {
   });
 
   it("renders the axes and home line over the seeded rows, with no areas, markers or tooltip, when there are no runs", () => {
-    render(
-      <FlagRunsChart
-        {...aFakeFlagRunsChartViewModelWith({
-          runs: [],
-          points: [{ timestampMs: 0 }, { timestampMs: 120000 }],
-          showTooltip: false,
-        })}
-      />,
-    );
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ runs: [], showTooltip: false })} />);
 
     expect(screen.queryAllByTestId("area")).toHaveLength(0);
     expect(screen.queryAllByTestId("reference-dot")).toHaveLength(0);

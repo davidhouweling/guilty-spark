@@ -155,7 +155,7 @@ export class ScoreProgressionPresenter {
       chartTypeOptions,
       showChartTypeSelect: chartTypeOptions.length > 1,
       legend: viewData.legend,
-      markerLegend: viewData.runs.some((run) => run.markers.length > 0) ? FLAG_MARKER_LEGEND : [],
+      markerLegend: this.buildMarkerLegend(viewData.runs),
       hasPlayerAdvantage,
       showPlayerAdvantage,
       chart: {
@@ -172,6 +172,11 @@ export class ScoreProgressionPresenter {
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
     };
+  }
+
+  private buildMarkerLegend(runs: CtfViewData["runs"]): FlagRunMarkerLegendEntry[] {
+    const drawnKinds = new Set(runs.flatMap((run) => run.markers.map((marker) => marker.kind)));
+    return FLAG_MARKER_LEGEND.filter((entry) => drawnKinds.has(entry.kind));
   }
 
   private resolvePlayerAdvantage<T>(
