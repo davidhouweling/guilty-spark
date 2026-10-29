@@ -93,6 +93,16 @@ describe("FlagRunsChart", () => {
     expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
   });
 
+  it("renders the axes and home line with no areas or markers when there are no runs", () => {
+    render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ runs: [], points: [] })} />);
+
+    expect(screen.queryAllByTestId("area")).toHaveLength(0);
+    expect(screen.queryAllByTestId("reference-dot")).toHaveLength(0);
+    expect(screen.getByTestId("area-chart")).toHaveAttribute("data-rows", "0");
+    expect(screen.getByTestId("y-axis")).toHaveAttribute("data-domain", "-100,100");
+    expect(screen.getByTestId("reference-line")).toHaveAttribute("data-y", "0");
+  });
+
   it("renders a marker per flag event and a reset segment back to the home line", () => {
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
 

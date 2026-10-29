@@ -6,6 +6,7 @@ import {
   buildFlagAdvantageOverlay,
   buildFlagRunLegend,
   buildFlagRuns,
+  buildFlagHomeLinePoints,
   buildFlagRunsChartPoints,
 } from "../ctf-view-model";
 
@@ -234,6 +235,12 @@ describe("buildFlagRunLegend", () => {
       { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
       { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
     ]);
+  });
+});
+
+describe("buildFlagHomeLinePoints", () => {
+  it("spans the match with a row at the start and one at the end", () => {
+    expect(buildFlagHomeLinePoints(90000)).toEqual([{ timestampMs: 0 }, { timestampMs: 90000 }]);
   });
 });
 

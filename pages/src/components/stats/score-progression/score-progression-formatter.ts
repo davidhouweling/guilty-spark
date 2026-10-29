@@ -12,6 +12,7 @@ import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
   buildFlagAdvantageOverlay,
+  buildFlagHomeLinePoints,
   buildFlagRunLegend,
   buildFlagRuns,
   buildFlagRunsChartPoints,
@@ -284,31 +285,53 @@ function resolveTeams(
   return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
 }
 
-function resolveCtfTeams(
-  captureEvents: readonly KillRaceEvent[],
-  runs: CtfTimeline["runs"],
-  teamColors: readonly TeamColor[],
-): ResolvedTeams | null {
-  const teamIds = new Set(
-    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
-  );
-  const runCounts = new Map<number, number>();
+function rankTeamIdsByCount(counts: ReadonlyMap<number, number>): number[] {
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
+}
+
+function countRunTeams(runs: CtfTimeline["runs"]): Map<number, number> {
+  const counts = new Map<number, number>();
   for (const run of runs) {
     // a run carried by the flag's own team is malformed and cannot vouch for a roster
     if (run.carrierTeamId === run.flagTeamId) {
       continue;
     }
     for (const teamId of [run.flagTeamId, run.carrierTeamId]) {
-      runCounts.set(teamId, (runCounts.get(teamId) ?? 0) + 1);
+      counts.set(teamId, (counts.get(teamId) ?? 0) + 1);
     }
   }
-  const runTeamIds = [...runCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([teamId]) => teamId);
-  for (const teamId of runTeamIds) {
+  return counts;
+}
+
+function countDeathTeams(deaths: CtfTimeline["deathTimeline"]): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const death of deaths) {
+    counts.set(death.teamId, (counts.get(death.teamId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function fillTeamIds(teamIds: Set<number>, rankedTeamIds: readonly number[]): void {
+  for (const teamId of rankedTeamIds) {
     if (teamIds.size >= 2) {
-      break;
+      return;
     }
     teamIds.add(teamId);
   }
+}
+
+// the captures name the roster first, then the runs, then the deaths: a film whose flag decode
+// came back empty still has both teams dying in it
+function resolveCtfTeams(
+  captureEvents: readonly KillRaceEvent[],
+  timeline: CtfTimeline,
+  teamColors: readonly TeamColor[],
+): ResolvedTeams | null {
+  const teamIds = new Set(
+    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
+  );
+  fillTeamIds(teamIds, rankTeamIdsByCount(countRunTeams(timeline.runs)));
+  fillTeamIds(teamIds, rankTeamIdsByCount(countDeathTeams(timeline.deathTimeline)));
   return resolveTeamsFromIds([...teamIds], teamColors);
 }
 
@@ -412,7 +435,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       const captureEvents = clampEventsToDuration(timeline.events, durationMs);
-      const teams = resolveCtfTeams(captureEvents, timeline.runs, teamColors);
+      const teams = resolveCtfTeams(captureEvents, timeline, teamColors);
       if (teams == null) {
         return null;
       }
@@ -424,7 +447,9 @@ export function formatScoreProgression(
         return scoreLines;
       }
       const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
-      if (runs.length === 0) {
+      // captures without runs read better as a score line; with neither, the empty flag chart
+      // keeps the match on the same view as every other CTF match instead of a missing-data note
+      if (runs.length === 0 && scoreLines != null) {
         return scoreLines;
       }
       const [firstTeamId, secondTeamId] = flagTeamIds;
@@ -432,7 +457,7 @@ export function formatScoreProgression(
         kind: "ctf",
         durationMs,
         runs,
-        points: buildFlagRunsChartPoints(runs),
+        points: runs.length === 0 ? buildFlagHomeLinePoints(durationMs) : buildFlagRunsChartPoints(runs),
         legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
         teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
         advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),
