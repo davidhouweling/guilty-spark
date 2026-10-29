@@ -322,10 +322,11 @@ function resolveCtfTeams(
   teamColors: readonly TeamColor[],
 ): ResolvedTeams | null {
   const captureTeamIds = Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number);
-  const deathTeamIds =
-    teamCount === 2 ? inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId) : [];
+  if (teamCount !== 2) {
+    return resolveTeamsFromIds(captureTeamIds, teamColors);
+  }
   const teamIds = pickRosterTeamIds(captureTeamIds, [
-    rankByFrequency(deathTeamIds),
+    rankByFrequency(inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId)),
     rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
   ]);
   return resolveTeamsFromIds(teamIds, teamColors);

@@ -914,6 +914,7 @@ describe("formatScoreProgression ctf", () => {
   it("completes the roster from the runs when a sparse capture record names only the scorer", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      deathTimeline: [],
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(2);
@@ -1006,11 +1007,11 @@ describe("formatScoreProgression ctf", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
       runs: [aFakeCtfFlagRunWith({ flagTeamId: 2, carrierTeamId: 1, startMs: 125000, endMs: 130000 })],
-      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+      deathTimeline: [],
     });
     const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
 
-    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Cobra"]);
   });
 
   it("shows the empty flag chart without an overlay when the decode is empty and no respawn duration is known", () => {
