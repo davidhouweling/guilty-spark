@@ -2437,6 +2437,9 @@ describe("HaloFilmService replication chunks", () => {
     );
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
+    for (const team of matchStats.Teams) {
+      team.Stats.CoreStats.RoundsTied = 1;
+    }
 
     const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
 

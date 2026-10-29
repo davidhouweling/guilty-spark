@@ -44,7 +44,7 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
-import { MissingHighlightChunkError, noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
+import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
 import { decodeCtfFilm } from "./modes/ctf/decode-ctf-film";
@@ -222,18 +222,22 @@ export class HaloFilmService {
     if (fromCounters.unresolvedSlots.length === 0) {
       return fromCounters;
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats, await this.loadEnrichedEventsIfPresent(matchStats));
+    return this.retryWithFeed(records, matchStats, fromCounters);
   }
 
-  private async loadEnrichedEventsIfPresent(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
+  // the feed only enriches the counters' result, so the result in hand stands when it cannot be read
+  private async retryWithFeed(
+    records: readonly StatRecord[],
+    matchStats: MatchStats,
+    fromCounters: CtfFlagEvents,
+  ): Promise<CtfFlagEvents> {
+    let highlightEvents: ParsedHighlightEvent[];
     try {
-      return await this.loadEnrichedEventsForMatch(matchStats);
-    } catch (error) {
-      if (error instanceof MissingHighlightChunkError) {
-        return [];
-      }
-      throw error;
+      highlightEvents = await this.loadEnrichedEventsForMatch(matchStats);
+    } catch {
+      return fromCounters;
     }
+    return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
@@ -540,7 +544,7 @@ export class HaloFilmService {
     const highlightChunk = this.tryFindHighlightChunk(filmMetadata);
 
     if (highlightChunk == null) {
-      throw new MissingHighlightChunkError(matchId);
+      throw new Error(`No highlight chunk found for match ${matchId}`);
     }
 
     return highlightChunk;

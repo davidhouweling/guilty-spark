@@ -50,28 +50,34 @@ interface FeedTallies {
   afterBoundary: Map<string, FeedTally>;
 }
 
+function isCoreFeedEvent(event: ParsedHighlightEvent): boolean {
+  return event.eventType === "kill" || event.eventType === "death";
+}
+
+function countCoreEvent(tally: Map<string, FeedTally>, event: ParsedHighlightEvent): void {
+  const counts = tally.get(event.xuid) ?? { kills: 0, deaths: 0 };
+  counts[event.eventType === "kill" ? "kills" : "deaths"] += 1;
+  tally.set(event.xuid, counts);
+}
+
 function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], boundaryMs: number): FeedTallies {
   const tallies: FeedTallies = { wholeMatch: new Map(), afterBoundary: new Map() };
-  const count = (tally: Map<string, FeedTally>, event: ParsedHighlightEvent): void => {
-    const counts = tally.get(event.xuid) ?? { kills: 0, deaths: 0 };
-    counts[event.eventType === "kill" ? "kills" : "deaths"] += 1;
-    tally.set(event.xuid, counts);
-  };
   for (const event of highlightEvents) {
-    if (event.eventType !== "kill" && event.eventType !== "death") {
+    if (!isCoreFeedEvent(event)) {
       continue;
     }
-    count(tallies.wholeMatch, event);
+    countCoreEvent(tallies.wholeMatch, event);
     if (event.timeMs >= boundaryMs) {
-      count(tallies.afterBoundary, event);
+      countCoreEvent(tallies.afterBoundary, event);
     }
   }
   return tallies;
 }
 
-// The assists stay at the whole-match total as an upper bound. A player whose feed is short of
-// the API's kills or deaths still competes for a slot but can never be handed one: a feed short
-// of one would place the slot on whoever's line it happens to land on.
+// The assists stay at the whole-match total as an upper bound. A player the feed shows active
+// after the boundary is placed only when the feed carries every kill and death the API counts:
+// a feed short of one would put the slot on whoever's line it happens to land on. A player with
+// nothing after the boundary keeps the whole-match line the counters already agreed with.
 function playerLinesAt(
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[],
@@ -80,7 +86,10 @@ function playerLinesAt(
   const { wholeMatch, afterBoundary } = tallyFeed(highlightEvents, boundaryMs);
   return playerLinesOf(matchStats).map((line) => {
     const total = wholeMatch.get(line.xuid);
-    const after = afterBoundary.get(line.xuid) ?? { kills: 0, deaths: 0 };
+    const after = afterBoundary.get(line.xuid);
+    if (after == null) {
+      return line;
+    }
     return {
       ...line,
       kills: line.kills - after.kills,
@@ -88,6 +97,12 @@ function playerLinesAt(
       placeable: (total?.kills ?? 0) === line.kills && (total?.deaths ?? 0) === line.deaths,
     };
   });
+}
+
+// an overtime is a round of its own in the API's eyes
+function roundCountOf(matchStats: MatchStats): number {
+  const stats = matchStats.Teams[0]?.Stats.CoreStats;
+  return stats == null ? 1 : stats.RoundsWon + stats.RoundsLost + stats.RoundsTied;
 }
 
 function playerSlotsOf(records: readonly StatRecord[]): Set<number> {
@@ -179,7 +194,7 @@ function recordCutoffBoundaryMs(cutoffMs: number, highlightEvents: readonly Pars
     return null;
   }
   const laterMs = highlightEvents
-    .filter((event) => (event.eventType === "kill" || event.eventType === "death") && event.timeMs > cutoffMs)
+    .filter((event) => isCoreFeedEvent(event) && event.timeMs > cutoffMs)
     .map((event) => event.timeMs)
     .sort((left, right) => left - right);
   let previousMs = cutoffMs;
@@ -193,9 +208,9 @@ function recordCutoffBoundaryMs(cutoffMs: number, highlightEvents: readonly Pars
 }
 
 // Resolves which player each statborg entity slot belongs to by matching the slot's final
-// (kills, deaths, assists) against the match roster. When the counters stop long before the
-// feed does (an overtime film) every whole-match line is stale, so every slot is matched
-// against the players' kills and deaths at the moment the counters stopped instead.
+// (kills, deaths, assists) against the match roster. When a match went to overtime and the
+// counters stopped long before the feed did, every whole-match line is stale, so every slot
+// is matched against the players' kills and deaths at the moment the counters stopped instead.
 export function resolveSlotIdentities(
   records: readonly StatRecord[],
   matchStats: MatchStats,
@@ -203,7 +218,7 @@ export function resolveSlotIdentities(
 ): Map<number, string> {
   const { triplets, lastCoreCounterMs } = slotCountersOf(records);
   const wholeMatch = claimSlots(triplets, playerLinesOf(matchStats), matchesWholeMatch);
-  if (triplets.size === wholeMatch.size) {
+  if (triplets.size === wholeMatch.size || roundCountOf(matchStats) < 2) {
     return wholeMatch;
   }
   const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMs, highlightEvents);

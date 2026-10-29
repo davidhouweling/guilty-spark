@@ -39,10 +39,3 @@ export class UnsupportedFilmError extends Error {
     this.name = "UnsupportedFilmError";
   }
 }
-
-export class MissingHighlightChunkError extends Error {
-  constructor(matchId: string) {
-    super(`No highlight chunk found for match ${matchId}`);
-    this.name = "MissingHighlightChunkError";
-  }
-}
