@@ -44,12 +44,7 @@ import type {
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
 import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
-import {
-  MissingHighlightChunkError,
-  noHighlightChunkError,
-  noReplicationChunksError,
-  skippedReplicationChunkError,
-} from "./film-errors";
+import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
 import { decodeCtfFilm } from "./modes/ctf/decode-ctf-film";
@@ -215,38 +210,27 @@ export class HaloFilmService {
     }
   }
 
+  // the feed only backs up slot identity on an overtime film, so it is read once the counters
+  // alone have left a slot unresolved
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
-    const highlightEventsLoad = this.loadEnrichedEventsIfPresent(matchStats);
-    // a chunk failure must win over a feed failure, so the feed's rejection is held until the
-    // chunks have streamed through
-    highlightEventsLoad.catch(() => undefined);
     const records: StatRecord[] = [];
     for await (const chunk of this.iterateCompleteReplicationChunks(matchStats.MatchId)) {
       for (const record of scanWalkedChunkStatRecords(walkChunk(chunk))) {
         records.push(record);
       }
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats, await highlightEventsLoad);
-  }
-
-  // the flag events stand without the feed; it only names carriers, deaths and the slots of
-  // an overtime film
-  private async loadEnrichedEventsIfPresent(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
-    try {
-      return await this.loadEnrichedEventsForMatch(matchStats);
-    } catch (error) {
-      if (error instanceof MissingHighlightChunkError) {
-        return [];
-      }
-      throw error;
+    const fromCounters = buildCtfFlagEventsFromRecords(records, matchStats);
+    if (fromCounters.unresolvedSlots.length === 0) {
+      return fromCounters;
     }
+    return buildCtfFlagEventsFromRecords(records, matchStats, await this.loadEnrichedEventsForMatch(matchStats));
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
     assertCtfMatchSupported(matchStats);
     const [highlightEvents, chunks] = await Promise.all([
-      this.loadEnrichedEventsIfPresent(matchStats),
+      this.loadEnrichedEventsForMatch(matchStats),
       this.getCompleteReplicationChunks(matchStats.MatchId),
     ]);
     const decoded = decodeCtfFilm(chunks, matchStats, highlightEvents);
@@ -547,7 +531,7 @@ export class HaloFilmService {
     const highlightChunk = this.tryFindHighlightChunk(filmMetadata);
 
     if (highlightChunk == null) {
-      throw noHighlightChunkError(matchId);
+      throw new Error(`No highlight chunk found for match ${matchId}`);
     }
 
     return highlightChunk;

@@ -1,6 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
-import { OFFSET_SEARCH_MS } from "../positions/death-pairing";
 import type { ParsedHighlightEvent } from "../types";
 import { counterTotals, isTeamSlot } from "./stat-counters";
 import type { StatRecord } from "./types";
@@ -10,8 +9,8 @@ import type { StatRecord } from "./types";
 const KILLS_DEATHS_COMPONENT = 2;
 const ASSISTS_COMPONENT = 3;
 // The counters stop at the end of regulation while the feed's kills and deaths run on through
-// overtime; the intermission between the two is far longer than the feed's clock offset from
-// the film, so the halfway point of that gap splits the match cleanly.
+// overtime; the intermission is far longer than any feed clock offset or post-whistle straggler,
+// so the first quiet gap this long after the last record is where the match splits.
 const MIN_RECORD_GAP_MS = 10_000;
 
 interface StatTriplet {
@@ -42,14 +41,39 @@ function isKillOrDeath(event: ParsedHighlightEvent): boolean {
   return event.eventType === "kill" || event.eventType === "death";
 }
 
+interface FeedTotals {
+  kills: number;
+  deaths: number;
+}
+
+function feedTotalsOf(highlightEvents: readonly ParsedHighlightEvent[]): Map<string, FeedTotals> {
+  const totals = new Map<string, FeedTotals>();
+  for (const event of highlightEvents) {
+    const total = totals.get(event.xuid) ?? { kills: 0, deaths: 0 };
+    if (event.eventType === "kill") {
+      total.kills += 1;
+    } else if (event.eventType === "death") {
+      total.deaths += 1;
+    }
+    totals.set(event.xuid, total);
+  }
+  return totals;
+}
+
 // A player's line at the cut-off is the whole-match total less the feed's kills and deaths
-// after it; the assists stay at the whole-match total as an upper bound.
+// after it, with the assists left at the whole-match total as an upper bound. Only a player
+// whose feed carries every kill and death the API counts can be placed there: a feed short of
+// one would hand the slot to whoever's line it happens to land on.
 function playerLinesAt(
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[],
   boundaryMs: number,
 ): PlayerLine[] {
-  const lines = playerLinesOf(matchStats);
+  const feedTotals = feedTotalsOf(highlightEvents);
+  const lines = playerLinesOf(matchStats).filter((line) => {
+    const total = feedTotals.get(line.xuid);
+    return total?.kills === line.kills && total.deaths === line.deaths;
+  });
   const lineByXuid = new Map(lines.map((line) => [line.xuid, line]));
   for (const event of highlightEvents) {
     const line = lineByXuid.get(event.xuid);
@@ -81,7 +105,6 @@ function totalOrZero(totals: ReadonlyMap<number, number | null>, slot: number): 
   return totals.has(slot) ? (totals.get(slot) ?? null) : 0;
 }
 
-// a slot with a rejected counter is left out: it cannot be matched at all
 function slotTripletsOf(records: readonly StatRecord[]): Map<number, StatTriplet> {
   const kills = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "a" });
   const deaths = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "b" });
@@ -147,29 +170,28 @@ function lastCoreCounterMs(records: readonly StatRecord[]): number {
   );
 }
 
-function firstKillOrDeathAfter(highlightEvents: readonly ParsedHighlightEvent[], afterMs: number): number | null {
-  let earliest: number | null = null;
-  for (const event of highlightEvents) {
-    if (isKillOrDeath(event) && event.timeMs > afterMs && (earliest == null || event.timeMs < earliest)) {
-      earliest = event.timeMs;
-    }
-  }
-  return earliest;
-}
-
-// the halfway point of the quiet gap between the last record and the feed resuming, or null
-// when the records run to the end of the feed; a feed stamp within the clock offset of the
-// last record still belongs to that record
+// the halfway point of the first quiet gap after the last record, or null when the records run
+// to the end of the feed
 function recordCutoffBoundaryMs(
   records: readonly StatRecord[],
   highlightEvents: readonly ParsedHighlightEvent[],
 ): number | null {
   const cutoffMs = lastCoreCounterMs(records);
-  const resumeMs = firstKillOrDeathAfter(highlightEvents, cutoffMs + OFFSET_SEARCH_MS);
-  if (resumeMs == null || resumeMs - cutoffMs < MIN_RECORD_GAP_MS) {
+  if (cutoffMs === -Infinity) {
     return null;
   }
-  return cutoffMs + (resumeMs - cutoffMs) / 2;
+  const laterMs = highlightEvents
+    .filter((event) => isKillOrDeath(event) && event.timeMs > cutoffMs)
+    .map((event) => event.timeMs)
+    .sort((left, right) => left - right);
+  let previousMs = cutoffMs;
+  for (const timeMs of laterMs) {
+    if (timeMs - previousMs >= MIN_RECORD_GAP_MS) {
+      return previousMs + (timeMs - previousMs) / 2;
+    }
+    previousMs = timeMs;
+  }
+  return null;
 }
 
 // Resolves which player each statborg entity slot belongs to by matching the slot's final

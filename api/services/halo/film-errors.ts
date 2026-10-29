@@ -39,15 +39,3 @@ export class UnsupportedFilmError extends Error {
     this.name = "UnsupportedFilmError";
   }
 }
-
-// a film whose metadata lists no highlight chunk has no kill and death feed to read
-export class MissingHighlightChunkError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "MissingHighlightChunkError";
-  }
-}
-
-export function noHighlightChunkError(matchId: string): MissingHighlightChunkError {
-  return new MissingHighlightChunkError(`No highlight chunk found for match ${matchId}`);
-}

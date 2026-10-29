@@ -2418,11 +2418,17 @@ describe("HaloFilmService replication chunks", () => {
     const env = aFakeCacheBackedEnvWith();
     await env.APP_DATA.put(
       "halo:film:match:match-ctf",
-      JSON.stringify(
-        (["kill", "kill", "death", "death"] as const).map((eventType) =>
+      JSON.stringify([
+        ...Array.from({ length: 14 }, () =>
+          aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType: "kill", timeMs: 500 }),
+        ),
+        ...Array.from({ length: 15 }, () =>
+          aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType: "death", timeMs: 500 }),
+        ),
+        ...(["kill", "kill", "death", "death"] as const).map((eventType) =>
           aFakeParsedHighlightEventWith({ xuid: "0100000000000000", eventType, timeMs: 60_000 }),
         ),
-      ),
+      ]),
     );
     const service = await aServiceWithFilm(
       metadata,

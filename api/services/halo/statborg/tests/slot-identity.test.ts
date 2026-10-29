@@ -144,6 +144,28 @@ describe("resolveSlotIdentities", () => {
     expect(resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith()).has(10)).toBe(false);
   });
 
+  it("finds the overtime gap past a straggling feed event a few seconds after the last record", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
+      ...feed("0100000000000000", 13, 15, 50),
+      ...feed("0100000000000000", 1, 0, 3_000),
+      ...feed("0100000000000000", 2, 2, 35_000),
+    ]);
+    expect(identities.get(10)).toBe("0100000000000000");
+  });
+
+  it("will not place a player whose feed is short of the kills or deaths the API counts", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
+      ...feed("0100000000000000", 14, 15, 50),
+      ...feed("0100000000000000", 1, 2, 30_100),
+    ]);
+    expect(identities.has(10)).toBe(false);
+  });
+
+  it("leaves a slot that never emitted kills or deaths alone rather than guessing from the feed", () => {
+    const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 3: { a: 12, b: 0 } } })];
+    expect(resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), overtimeFeed).has(10)).toBe(false);
+  });
+
   it("does not treat a death the feed stamps a couple of seconds after the last record as an overtime", () => {
     const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), aFakeCtfMatchStatsWith(), [
       ...feed("0100000000000000", 14, 15, 50),
