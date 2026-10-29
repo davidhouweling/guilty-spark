@@ -31,11 +31,6 @@ interface FeedTally {
   deaths: number;
 }
 
-interface SlotClaims {
-  identities: Map<number, string>;
-  contestedXuids: Set<string>;
-}
-
 type SlotMatcher = (slot: StatTriplet, line: PlayerLine) => boolean;
 
 function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
@@ -50,15 +45,26 @@ function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
   });
 }
 
-function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], fromMs = -Infinity): Map<string, FeedTally> {
-  const tallies = new Map<string, FeedTally>();
+interface FeedTallies {
+  wholeMatch: Map<string, FeedTally>;
+  afterBoundary: Map<string, FeedTally>;
+}
+
+function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], boundaryMs: number): FeedTallies {
+  const tallies: FeedTallies = { wholeMatch: new Map(), afterBoundary: new Map() };
+  const count = (tally: Map<string, FeedTally>, event: ParsedHighlightEvent): void => {
+    const counts = tally.get(event.xuid) ?? { kills: 0, deaths: 0 };
+    counts[event.eventType === "kill" ? "kills" : "deaths"] += 1;
+    tally.set(event.xuid, counts);
+  };
   for (const event of highlightEvents) {
-    if (event.timeMs < fromMs || (event.eventType !== "kill" && event.eventType !== "death")) {
+    if (event.eventType !== "kill" && event.eventType !== "death") {
       continue;
     }
-    const tally = tallies.get(event.xuid) ?? { kills: 0, deaths: 0 };
-    tally[event.eventType === "kill" ? "kills" : "deaths"] += 1;
-    tallies.set(event.xuid, tally);
+    count(tallies.wholeMatch, event);
+    if (event.timeMs >= boundaryMs) {
+      count(tallies.afterBoundary, event);
+    }
   }
   return tallies;
 }
@@ -71,8 +77,7 @@ function playerLinesAt(
   highlightEvents: readonly ParsedHighlightEvent[],
   boundaryMs: number,
 ): PlayerLine[] {
-  const wholeMatch = tallyFeed(highlightEvents);
-  const afterBoundary = tallyFeed(highlightEvents, boundaryMs);
+  const { wholeMatch, afterBoundary } = tallyFeed(highlightEvents, boundaryMs);
   return playerLinesOf(matchStats).map((line) => {
     const total = wholeMatch.get(line.xuid);
     const after = afterBoundary.get(line.xuid) ?? { kills: 0, deaths: 0 };
@@ -130,29 +135,26 @@ function slotCountersOf(records: readonly StatRecord[]): SlotCounters {
 
 // attributing events to the wrong player would be invisible and credible, so a player several
 // slots claim is given to none of them
-function settleClaims(claims: ReadonlyMap<number, string>): SlotClaims {
+function settleClaims(claims: ReadonlyMap<number, string>): Map<number, string> {
   const slotsByXuid = new Map<string, number[]>();
   for (const [slot, xuid] of claims) {
     slotsByXuid.set(xuid, [...(slotsByXuid.get(xuid) ?? []), slot]);
   }
   const identities = new Map<number, string>();
-  const contestedXuids = new Set<string>();
   for (const [xuid, slots] of slotsByXuid) {
     const [slot] = slots;
     if (slots.length === 1 && slot != null) {
       identities.set(slot, xuid);
-    } else {
-      contestedXuids.add(xuid);
     }
   }
-  return { identities, contestedXuids };
+  return identities;
 }
 
 function claimSlots(
   triplets: ReadonlyMap<number, StatTriplet>,
   lines: readonly PlayerLine[],
   matches: SlotMatcher,
-): SlotClaims {
+): Map<number, string> {
   const claims = new Map<number, string>();
   for (const [slot, triplet] of triplets) {
     const candidates = lines.filter((line) => matches(triplet, line));
@@ -201,12 +203,12 @@ export function resolveSlotIdentities(
 ): Map<number, string> {
   const { triplets, lastCoreCounterMs } = slotCountersOf(records);
   const wholeMatch = claimSlots(triplets, playerLinesOf(matchStats), matchesWholeMatch);
-  if (triplets.size === wholeMatch.identities.size) {
-    return wholeMatch.identities;
+  if (triplets.size === wholeMatch.size) {
+    return wholeMatch;
   }
   const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMs, highlightEvents);
   if (boundaryMs == null) {
-    return wholeMatch.identities;
+    return wholeMatch;
   }
-  return claimSlots(triplets, playerLinesAt(matchStats, highlightEvents, boundaryMs), matchesAtCutoff).identities;
+  return claimSlots(triplets, playerLinesAt(matchStats, highlightEvents, boundaryMs), matchesAtCutoff);
 }

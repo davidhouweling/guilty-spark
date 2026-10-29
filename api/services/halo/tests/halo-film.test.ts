@@ -2458,7 +2458,13 @@ describe("HaloFilmService replication chunks", () => {
           { slot: 12, components: [{ index: 2, a: 1, b: 1 }] },
         ],
       },
-      { timestampUs: 3_500_000n, records: [{ slot: 10, components: [{ index: 24, a: 1, b: 0 }] }] },
+      {
+        timestampUs: 3_500_000n,
+        records: [
+          { slot: 10, components: [{ index: 24, a: 1, b: 0 }] },
+          { slot: 12, components: [{ index: 22, a: 1, b: 0 }] },
+        ],
+      },
     ];
     const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(buildReplicationChunkBytes(frames))]]));
     const matchStats = aFakeCtfMatchStatsWith();
@@ -2467,7 +2473,7 @@ describe("HaloFilmService replication chunks", () => {
     const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
 
     expect(events).toEqual([{ timestampMs: 3500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
-    expect(unresolvedSlots).toEqual([]);
+    expect(unresolvedSlots).toEqual([12]);
   });
 
   it("surfaces a failed chunk download in film order and degrades the byte-2 scan to empty", async () => {

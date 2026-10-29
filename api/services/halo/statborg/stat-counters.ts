@@ -139,7 +139,3 @@ export function counterFinalPoints(records: readonly StatRecord[], key: StatSlot
   }
   return points;
 }
-
-export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number | null> {
-  return new Map([...counterFinalPoints(records, key)].map(([slot, point]) => [slot, point?.value ?? null]));
-}
