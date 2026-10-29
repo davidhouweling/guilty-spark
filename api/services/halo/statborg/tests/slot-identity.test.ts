@@ -192,6 +192,34 @@ describe("resolveSlotIdentities", () => {
     expect(identities.get(10)).toBe("0100000000000000");
   });
 
+  it("keeps a slot unresolved when the only other candidate at the cut-off has an incomplete feed", () => {
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), aFakeCtfMatchStatsWith(), [
+      ...overtimeFeed,
+      ...feed("0200000000000000", 13, 15, 50),
+      ...feed("0200000000000000", 8, 0, 30_100),
+    ]);
+    expect(identities.has(10)).toBe(false);
+  });
+
+  it("never hands a player two slots claimed at the whole match a third one at the cut-off", () => {
+    const records = [
+      ...coreStatsRecords(10, 16, 17, 12),
+      ...coreStatsRecords(12, 16, 17, 12),
+      ...coreStatsRecords(14, 14, 15, 12),
+    ];
+    const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), overtimeFeed);
+    expect(identities.size).toBe(0);
+  });
+
+  it("ignores a junk counter record late in the film when finding where the counters stopped", () => {
+    const records = [
+      ...coreStatsRecords(10, 14, 15, 12),
+      aFakeStatRecordWith({ timestampMs: 31_000, slot: 10, components: { 2: { a: -7, b: 64 } } }),
+    ];
+    const identities = resolveSlotIdentities(records, aFakeCtfMatchStatsWith(), overtimeFeed);
+    expect(identities.get(10)).toBe("0100000000000000");
+  });
+
   it("leaves a slot unresolved when two players share its kills and deaths at the cut-off", () => {
     const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), aFakeCtfMatchStatsWith(), [
       ...overtimeFeed,

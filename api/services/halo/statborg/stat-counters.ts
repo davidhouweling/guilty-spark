@@ -102,29 +102,29 @@ export function counterIncrementTimes(records: readonly StatRecord[], key: StatS
 
 // A jump larger than a plausible step is kept only when the series keeps climbing after it
 // (missed emissions), and rejected when it merely persists or ends the series (a parasite).
-function finalCounterValue(series: readonly CounterPoint[]): number | null {
+function finalCounterPoint(series: readonly CounterPoint[]): CounterPoint | null {
   const [first] = series;
   if (first == null || first.value > MAX_INITIAL_COUNTER) {
     return null;
   }
-  let total = first.value;
+  let final = first;
   for (const [index, point] of series.entries()) {
     if (index === 0) {
       continue;
     }
-    const step = point.value - total;
+    const step = point.value - final.value;
     if (step <= MAX_COUNTER_STEP) {
-      total = point.value;
+      final = point;
       continue;
     }
     const next = series.slice(index + 1).find((later) => later.value !== point.value);
     const continues = next != null && next.value > point.value && next.value - point.value <= MAX_COUNTER_STEP;
     if (!continues) {
-      return total;
+      return final;
     }
-    total = point.value;
+    final = point;
   }
-  return total;
+  return final;
 }
 
 // Final values survive missed emissions mid-series, which is why slot identity matches on
@@ -133,7 +133,16 @@ function finalCounterValue(series: readonly CounterPoint[]): number | null {
 export function counterTotals(records: readonly StatRecord[], key: StatSlotKey): Map<number, number | null> {
   const totals = new Map<number, number | null>();
   for (const [slot, series] of counterSeriesBySlot(records, key)) {
-    totals.set(slot, finalCounterValue(series));
+    totals.set(slot, finalCounterPoint(series)?.value ?? null);
   }
   return totals;
+}
+
+// when each slot's counter last plausibly emitted its final value
+export function counterFinalTimes(records: readonly StatRecord[], key: StatSlotKey): Map<number, number | null> {
+  const times = new Map<number, number | null>();
+  for (const [slot, series] of counterSeriesBySlot(records, key)) {
+    times.set(slot, finalCounterPoint(series)?.timestampMs ?? null);
+  }
+  return times;
 }

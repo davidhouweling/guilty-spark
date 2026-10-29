@@ -43,7 +43,8 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
-import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
+import { hasUnresolvedSlots, resolveSlotIdentities } from "./statborg/slot-identity";
+import { scanWalkedChunkStatRecords, sortStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
 import { buildCtfProgression } from "./modes/ctf/ctf-progression";
@@ -210,8 +211,6 @@ export class HaloFilmService {
     }
   }
 
-  // the feed only backs up slot identity on an overtime film, so it is read once the counters
-  // alone have left a slot unresolved
   async buildCtfFlagEvents(matchStats: MatchStats): Promise<CtfFlagEvents> {
     assertCtfMatchSupported(matchStats);
     const records: StatRecord[] = [];
@@ -220,11 +219,18 @@ export class HaloFilmService {
         records.push(record);
       }
     }
-    const fromCounters = buildCtfFlagEventsFromRecords(records, matchStats);
-    if (fromCounters.unresolvedSlots.length === 0) {
-      return fromCounters;
+    const sorted = sortStatRecords(records);
+    const needsFeed = hasUnresolvedSlots(sorted, resolveSlotIdentities(sorted, matchStats));
+    return buildCtfFlagEventsFromRecords(sorted, matchStats, needsFeed ? await this.tryLoadFeed(matchStats) : []);
+  }
+
+  // the counters' own result stands when the feed that would back up an overtime film cannot be read
+  private async tryLoadFeed(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
+    try {
+      return await this.loadEnrichedEventsForMatch(matchStats);
+    } catch {
+      return [];
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats, await this.loadEnrichedEventsForMatch(matchStats));
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
-import { counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counters";
+import { counterFinalTimes, counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counters";
 
 const GRABS = { component: 22, side: "a" } as const;
 
@@ -169,5 +169,17 @@ describe("isTeamSlot", () => {
     expect(isTeamSlot(6)).toBe(true);
     expect(isTeamSlot(8)).toBe(true);
     expect(isTeamSlot(10)).toBe(false);
+  });
+});
+
+describe("counterFinalTimes", () => {
+  it("dates each slot's final value at its last plausible emission and ignores a trailing jump", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 14, b: 15 } } }),
+      aFakeStatRecordWith({ timestampMs: 2_000, slot: 10, components: { 2: { a: 15, b: 15 } } }),
+      aFakeStatRecordWith({ timestampMs: 31_000, slot: 10, components: { 2: { a: 64, b: 15 } } }),
+    ];
+    expect(counterFinalTimes(records, { component: 2, side: "a" }).get(10)).toBe(2_000);
+    expect(counterFinalTimes(records, { component: 2, side: "b" }).get(10)).toBe(31_000);
   });
 });

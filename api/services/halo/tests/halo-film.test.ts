@@ -2444,6 +2444,32 @@ describe("HaloFilmService replication chunks", () => {
     expect(unresolvedSlots).toEqual([]);
   });
 
+  it("keeps the counters' own result when a slot stays unresolved and the feed cannot be read", async () => {
+    const metadata = aChunkMetadata([
+      { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const frames = [
+      {
+        timestampUs: 1_000_000n,
+        records: [
+          { slot: 10, components: [{ index: 2, a: 16, b: 17 }] },
+          { slot: 10, components: [{ index: 3, a: 12, b: 0 }] },
+          { slot: 12, components: [{ index: 2, a: 1, b: 1 }] },
+        ],
+      },
+      { timestampUs: 3_500_000n, records: [{ slot: 10, components: [{ index: 24, a: 1, b: 0 }] }] },
+    ];
+    const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(buildReplicationChunkBytes(frames))]]));
+    const matchStats = aFakeCtfMatchStatsWith();
+    matchStats.MatchId = "match-ctf";
+
+    const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
+
+    expect(events).toEqual([{ timestampMs: 3500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
+    expect(unresolvedSlots).toEqual([]);
+  });
+
   it("surfaces a failed chunk download in film order and degrades the byte-2 scan to empty", async () => {
     const metadata = aChunkMetadata([
       { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
