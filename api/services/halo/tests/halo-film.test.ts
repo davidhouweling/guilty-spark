@@ -2435,11 +2435,8 @@ describe("HaloFilmService replication chunks", () => {
       new Map([[1, deflateSync(buildReplicationChunkBytes(regulationFrames))]]),
       env,
     );
-    const matchStats = aFakeCtfMatchStatsWith();
+    const matchStats = aFakeCtfMatchStatsWith(undefined, { overtime: true });
     matchStats.MatchId = "match-ctf";
-    for (const team of matchStats.Teams) {
-      team.Stats.CoreStats.RoundsTied = 1;
-    }
 
     const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);
 
@@ -2470,7 +2467,7 @@ describe("HaloFilmService replication chunks", () => {
       },
     ];
     const service = await aServiceWithFilm(metadata, new Map([[1, deflateSync(buildReplicationChunkBytes(frames))]]));
-    const matchStats = aFakeCtfMatchStatsWith();
+    const matchStats = aFakeCtfMatchStatsWith(undefined, { overtime: true });
     matchStats.MatchId = "match-ctf";
 
     const { events, unresolvedSlots } = await service.buildCtfFlagEvents(matchStats);

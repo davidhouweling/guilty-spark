@@ -43,6 +43,7 @@ import type {
   CtfProgression,
 } from "./types";
 import { assertCtfMatchSupported, buildCtfFlagEventsFromRecords } from "./statborg/ctf-flag-events";
+import { isOvertimeMatch } from "./statborg/slot-identity";
 import { scanWalkedChunkStatRecords } from "./statborg/stat-records";
 import { noReplicationChunksError, skippedReplicationChunkError } from "./film-errors";
 import { buildPlayerPositions } from "./positions/build-player-positions";
@@ -219,7 +220,7 @@ export class HaloFilmService {
       }
     }
     const fromCounters = buildCtfFlagEventsFromRecords(records, matchStats);
-    if (fromCounters.unresolvedSlots.length === 0) {
+    if (fromCounters.unresolvedSlots.length === 0 || !isOvertimeMatch(matchStats)) {
       return fromCounters;
     }
     return this.retryWithFeed(records, matchStats, fromCounters);

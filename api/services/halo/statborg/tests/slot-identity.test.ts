@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MatchStats } from "halo-infinite-api";
 import { aFakeParsedHighlightEventWith } from "../../fakes/parsed-highlight-event.fake";
 import { aFakeCtfMatchStatsWith } from "../fakes/ctf-match-stats.fake";
+import type { CtfPlayerOverride } from "../fakes/ctf-match-stats.fake";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
 import { resolveSlotIdentities } from "../slot-identity";
 import type { ParsedHighlightEvent } from "../../types";
@@ -27,12 +28,8 @@ function feed(xuid: string, kills: number, deaths: number, timeMs: number): Pars
 // line reads 16/17/12 and the match counts a tied round before the won one
 const overtimeFeed = [...feed("0100000000000000", 14, 15, 50), ...feed("0100000000000000", 2, 2, 30_100)];
 
-function anOvertimeMatchStatsWith(...args: Parameters<typeof aFakeCtfMatchStatsWith>): MatchStats {
-  const matchStats = aFakeCtfMatchStatsWith(...args);
-  for (const team of matchStats.Teams) {
-    team.Stats.CoreStats.RoundsTied = 1;
-  }
-  return matchStats;
+function anOvertimeMatchStatsWith(overridesByXuid?: Map<string, CtfPlayerOverride>): MatchStats {
+  return aFakeCtfMatchStatsWith(overridesByXuid, { overtime: true });
 }
 
 describe("resolveSlotIdentities", () => {
@@ -166,12 +163,28 @@ describe("resolveSlotIdentities", () => {
     expect(identities.get(10)).toBe("0100000000000000");
   });
 
-  it("keeps a player with nothing after the boundary on their whole-match line even when their feed is short", () => {
+  it("does not place a quiet player whose short feed could be hiding their overtime", () => {
     const records = [...coreStatsRecords(10, 14, 15, 12), ...coreStatsRecords(12, 22, 15, 10)];
     const identities = resolveSlotIdentities(records, anOvertimeMatchStatsWith(), [
       ...overtimeFeed,
       ...feed("0200000000000000", 21, 15, 50),
     ]);
+    expect(identities.get(10)).toBe("0100000000000000");
+    expect(identities.has(12)).toBe(false);
+  });
+
+  it("narrows several lines within the assists bound to the one whose assists match exactly", () => {
+    const matchStats = anOvertimeMatchStatsWith(
+      new Map([["0200000000000000", { kills: 16, deaths: 17, assists: 15 }]]),
+    );
+    const records = [...coreStatsRecords(10, 16, 17, 12), ...coreStatsRecords(12, 16, 17, 15)];
+    const identities = resolveSlotIdentities(records, matchStats, [
+      ...feed("0100000000000000", 16, 17, 50),
+      ...feed("0200000000000000", 16, 17, 50),
+      ...feed("0500000000000000", 12, 14, 50),
+      ...feed("0500000000000000", 1, 0, 30_100),
+    ]);
+    expect(identities.get(10)).toBe("0100000000000000");
     expect(identities.get(12)).toBe("0200000000000000");
   });
 
@@ -248,8 +261,11 @@ describe("resolveSlotIdentities", () => {
     expect(identities.get(10)).toBe("0100000000000000");
   });
 
-  it("leaves a slot unresolved when two players share its kills and deaths at the cut-off", () => {
-    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 10), anOvertimeMatchStatsWith(), [
+  it("leaves a slot unresolved when two players share its kills, deaths and assists at the cut-off", () => {
+    const matchStats = anOvertimeMatchStatsWith(
+      new Map([["0200000000000000", { kills: 22, deaths: 15, assists: 12 }]]),
+    );
+    const identities = resolveSlotIdentities(coreStatsRecords(10, 14, 15, 12), matchStats, [
       ...overtimeFeed,
       ...feed("0200000000000000", 14, 15, 50),
       ...feed("0200000000000000", 8, 0, 30_100),

@@ -74,22 +74,18 @@ function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], boundaryMs:
   return tallies;
 }
 
-// The assists stay at the whole-match total as an upper bound. A player the feed shows active
-// after the boundary is placed only when the feed carries every kill and death the API counts:
-// a feed short of one would put the slot on whoever's line it happens to land on. A player with
-// nothing after the boundary keeps the whole-match line the counters already agreed with.
+// The assists stay at the whole-match total as an upper bound. A player is placed only when
+// the feed carries every kill and death the API counts: a feed short of one, even one that
+// merely hides the player's overtime, would put a slot on whoever's line it happens to land on.
 function playerLinesAt(
-  matchStats: MatchStats,
+  lines: readonly PlayerLine[],
   highlightEvents: readonly ParsedHighlightEvent[],
   boundaryMs: number,
 ): PlayerLine[] {
   const { wholeMatch, afterBoundary } = tallyFeed(highlightEvents, boundaryMs);
-  return playerLinesOf(matchStats).map((line) => {
+  return lines.map((line) => {
     const total = wholeMatch.get(line.xuid);
-    const after = afterBoundary.get(line.xuid);
-    if (after == null) {
-      return line;
-    }
+    const after = afterBoundary.get(line.xuid) ?? { kills: 0, deaths: 0 };
     return {
       ...line,
       kills: line.kills - after.kills,
@@ -100,9 +96,9 @@ function playerLinesAt(
 }
 
 // an overtime is a round of its own in the API's eyes
-function roundCountOf(matchStats: MatchStats): number {
+export function isOvertimeMatch(matchStats: MatchStats): boolean {
   const stats = matchStats.Teams[0]?.Stats.CoreStats;
-  return stats == null ? 1 : stats.RoundsWon + stats.RoundsLost + stats.RoundsTied;
+  return stats != null && stats.RoundsWon + stats.RoundsLost + stats.RoundsTied > 1;
 }
 
 function playerSlotsOf(records: readonly StatRecord[]): Set<number> {
@@ -121,31 +117,40 @@ function finalOrZero(points: ReadonlyMap<number, CounterPoint | null>, slot: num
   return points.has(slot) ? (points.get(slot) ?? null) : { timestampMs: -Infinity, value: 0 };
 }
 
-interface SlotCounters {
-  triplets: Map<number, StatTriplet>;
-  lastCoreCounterMs: number;
+interface CoreCounterPoints {
+  kills: Map<number, CounterPoint | null>;
+  deaths: Map<number, CounterPoint | null>;
+  assists: Map<number, CounterPoint | null>;
 }
 
-function slotCountersOf(records: readonly StatRecord[]): SlotCounters {
-  const kills = counterFinalPoints(records, KILLS_KEY);
-  const deaths = counterFinalPoints(records, DEATHS_KEY);
-  const assists = counterFinalPoints(records, ASSISTS_KEY);
+function coreCounterPointsOf(records: readonly StatRecord[]): CoreCounterPoints {
+  return {
+    kills: counterFinalPoints(records, KILLS_KEY),
+    deaths: counterFinalPoints(records, DEATHS_KEY),
+    assists: counterFinalPoints(records, ASSISTS_KEY),
+  };
+}
+
+function slotTripletsOf(records: readonly StatRecord[], points: CoreCounterPoints): Map<number, StatTriplet> {
   const triplets = new Map<number, StatTriplet>();
-  let lastCoreCounterMs = -Infinity;
   for (const slot of playerSlotsOf(records)) {
-    const slotKills = finalOrZero(kills, slot);
-    const slotDeaths = finalOrZero(deaths, slot);
-    const slotAssists = finalOrZero(assists, slot);
-    if (slotKills != null && slotDeaths != null && slotAssists != null) {
-      triplets.set(slot, { kills: slotKills.value, deaths: slotDeaths.value, assists: slotAssists.value });
+    const kills = finalOrZero(points.kills, slot);
+    const deaths = finalOrZero(points.deaths, slot);
+    const assists = finalOrZero(points.assists, slot);
+    if (kills != null && deaths != null && assists != null) {
+      triplets.set(slot, { kills: kills.value, deaths: deaths.value, assists: assists.value });
     }
-    lastCoreCounterMs = Math.max(
-      lastCoreCounterMs,
-      slotKills?.timestampMs ?? -Infinity,
-      slotDeaths?.timestampMs ?? -Infinity,
-    );
   }
-  return { triplets, lastCoreCounterMs };
+  return triplets;
+}
+
+// when the player kill and death counters last plausibly rose
+function lastCoreCounterMsOf(points: CoreCounterPoints): number {
+  let latest = -Infinity;
+  for (const point of [...points.kills.values(), ...points.deaths.values()]) {
+    latest = Math.max(latest, point?.timestampMs ?? -Infinity);
+  }
+  return latest;
 }
 
 // attributing events to the wrong player would be invisible and credible, so a player several
@@ -165,6 +170,13 @@ function settleClaims(claims: ReadonlyMap<number, string>): Map<number, string> 
   return identities;
 }
 
+// several lines within the assists bound narrow to the one whose assists match exactly
+function soleCandidate(triplet: StatTriplet, candidates: readonly PlayerLine[]): PlayerLine | null {
+  const exact = candidates.filter((line) => line.assists === triplet.assists);
+  const [candidate] = candidates.length === 1 ? candidates : exact;
+  return (candidates.length === 1 || exact.length === 1) && candidate != null ? candidate : null;
+}
+
 function claimSlots(
   triplets: ReadonlyMap<number, StatTriplet>,
   lines: readonly PlayerLine[],
@@ -172,9 +184,11 @@ function claimSlots(
 ): Map<number, string> {
   const claims = new Map<number, string>();
   for (const [slot, triplet] of triplets) {
-    const candidates = lines.filter((line) => matches(triplet, line));
-    const [candidate] = candidates;
-    if (candidates.length === 1 && candidate?.placeable === true) {
+    const candidate = soleCandidate(
+      triplet,
+      lines.filter((line) => matches(triplet, line)),
+    );
+    if (candidate?.placeable === true) {
       claims.set(slot, candidate.xuid);
     }
   }
@@ -216,14 +230,16 @@ export function resolveSlotIdentities(
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[] = [],
 ): Map<number, string> {
-  const { triplets, lastCoreCounterMs } = slotCountersOf(records);
-  const wholeMatch = claimSlots(triplets, playerLinesOf(matchStats), matchesWholeMatch);
-  if (triplets.size === wholeMatch.size || roundCountOf(matchStats) < 2) {
+  const points = coreCounterPointsOf(records);
+  const triplets = slotTripletsOf(records, points);
+  const lines = playerLinesOf(matchStats);
+  const wholeMatch = claimSlots(triplets, lines, matchesWholeMatch);
+  if (triplets.size === wholeMatch.size || !isOvertimeMatch(matchStats)) {
     return wholeMatch;
   }
-  const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMs, highlightEvents);
+  const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMsOf(points), highlightEvents);
   if (boundaryMs == null) {
     return wholeMatch;
   }
-  return claimSlots(triplets, playerLinesAt(matchStats, highlightEvents, boundaryMs), matchesAtCutoff);
+  return claimSlots(triplets, playerLinesAt(lines, highlightEvents, boundaryMs), matchesAtCutoff);
 }
