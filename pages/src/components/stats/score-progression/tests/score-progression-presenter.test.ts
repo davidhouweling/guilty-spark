@@ -874,7 +874,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     expect(model.chart.durationMs).toBe(120000);
     expect(model.chart.points).toBe(viewData.points);
     expect(model.legend).toBe(viewData.legend);
-    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "capture"]);
+    expect(model.markerLegend?.map((entry) => entry.kind)).toEqual(["steal", "grab", "capture"]);
   });
 
   it("hides the chart type select when no capture happened", () => {
@@ -950,10 +950,10 @@ describe("ScoreProgressionPresenter ctf", () => {
       const overlayOn = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
 
       expect(withRuns.chart.showTooltip).toBe(true);
-      expect(withRuns.markerLegend.map((entry) => entry.text)).toEqual(["Steal", "Pickup", "Captured"]);
+      expect(withRuns.markerLegend?.map((entry) => entry.text)).toEqual(["Steal", "Pickup", "Captured"]);
       expect(emptyModel.chart.showTooltip).toBe(false);
       expect(emptyModel.chart.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
-      expect(emptyModel.markerLegend).toEqual([]);
+      expect(emptyModel.markerLegend).toBeNull();
       expect(overlayOff.chart.showTooltip).toBe(false);
       expect(overlayOn.chart.showTooltip).toBe(true);
     });

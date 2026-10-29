@@ -295,7 +295,7 @@ export interface FlagRunsViewModel {
   readonly chartTypeOptions: readonly ChartTypeOption[];
   readonly showChartTypeSelect: boolean;
   readonly legend: readonly FlagRunLegendEntry[];
-  readonly markerLegend: readonly FlagRunMarkerLegendEntry[];
+  readonly markerLegend: readonly FlagRunMarkerLegendEntry[] | null;
   readonly hasPlayerAdvantage: boolean;
   readonly showPlayerAdvantage: boolean;
   readonly chart: FlagRunsChartViewModel;

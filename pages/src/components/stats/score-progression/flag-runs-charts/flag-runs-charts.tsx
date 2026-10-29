@@ -43,7 +43,7 @@ export function FlagRunsCharts({
               />
             ))}
           </div>
-          {markerLegend.length > 0 && (
+          {markerLegend != null && (
             <div className={classNames(styles.markerLegend, styles.flagLegend)}>
               {markerLegend.map((entry) => (
                 <LegendItem

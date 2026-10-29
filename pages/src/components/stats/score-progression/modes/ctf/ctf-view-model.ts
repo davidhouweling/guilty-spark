@@ -164,8 +164,8 @@ export function buildFlagRunsChartPoints(
 
 // Recharts draws nothing over an empty data array, so a match without a single run is seeded
 // with the home line's two endpoints and still shows its axes
-export function buildFlagHomeLinePoints(durationMs: number): FlagRunsChartPoint[] {
-  return [{ timestampMs: 0 }, { timestampMs: durationMs }];
+export function buildFlagChartPoints(runs: readonly FlagRunData[], durationMs: number): FlagRunsChartPoint[] {
+  return runs.length === 0 ? [{ timestampMs: 0 }, { timestampMs: durationMs }] : buildFlagRunsChartPoints(runs);
 }
 
 export function buildFlagAdvantageOverlay(

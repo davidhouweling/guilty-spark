@@ -1062,6 +1062,21 @@ describe("formatScoreProgression ctf", () => {
     expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
   });
 
+  it("does not let the deaths name a roster for a match with more than two teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+        { timestampMs: 60000, teamId: 2 },
+      ],
+    });
+    const data = aFakeScoreProgressionWith({ mode: 15, durationMs: 120000, timeline, teamCount: 3 });
+
+    expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+  });
+
   it("returns null when the timeline has no captures, runs or deaths to name the teams", () => {
     expect(
       formatScoreProgression(

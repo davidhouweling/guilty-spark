@@ -28,7 +28,7 @@ describe("FlagRunsCharts", () => {
   });
 
   it("leaves out the marker legend row when there are no markers to explain", () => {
-    render(<FlagRunsCharts {...aFakeFlagRunsViewModelWith({ markerLegend: [] })} />);
+    render(<FlagRunsCharts {...aFakeFlagRunsViewModelWith({ markerLegend: null })} />);
 
     expect(screen.getByText("Above: Eagle's flag, carried by Cobra")).toBeInTheDocument();
     expect(screen.queryByText("Carrier killed")).not.toBeInTheDocument();

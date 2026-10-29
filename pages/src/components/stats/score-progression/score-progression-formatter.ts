@@ -13,10 +13,9 @@ import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
   buildFlagAdvantageOverlay,
-  buildFlagHomeLinePoints,
+  buildFlagChartPoints,
   buildFlagRunLegend,
   buildFlagRuns,
-  buildFlagRunsChartPoints,
   isDrawableFlagRun,
 } from "./modes/ctf/ctf-view-model";
 import { buildKothHillWindows, buildKothHills, buildKothScoreSeries } from "./modes/koth/koth-view-model";
@@ -303,30 +302,35 @@ function drawableRunTeamIds(runs: CtfTimeline["runs"], durationMs: number): numb
   return runs.filter((run) => isDrawableFlagRun(run, durationMs)).flatMap((run) => [run.flagTeamId, run.carrierTeamId]);
 }
 
-function fillTeamIds(teamIds: Set<number>, rankedTeamIds: readonly number[]): void {
-  for (const teamId of rankedTeamIds) {
-    if (teamIds.size >= 2) {
-      return;
+// the capture record names the roster first; each fallback only fills what is still missing
+function pickRosterTeamIds(primary: readonly number[], fallbacks: readonly (readonly number[])[]): number[] {
+  const teamIds = new Set(primary);
+  for (const source of fallbacks) {
+    for (const teamId of source) {
+      if (teamIds.size >= 2) {
+        return [...teamIds];
+      }
+      teamIds.add(teamId);
     }
-    teamIds.add(teamId);
   }
+  return [...teamIds];
 }
 
 function resolveCtfTeams(
   captureEvents: readonly KillRaceEvent[],
   timeline: CtfTimeline,
+  teamCount: number,
   durationMs: number,
   teamColors: readonly TeamColor[],
 ): ResolvedTeams | null {
-  const teamIds = new Set(
-    Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number),
-  );
-  fillTeamIds(teamIds, rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)));
-  fillTeamIds(
-    teamIds,
-    rankByFrequency(inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId)),
-  );
-  return resolveTeamsFromIds([...teamIds], teamColors);
+  const captureTeamIds = Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number);
+  const deathTeamIds =
+    teamCount === 2 ? inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId) : [];
+  const teamIds = pickRosterTeamIds(captureTeamIds, [
+    rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
+    rankByFrequency(deathTeamIds),
+  ]);
+  return resolveTeamsFromIds(teamIds, teamColors);
 }
 
 function isFlagDecodeEmpty(timeline: CtfTimeline): boolean {
@@ -350,7 +354,7 @@ export function formatScoreProgression(
     return null;
   }
 
-  const { durationMs, timeline } = scoreProgression;
+  const { durationMs, timeline, teamCount } = scoreProgression;
 
   switch (timeline.type) {
     case "kill-race": {
@@ -433,7 +437,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       const captureEvents = clampEventsToDuration(timeline.events, durationMs);
-      const teams = resolveCtfTeams(captureEvents, timeline, durationMs, teamColors);
+      const teams = resolveCtfTeams(captureEvents, timeline, teamCount, durationMs, teamColors);
       if (teams == null) {
         return null;
       }
@@ -453,7 +457,7 @@ export function formatScoreProgression(
         kind: "ctf",
         durationMs,
         runs,
-        points: runs.length === 0 ? buildFlagHomeLinePoints(durationMs) : buildFlagRunsChartPoints(runs),
+        points: buildFlagChartPoints(runs, durationMs),
         legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
         teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
         advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),

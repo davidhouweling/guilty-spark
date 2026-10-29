@@ -174,9 +174,10 @@ export class ScoreProgressionPresenter {
     };
   }
 
-  private buildMarkerLegend(runs: CtfViewData["runs"]): FlagRunMarkerLegendEntry[] {
+  private buildMarkerLegend(runs: CtfViewData["runs"]): FlagRunMarkerLegendEntry[] | null {
     const drawnKinds = new Set(runs.flatMap((run) => run.markers.map((marker) => marker.kind)));
-    return FLAG_MARKER_LEGEND.filter((entry) => drawnKinds.has(entry.kind));
+    const legend = FLAG_MARKER_LEGEND.filter((entry) => drawnKinds.has(entry.kind));
+    return legend.length > 0 ? legend : null;
   }
 
   private resolvePlayerAdvantage<T>(

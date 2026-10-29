@@ -6,7 +6,7 @@ import {
   buildFlagAdvantageOverlay,
   buildFlagRunLegend,
   buildFlagRuns,
-  buildFlagHomeLinePoints,
+  buildFlagChartPoints,
   buildFlagRunsChartPoints,
   isDrawableFlagRun,
 } from "../ctf-view-model";
@@ -253,9 +253,14 @@ describe("isDrawableFlagRun", () => {
   });
 });
 
-describe("buildFlagHomeLinePoints", () => {
-  it("spans the match with a row at the start and one at the end", () => {
-    expect(buildFlagHomeLinePoints(90000)).toEqual([{ timestampMs: 0 }, { timestampMs: 90000 }]);
+describe("buildFlagChartPoints", () => {
+  it("seeds the home line with a row at the start and one at the end when there are no runs", () => {
+    expect(buildFlagChartPoints([], 90000)).toEqual([{ timestampMs: 0 }, { timestampMs: 90000 }]);
+  });
+
+  it("builds the shared run rows when there are runs", () => {
+    const runs = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
+    expect(buildFlagChartPoints(runs, DURATION_MS)).toEqual(buildFlagRunsChartPoints(runs));
   });
 });
 
