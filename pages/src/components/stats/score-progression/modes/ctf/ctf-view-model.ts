@@ -112,9 +112,7 @@ export function buildFlagRuns(
   const runs: FlagRunData[] = [];
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
   for (const run of orderedRuns) {
-    const color = teamColorByTeamId.get(run.carrierTeamId);
     if (
-      color == null ||
       !teamIds.includes(run.flagTeamId) ||
       !teamIds.includes(run.carrierTeamId) ||
       !isDrawableFlagRun(run, durationMs)
@@ -130,7 +128,7 @@ export function buildFlagRuns(
       runIndex,
       seriesKey: `run${String(runIndex)}`,
       seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
-      color,
+      color: teamColorByTeamId.get(run.carrierTeamId) ?? TICK_FILL,
       points,
       markers: buildRunMarkers(run, points, endMs),
       reset: buildRunReset(finished, endMs, endProgress),
@@ -144,15 +142,15 @@ export function buildFlagRunLegend(
   teamColorByTeamId: ReadonlyMap<number, string>,
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
-  return [firstTeamId, secondTeamId].map((carrierTeamId) => {
-    const direction = runDirection(carrierTeamId, firstTeamId);
-    const flagTeamId = direction === 1 ? secondTeamId : firstTeamId;
-    return {
-      key: `carrier-${String(carrierTeamId)}`,
-      color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
-      text: `${SIDE_LABEL[direction]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
-    };
-  });
+  const carrierAndFlag: readonly (readonly [number, number])[] = [
+    [firstTeamId, secondTeamId],
+    [secondTeamId, firstTeamId],
+  ];
+  return carrierAndFlag.map(([carrierTeamId, flagTeamId]) => ({
+    key: `carrier-${String(carrierTeamId)}`,
+    color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
+    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+  }));
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the
