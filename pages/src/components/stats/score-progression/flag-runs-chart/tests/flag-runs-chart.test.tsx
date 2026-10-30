@@ -109,8 +109,8 @@ describe("FlagRunsChart", () => {
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
 
     const dots = screen.getAllByTestId("reference-dot");
-    expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "25", "100"]);
-    expect(resetSegments()).toEqual(["60000:100 60000:0"]);
+    expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "-25", "-100"]);
+    expect(resetSegments()).toEqual(["60000:-100 60000:0"]);
   });
 
   it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
@@ -133,7 +133,7 @@ describe("FlagRunsChart", () => {
     const advantageAxes = screen.getAllByTestId("y-axis").filter((axis) => axis.getAttribute("data-axis") != null);
     expect(advantageAxes).toHaveLength(1);
     expect(advantageAxes[0]).toHaveAttribute("data-domain", "-1,1");
-    expect(advantageAxes[0]).toHaveAttribute("data-reversed", "true");
+    expect(advantageAxes[0]).not.toHaveAttribute("data-reversed");
     expect(advantageAxes[0]).toHaveAttribute("data-tick", "2");
   });
 

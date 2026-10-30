@@ -110,7 +110,8 @@ export function buildFlagRuns(
     if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
       continue;
     }
-    const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;
+    // the first team's runs sit above the axis, matching the team order of the score charts
+    const direction: RunDirection = run.carrierTeamId === firstTeamId ? 1 : -1;
     const endMs = Math.min(run.endMs, durationMs);
     const finished = finishesWithinMatch(run, durationMs);
     const { points, endProgress } = buildRunPoints(run, endMs, direction, finished && run.outcome === "capture");
@@ -138,7 +139,7 @@ export function buildFlagRunLegend(
     color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
     text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
   });
-  return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
+  return [entryFor(secondTeamId, firstTeamId, "Above:"), entryFor(firstTeamId, secondTeamId, "Below:")];
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the

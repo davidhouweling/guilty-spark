@@ -25,7 +25,7 @@ export function aFakeFlagRunsViewModelWith(overrides: Partial<FlagRunsViewModel>
     effectiveChartType: "timeline",
     chartTypeOptions: [{ value: "timeline", label: "Flag Runs" }],
     showChartTypeSelect: false,
-    legend: [{ key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" }],
+    legend: [{ key: "flag-1", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" }],
     markerLegend: [{ kind: "drop", text: "Carrier killed" }],
     hasPlayerAdvantage: false,
     showPlayerAdvantage: false,
