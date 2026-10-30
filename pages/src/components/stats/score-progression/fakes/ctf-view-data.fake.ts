@@ -11,8 +11,8 @@ export function aFakeCtfViewDataWith(overrides: Partial<CtfViewData> = {}): CtfV
     runs,
     points: buildFlagChartPoints(runs, durationMs),
     legend: [
-      { key: "flag-1", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
-      { key: "flag-0", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
+      { key: "carrier-0", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
+      { key: "carrier-1", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
     ],
     teamNames: ["Eagle", "Cobra"],
     advantageOverlay: null,

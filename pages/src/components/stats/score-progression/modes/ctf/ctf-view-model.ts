@@ -145,12 +145,12 @@ export function buildFlagRunLegend(
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
   return [firstTeamId, secondTeamId].map((carrierTeamId) => {
-    const flagTeamId = carrierTeamId === firstTeamId ? secondTeamId : firstTeamId;
-    const side = SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)];
+    const direction = runDirection(carrierTeamId, firstTeamId);
+    const flagTeamId = direction === 1 ? secondTeamId : firstTeamId;
     return {
-      key: `flag-${String(flagTeamId)}`,
+      key: `carrier-${String(carrierTeamId)}`,
       color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
-      text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+      text: `${SIDE_LABEL[direction]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
     };
   });
 }

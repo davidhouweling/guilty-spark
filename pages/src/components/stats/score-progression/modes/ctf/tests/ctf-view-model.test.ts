@@ -234,8 +234,8 @@ describe("buildFlagRuns", () => {
 describe("buildFlagRunLegend", () => {
   it("describes each half of the chart by whose flag it is and who carries it", () => {
     expect(buildFlagRunLegend(TEAM_IDS, COLORS)).toEqual([
-      { key: "flag-1", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
-      { key: "flag-0", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
+      { key: "carrier-0", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
+      { key: "carrier-1", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
     ]);
   });
 });
