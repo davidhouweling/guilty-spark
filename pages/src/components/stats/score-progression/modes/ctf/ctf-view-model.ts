@@ -1,7 +1,7 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
+import { FLAG_ADVANTAGE_KEY } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
   FlagAdvantageOverlay,
@@ -25,9 +25,17 @@ function runDirection(carrierTeamId: number, firstTeamId: number): RunDirection 
 
 const SIDE_LABEL: Record<RunDirection, string> = { 1: "Above:", [-1]: "Below:" };
 
+function carrierColorOf(teamColorByTeamId: ReadonlyMap<number, string>, carrierTeamId: number): string {
+  return Preconditions.checkExists(teamColorByTeamId.get(carrierTeamId), "every roster team has a colour");
+}
+
+function roundProgress(value: number): number {
+  const rounded = Math.round(value);
+  return rounded === 0 ? 0 : rounded;
+}
+
 function toSignedPercent(progress: number, direction: RunDirection): number {
-  const percent = Math.round(progress * FULL_PROGRESS);
-  return percent === 0 ? 0 : percent * direction;
+  return roundProgress(progress * FULL_PROGRESS * direction);
 }
 
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
@@ -81,7 +89,7 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
     markers.push({
       timestampMs,
-      progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
+      progress: roundProgress(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
       kind: MARKER_KIND_BY_EVENT[event.kind],
     });
   }
@@ -128,7 +136,7 @@ export function buildFlagRuns(
       runIndex,
       seriesKey: `run${String(runIndex)}`,
       seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
-      color: Preconditions.checkExists(teamColorByTeamId.get(run.carrierTeamId), "carrier is on the roster"),
+      color: carrierColorOf(teamColorByTeamId, run.carrierTeamId),
       points,
       markers: buildRunMarkers(run, points, endMs),
       reset: buildRunReset(finished, endMs, endProgress),
@@ -148,7 +156,7 @@ export function buildFlagRunLegend(
   ];
   return carrierAndFlag.map(([carrierTeamId, flagTeamId]) => ({
     key: `carrier-${String(carrierTeamId)}`,
-    color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
+    color: carrierColorOf(teamColorByTeamId, carrierTeamId),
     text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
   }));
 }

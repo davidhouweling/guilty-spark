@@ -229,6 +229,21 @@ describe("buildFlagRuns", () => {
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(Object.is(run.points[1].progress, 0)).toBe(true);
   });
+
+  it("never emits negative zero for a below-axis marker that rounds onto the stand", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [aFakeCtfFlagRunWith({ events: [{ timestampMs: 20100, kind: "grab" }] })],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(Object.is(run.markers[0]?.progress, 0)).toBe(true);
+  });
+
+  it("throws when a roster team has no colour instead of drawing the run unidentified", () => {
+    const missingCobra = new Map([[0, "#0000ff"]]);
+    expect(() => buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, missingCobra, DURATION_MS)).toThrow(
+      "every roster team has a colour",
+    );
+  });
 });
 
 describe("buildFlagRunLegend", () => {
@@ -237,6 +252,11 @@ describe("buildFlagRunLegend", () => {
       { key: "carrier-0", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
       { key: "carrier-1", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
     ]);
+  });
+
+  it("throws when a roster team has no colour instead of showing an unidentified swatch", () => {
+    const missingCobra = new Map([[0, "#0000ff"]]);
+    expect(() => buildFlagRunLegend(TEAM_IDS, missingCobra)).toThrow("every roster team has a colour");
   });
 });
 

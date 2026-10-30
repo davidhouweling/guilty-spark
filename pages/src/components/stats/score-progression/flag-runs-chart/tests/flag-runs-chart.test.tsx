@@ -105,7 +105,7 @@ describe("FlagRunsChart", () => {
     expect(resetSegments()).toEqual(["60000:-100 60000:0"]);
   });
 
-  it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
+  it("renders the player advantage from the shared rows as a named area on its own axis with unsigned ticks", () => {
     const points = [
       { timestampMs: 0, run1: null, playerAdvantage: 0 },
       { timestampMs: 20000, run1: 0, playerAdvantage: 0 },
