@@ -253,7 +253,7 @@ export function resolveSlotIdentities(
   const triplets = slotTripletsOf(records, points);
   const lines = playerLinesOf(matchStats);
   const wholeMatch = claimSlots(triplets, lines, matchesWholeMatch);
-  if (triplets.size === wholeMatch.size || !hasOvertimeRound(matchStats)) {
+  if (playerSlotsOf(records).size === wholeMatch.size || !hasOvertimeRound(matchStats)) {
     return wholeMatch;
   }
   const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMsOf(points), highlightEvents);

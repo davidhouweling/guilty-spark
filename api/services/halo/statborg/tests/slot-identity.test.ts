@@ -217,6 +217,22 @@ describe("resolveSlotIdentities", () => {
     expect(identities.size).toBe(0);
   });
 
+  it("still re-matches at the cut-off when the only unresolved slot is one whose counter was rejected", () => {
+    const matchStats = anOvertimeMatchStatsWith(
+      new Map([["0200000000000000", { kills: 14, deaths: 15, assists: 12 }]]),
+    );
+    const records = [
+      ...coreStatsRecords(10, 14, 15, 12),
+      aFakeStatRecordWith({ timestampMs: 100, slot: 12, components: { 2: { a: 7000, b: 15 } } }),
+      aFakeStatRecordWith({ timestampMs: 100, slot: 12, components: { 3: { a: 12, b: 0 } } }),
+    ];
+    const identities = resolveSlotIdentities(records, matchStats, [
+      ...overtimeFeed,
+      ...feed("0200000000000000", 14, 15, 50),
+    ]);
+    expect(identities.size).toBe(0);
+  });
+
   it("leaves a slot that never emitted kills or deaths alone rather than guessing from the feed", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 3: { a: 12, b: 0 } } })];
     expect(resolveSlotIdentities(records, anOvertimeMatchStatsWith(), overtimeFeed).has(10)).toBe(false);
