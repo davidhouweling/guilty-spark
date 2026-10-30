@@ -21,8 +21,16 @@ interface StatTriplet {
   assists: number;
 }
 
-interface PlayerLine extends StatTriplet {
+interface CountBounds {
+  min: number;
+  max: number;
+}
+
+interface PlayerLine {
   xuid: string;
+  kills: CountBounds;
+  deaths: CountBounds;
+  assists: number;
   placeable: boolean;
 }
 
@@ -33,16 +41,36 @@ interface FeedTally {
 
 type SlotMatcher = (slot: StatTriplet, line: PlayerLine) => boolean;
 
-function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
-  return matchStats.Players.map((player) => {
-    const line: PlayerLine = { xuid: unwrapXuid(player.PlayerId), kills: 0, deaths: 0, assists: 0, placeable: true };
+function exactly(value: number): CountBounds {
+  return { min: value, max: value };
+}
+
+function within(value: number, bounds: CountBounds): boolean {
+  return value >= bounds.min && value <= bounds.max;
+}
+
+function playerTripletsOf(matchStats: MatchStats): Map<string, StatTriplet> {
+  const triplets = new Map<string, StatTriplet>();
+  for (const player of matchStats.Players) {
+    const triplet: StatTriplet = { kills: 0, deaths: 0, assists: 0 };
     for (const teamStats of player.PlayerTeamStats) {
-      line.kills += teamStats.Stats.CoreStats.Kills;
-      line.deaths += teamStats.Stats.CoreStats.Deaths;
-      line.assists += teamStats.Stats.CoreStats.Assists;
+      triplet.kills += teamStats.Stats.CoreStats.Kills;
+      triplet.deaths += teamStats.Stats.CoreStats.Deaths;
+      triplet.assists += teamStats.Stats.CoreStats.Assists;
     }
-    return line;
-  });
+    triplets.set(unwrapXuid(player.PlayerId), triplet);
+  }
+  return triplets;
+}
+
+function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
+  return [...playerTripletsOf(matchStats)].map(([xuid, triplet]) => ({
+    xuid,
+    kills: exactly(triplet.kills),
+    deaths: exactly(triplet.deaths),
+    assists: triplet.assists,
+    placeable: true,
+  }));
 }
 
 interface FeedTallies {
@@ -74,9 +102,18 @@ function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], boundaryMs:
   return tallies;
 }
 
+// The events a feed is missing (or carries twice) could sit on either side of the boundary,
+// so the player's count at the cut-off is only known to within that discrepancy.
+function countBoundsAt(apiTotal: number, feedTotal: number, afterBoundary: number): CountBounds {
+  const atCutoff = apiTotal - afterBoundary;
+  return { min: atCutoff - Math.max(0, apiTotal - feedTotal), max: atCutoff + Math.max(0, feedTotal - apiTotal) };
+}
+
 // The assists stay at the whole-match total as an upper bound. A player is placed only when
 // the feed carries every kill and death the API counts: a feed short of one, even one that
 // merely hides the player's overtime, would put a slot on whoever's line it happens to land on.
+// The short-feed player still competes across every count their missing events allow, so no
+// slot they could own is handed to someone else by elimination.
 function playerLinesAt(
   lines: readonly PlayerLine[],
   highlightEvents: readonly ParsedHighlightEvent[],
@@ -84,13 +121,13 @@ function playerLinesAt(
 ): PlayerLine[] {
   const { wholeMatch, afterBoundary } = tallyFeed(highlightEvents, boundaryMs);
   return lines.map((line) => {
-    const total = wholeMatch.get(line.xuid);
+    const total = wholeMatch.get(line.xuid) ?? { kills: 0, deaths: 0 };
     const after = afterBoundary.get(line.xuid) ?? { kills: 0, deaths: 0 };
     return {
       ...line,
-      kills: line.kills - after.kills,
-      deaths: line.deaths - after.deaths,
-      placeable: (total?.kills ?? 0) === line.kills && (total?.deaths ?? 0) === line.deaths,
+      kills: countBoundsAt(line.kills.max, total.kills, after.kills),
+      deaths: countBoundsAt(line.deaths.max, total.deaths, after.deaths),
+      placeable: total.kills === line.kills.max && total.deaths === line.deaths.max,
     };
   });
 }
@@ -180,10 +217,10 @@ function claimSlots(
 }
 
 const matchesWholeMatch: SlotMatcher = (slot, line) =>
-  slot.kills === line.kills && slot.deaths === line.deaths && slot.assists === line.assists;
+  within(slot.kills, line.kills) && within(slot.deaths, line.deaths) && slot.assists === line.assists;
 
 const matchesAtCutoff: SlotMatcher = (slot, line) =>
-  slot.kills === line.kills && slot.deaths === line.deaths && slot.assists <= line.assists;
+  within(slot.kills, line.kills) && within(slot.deaths, line.deaths) && slot.assists <= line.assists;
 
 function recordCutoffBoundaryMs(cutoffMs: number, highlightEvents: readonly ParsedHighlightEvent[]): number | null {
   if (cutoffMs === -Infinity) {
