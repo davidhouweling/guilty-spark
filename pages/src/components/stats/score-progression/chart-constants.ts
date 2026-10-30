@@ -111,9 +111,7 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
-// the flag chart's upper half is where the first team carries, and the first team's lead is
-// positive in the shared sign, so it is drawn upward as-is; the halves say whose lead it is,
-// so the ticks are unsigned like the flag axis's
+// the halves already say whose lead it is, so the ticks are unsigned like the flag axis's
 export function flagAdvantageAxisProps(domain: readonly [number, number]): ReturnType<typeof advantageAxisProps> {
   return {
     ...advantageAxisProps(domain),

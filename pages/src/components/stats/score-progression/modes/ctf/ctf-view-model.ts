@@ -84,7 +84,10 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
     markers.push({
       timestampMs,
-      progress: interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0,
+      progress: Preconditions.checkExists(
+        interpolateSeriesAt(points, timestampMs, (point) => point.progress),
+        "a clamped marker always lies within its run's points",
+      ),
       kind: MARKER_KIND_BY_EVENT[event.kind],
     });
   }
