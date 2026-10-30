@@ -108,7 +108,8 @@ describe("buildFlagRuns", () => {
         { ...base, startMs: 50000, endMs: 50000 },
       ],
     });
-    expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
+    const colorsWithThirdTeam = new Map([...COLORS, [3, "#00ff00"]]);
+    expect(buildFlagRuns(timeline, TEAM_IDS, colorsWithThirdTeam, DURATION_MS)).toEqual([]);
   });
 
   it("orders samples by time and clamps an event stamped just before the pull onto its start", () => {

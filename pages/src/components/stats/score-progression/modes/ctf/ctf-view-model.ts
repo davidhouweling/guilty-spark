@@ -19,7 +19,6 @@ const FULL_PROGRESS = 100;
 
 type RunDirection = 1 | -1;
 
-// the first team's runs sit above the axis, matching the team order of the score charts
 function runDirection(carrierTeamId: number, firstTeamId: number): RunDirection {
   return carrierTeamId === firstTeamId ? 1 : -1;
 }
@@ -114,7 +113,12 @@ export function buildFlagRuns(
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
   for (const run of orderedRuns) {
     const color = teamColorByTeamId.get(run.carrierTeamId);
-    if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
+    if (
+      color == null ||
+      !teamIds.includes(run.flagTeamId) ||
+      !teamIds.includes(run.carrierTeamId) ||
+      !isDrawableFlagRun(run, durationMs)
+    ) {
       continue;
     }
     const direction = runDirection(run.carrierTeamId, firstTeamId);
@@ -140,12 +144,15 @@ export function buildFlagRunLegend(
   teamColorByTeamId: ReadonlyMap<number, string>,
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
-  const entryFor = (flagTeamId: number, carrierTeamId: number): FlagRunLegendEntry => ({
-    key: `flag-${String(flagTeamId)}`,
-    color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
-    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+  return [firstTeamId, secondTeamId].map((carrierTeamId) => {
+    const flagTeamId = carrierTeamId === firstTeamId ? secondTeamId : firstTeamId;
+    const side = SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)];
+    return {
+      key: `flag-${String(flagTeamId)}`,
+      color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
+      text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+    };
   });
-  return [entryFor(secondTeamId, firstTeamId), entryFor(firstTeamId, secondTeamId)];
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the
