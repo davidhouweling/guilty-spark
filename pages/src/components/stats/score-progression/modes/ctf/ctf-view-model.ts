@@ -29,14 +29,8 @@ function carrierColorOf(teamColorByTeamId: ReadonlyMap<number, string>, carrierT
   return teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL;
 }
 
-// mirrored carries must round to the same magnitude, and a stand reading must never be -0
-function roundProgress(value: number): number {
-  const rounded = roundPercent(value);
-  return rounded === 0 ? 0 : rounded;
-}
-
 function toSignedPercent(progress: number, direction: RunDirection): number {
-  return roundProgress(progress * FULL_PROGRESS * direction);
+  return roundPercent(progress * FULL_PROGRESS * direction);
 }
 
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
@@ -90,7 +84,7 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
     markers.push({
       timestampMs,
-      progress: roundProgress(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
+      progress: interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0,
       kind: MARKER_KIND_BY_EVENT[event.kind],
     });
   }

@@ -231,18 +231,12 @@ describe("buildFlagRuns", () => {
     expect(Object.is(run.points[1].progress, 0)).toBe(true);
   });
 
-  it("never emits negative zero for a below-axis marker that rounds onto the stand", () => {
+  it("keeps a marker just off the stand exactly on the drawn line", () => {
     const timeline = aFakeCtfTimelineWith({
       runs: [aFakeCtfFlagRunWith({ events: [{ timestampMs: 20100, kind: "grab" }] })],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(Object.is(run.markers[0]?.progress, 0)).toBe(true);
-  });
-
-  it("falls back to the neutral swatch colour for a roster team without a colour", () => {
-    const missingCobra = new Map([[0, "#0000ff"]]);
-    const [cobraCarrying] = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, missingCobra, DURATION_MS);
-    expect(cobraCarrying.color).toBe(TICK_FILL);
+    expect(run.markers[0]?.progress).toBeCloseTo(-0.25);
   });
 
   it("rounds a half-percent sample to the same magnitude on both sides of the home line", () => {

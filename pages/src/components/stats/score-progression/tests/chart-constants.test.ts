@@ -13,6 +13,10 @@ describe("roundPercent", () => {
     expect(roundPercent(-12.5)).toBe(-13);
     expect(roundPercent(0.4)).toBe(0);
   });
+
+  it("never returns negative zero", () => {
+    expect(Object.is(roundPercent(-0.3), 0)).toBe(true);
+  });
 });
 
 describe("formatScoreValue", () => {
