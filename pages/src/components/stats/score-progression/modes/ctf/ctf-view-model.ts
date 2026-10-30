@@ -128,7 +128,7 @@ export function buildFlagRuns(
       runIndex,
       seriesKey: `run${String(runIndex)}`,
       seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
-      color: teamColorByTeamId.get(run.carrierTeamId) ?? TICK_FILL,
+      color: Preconditions.checkExists(teamColorByTeamId.get(run.carrierTeamId), "carrier is on the roster"),
       points,
       markers: buildRunMarkers(run, points, endMs),
       reset: buildRunReset(finished, endMs, endProgress),

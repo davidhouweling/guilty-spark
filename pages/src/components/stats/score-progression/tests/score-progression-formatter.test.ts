@@ -809,6 +809,19 @@ describe("formatScoreProgression ctf", () => {
     expect(result.advantageOverlay?.rows[3]?.run1).toBe(-(25 + (10000 / 15000) * 35));
   });
 
+  it("draws a team's lead on the same side of the home line as its carries", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS, 4));
+    const rows = result.advantageOverlay?.rows ?? [];
+
+    const cobraLeadsWhileCarrying = rows.find((row) => row.timestampMs === 40000);
+    expect(cobraLeadsWhileCarrying?.playerAdvantage).toBe(-1);
+    expect(cobraLeadsWhileCarrying?.run1).toBeLessThan(0);
+
+    const cobraLeadsWhileEagleCarries = rows.find((row) => row.timestampMs === 90000);
+    expect(cobraLeadsWhileEagleCarries?.playerAdvantage).toBe(-1);
+    expect(cobraLeadsWhileEagleCarries?.run2).toBeGreaterThan(0);
+  });
+
   it("keeps the advantage overlay on the flag view when nobody captured", () => {
     const result = asCtf(formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [] })), TEAM_COLORS));
 
