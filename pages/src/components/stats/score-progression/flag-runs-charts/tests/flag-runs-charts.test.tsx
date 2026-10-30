@@ -21,7 +21,7 @@ describe("FlagRunsCharts", () => {
 
     expect(screen.getByTestId("flag-runs-chart")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "flag chart" })).toBeInTheDocument();
-    expect(screen.getByText("Above: Cobra's flag, carried by Eagle")).toBeInTheDocument();
+    expect(screen.getByText("Below: Eagle's flag, carried by Cobra")).toBeInTheDocument();
     expect(screen.getByText("Carrier killed")).toBeInTheDocument();
     expect(screen.queryByLabelText("Chart type")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Player Advantage")).not.toBeInTheDocument();
@@ -30,7 +30,7 @@ describe("FlagRunsCharts", () => {
   it("leaves out the marker legend row when there are no markers to explain", () => {
     render(<FlagRunsCharts {...aFakeFlagRunsViewModelWith({ markerLegend: null })} />);
 
-    expect(screen.getByText("Above: Cobra's flag, carried by Eagle")).toBeInTheDocument();
+    expect(screen.getByText("Below: Eagle's flag, carried by Cobra")).toBeInTheDocument();
     expect(screen.queryByText("Carrier killed")).not.toBeInTheDocument();
   });
 

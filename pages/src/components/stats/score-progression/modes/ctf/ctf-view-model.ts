@@ -19,6 +19,13 @@ const FULL_PROGRESS = 100;
 
 type RunDirection = 1 | -1;
 
+// the first team's runs sit above the axis, matching the team order of the score charts
+function runDirection(carrierTeamId: number, firstTeamId: number): RunDirection {
+  return carrierTeamId === firstTeamId ? 1 : -1;
+}
+
+const SIDE_LABEL: Record<RunDirection, string> = { 1: "Above:", [-1]: "Below:" };
+
 function toSignedPercent(progress: number, direction: RunDirection): number {
   const percent = Math.round(progress * FULL_PROGRESS);
   return percent === 0 ? 0 : percent * direction;
@@ -110,8 +117,7 @@ export function buildFlagRuns(
     if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
       continue;
     }
-    // the first team's runs sit above the axis, matching the team order of the score charts
-    const direction: RunDirection = run.carrierTeamId === firstTeamId ? 1 : -1;
+    const direction = runDirection(run.carrierTeamId, firstTeamId);
     const endMs = Math.min(run.endMs, durationMs);
     const finished = finishesWithinMatch(run, durationMs);
     const { points, endProgress } = buildRunPoints(run, endMs, direction, finished && run.outcome === "capture");
@@ -134,12 +140,12 @@ export function buildFlagRunLegend(
   teamColorByTeamId: ReadonlyMap<number, string>,
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
-  const entryFor = (flagTeamId: number, carrierTeamId: number, side: string): FlagRunLegendEntry => ({
+  const entryFor = (flagTeamId: number, carrierTeamId: number): FlagRunLegendEntry => ({
     key: `flag-${String(flagTeamId)}`,
     color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
-    text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
   });
-  return [entryFor(secondTeamId, firstTeamId, "Above:"), entryFor(firstTeamId, secondTeamId, "Below:")];
+  return [entryFor(secondTeamId, firstTeamId), entryFor(firstTeamId, secondTeamId)];
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the
