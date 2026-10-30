@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeStatRecordWith } from "../fakes/stat-record.fake";
-import { counterIncrementTimes, counterTotals, isTeamSlot } from "../stat-counters";
+import { counterFinalPoints, counterIncrementTimes, isTeamSlot } from "../stat-counters";
 
 const GRABS = { component: 22, side: "a" } as const;
 
@@ -90,19 +90,19 @@ describe("counterIncrementTimes", () => {
   });
 });
 
-describe("counterTotals", () => {
+describe("counterFinalPoints", () => {
   it("reports the final counter value even when emissions were missed", () => {
     const records = [
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 4, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 15, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 16, b: 0 } } }),
     ];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(16);
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)?.value).toBe(16);
   });
 
   it("reports null for a slot whose first emission is beyond any plausible counter", () => {
     const records = [aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 7000, b: 0 } } })];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBeNull();
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)).toBeNull();
   });
 
   it("rejects a parasite that persists through the last emissions", () => {
@@ -112,7 +112,7 @@ describe("counterTotals", () => {
       aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 64, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 400, slot: 10, components: { 2: { a: 64, b: 0 } } }),
     ];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(2);
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)?.value).toBe(2);
   });
 
   it("looks past unchanged re-emissions to find the increase after a gap", () => {
@@ -122,7 +122,7 @@ describe("counterTotals", () => {
       aFakeStatRecordWith({ timestampMs: 250, slot: 10, components: { 2: { a: 15, b: 1 } } }),
       aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 16, b: 1 } } }),
     ];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(16);
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)?.value).toBe(16);
   });
 
   it("reports null for a slot whose every emission was negative", () => {
@@ -130,7 +130,7 @@ describe("counterTotals", () => {
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: -115, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: -3, b: 0 } } }),
     ];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBeNull();
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)).toBeNull();
     expect(counterIncrementTimes(records, { component: 2, side: "a" }).get(10)).toEqual([]);
   });
 
@@ -140,7 +140,7 @@ describe("counterTotals", () => {
       aFakeStatRecordWith({ timestampMs: 200, slot: 10, components: { 2: { a: 2, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 300, slot: 10, components: { 2: { a: 64, b: 0 } } }),
     ];
-    expect(counterTotals(records, { component: 2, side: "a" }).get(10)).toBe(2);
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)?.value).toBe(2);
   });
 
   it("orders emissions by time before filtering", () => {
@@ -157,7 +157,7 @@ describe("counterTotals", () => {
       aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 22: { a: 4, b: 0 } } }),
       aFakeStatRecordWith({ timestampMs: 100, slot: 14, components: { 22: { a: 1, b: 0 } } }),
     ];
-    expect([...counterTotals(records, GRABS)]).toEqual([
+    expect([...counterFinalPoints(records, GRABS)].map(([slot, point]) => [slot, point?.value ?? null])).toEqual([
       [10, 4],
       [14, 1],
     ]);
@@ -169,5 +169,17 @@ describe("isTeamSlot", () => {
     expect(isTeamSlot(6)).toBe(true);
     expect(isTeamSlot(8)).toBe(true);
     expect(isTeamSlot(10)).toBe(false);
+  });
+});
+
+describe("counterFinalPoints timing", () => {
+  it("dates each slot's final value at the emission that last raised it, past flat re-emissions and a trailing jump", () => {
+    const records = [
+      aFakeStatRecordWith({ timestampMs: 100, slot: 10, components: { 2: { a: 14, b: 15 } } }),
+      aFakeStatRecordWith({ timestampMs: 2_000, slot: 10, components: { 2: { a: 15, b: 15 } } }),
+      aFakeStatRecordWith({ timestampMs: 31_000, slot: 10, components: { 2: { a: 64, b: 15 } } }),
+    ];
+    expect(counterFinalPoints(records, { component: 2, side: "a" }).get(10)).toEqual({ timestampMs: 2_000, value: 15 });
+    expect(counterFinalPoints(records, { component: 2, side: "b" }).get(10)).toEqual({ timestampMs: 100, value: 15 });
   });
 });

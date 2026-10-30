@@ -9,10 +9,21 @@ export interface CtfPlayerOverride {
   assists: number;
 }
 
+export interface CtfMatchStatsOptions {
+  overtime?: boolean | undefined;
+}
+
 // The CTF fixture has eight players with distinct (kills, deaths, assists) triplets; overrides
-// adjust individual players (by unwrapped xuid) to build ambiguous rosters.
-export function aFakeCtfMatchStatsWith(overridesByXuid = new Map<string, CtfPlayerOverride>()): MatchStats {
+// adjust individual players (by unwrapped xuid) to build ambiguous rosters, and an overtime match
+// carries the tied round the API records before the deciding one.
+export function aFakeCtfMatchStatsWith(
+  overridesByXuid = new Map<string, CtfPlayerOverride>(),
+  { overtime = false }: CtfMatchStatsOptions = {},
+): MatchStats {
   const match = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+  for (const team of match.Teams) {
+    team.Stats.CoreStats.RoundsTied = overtime ? 1 : 0;
+  }
   for (const player of match.Players) {
     const override = overridesByXuid.get(unwrapXuid(player.PlayerId));
     if (override == null) {

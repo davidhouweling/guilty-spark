@@ -1,29 +1,134 @@
 import type { MatchStats } from "halo-infinite-api";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
-import { counterTotals, isTeamSlot } from "./stat-counters";
-import type { StatRecord } from "./types";
+import { hasOvertimeRound, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import type { ParsedHighlightEvent } from "../types";
+import { counterFinalPoints, isTeamSlot } from "./stat-counters";
+import type { CounterPoint } from "./stat-counters";
+import type { StatRecord, StatSlotKey } from "./types";
 
 // Core stats replicated for every player regardless of mode: component 2 carries kills (A)
 // and deaths (B), component 3 carries assists (A).
-const KILLS_DEATHS_COMPONENT = 2;
-const ASSISTS_COMPONENT = 3;
+const KILLS_KEY: StatSlotKey = { component: 2, side: "a" };
+const DEATHS_KEY: StatSlotKey = { component: 2, side: "b" };
+const ASSISTS_KEY: StatSlotKey = { component: 3, side: "a" };
+// The counters stop at the end of regulation while the feed's kills and deaths run on through
+// overtime; the intermission is far longer than any feed clock offset or post-whistle straggler,
+// so the first quiet gap this long after the last counter is where the match splits.
+const MIN_RECORD_GAP_MS = 10_000;
 
-interface PlayerLine {
-  xuid: string;
+interface StatTriplet {
   kills: number;
   deaths: number;
   assists: number;
 }
 
-function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
-  return matchStats.Players.map((player) => {
-    const line: PlayerLine = { xuid: unwrapXuid(player.PlayerId), kills: 0, deaths: 0, assists: 0 };
+interface CountBounds {
+  min: number;
+  max: number;
+}
+
+interface PlayerLine {
+  xuid: string;
+  kills: CountBounds;
+  deaths: CountBounds;
+  assists: number;
+  placeable: boolean;
+}
+
+interface FeedTally {
+  kills: number;
+  deaths: number;
+}
+
+type SlotMatcher = (slot: StatTriplet, line: PlayerLine) => boolean;
+
+function exactly(value: number): CountBounds {
+  return { min: value, max: value };
+}
+
+function within(value: number, bounds: CountBounds): boolean {
+  return value >= bounds.min && value <= bounds.max;
+}
+
+function playerTripletsOf(matchStats: MatchStats): Map<string, StatTriplet> {
+  const triplets = new Map<string, StatTriplet>();
+  for (const player of matchStats.Players) {
+    const triplet: StatTriplet = { kills: 0, deaths: 0, assists: 0 };
     for (const teamStats of player.PlayerTeamStats) {
-      line.kills += teamStats.Stats.CoreStats.Kills;
-      line.deaths += teamStats.Stats.CoreStats.Deaths;
-      line.assists += teamStats.Stats.CoreStats.Assists;
+      triplet.kills += teamStats.Stats.CoreStats.Kills;
+      triplet.deaths += teamStats.Stats.CoreStats.Deaths;
+      triplet.assists += teamStats.Stats.CoreStats.Assists;
     }
-    return line;
+    triplets.set(unwrapXuid(player.PlayerId), triplet);
+  }
+  return triplets;
+}
+
+function playerLinesOf(matchStats: MatchStats): PlayerLine[] {
+  return [...playerTripletsOf(matchStats)].map(([xuid, triplet]) => ({
+    xuid,
+    kills: exactly(triplet.kills),
+    deaths: exactly(triplet.deaths),
+    assists: triplet.assists,
+    placeable: true,
+  }));
+}
+
+interface FeedTallies {
+  wholeMatch: Map<string, FeedTally>;
+  afterBoundary: Map<string, FeedTally>;
+}
+
+function isCoreFeedEvent(event: ParsedHighlightEvent): boolean {
+  return event.eventType === "kill" || event.eventType === "death";
+}
+
+function countCoreEvent(tally: Map<string, FeedTally>, event: ParsedHighlightEvent): void {
+  const counts = tally.get(event.xuid) ?? { kills: 0, deaths: 0 };
+  counts[event.eventType === "kill" ? "kills" : "deaths"] += 1;
+  tally.set(event.xuid, counts);
+}
+
+function tallyFeed(highlightEvents: readonly ParsedHighlightEvent[], boundaryMs: number): FeedTallies {
+  const tallies: FeedTallies = { wholeMatch: new Map(), afterBoundary: new Map() };
+  for (const event of highlightEvents) {
+    if (!isCoreFeedEvent(event)) {
+      continue;
+    }
+    countCoreEvent(tallies.wholeMatch, event);
+    if (event.timeMs >= boundaryMs) {
+      countCoreEvent(tallies.afterBoundary, event);
+    }
+  }
+  return tallies;
+}
+
+// The events a feed is missing (or carries twice) could sit on either side of the boundary,
+// so the player's count at the cut-off is only known to within that discrepancy.
+function countBoundsAt(apiTotal: number, feedTotal: number, afterBoundary: number): CountBounds {
+  const atCutoff = apiTotal - afterBoundary;
+  return { min: atCutoff - Math.max(0, apiTotal - feedTotal), max: atCutoff + Math.max(0, feedTotal - apiTotal) };
+}
+
+// The assists stay at the whole-match total as an upper bound. A player is placed only when
+// the feed carries every kill and death the API counts: a feed short of one, even one that
+// merely hides the player's overtime, would put a slot on whoever's line it happens to land on.
+// The short-feed player still competes across every count their missing events allow, so no
+// slot they could own is handed to someone else by elimination.
+function playerLinesAt(
+  lines: readonly PlayerLine[],
+  highlightEvents: readonly ParsedHighlightEvent[],
+  boundaryMs: number,
+): PlayerLine[] {
+  const { wholeMatch, afterBoundary } = tallyFeed(highlightEvents, boundaryMs);
+  return lines.map((line) => {
+    const total = wholeMatch.get(line.xuid) ?? { kills: 0, deaths: 0 };
+    const after = afterBoundary.get(line.xuid) ?? { kills: 0, deaths: 0 };
+    return {
+      ...line,
+      kills: countBoundsAt(line.kills.max, total.kills, after.kills),
+      deaths: countBoundsAt(line.deaths.max, total.deaths, after.deaths),
+      placeable: total.kills === line.kills.max && total.deaths === line.deaths.max,
+    };
   });
 }
 
@@ -39,37 +144,48 @@ function playerSlotsOf(records: readonly StatRecord[]): Set<number> {
 
 // A slot that never emitted a counter has zero of it; a slot whose counter was rejected as
 // implausible (null) cannot be matched at all.
-function totalOrZero(totals: ReadonlyMap<number, number | null>, slot: number): number | null {
-  return totals.has(slot) ? (totals.get(slot) ?? null) : 0;
+function finalOrZero(points: ReadonlyMap<number, CounterPoint | null>, slot: number): CounterPoint | null {
+  return points.has(slot) ? (points.get(slot) ?? null) : { timestampMs: -Infinity, value: 0 };
 }
 
-// Resolves which player each statborg entity slot belongs to by matching the slot's final
-// (kills, deaths, assists) against the match roster. A slot whose triplet fits zero or several
-// players stays unresolved, as does a player claimed by several slots: attributing events to
-// the wrong player would be invisible and credible.
-export function resolveSlotIdentities(records: readonly StatRecord[], matchStats: MatchStats): Map<number, string> {
-  const kills = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "a" });
-  const deaths = counterTotals(records, { component: KILLS_DEATHS_COMPONENT, side: "b" });
-  const assists = counterTotals(records, { component: ASSISTS_COMPONENT, side: "a" });
-  const lines = playerLinesOf(matchStats);
+interface CoreCounterPoints {
+  kills: Map<number, CounterPoint | null>;
+  deaths: Map<number, CounterPoint | null>;
+  assists: Map<number, CounterPoint | null>;
+}
 
-  const claims = new Map<number, string>();
+function coreCounterPointsOf(records: readonly StatRecord[]): CoreCounterPoints {
+  return {
+    kills: counterFinalPoints(records, KILLS_KEY),
+    deaths: counterFinalPoints(records, DEATHS_KEY),
+    assists: counterFinalPoints(records, ASSISTS_KEY),
+  };
+}
+
+function slotTripletsOf(records: readonly StatRecord[], points: CoreCounterPoints): Map<number, StatTriplet> {
+  const triplets = new Map<number, StatTriplet>();
   for (const slot of playerSlotsOf(records)) {
-    const slotKills = totalOrZero(kills, slot);
-    const slotDeaths = totalOrZero(deaths, slot);
-    const slotAssists = totalOrZero(assists, slot);
-    if (slotKills == null || slotDeaths == null || slotAssists == null) {
-      continue;
-    }
-    const candidates = lines.filter(
-      (line) => line.kills === slotKills && line.deaths === slotDeaths && line.assists === slotAssists,
-    );
-    const [candidate] = candidates;
-    if (candidates.length === 1 && candidate != null) {
-      claims.set(slot, candidate.xuid);
+    const kills = finalOrZero(points.kills, slot);
+    const deaths = finalOrZero(points.deaths, slot);
+    const assists = finalOrZero(points.assists, slot);
+    if (kills != null && deaths != null && assists != null) {
+      triplets.set(slot, { kills: kills.value, deaths: deaths.value, assists: assists.value });
     }
   }
+  return triplets;
+}
 
+function lastCoreCounterMsOf(points: CoreCounterPoints): number {
+  let latest = -Infinity;
+  for (const point of [...points.kills.values(), ...points.deaths.values()]) {
+    latest = Math.max(latest, point?.timestampMs ?? -Infinity);
+  }
+  return latest;
+}
+
+// attributing events to the wrong player would be invisible and credible, so a player several
+// slots claim is given to none of them
+function settleClaims(claims: ReadonlyMap<number, string>): Map<number, string> {
   const slotsByXuid = new Map<string, number[]>();
   for (const [slot, xuid] of claims) {
     slotsByXuid.set(xuid, [...(slotsByXuid.get(xuid) ?? []), slot]);
@@ -82,4 +198,67 @@ export function resolveSlotIdentities(records: readonly StatRecord[], matchStats
     }
   }
   return identities;
+}
+
+function claimSlots(
+  triplets: ReadonlyMap<number, StatTriplet>,
+  lines: readonly PlayerLine[],
+  matches: SlotMatcher,
+): Map<number, string> {
+  const claims = new Map<number, string>();
+  for (const [slot, triplet] of triplets) {
+    const candidates = lines.filter((line) => matches(triplet, line));
+    const [candidate] = candidates;
+    if (candidates.length === 1 && candidate?.placeable === true) {
+      claims.set(slot, candidate.xuid);
+    }
+  }
+  return settleClaims(claims);
+}
+
+const matchesWholeMatch: SlotMatcher = (slot, line) =>
+  within(slot.kills, line.kills) && within(slot.deaths, line.deaths) && slot.assists === line.assists;
+
+const matchesAtCutoff: SlotMatcher = (slot, line) =>
+  within(slot.kills, line.kills) && within(slot.deaths, line.deaths) && slot.assists <= line.assists;
+
+function recordCutoffBoundaryMs(cutoffMs: number, highlightEvents: readonly ParsedHighlightEvent[]): number | null {
+  if (cutoffMs === -Infinity) {
+    return null;
+  }
+  const laterMs = highlightEvents
+    .filter((event) => isCoreFeedEvent(event) && event.timeMs > cutoffMs)
+    .map((event) => event.timeMs)
+    .sort((left, right) => left - right);
+  let previousMs = cutoffMs;
+  for (const timeMs of laterMs) {
+    if (timeMs - previousMs >= MIN_RECORD_GAP_MS) {
+      return previousMs + (timeMs - previousMs) / 2;
+    }
+    previousMs = timeMs;
+  }
+  return null;
+}
+
+// Resolves which player each statborg entity slot belongs to by matching the slot's final
+// (kills, deaths, assists) against the match roster. When a match went to overtime and the
+// counters stopped long before the feed did, every whole-match line is stale, so every slot
+// is matched against the players' kills and deaths at the moment the counters stopped instead.
+export function resolveSlotIdentities(
+  records: readonly StatRecord[],
+  matchStats: MatchStats,
+  highlightEvents: readonly ParsedHighlightEvent[] = [],
+): Map<number, string> {
+  const points = coreCounterPointsOf(records);
+  const triplets = slotTripletsOf(records, points);
+  const lines = playerLinesOf(matchStats);
+  const wholeMatch = claimSlots(triplets, lines, matchesWholeMatch);
+  if (playerSlotsOf(records).size === wholeMatch.size || !hasOvertimeRound(matchStats)) {
+    return wholeMatch;
+  }
+  const boundaryMs = recordCutoffBoundaryMs(lastCoreCounterMsOf(points), highlightEvents);
+  if (boundaryMs == null) {
+    return wholeMatch;
+  }
+  return claimSlots(triplets, playerLinesAt(lines, highlightEvents, boundaryMs), matchesAtCutoff);
 }

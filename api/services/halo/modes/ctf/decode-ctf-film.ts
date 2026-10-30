@@ -1,11 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
 import { namePositionsOrEmpty } from "../../positions/name-positions-or-empty";
-import type { DeathEvent, PlayerPositions } from "../../positions/types";
+import { toDeathEvents } from "../../positions/death-events";
+import type { PlayerPositions } from "../../positions/types";
 import { walkChunk } from "../../statborg/bit-reader";
 import { buildCtfFlagEventsFromRecords } from "../../statborg/ctf-flag-events";
 import { scanWalkedChunkStatRecords } from "../../statborg/stat-records";
 import type { CtfFlagEvents } from "../../statborg/types";
-import type { ReplicationChunk } from "../../types";
+import type { ParsedHighlightEvent, ReplicationChunk } from "../../types";
 
 // positionsFailure names the decode failure when the bipeds could not be read; the flag events
 // still stand on their own
@@ -21,11 +22,15 @@ export interface DecodedCtfFilm {
 export function decodeCtfFilm(
   chunks: readonly ReplicationChunk[],
   matchStats: MatchStats,
-  deaths: readonly DeathEvent[],
+  highlightEvents: readonly ParsedHighlightEvent[],
 ): DecodedCtfFilm {
   const walked = chunks.map(walkChunk);
   const records = walked.flatMap((chunk) => scanWalkedChunkStatRecords(chunk));
-  const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(records, matchStats);
-  const { positions, failure: positionsFailure } = namePositionsOrEmpty(walked, matchStats, deaths);
+  const { events: flagEvents, unresolvedSlots } = buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
+  const { positions, failure: positionsFailure } = namePositionsOrEmpty(
+    walked,
+    matchStats,
+    toDeathEvents(highlightEvents),
+  );
   return { flagEvents, unresolvedSlots, positions, positionsFailure };
 }

@@ -2,7 +2,7 @@ import { inflateSync } from "node:zlib";
 import type { MatchStats, SpartanTokenProvider } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { wrapXuid, unwrapXuid, getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamIdsByXuid, hasOvertimeRound, unwrapXuid, wrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { FireEvent } from "./halo-film-type2";
 import { scanFireEvents, scanFormulaAEvents, scanStateByte2Transitions, WeaponAttributor } from "./halo-film-type2";
 import { weaponIdToHex } from "./weapon-ids";
@@ -218,7 +218,17 @@ export class HaloFilmService {
         records.push(record);
       }
     }
-    return buildCtfFlagEventsFromRecords(records, matchStats);
+    const highlightEvents = hasOvertimeRound(matchStats) ? await this.tryLoadEnrichedEvents(matchStats) : [];
+    return buildCtfFlagEventsFromRecords(records, matchStats, highlightEvents);
+  }
+
+  // the feed only enriches the counters' result on an overtime film, so losing it is not fatal
+  private async tryLoadEnrichedEvents(matchStats: MatchStats): Promise<ParsedHighlightEvent[]> {
+    try {
+      return await this.loadEnrichedEventsForMatch(matchStats);
+    } catch {
+      return [];
+    }
   }
 
   async buildCtfProgression(matchStats: MatchStats, durationMs: number): Promise<CtfProgression> {
@@ -227,7 +237,7 @@ export class HaloFilmService {
       this.loadEnrichedEventsForMatch(matchStats),
       this.getCompleteReplicationChunks(matchStats.MatchId),
     ]);
-    const decoded = decodeCtfFilm(chunks, matchStats, toDeathEvents(highlightEvents));
+    const decoded = decodeCtfFilm(chunks, matchStats, highlightEvents);
     return buildCtfProgression({ ...decoded, highlightEvents, matchStats, durationMs });
   }
 

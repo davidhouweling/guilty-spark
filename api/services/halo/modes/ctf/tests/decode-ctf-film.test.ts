@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { aFakeParsedHighlightEventWith } from "../../../fakes/parsed-highlight-event.fake";
 import { aFakePositionFilmWith } from "../../../positions/fakes/position-film.fake";
 import { aFakeCtfMatchStatsWith } from "../../../statborg/fakes/ctf-match-stats.fake";
 import { aFakeReplicationChunkWith } from "../../../statborg/fakes/replication-chunk.fake";
@@ -23,7 +24,7 @@ describe("decodeCtfFilm", () => {
     ];
 
     const decoded = decodeCtfFilm(chunks, aFakeCtfMatchStatsWith(), [
-      { timestampMs: 20_000, xuid: "0100000000000000" },
+      aFakeParsedHighlightEventWith({ eventType: "death", xuid: "0100000000000000", timeMs: 20_000 }),
     ]);
 
     expect(decoded.flagEvents).toEqual([{ timestampMs: 44_500, kind: "steal", xuid: "0100000000000000", teamId: 0 }]);
