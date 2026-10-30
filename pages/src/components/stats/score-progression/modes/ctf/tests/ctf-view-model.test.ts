@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfFlagRunWith } from "../fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
+import { TICK_FILL } from "../../../chart-constants";
 import {
   buildFlagAdvantageOverlay,
   buildFlagRunLegend,
@@ -238,11 +239,30 @@ describe("buildFlagRuns", () => {
     expect(Object.is(run.markers[0]?.progress, 0)).toBe(true);
   });
 
-  it("throws when a roster team has no colour instead of drawing the run unidentified", () => {
+  it("falls back to the neutral swatch colour for a roster team without a colour", () => {
     const missingCobra = new Map([[0, "#0000ff"]]);
-    expect(() => buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, missingCobra, DURATION_MS)).toThrow(
-      "every roster team has a colour",
-    );
+    const [cobraCarrying] = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, missingCobra, DURATION_MS);
+    expect(cobraCarrying.color).toBe(TICK_FILL);
+  });
+
+  it("rounds a half-percent sample to the same magnitude on both sides of the home line", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        aFakeCtfFlagRunWith({ samples: [{ timestampMs: 30000, progress: 0.255 }] }),
+        aFakeCtfFlagRunWith({
+          flagTeamId: 1,
+          carrierTeamId: 0,
+          startMs: 70000,
+          endMs: 100000,
+          outcome: "return",
+          samples: [{ timestampMs: 80000, progress: 0.255 }],
+          events: [],
+        }),
+      ],
+    });
+    const [below, above] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(below.points[1].progress).toBe(-26);
+    expect(above.points[1].progress).toBe(26);
   });
 });
 
@@ -254,9 +274,9 @@ describe("buildFlagRunLegend", () => {
     ]);
   });
 
-  it("throws when a roster team has no colour instead of showing an unidentified swatch", () => {
+  it("falls back to the neutral swatch colour for a roster team without a colour", () => {
     const missingCobra = new Map([[0, "#0000ff"]]);
-    expect(() => buildFlagRunLegend(TEAM_IDS, missingCobra)).toThrow("every roster team has a colour");
+    expect(buildFlagRunLegend(TEAM_IDS, missingCobra).map((entry) => entry.color)).toEqual(["#0000ff", TICK_FILL]);
   });
 });
 

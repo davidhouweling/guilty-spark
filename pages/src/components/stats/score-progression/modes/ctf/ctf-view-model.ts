@@ -1,7 +1,7 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { FLAG_ADVANTAGE_KEY } from "../../chart-constants";
+import { FLAG_ADVANTAGE_KEY, TICK_FILL, roundPercent } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
   FlagAdvantageOverlay,
@@ -26,11 +26,12 @@ function runDirection(carrierTeamId: number, firstTeamId: number): RunDirection 
 const SIDE_LABEL: Record<RunDirection, string> = { 1: "Above:", [-1]: "Below:" };
 
 function carrierColorOf(teamColorByTeamId: ReadonlyMap<number, string>, carrierTeamId: number): string {
-  return Preconditions.checkExists(teamColorByTeamId.get(carrierTeamId), "every roster team has a colour");
+  return teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL;
 }
 
+// mirrored carries must round to the same magnitude, and a stand reading must never be -0
 function roundProgress(value: number): number {
-  const rounded = Math.round(value);
+  const rounded = roundPercent(value);
   return rounded === 0 ? 0 : rounded;
 }
 
