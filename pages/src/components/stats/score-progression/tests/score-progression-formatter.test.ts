@@ -893,10 +893,11 @@ describe("formatScoreProgression ctf", () => {
     expect(result?.kind).toBe("score-lines");
   });
 
-  it("falls back to the capture score lines when the captures and runs name a single team", () => {
+  it("falls back to the capture score lines when the captures, runs and deaths name a single team", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
       runs: [],
+      deathTimeline: [{ timestampMs: 40000, teamId: 1 }],
     });
     const result = formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS);
     expect(result?.kind).toBe("score-lines");
@@ -913,6 +914,7 @@ describe("formatScoreProgression ctf", () => {
   it("completes the roster from the runs when a sparse capture record names only the scorer", () => {
     const timeline = aFakeCtfTimelineWith({
       events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      deathTimeline: [],
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(2);
@@ -959,9 +961,146 @@ describe("formatScoreProgression ctf", () => {
     expect(result.scoreLines).toBeNull();
   });
 
-  it("returns null when the timeline has neither captures nor runs", () => {
+  it("shows an empty flag chart resolved from the deaths when the timeline has neither captures nor runs", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+        { timestampMs: 90000, teamId: 1 },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS, 4));
+
+    expect(result.runs).toEqual([]);
+    expect(result.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
+    expect(result.scoreLines).toBeNull();
+    expect(result.advantageOverlay?.rows.map((row) => row.playerAdvantage)).toEqual([0, 1, 0, -1, 0, 1, 0, 0]);
+  });
+
+  it("completes a one-team capture record from the deaths and still draws the capture score lines", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+  });
+
+  it("trusts the deaths over a decoded run when both could name the missing team", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [aFakeCtfFlagRunWith({ flagTeamId: 1, carrierTeamId: 2 })],
+      deathTimeline: [{ timestampMs: 40000, teamId: 0 }],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Eagle", "Cobra"]);
+  });
+
+  it("lets no run past the match end vouch for a team", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 60000, teamId: 1, runningScores: { "1": 1 } }],
+      runs: [aFakeCtfFlagRunWith({ flagTeamId: 2, carrierTeamId: 1, startMs: 125000, endMs: 130000 })],
+      deathTimeline: [],
+    });
+    const result = asScoreLines(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamLines.map((line) => line.name)).toEqual(["Cobra"]);
+  });
+
+  it("shows the empty flag chart without an overlay when the decode is empty and no respawn duration is known", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      respawnDurationMs: null,
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS, 4));
+
+    expect(result.runs).toEqual([]);
+    expect(result.advantageOverlay).toBeNull();
+    expect(result.scoreLines).toBeNull();
+  });
+
+  it("ignores deaths stamped after the match when the deaths name the teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+        { timestampMs: 130000, teamId: 2 },
+        { timestampMs: 131000, teamId: 2 },
+        { timestampMs: 132000, teamId: 2 },
+      ],
+    });
+    const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
+
+    expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
+  });
+
+  it("returns null when the only capture was dropped as bad data and nothing else was decoded", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [{ timestampMs: 200000, teamId: 1, runningScores: { "0": 0, "1": 1 } }],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
+  });
+
+  it("returns null when nobody captured and every decoded run had to be rejected", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [aFakeCtfFlagRunWith({ startMs: 125000, endMs: 130000 })],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+      ],
+    });
+
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
+  });
+
+  it("does not let the deaths name a roster for a match with more than two teams", () => {
+    const timeline = aFakeCtfTimelineWith({
+      events: [],
+      runs: [],
+      deathTimeline: [
+        { timestampMs: 40000, teamId: 1 },
+        { timestampMs: 50000, teamId: 0 },
+        { timestampMs: 60000, teamId: 2 },
+      ],
+    });
+    const data = aFakeScoreProgressionWith({ mode: 15, durationMs: 120000, timeline, teamCount: 3 });
+
+    expect(formatScoreProgression(data, TEAM_COLORS)).toBeNull();
+  });
+
+  it("returns null when the timeline has no captures, runs or deaths to name the teams", () => {
     expect(
-      formatScoreProgression(aCtfProgression(aFakeCtfTimelineWith({ events: [], runs: [] })), TEAM_COLORS),
+      formatScoreProgression(
+        aCtfProgression(aFakeCtfTimelineWith({ events: [], runs: [], deathTimeline: [] })),
+        TEAM_COLORS,
+      ),
     ).toBeNull();
+  });
+
+  it("returns null when only one team ever died and nothing else names the roster", () => {
+    const timeline = aFakeCtfTimelineWith({ events: [], runs: [], deathTimeline: [{ timestampMs: 40000, teamId: 1 }] });
+
+    expect(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS)).toBeNull();
   });
 });

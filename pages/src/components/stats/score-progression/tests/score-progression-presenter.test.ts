@@ -874,7 +874,7 @@ describe("ScoreProgressionPresenter ctf", () => {
     expect(model.chart.durationMs).toBe(120000);
     expect(model.chart.points).toBe(viewData.points);
     expect(model.legend).toBe(viewData.legend);
-    expect(model.markerLegend.map((entry) => entry.kind)).toEqual(["steal", "grab", "drop", "return", "capture"]);
+    expect(model.markerLegend?.map((entry) => entry.kind)).toEqual(["steal", "grab", "capture"]);
   });
 
   it("hides the chart type select when no capture happened", () => {
@@ -934,6 +934,28 @@ describe("ScoreProgressionPresenter ctf", () => {
       expect(withOverlay.showPlayerAdvantage).toBe(false);
       expect(withOverlay.chart.points).toBe(viewData.points);
       expect(withOverlay.chart.advantageDomain).toBeNull();
+    });
+
+    it("offers a tooltip only while there is a run or a shown overlay to hover, and a legend for the markers drawn", () => {
+      const { store, presenter } = makePresenter();
+      const empty = aFakeCtfViewDataWith({ runs: [] });
+      const withOverlay = aFakeCtfViewDataWith({ runs: [], advantageOverlay: aFakeFlagAdvantageOverlayWith() });
+
+      const withRuns = asFlagRuns(
+        presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
+      );
+      const emptyModel = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: empty, ariaLabel: "x" }));
+      const overlayOff = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
+      overlayOff.onPlayerAdvantageChange(true);
+      const overlayOn = asFlagRuns(presenter.present(store.getSnapshot(), { viewData: withOverlay, ariaLabel: "x" }));
+
+      expect(withRuns.chart.showTooltip).toBe(true);
+      expect(withRuns.markerLegend?.map((entry) => entry.text)).toEqual(["Steal", "Pickup", "Captured"]);
+      expect(emptyModel.chart.showTooltip).toBe(false);
+      expect(emptyModel.chart.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
+      expect(emptyModel.markerLegend).toBeNull();
+      expect(overlayOff.chart.showTooltip).toBe(false);
+      expect(overlayOn.chart.showTooltip).toBe(true);
     });
 
     it("swaps in the overlay rows on an axis mirrored around the home line once toggled on", () => {
