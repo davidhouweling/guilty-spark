@@ -345,6 +345,34 @@ describe("buildViewerRenderModel", () => {
     ]);
   });
 
+  it("keeps an archived one-match series when it has planned maps", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", mapName: "Actual Map" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "s1",
+          matchIds: ["missing", "m1"],
+          plannedMaps: [
+            { mode: "Slayer", map: "Planned Map One" },
+            { mode: "Oddball", map: "Planned Map Two" },
+          ],
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected the archived series to remain grouped");
+    }
+
+    expect(item.series.plannedGames).toEqual([
+      expect.objectContaining({ gameNumber: 1, mode: "Slayer", map: "Actual Map", played: true }),
+      expect.objectContaining({ gameNumber: 2, mode: "Oddball", map: "Planned Map Two", played: false }),
+    ]);
+  });
+
   it("passes statsHighlights from the view state through to the render model", () => {
     const view = aFakeTrackerViewStateWith({
       statsHighlights: [{ label: "KDA", value: "3.2" }],

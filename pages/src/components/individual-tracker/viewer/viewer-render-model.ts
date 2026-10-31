@@ -324,10 +324,12 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
   for (const series of view.series) {
     const knownIds = series.matchIds.filter((id) => matchesById.has(id));
     const isCurrentActiveSeries = activeSeriesId != null && series.id === activeSeriesId;
-    if (knownIds.length < 2 && !(isCurrentActiveSeries && knownIds.length > 0)) {
+    const hasPlannedMaps = (series.plannedMaps?.length ?? 0) > 0;
+    const canRenderSingleMatchSeries = knownIds.length === 1 && (isCurrentActiveSeries || hasPlannedMaps);
+    if (knownIds.length < 2 && !canRenderSingleMatchSeries) {
       continue;
     }
-    const [anchorId] = series.matchIds;
+    const [anchorId] = knownIds;
     seriesByAnchor.set(anchorId, series);
     for (const id of series.matchIds) {
       seriesMemberIds.add(id);
