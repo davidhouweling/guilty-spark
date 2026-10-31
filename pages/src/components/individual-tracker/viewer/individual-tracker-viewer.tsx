@@ -651,25 +651,25 @@ export function IndividualTrackerViewer({
                           ) : (
                             <Alert variant="error">Unexpected entry state.</Alert>
                           )}
-                          {series.plannedGames.length > 0 && (
+                          {series.plannedMatches.length > 0 && (
                             <section className={styles.plannedMaps}>
                               <h3 className={styles.plannedMapsTitle}>Map plan</h3>
                               <ol className={styles.plannedMapsList} aria-label={`Map plan for ${series.title}`}>
-                                {series.plannedGames.map((game) => (
+                                {series.plannedMatches.map((match) => (
                                   <li
-                                    key={game.gameNumber}
-                                    className={classNames(styles.plannedMap, game.played && styles.plannedMapPlayed)}
+                                    key={match.matchNumber}
+                                    className={classNames(styles.plannedMap, match.played && styles.plannedMapPlayed)}
                                   >
-                                    <span className={styles.plannedMapNumber}>Game {game.gameNumber}</span>
+                                    <span className={styles.plannedMapNumber}>Match {match.matchNumber}</span>
                                     <span className={styles.plannedMapDetails}>
-                                      {game.gameModeIconUrl != null && (
-                                        <img src={game.gameModeIconUrl} alt="" className={styles.plannedMapIcon} />
+                                      {match.gameModeIconUrl != null && (
+                                        <img src={match.gameModeIconUrl} alt="" className={styles.plannedMapIcon} />
                                       )}
-                                      <strong>{game.mode}</strong>
-                                      <span>{game.map}</span>
+                                      <strong>{match.mode}</strong>
+                                      <span>{match.map}</span>
                                     </span>
                                     <span className={styles.plannedMapStatus}>
-                                      {game.played ? "Played" : "Upcoming"}
+                                      {match.played ? "Played" : "Upcoming"}
                                     </span>
                                   </li>
                                 ))}

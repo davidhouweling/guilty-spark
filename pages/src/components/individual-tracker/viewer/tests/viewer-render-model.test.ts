@@ -71,7 +71,7 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
-  it("collapses a consecutive same-map/mode rematch to its final game in iconMatches, keeping matches intact", () => {
+  it("collapses a consecutive same-map/mode rematch to its final match in iconMatches, keeping matches intact", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
       matches: [
@@ -155,16 +155,16 @@ describe("buildViewerRenderModel", () => {
     }
 
     expect(
-      seriesItem.series.plannedGames.map(({ gameNumber, mode, map, played }) => ({
-        gameNumber,
+      seriesItem.series.plannedMatches.map(({ matchNumber, mode, map, played }) => ({
+        matchNumber,
         mode,
         map,
         played,
       })),
     ).toEqual([
-      { gameNumber: 1, mode: "Slayer", map: "Actual Map One", played: true },
-      { gameNumber: 2, mode: "Oddball", map: "Actual Map Two", played: true },
-      { gameNumber: 3, mode: "Neutral Bomb", map: "Planned Map Three", played: false },
+      { matchNumber: 1, mode: "Slayer", map: "Actual Map One", played: true },
+      { matchNumber: 2, mode: "Oddball", map: "Actual Map Two", played: true },
+      { matchNumber: 3, mode: "Neutral Bomb", map: "Planned Map Three", played: false },
     ]);
   });
 
@@ -367,9 +367,9 @@ describe("buildViewerRenderModel", () => {
       throw new Error("Expected the archived series to remain grouped");
     }
 
-    expect(item.series.plannedGames).toEqual([
-      expect.objectContaining({ gameNumber: 1, mode: "Slayer", map: "Actual Map", played: true }),
-      expect.objectContaining({ gameNumber: 2, mode: "Oddball", map: "Planned Map Two", played: false }),
+    expect(item.series.plannedMatches).toEqual([
+      expect.objectContaining({ matchNumber: 1, mode: "Slayer", map: "Actual Map", played: true }),
+      expect.objectContaining({ matchNumber: 2, mode: "Oddball", map: "Planned Map Two", played: false }),
     ]);
   });
 
@@ -651,7 +651,7 @@ describe("buildViewerRenderModel", () => {
     expect(pendingModel.timeline[0]?.type).toBe("series");
     if (pendingModel.timeline[0]?.type === "series") {
       expect(pendingModel.timeline[0].series.matches).toHaveLength(0);
-      expect(pendingModel.timeline[0].series.plannedGames[0]?.played).toBe(false);
+      expect(pendingModel.timeline[0].series.plannedMatches[0]?.played).toBe(false);
     }
 
     const activeSeriesView = aFakeTrackerViewStateWith({
@@ -691,7 +691,7 @@ describe("buildViewerRenderModel", () => {
       expect(activeModel.timeline[0].series.id).toBe("series-live");
       expect(activeModel.timeline[0].series.matches).toHaveLength(2);
       expect(activeModel.timeline[0].series.isActive).toBe(true);
-      expect(activeModel.timeline[0].series.plannedGames[0]?.played).toBe(true);
+      expect(activeModel.timeline[0].series.plannedMatches[0]?.played).toBe(true);
     }
   });
 

@@ -227,13 +227,13 @@ export class IndividualTrackerOverlayPresenter {
         icon: gameModeIconSrc(match.gameVariantCategory),
         teamColor: match.colorHex,
       }));
-      const upcomingTabs = activeSeries.plannedGames
-        .filter((game) => !game.played)
-        .map((game, index): OverlayTab => ({
+      const upcomingTabs = activeSeries.plannedMatches
+        .filter((match) => !match.played)
+        .map((match, index): OverlayTab => ({
           type: "upcoming",
           index: activeSeries.matches.length + index,
-          label: `${game.mode}: ${game.map}`,
-          icons: game.gameModeIconUrl != null ? [{ src: game.gameModeIconUrl, dimmed: false }] : [],
+          label: `${match.mode}: ${match.map}`,
+          icons: match.gameModeIconUrl != null ? [{ src: match.gameModeIconUrl, dimmed: false }] : [],
         }));
 
       if (!options.includeInSeriesSummaryTab) {
@@ -617,7 +617,7 @@ export class IndividualTrackerOverlayPresenter {
       guildIconUrl: renderModel.activeSeriesContext.guildIconUrl ?? null,
       isActive: true,
       teams: renderModel.activeSeriesContext.teams,
-      plannedGames: renderModel.activeSeriesContext.plannedGames ?? [],
+      plannedMatches: renderModel.activeSeriesContext.plannedMatches ?? [],
       matchBackgroundUrls: [],
       score: "0:0",
       duration: "unknown",

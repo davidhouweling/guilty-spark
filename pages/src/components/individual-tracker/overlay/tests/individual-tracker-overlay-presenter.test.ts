@@ -77,7 +77,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     startTime: overrides.startTime ?? "2026-01-01T00:00:00.000Z",
     endTime: overrides.endTime ?? "2026-01-01T00:30:00.000Z",
     matches,
-    plannedGames: overrides.plannedGames ?? [],
+    plannedMatches: overrides.plannedMatches ?? [],
     iconMatches: overrides.iconMatches ?? matches,
     colorHex: overrides.colorHex,
   };
@@ -155,9 +155,9 @@ describe("individual-tracker-overlay-presenter", () => {
         aMatchWith({ matchId: "a", gameVariantCategory: 6 }),
         aMatchWith({ matchId: "b", gameVariantCategory: 8 }),
       ],
-      plannedGames: [
-        { gameNumber: 1, mode: "Slayer", map: "Played Map", played: true, gameModeIconUrl: null },
-        { gameNumber: 2, mode: "Oddball", map: "Upcoming Map", played: false, gameModeIconUrl: null },
+      plannedMatches: [
+        { matchNumber: 1, mode: "Slayer", map: "Played Map", played: true, gameModeIconUrl: null },
+        { matchNumber: 2, mode: "Oddball", map: "Upcoming Map", played: false, gameModeIconUrl: null },
       ],
     });
     const model = presenter.present({
@@ -310,11 +310,11 @@ describe("individual-tracker-overlay-presenter", () => {
       id: "series-active",
       isActive: true,
       matches: [aMatchWith({ matchId: "m0", mapName: "Aquarius" }), aMatchWith({ matchId: "m1", mapName: "Streets" })],
-      plannedGames: [
-        { gameNumber: 1, mode: "Slayer", map: "Aquarius", played: true, gameModeIconUrl: null },
-        { gameNumber: 2, mode: "Slayer", map: "Streets", played: true, gameModeIconUrl: null },
-        { gameNumber: 3, mode: "Oddball", map: "Recharge", played: false, gameModeIconUrl: null },
-        { gameNumber: 4, mode: "Strongholds", map: "Origin", played: false, gameModeIconUrl: null },
+      plannedMatches: [
+        { matchNumber: 1, mode: "Slayer", map: "Aquarius", played: true, gameModeIconUrl: null },
+        { matchNumber: 2, mode: "Slayer", map: "Streets", played: true, gameModeIconUrl: null },
+        { matchNumber: 3, mode: "Oddball", map: "Recharge", played: false, gameModeIconUrl: null },
+        { matchNumber: 4, mode: "Strongholds", map: "Origin", played: false, gameModeIconUrl: null },
       ],
     });
 

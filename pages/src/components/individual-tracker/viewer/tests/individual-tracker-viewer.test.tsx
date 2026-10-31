@@ -190,17 +190,17 @@ describe("IndividualTrackerViewer", () => {
     renderViewer(view, "connected", true, new Set(["series:series-archive"]));
 
     const plannedMaps = screen.getByRole("list", { name: "Map plan for Archived Series" });
-    const [firstGame, secondGame, upcomingGame] = within(plannedMaps).getAllByRole("listitem");
-    expect(firstGame).toHaveTextContent("Game 1");
-    expect(firstGame).toHaveTextContent("Slayer");
-    expect(firstGame).toHaveTextContent("Actual Live Fire");
-    expect(firstGame).toHaveTextContent("Played");
-    expect(secondGame).toHaveTextContent("Actual Streets");
-    expect(secondGame).toHaveTextContent("Played");
-    expect(upcomingGame).toHaveTextContent("Game 3");
-    expect(upcomingGame).toHaveTextContent("Neutral Bomb");
-    expect(upcomingGame).toHaveTextContent("Recharge");
-    expect(upcomingGame).toHaveTextContent("Upcoming");
+    const [firstMatch, secondMatch, upcomingMatch] = within(plannedMaps).getAllByRole("listitem");
+    expect(firstMatch).toHaveTextContent("Match 1");
+    expect(firstMatch).toHaveTextContent("Slayer");
+    expect(firstMatch).toHaveTextContent("Actual Live Fire");
+    expect(firstMatch).toHaveTextContent("Played");
+    expect(secondMatch).toHaveTextContent("Actual Streets");
+    expect(secondMatch).toHaveTextContent("Played");
+    expect(upcomingMatch).toHaveTextContent("Match 3");
+    expect(upcomingMatch).toHaveTextContent("Neutral Bomb");
+    expect(upcomingMatch).toHaveTextContent("Recharge");
+    expect(upcomingMatch).toHaveTextContent("Upcoming");
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {

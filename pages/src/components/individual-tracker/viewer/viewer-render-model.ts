@@ -19,7 +19,7 @@ import type {
   IndividualTrackerViewerRenderModel,
   ViewerAccumulatedStats,
   ViewerMatchTab,
-  ViewerPlannedGame,
+  ViewerPlannedMatch,
   ViewerPreSeriesTableData,
   ViewerSeriesTeamPlayer,
   ViewerSeriesTeam,
@@ -101,16 +101,16 @@ function getSeriesTeams(
   return view.activeSeriesContext.teams.map(toViewerSeriesTeam);
 }
 
-function toViewerPlannedGames(
+function toViewerPlannedMatches(
   plannedMaps: TrackerSeriesGroup["plannedMaps"],
   playedMatches: readonly ViewerMatchTab[],
-): readonly ViewerPlannedGame[] {
+): readonly ViewerPlannedMatch[] {
   return (plannedMaps ?? []).map((planned, index) => {
     const playedMatch = playedMatches.at(index);
     const mode = playedMatch?.gameModeName ?? planned.mode;
 
     return {
-      gameNumber: index + 1,
+      matchNumber: index + 1,
       mode,
       map: playedMatch?.mapName ?? planned.map,
       played: playedMatch != null,
@@ -130,7 +130,7 @@ function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeries
     guildIconUrl: view.activeSeriesContext.guildIconUrl ?? null,
     startedAt: view.activeSeriesContext.startedAt,
     teams: view.activeSeriesContext.teams.map(toViewerSeriesTeam),
-    plannedGames: toViewerPlannedGames(view.activeSeriesContext.plannedMaps, []),
+    plannedMatches: toViewerPlannedMatches(view.activeSeriesContext.plannedMaps, []),
   };
 }
 
@@ -213,7 +213,7 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     startTime: activeSeriesContext.startedAt ?? view.lastUpdateTime,
     endTime: "",
     matches: [],
-    plannedGames: toViewerPlannedGames(activeSeriesContext.plannedMaps, []),
+    plannedMatches: toViewerPlannedMatches(activeSeriesContext.plannedMaps, []),
     iconMatches: [],
     colorHex: undefined,
   };
@@ -410,7 +410,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         endTime: seriesEndTime,
         matches: seriesMatches,
         iconMatches,
-        plannedGames: toViewerPlannedGames(plannedMaps, iconMatches),
+        plannedMatches: toViewerPlannedMatches(plannedMaps, iconMatches),
         colorHex: undefined,
       };
       const seriesWithPreSeriesData: ViewerSeriesTab =
