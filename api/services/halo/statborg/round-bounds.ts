@@ -16,16 +16,19 @@ interface RoundMark {
   endMs: number;
 }
 
-interface RoundEdges {
-  previousEnd: number;
-  nextStart: number;
+function sortedValues(values: Iterable<number>): number[] {
+  return [...values].sort((left, right) => left - right);
 }
 
-function median(values: Iterable<number>): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const lower = Preconditions.checkExists(sorted[Math.floor((sorted.length - 1) / 2)], "a median needs a value");
-  const upper = Preconditions.checkExists(sorted[Math.floor(sorted.length / 2)], "a median needs a value");
-  return (lower + upper) / 2;
+// the lower and upper medians sit on real emissions even when half the slots carry a stray
+function lowerMedian(values: Iterable<number>): number {
+  const sorted = sortedValues(values);
+  return Preconditions.checkExists(sorted[Math.floor((sorted.length - 1) / 2)], "a median needs a value");
+}
+
+function upperMedian(values: Iterable<number>): number {
+  const sorted = sortedValues(values);
+  return Preconditions.checkExists(sorted[Math.floor(sorted.length / 2)], "a median needs a value");
 }
 
 function latestAtOrBefore(values: readonly number[], ceiling: number): number | null {
@@ -83,45 +86,38 @@ function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
     .map((emissions) => ({
       round: emissions.round,
       timestamps: emissions.timestamps,
-      startMs: median(emissions.firstBySlot.values()),
-      endMs: median(emissions.lastBySlot.values()),
+      startMs: upperMedian(emissions.firstBySlot.values()),
+      endMs: lowerMedian(emissions.lastBySlot.values()),
     }))
     .sort((left, right) => left.round - right.round);
 }
 
-function marksFollowingTheClock(marks: readonly RoundMark[]): RoundMark[] {
+// rounds are played in order, so a round whose consensus overlaps the round before it is not one
+function marksInClockOrder(marks: readonly RoundMark[]): RoundMark[] {
   const kept: RoundMark[] = [];
   for (const mark of marks) {
-    if (mark.startMs >= (kept.at(-1)?.startMs ?? -Infinity)) {
+    if (mark.startMs > (kept.at(-1)?.endMs ?? -Infinity)) {
       kept.push(mark);
     }
   }
   return kept;
 }
 
-// a record is contradicted only beyond the other round's consensus, so slots that trail or lead
-// the consensus keep their emissions
-function edgesBetween(previous: RoundMark, next: RoundMark): RoundEdges | null {
-  if (previous.endMs >= next.startMs) {
-    return null;
-  }
-  return {
-    previousEnd: Preconditions.checkExists(
-      latestAtOrBefore(previous.timestamps, next.startMs),
-      "half the slots' last emissions precede the consensus end",
-    ),
-    nextStart: Preconditions.checkExists(
-      earliestAtOrAfter(next.timestamps, previous.endMs),
-      "half the slots' first emissions follow the consensus start",
-    ),
-  };
-}
-
 export function resolveRoundBounds(records: readonly StatRecord[]): RoundBounds[] {
-  const marks = marksFollowingTheClock(consensusRoundMarks(records));
-  const edges = marks
-    .slice(1)
-    .map((next, index) => edgesBetween(Preconditions.checkExists(marks[index], "index is within the marks"), next));
+  const marks = marksInClockOrder(consensusRoundMarks(records));
+  const edges = marks.slice(1).map((next, index) => {
+    const previous = Preconditions.checkExists(marks[index], "a next mark has a previous one");
+    return {
+      previousEnd: Preconditions.checkExists(
+        latestAtOrBefore(previous.timestamps, next.startMs),
+        "half the slots' last emissions precede the next consensus start",
+      ),
+      nextStart: Preconditions.checkExists(
+        earliestAtOrAfter(next.timestamps, previous.endMs),
+        "half the slots' first emissions follow the previous consensus end",
+      ),
+    };
+  });
   return marks.map((mark, index) => ({
     round: mark.round,
     startMs: edges[index - 1]?.nextStart ?? null,

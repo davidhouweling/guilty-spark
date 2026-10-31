@@ -13,7 +13,6 @@ function everySlot(round: number, timestamps: readonly number[], except: readonl
   return SLOTS.filter((slot) => !except.includes(slot)).flatMap((slot) => block(slot, round, timestamps));
 }
 
-// each slot leads or trails the consensus by its own offset, as real emissions do
 function everySlotStaggered(round: number, firstMs: number, lastMs: number): StatRecord[] {
   return SLOTS.flatMap((slot, index) => block(slot, round, [firstMs + index * 500, lastMs - index * 1_000]));
 }
@@ -121,24 +120,31 @@ describe("resolveRoundBounds", () => {
     ]);
   });
 
-  it("leaves both edges open when most slots carry a misdated regulation record", () => {
+  it("still closes the edge when half the slots carry a stray overtime record early in regulation", () => {
+    const records = [
+      ...everySlot(0, [1_000, 150_000]),
+      ...block(22, 0, [250_000]),
+      ...SLOTS.slice(0, 5).flatMap((slot) => block(slot, 1, [85_000])),
+      ...everySlot(1, [299_000, 320_000]),
+    ];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 250_000 },
+      { round: 1, startMs: 299_000, endMs: null },
+    ]);
+  });
+
+  it("drops a later round whose consensus overlaps the round before it", () => {
+    const records = [...everySlot(0, [1_000, 800_000]), ...everySlot(1, [770_000, 790_000])];
+    expect(resolveRoundBounds(records)).toEqual([{ round: 0, startMs: null, endMs: null }]);
+  });
+
+  it("leaves regulation unbounded when most slots carry a misdated regulation record", () => {
     const records = [
       ...everySlot(0, [1_000, 700_000]),
       ...SLOTS.slice(0, 6).flatMap((slot) => block(slot, 0, [800_000])),
       ...everySlot(1, [770_000, 790_000]),
     ];
-    expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: null },
-      { round: 1, startMs: null, endMs: null },
-    ]);
-  });
-
-  it("leaves both edges open when the rounds overlap", () => {
-    const records = [...everySlot(0, [1_000, 800_000]), ...everySlot(1, [770_000, 790_000])];
-    expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: null },
-      { round: 1, startMs: null, endMs: null },
-    ]);
+    expect(resolveRoundBounds(records)).toEqual([{ round: 0, startMs: null, endMs: null }]);
   });
 
   it("drops a consensus round whose start does not follow the clock", () => {
@@ -158,15 +164,19 @@ describe("resolveRoundBounds", () => {
     ]);
   });
 
-  it("keeps a later round whose consensus start ties the earlier round's", () => {
-    const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [1_000, 790_000])];
+  it("bounds regulation against overtime across a chance round numbered between them", () => {
+    const records = [
+      ...everySlot(0, [1_000, 700_000]),
+      ...SLOTS.slice(0, 6).flatMap((slot) => block(slot, 1, [300_000])),
+      ...everySlot(2, [770_000, 790_000]),
+    ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: null },
-      { round: 1, startMs: null, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 2, startMs: 770_000, endMs: null },
     ]);
   });
 
-  it("bounds only the separated pair when one pair of a three-round chain overlaps", () => {
+  it("drops the last round of a three-round chain when it overlaps the middle one", () => {
     const records = [
       ...everySlot(0, [1_000, 200_000]),
       ...everySlot(1, [300_000, 700_000]),
@@ -175,7 +185,6 @@ describe("resolveRoundBounds", () => {
     expect(resolveRoundBounds(records)).toEqual([
       { round: 0, startMs: null, endMs: 200_000 },
       { round: 1, startMs: 300_000, endMs: null },
-      { round: 2, startMs: null, endMs: null },
     ]);
   });
 
@@ -253,8 +262,11 @@ describe("filterRecordsByRoundBounds", () => {
     expect(kept).toHaveLength(SLOTS.length * 2);
   });
 
-  it("preserves record order", () => {
-    const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [770_000, 790_000])];
-    expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(records);
+  it("drops a chance round numbered between regulation and overtime along with the misdated record it hid", () => {
+    const chanceRound = SLOTS.slice(0, 6).flatMap((slot) => block(slot, 1, [300_000]));
+    const stray = block(12, 0, [800_000]);
+    const records = [...everySlot(0, [1_000, 700_000]), ...chanceRound, ...stray, ...everySlot(2, [770_000, 790_000])];
+    const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
+    expect(kept).toEqual(records.filter((record) => !chanceRound.includes(record) && !stray.includes(record)));
   });
 });
