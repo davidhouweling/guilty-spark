@@ -1,13 +1,6 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { REGULATION_ROUND } from "./types";
-import type { StatRecord } from "./types";
-
-// inclusive at both ends; null where nothing bounds the round
-export interface RoundBounds {
-  round: number;
-  startMs: number | null;
-  endMs: number | null;
-}
+import type { RoundBounds, StatRecord } from "./types";
 
 interface RoundEmissions {
   round: number;
@@ -78,8 +71,7 @@ function emissionsByRound(records: readonly StatRecord[]): Map<number, RoundEmis
   return byRound;
 }
 
-// every match has a regulation round; a real later round is declared by every active slot and a
-// chance match by one, and more than half the fullest round's slots separates the two
+// every match has a regulation round; any other is real when most slots declare it
 function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
   const rounds = [...emissionsByRound(records).values()];
   const fullest = Math.max(0, ...rounds.map((emissions) => emissions.firstBySlot.size));
@@ -104,10 +96,8 @@ function marksFollowingTheClock(marks: readonly RoundMark[]): RoundMark[] {
   return kept;
 }
 
-// The consensus brackets the intermission: the earlier round runs to its last emission before
-// the later round's consensus start, the later round from its first emission after the earlier
-// round's consensus end. A slot trailing or leading the consensus keeps its emissions; a record
-// beyond the other round's consensus is contradicted.
+// a record is contradicted only beyond the other round's consensus, so slots that trail or lead
+// the consensus keep their emissions
 function edgesBetween(previous: RoundMark, next: RoundMark): RoundEdges | null {
   if (previous.endMs >= next.startMs) {
     return null;

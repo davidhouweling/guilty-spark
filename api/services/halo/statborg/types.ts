@@ -14,6 +14,13 @@ export interface StatRecord {
 
 export const REGULATION_ROUND = 0;
 
+// a round's window on the film clock, inclusive at both ends; null where nothing bounds it
+export interface RoundBounds {
+  round: number;
+  startMs: number | null;
+  endMs: number | null;
+}
+
 export type StatSide = "a" | "b";
 
 export interface StatSlotKey {
