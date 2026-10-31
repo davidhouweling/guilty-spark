@@ -108,14 +108,8 @@ export function resolveRoundBounds(records: readonly StatRecord[]): RoundBounds[
   const edges = marks.slice(1).map((next, index) => {
     const previous = Preconditions.checkExists(marks[index], "a next mark has a previous one");
     return {
-      previousEnd: Preconditions.checkExists(
-        latestAtOrBefore(previous.timestamps, next.startMs),
-        "half the slots' last emissions precede the next consensus start",
-      ),
-      nextStart: Preconditions.checkExists(
-        earliestAtOrAfter(next.timestamps, previous.endMs),
-        "half the slots' first emissions follow the previous consensus end",
-      ),
+      previousEnd: latestAtOrBefore(previous.timestamps, next.startMs) ?? previous.endMs,
+      nextStart: earliestAtOrAfter(next.timestamps, previous.endMs) ?? next.startMs,
     };
   });
   return marks.map((mark, index) => ({
