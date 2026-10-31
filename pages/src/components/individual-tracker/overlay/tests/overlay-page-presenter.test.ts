@@ -38,6 +38,7 @@ function aSeriesTabWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesT
     subtitle: "Best of 3",
     isActive: false,
     teams: [],
+    seriesOverviewTeams: [],
     matchBackgroundUrls: [],
     score: "1:0",
     duration: "10m",

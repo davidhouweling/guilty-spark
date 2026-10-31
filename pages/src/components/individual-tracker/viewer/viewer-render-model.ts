@@ -38,6 +38,7 @@ const UNKNOWN_KDA_DISPLAY = "-:-:- (-)";
 const UNKNOWN_DAMAGE_RATIO_DISPLAY = "-:- (-)";
 const PENDING_ACTIVE_SERIES_ID_PREFIX = "pending-active-series";
 const PENDING_SERIES_SUMMARY_DISPLAY = "N/A";
+const DEFAULT_SERIES_TEAM_NAMES = ["Eagle", "Cobra"] as const;
 
 type ActiveSeriesContext = NonNullable<TrackerViewState["activeSeriesContext"]>;
 type ActiveSeriesTeam = ActiveSeriesContext["teams"][number];
@@ -100,6 +101,17 @@ function getSeriesTeams(
   }
 
   return view.activeSeriesContext.teams.map(toViewerSeriesTeam);
+}
+
+function toSeriesOverviewTeams(teams: readonly ViewerSeriesTeam[]): readonly ViewerSeriesTeam[] {
+  return DEFAULT_SERIES_TEAM_NAMES.map((defaultName, index) => {
+    const team = teams.at(index);
+    if (team == null) {
+      return { id: index, name: defaultName, players: [] };
+    }
+
+    return { ...team, name: team.name !== "" ? team.name : defaultName };
+  });
 }
 
 function toViewerPlannedMatches(
@@ -239,6 +251,7 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     guildIconUrl: activeSeriesContext.guildIconUrl ?? null,
     isActive: true,
     teams,
+    seriesOverviewTeams: toSeriesOverviewTeams(teams),
     preSeriesTableData: toPreSeriesTableData(teams),
     matchBackgroundUrls: [],
     score: "0:0",
@@ -428,6 +441,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
       const iconMatches = toIconMatches(seriesMatches, seriesSummaries);
       const plannedMaps =
         anchoredSeries.plannedMaps ?? (isCurrentActiveSeries ? view.activeSeriesContext?.plannedMaps : undefined);
+      const teams = getSeriesTeams(view, anchoredSeries, activeSeriesId);
       const plannedMatches = toViewerPlannedMatches(plannedMaps, iconMatches);
       const series: ViewerSeriesTab = {
         id: anchoredSeries.id,
@@ -435,7 +449,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         subtitle: anchoredSeries.subtitle,
         guildIconUrl: anchoredSeries.guildIconUrl ?? null,
         isActive: activeSeriesId != null ? anchoredSeries.id === activeSeriesId : false,
-        teams: getSeriesTeams(view, anchoredSeries, activeSeriesId),
+        teams,
+        seriesOverviewTeams: toSeriesOverviewTeams(teams),
         preSeriesTableData: undefined,
         matchBackgroundUrls:
           anchoredSeries.matchBackgroundUrls ?? seriesSummaries.map((summary) => summary.mapBackgroundUrl ?? "data:,"),

@@ -252,80 +252,129 @@
   margin: 0;
 }
 
-.seriesOverviewMatches {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
-  list-style: none;
-  margin: 0 0 var(--space-4);
+.seriesOverview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.seriesScores {
+  flex: 1;
+}
+
+.noticeFlexFill {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+}
+
+.seriesScoresHeader {
+  font-size: 3em;
+  margin: 0;
+  text-align: center;
+}
+
+.teamCard {
+  align-items: center;
+  background: var(--halo-bg-secondary);
+  background-color: color-mix(in srgb, var(--team-color, transparent) 20%, var(--halo-bg-secondary));
+  border: 2px solid var(--team-color, color-mix(in srgb, var(--halo-teal-primary) 25%, transparent));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-4);
+  position: relative;
+  text-align: center;
+}
+
+.teamName {
+  color: var(--halo-white);
+  font-family: var(--font-heading);
+  margin: 0 0 var(--space-3);
+}
+
+.playerList {
+  color: var(--halo-white);
+  list-style-type: none;
+  margin: 0;
   padding: 0;
 }
 
-.seriesOverviewMatch {
-  background-color: var(--halo-bg-secondary);
-  background-image:
-    linear-gradient(to bottom, var(--series-overview-overlay), var(--series-overview-overlay)),
-    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px),
-    var(--series-overview-bg);
-  background-position:
-    center,
-    0 0,
-    center;
-  background-repeat: no-repeat, repeat, no-repeat;
-  background-size:
-    100% 100%,
-    10px 10px,
-    cover;
-  border: 1px solid color-mix(in srgb, var(--series-overview-color) 45%, transparent);
+.seriesOverviewScoresList {
   color: var(--halo-white);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  justify-content: space-between;
-  min-height: 6rem;
-  min-width: 0;
-  padding: var(--space-3);
-  text-shadow: 0 1px 2px var(--halo-bg-secondary);
-
-  --series-overview-bg: none;
-  --series-overview-color: transparent;
-  --series-overview-overlay: color-mix(in srgb, var(--halo-bg-secondary) 28%, transparent);
+  gap: var(--space-4);
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
 }
 
-.seriesOverviewMatchUpcoming {
+.seriesOverviewScore {
+  background-color: var(--halo-bg-secondary);
+  background-image:
+    linear-gradient(to bottom, var(--series-score-overlay), var(--series-score-overlay)),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--team-color, transparent) 20%, transparent),
+      color-mix(in srgb, var(--team-color, transparent) 20%, transparent)
+    ),
+    radial-gradient(circle at 1px 1px, var(--series-score-dot) 1px, transparent 1.5px), var(--series-score-bg);
+  background-position:
+    center,
+    center,
+    0 0,
+    center;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-size:
+    100% 100%,
+    100% 100%,
+    10px 10px,
+    cover;
+  margin: 0;
+
+  --series-score-bg: none;
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 25%, transparent);
+  --series-score-dot: color-mix(in srgb, var(--halo-white) 15%, transparent);
+}
+
+.seriesOverviewScoreUpcoming {
+  --team-color: var(--halo-gray);
+  --series-score-overlay: color-mix(in srgb, var(--halo-bg-secondary) 45%, transparent);
+}
+
+.seriesOverviewScoreUpcoming .seriesOverviewScoreLink {
   color: var(--halo-gray);
-
-  --series-overview-overlay: color-mix(in srgb, var(--halo-bg-secondary) 52%, transparent);
 }
 
-.seriesOverviewMatchHeader,
-.seriesOverviewMatchDetails {
+.seriesOverviewScoreLink {
   align-items: center;
+  border: 2px solid var(--team-color, color-mix(in srgb, var(--halo-teal-primary) 25%, transparent));
+  color: inherit;
   display: flex;
-  gap: var(--space-2);
-  justify-content: space-between;
-  min-width: 0;
+  flex-direction: column;
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  height: 100%;
+  justify-content: center;
+  padding: var(--space-4);
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  text-shadow:
+    0 1px 2px var(--halo-bg-secondary),
+    0 0 10px var(--halo-bg-secondary);
 }
 
-.seriesOverviewMatchHeader {
-  color: var(--halo-gray);
-  font-size: var(--text-xs);
+.seriesOverviewGameTypeIcon {
+  height: 60px;
+  width: 60px;
 }
 
-.seriesOverviewMatchHeader strong {
-  color: var(--halo-white);
-  font-size: var(--text-lg);
-}
-
-.seriesOverviewMatchDetails {
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
-}
-
-.seriesOverviewMatchIcon {
-  flex: 0 0 auto;
-  height: 1.5rem;
-  width: 1.5rem;
+.seriesOverviewGameTypeAndMap {
+  display: block;
+  font-size: var(--text-base);
 }
 
 .jumpToLatestButton {
@@ -363,9 +412,34 @@
     justify-content: flex-end;
     max-width: 92px;
   }
+
+  .seriesOverview {
+    flex-direction: row;
+
+    > :nth-child(1) {
+      order: 2;
+    }
+
+    > :nth-child(2) {
+      order: 1;
+    }
+
+    > :nth-child(3) {
+      order: 3;
+    }
+  }
 }
 
 @media (--desktop-viewport) {
+  .seriesOverviewScoresList {
+    flex-direction: row;
+    gap: var(--space-4);
+  }
+
+  .seriesOverviewScore {
+    flex: 1;
+  }
+
   .entryHeaderRight {
     align-items: center;
     flex-direction: row;

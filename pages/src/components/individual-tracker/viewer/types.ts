@@ -36,6 +36,7 @@ export interface ViewerSeriesTab {
   readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
+  readonly seriesOverviewTeams: readonly ViewerSeriesTeam[];
   readonly preSeriesTableData?: ViewerPreSeriesTableData;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
