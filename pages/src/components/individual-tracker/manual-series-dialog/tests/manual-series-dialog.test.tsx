@@ -30,11 +30,11 @@ const mapGeneratorOptions: ManualSeriesDialogMapGeneratorOptions = {
 
 function presentPlannedMaps(snapshot: ReturnType<ManualSeriesDialogStore["getSnapshot"]>): PlannedMapRow[] {
   return snapshot.plannedMaps.map((map, index) => {
-    const gameLabel = `Game ${(index + 1).toString()}`;
+    const matchLabel = `Match ${(index + 1).toString()}`;
     return {
       index,
-      gameLabel,
-      removeLabel: `Remove ${gameLabel}: ${map.mode} on ${map.map}`,
+      matchLabel,
+      removeLabel: `Remove ${matchLabel}: ${map.mode} on ${map.map}`,
       mode: map.mode,
       map: map.map,
     };
@@ -141,15 +141,15 @@ describe("ManualSeriesDialog", () => {
 
     const mapList = screen.getByRole("list", { name: "Selected map plan" });
     expect(within(mapList).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(mapList).getByRole("textbox", { name: "Game 1 mode" })).toHaveValue("Slayer");
-    expect(within(mapList).getByRole("textbox", { name: "Game 1 map" })).toHaveValue("Live Fire");
-    expect(within(mapList).getByRole("textbox", { name: "Game 2 mode" })).toHaveValue("Oddball");
-    expect(within(mapList).getByRole("textbox", { name: "Game 2 map" })).toHaveValue("Recharge");
+    expect(within(mapList).getByRole("textbox", { name: "Match 1 mode" })).toHaveValue("Slayer");
+    expect(within(mapList).getByRole("textbox", { name: "Match 1 map" })).toHaveValue("Live Fire");
+    expect(within(mapList).getByRole("textbox", { name: "Match 2 mode" })).toHaveValue("Oddball");
+    expect(within(mapList).getByRole("textbox", { name: "Match 2 map" })).toHaveValue("Recharge");
     expect(
       within(mapList)
-        .getAllByRole("button", { name: /^Remove Game/ })
+        .getAllByRole("button", { name: /^Remove Match/ })
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["Remove Game 1: Slayer on Live Fire", "Remove Game 2: Oddball on Recharge"]);
+    ).toEqual(["Remove Match 1: Slayer on Live Fire", "Remove Match 2: Oddball on Recharge"]);
   });
 
   it("forwards individual slot edits to the callbacks", () => {
@@ -181,8 +181,8 @@ describe("ManualSeriesDialog", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("textbox", { name: "Game 1 mode" }), { target: { value: "Oddball" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "Game 1 map" }), { target: { value: "Streets" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Match 1 mode" }), { target: { value: "Oddball" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Match 1 map" }), { target: { value: "Streets" } });
 
     expect(onPlannedMapModeChange).toHaveBeenCalledWith(0, "Oddball");
     expect(onPlannedMapNameChange).toHaveBeenCalledWith(0, "Streets");
@@ -397,7 +397,7 @@ describe("ManualSeriesDialog (backfill interaction simulation)", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Add existing custom games" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add existing custom matches" }));
 
     await waitFor(() => {
       expect(onSearchGamertag).toHaveBeenCalledWith("Alpha");

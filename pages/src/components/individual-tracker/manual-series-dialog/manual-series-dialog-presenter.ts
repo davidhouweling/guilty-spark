@@ -108,11 +108,11 @@ export class ManualSeriesDialogPresenter {
   public presentPlannedMaps(plannedMaps: readonly LiveTrackerMap[]): readonly PlannedMapRow[] {
     const rows: PlannedMapRow[] = [];
     for (const [index, map] of plannedMaps.entries()) {
-      const gameLabel = `Game ${(index + 1).toString()}`;
+      const matchLabel = `Match ${(index + 1).toString()}`;
       rows.push({
         index,
-        gameLabel,
-        removeLabel: `Remove ${gameLabel}: ${map.mode} on ${map.map}`,
+        matchLabel,
+        removeLabel: `Remove ${matchLabel}: ${map.mode} on ${map.map}`,
         mode: map.mode,
         map: map.map,
       });
@@ -296,7 +296,7 @@ export class ManualSeriesDialogPresenter {
         .filter((m) => !m.isMatchmaking)
         .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
         .map(summaryToHistoryEntry);
-      const error = entries.length === 0 ? "No custom game matches found for this tracker yet." : null;
+      const error = entries.length === 0 ? "No custom matches found for this tracker yet." : null;
       this.config.store.setBackfillDone(entries, null, error);
     } catch (err) {
       if (this.checkDisposed()) {
@@ -318,7 +318,7 @@ export class ManualSeriesDialogPresenter {
     const snapshot = this.config.store.getSnapshot();
     const plannedMapsResult = liveTrackerMapSchema.array().safeParse(snapshot.plannedMaps);
     if (!plannedMapsResult.success) {
-      this.config.store.setSubmitError("Each planned game must have a valid mode and map.");
+      this.config.store.setSubmitError("Each planned match must have a valid mode and map.");
       return;
     }
     this.config.store.setBusy(true);

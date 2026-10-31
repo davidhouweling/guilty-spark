@@ -221,7 +221,7 @@ export function ManualSeriesDialog({
                 </Select>
               </label>
               <label className={styles.mapGeneratorField}>
-                Games
+                Matches
                 <Select
                   aria-label="Number of maps"
                   value={snapshot.mapCount.toString()}
@@ -250,9 +250,9 @@ export function ManualSeriesDialog({
               <ol className={styles.plannedMapsList} aria-label="Selected map plan">
                 {plannedMapRows.map((map) => (
                   <li key={map.index.toString()} className={styles.plannedMapRow}>
-                    <span className={styles.plannedMapNumber}>{map.gameLabel}</span>
+                    <span className={styles.plannedMapNumber}>{map.matchLabel}</span>
                     <Input
-                      label={`${map.gameLabel} mode`}
+                      label={`${map.matchLabel} mode`}
                       value={map.mode}
                       containerClassName={styles.plannedMapField}
                       disabled={snapshot.busy || isMapGenerationLoading}
@@ -261,7 +261,7 @@ export function ManualSeriesDialog({
                       }}
                     />
                     <Input
-                      label={`${map.gameLabel} map`}
+                      label={`${map.matchLabel} map`}
                       value={map.map}
                       containerClassName={styles.plannedMapField}
                       disabled={snapshot.busy || isMapGenerationLoading}
@@ -316,7 +316,7 @@ export function ManualSeriesDialog({
 
           <div className={styles.sectionHeader}>
             <Button variant="secondary" onClick={onDiscoverBackfill} disabled={snapshot.busy || isBackfillLoading}>
-              {isBackfillLoading ? "Searching..." : "Add existing custom games"}
+              {isBackfillLoading ? "Searching..." : "Add existing custom matches"}
             </Button>
           </div>
 

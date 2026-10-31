@@ -241,15 +241,15 @@ describe("ManualSeriesDialogPresenter", () => {
       ).toEqual([
         {
           index: 0,
-          gameLabel: "Game 1",
-          removeLabel: "Remove Game 1: Slayer on Live Fire",
+          matchLabel: "Match 1",
+          removeLabel: "Remove Match 1: Slayer on Live Fire",
           mode: "Slayer",
           map: "Live Fire",
         },
         {
           index: 1,
-          gameLabel: "Game 2",
-          removeLabel: "Remove Game 2: Oddball on Recharge",
+          matchLabel: "Match 2",
+          removeLabel: "Remove Match 2: Oddball on Recharge",
           mode: "Oddball",
           map: "Recharge",
         },
@@ -291,7 +291,7 @@ describe("ManualSeriesDialogPresenter", () => {
       presenter.startSeries();
 
       expect(startSeriesSpy).not.toHaveBeenCalled();
-      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
+      expect(store.getSnapshot().submitError).toBe("Each planned match must have a valid mode and map.");
     });
 
     it.each(MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS)(
@@ -311,7 +311,7 @@ describe("ManualSeriesDialogPresenter", () => {
 
     it("clears stale validation errors when the map plan is replaced", () => {
       const { presenter, store } = buildPresenter(aFakeIndividualTrackerServiceWith());
-      store.setSubmitError("Each planned game must have a valid mode and map.");
+      store.setSubmitError("Each planned match must have a valid mode and map.");
 
       presenter.setMapPlaylist("H");
       presenter.setMapFormat("R");
@@ -418,7 +418,7 @@ describe("ManualSeriesDialogPresenter", () => {
 
       expect(startSeriesSpy).not.toHaveBeenCalled();
       expect(store.getSnapshot().busy).toBe(false);
-      expect(store.getSnapshot().submitError).toBe("Each planned game must have a valid mode and map.");
+      expect(store.getSnapshot().submitError).toBe("Each planned match must have a valid mode and map.");
     });
 
     it("sets submitError when startSeries fails", async () => {

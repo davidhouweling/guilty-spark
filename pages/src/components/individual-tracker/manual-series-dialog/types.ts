@@ -13,7 +13,7 @@ export interface ManualSeriesDialogMapGeneratorOptions {
 
 export interface PlannedMapRow {
   readonly index: number;
-  readonly gameLabel: string;
+  readonly matchLabel: string;
   readonly removeLabel: string;
   readonly mode: string;
   readonly map: string;
