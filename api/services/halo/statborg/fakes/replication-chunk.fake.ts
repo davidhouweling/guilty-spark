@@ -17,7 +17,6 @@ export interface StatRecordSpec {
   slot: number;
   components: StatComponentSpec[];
   round?: number | undefined;
-  secondRoundHeader?: number | undefined;
   dense?: boolean | undefined;
 }
 
@@ -67,18 +66,21 @@ function writeSparseComponentList(writer: BitWriter, components: readonly StatCo
   }
 }
 
+const DENSE_MASK_BITS = 64;
+
 function writeDenseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
-  writer.write(1, 1);
   const indices = new Set(components.map((component) => component.index));
-  for (let index = 63; index >= 0; index--) {
+  if ([...indices].some((index) => index >= DENSE_MASK_BITS)) {
+    throw new Error(`A dense mask addresses components 0 to ${String(DENSE_MASK_BITS - 1)}`);
+  }
+  writer.write(1, 1);
+  for (let index = DENSE_MASK_BITS - 1; index >= 0; index--) {
     writer.write(indices.has(index) ? 1 : 0, 1);
   }
 }
 
 function componentsInWireOrder(record: StatRecordSpec): StatComponentSpec[] {
-  return record.dense === true
-    ? [...record.components].sort((left, right) => left.index - right.index)
-    : record.components;
+  return [...record.components].sort((left, right) => left.index - right.index);
 }
 
 function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number): void {
@@ -93,7 +95,7 @@ function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number)
   }
   const round = record.round ?? 0;
   for (const component of components) {
-    const [first, second] = component.headers ?? [round, record.secondRoundHeader ?? round];
+    const [first, second] = component.headers ?? [round, round];
     writer.write(first, 5);
     writer.write(second, 5);
     writer.writeSigned(component.a);

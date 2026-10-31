@@ -108,9 +108,7 @@ describe("scanFrameForStatRecords", () => {
   });
 
   it("rejects a record whose two round headers disagree", () => {
-    const payload = buildFramePayload([
-      { slot: 12, round: 1, secondRoundHeader: 0, components: [{ index: 2, a: 3, b: 1 }] },
-    ]);
+    const payload = buildFramePayload([{ slot: 12, components: [{ index: 2, a: 3, b: 1, headers: [1, 0] }] }]);
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
   });
 
@@ -195,12 +193,12 @@ describe("scanFrameForStatRecords", () => {
 
   it("rejects a dense record whose payload ends inside the mask", () => {
     const payload = buildFramePayload([{ slot: 6, dense: true, components: [{ index: 2, a: 1, b: 1 }] }]);
-    expect(scanFrameForStatRecords(payload.subarray(0, 7), 0)).toEqual([]);
+    expect(scanFrameForStatRecords(payload.subarray(0, 9), 0)).toEqual([]);
   });
 
   it("rejects a dense record whose round headers disagree", () => {
     const payload = buildFramePayload([
-      { slot: 6, dense: true, round: 1, secondRoundHeader: 0, components: [{ index: 2, a: 1, b: 1 }] },
+      { slot: 6, dense: true, components: [{ index: 2, a: 1, b: 1, headers: [1, 0] }] },
     ]);
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
   });
