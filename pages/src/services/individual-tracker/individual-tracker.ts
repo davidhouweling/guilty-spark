@@ -6,6 +6,7 @@ import type {
 import { trackerProfileContract } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import { searchEsraContract } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
+import { generateMapsContract } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type {
   StartTrackerRequest,
   TrackerResponse,
@@ -46,6 +47,7 @@ import {
 import { RealTrackerViewConnection } from "./view-connection";
 import type {
   EditSeriesRequest,
+  GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
   StartSeriesRequest,
@@ -458,6 +460,9 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
           subtitleOverride: request.subtitleOverride,
           teams: request.teams,
           ...(request.matchIds != null && request.matchIds.length > 0 ? { matchIds: [...request.matchIds] } : {}),
+          ...(request.plannedMaps != null && request.plannedMaps.length > 0
+            ? { plannedMaps: [...request.plannedMaps] }
+            : {}),
         }),
       },
     );
@@ -467,6 +472,25 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     return response.json<StartSeriesResponse>();
+  }
+
+  public async generateMaps(request: GenerateMapsRequest): Promise<readonly { mode: string; map: string }[]> {
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/${encodeURIComponent(request.trackerId)}/generate-maps`),
+      {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlist: request.playlist, format: request.format, count: request.count }),
+      },
+    );
+
+    if (!response.ok) {
+      throw await this.readError(response);
+    }
+
+    const result = await generateMapsContract.fromResponse(response);
+    return result.maps;
   }
 
   private async getMatchStats(matchId: string): Promise<MatchStats | null> {
