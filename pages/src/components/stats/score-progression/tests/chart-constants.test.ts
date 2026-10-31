@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { formatScoreValue, roundPercent, scoreAxisProps, scoreTickFormatter } from "../chart-constants";
+import {
+  flagAdvantageAxisProps,
+  formatScoreValue,
+  roundPercent,
+  scoreAxisProps,
+  scoreTickFormatter,
+} from "../chart-constants";
 
 describe("roundPercent", () => {
   it("rounds a lead and its mirror image to the same magnitude", () => {
     expect(roundPercent(12.5)).toBe(13);
     expect(roundPercent(-12.5)).toBe(-13);
     expect(roundPercent(0.4)).toBe(0);
+  });
+
+  it("never returns negative zero", () => {
+    expect(Object.is(roundPercent(-0.3), 0)).toBe(true);
   });
 });
 
@@ -33,5 +43,15 @@ describe("scoreAxisProps", () => {
     expect(props.width).toBe(36);
     expect(scoreTickFormatter("points")).toBe(scoreTickFormatter("points"));
     expect(scoreTickFormatter("percent")).toBe(scoreTickFormatter("percent"));
+  });
+});
+
+describe("flagAdvantageAxisProps", () => {
+  it("keeps the shared sign so the first team's lead draws upward, with unsigned ticks", () => {
+    const props = flagAdvantageAxisProps([-3, 3]);
+    expect(props).not.toHaveProperty("reversed");
+    expect(props.domain).toEqual([-3, 3]);
+    expect(props.tickFormatter(-2)).toBe("2");
+    expect(props.tickFormatter(2)).toBe("2");
   });
 });
