@@ -3,10 +3,12 @@ export interface StatValue {
   b: number;
 }
 
-// Slots 6 and 8 are the two teams, 10..24 (even) the eight players.
+// Slots 6 and 8 are the two teams, 10..24 (even) the eight players. Every counter restarts at
+// zero in each round, so a record's round is part of its identity.
 export interface StatRecord {
   timestampMs: number;
   slot: number;
+  round: number;
   components: Map<number, StatValue>;
 }
 

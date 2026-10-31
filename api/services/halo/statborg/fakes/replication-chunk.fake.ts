@@ -10,11 +10,16 @@ export interface StatComponentSpec {
   // conditional values gated by the component's two flag bits
   conditionalA?: number | undefined;
   conditionalB?: number | undefined;
+  // overrides the record's round headers on this component alone
+  headers?: readonly [number, number] | undefined;
 }
 
 export interface StatRecordSpec {
   slot: number;
   components: StatComponentSpec[];
+  round?: number | undefined;
+  secondRoundHeader?: number | undefined;
+  dense?: boolean | undefined;
 }
 
 export interface FrameSpec {
@@ -50,18 +55,36 @@ export class BitWriter {
   }
 }
 
+function writeSparseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
+  writer.write(0, 1);
+  writer.write(components.length, 3);
+  for (const component of components) {
+    writer.write(component.index, 6);
+  }
+}
+
+function writeDenseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
+  writer.write(1, 1);
+  const indices = new Set(components.map((component) => component.index));
+  for (let index = 63; index >= 0; index--) {
+    writer.write(indices.has(index) ? 1 : 0, 1);
+  }
+}
+
 function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number): void {
   writer.write(1, 1);
   writer.write(record.slot, 14);
   writer.write(0b10, 2);
-  writer.write(0, 1);
-  writer.write(record.components.length, 3);
-  for (const component of record.components) {
-    writer.write(component.index, 6);
+  if (record.dense === true) {
+    writeDenseComponentList(writer, record.components);
+  } else {
+    writeSparseComponentList(writer, record.components);
   }
+  const round = record.round ?? 0;
   for (const component of record.components) {
-    writer.write(0, 5);
-    writer.write(0, 5);
+    const [first, second] = component.headers ?? [round, record.secondRoundHeader ?? round];
+    writer.write(first, 5);
+    writer.write(second, 5);
     writer.writeSigned(component.a);
     writer.writeSigned(component.b);
     writer.write(component.conditionalA == null ? 0 : 1, 1);
