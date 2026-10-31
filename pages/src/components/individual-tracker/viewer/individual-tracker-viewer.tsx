@@ -19,6 +19,7 @@ import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
+import { PlayerName } from "../../player-name/player-name";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import {
@@ -622,61 +623,118 @@ export function IndividualTrackerViewer({
                   >
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
-                        <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
-                          {series.matches.length === 0 ? (
-                            <div className={styles.preSeriesPanel}>
+                        <Container>
+                          <div className={styles.seriesOverview}>
+                            <section className={styles.seriesScores}>
+                              <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
+                                {series.matches.length > 0 ? series.score : "0:0"}
+                              </Heading>
+                              {series.seriesOverviewMatches.length > 0 && (
+                                <ul className={styles.seriesOverviewScoresList} aria-label="Series score tiles">
+                                  {series.seriesOverviewMatches.map((match) => (
+                                    <li
+                                      key={`${match.matchNumber.toString()}-${match.isUpcoming ? "upcoming" : "played"}`}
+                                      className={classNames(
+                                        styles.seriesOverviewScore,
+                                        match.isUpcoming && styles.seriesOverviewScoreUpcoming,
+                                      )}
+                                      style={
+                                        {
+                                          "--series-score-bg": `url(${match.mapBackgroundUrl})`,
+                                          "--team-color": match.colorHex ?? "transparent",
+                                        } as React.CSSProperties
+                                      }
+                                    >
+                                      <div className={styles.seriesOverviewScoreLink}>
+                                        {match.gameModeIconUrl != null && (
+                                          <img
+                                            src={match.gameModeIconUrl}
+                                            alt={match.isUpcoming ? "" : match.mode}
+                                            className={styles.seriesOverviewGameTypeIcon}
+                                          />
+                                        )}
+                                        {match.score != null && <strong>{match.score}</strong>}
+                                        <span className={styles.seriesOverviewGameTypeAndMap}>
+                                          {match.isUpcoming ? `${match.mode}: ${match.map}` : match.map}
+                                        </span>
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </section>
+                            {series.seriesOverviewTeams.map((team, teamIndex) => (
+                              <section
+                                key={team.id}
+                                className={styles.teamCard}
+                                style={
+                                  {
+                                    "--team-color": renderModel.teamColors[teamIndex]?.hex ?? "transparent",
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <Heading tagName="h3" className={styles.teamName}>
+                                  {team.name}
+                                </Heading>
+                                {team.players.length > 0 && (
+                                  <ul className={styles.playerList}>
+                                    {team.players.map((player, playerIndex) => (
+                                      <li
+                                        key={
+                                          player.discordId ??
+                                          player.xboxId ??
+                                          `${team.id.toString()}:${playerIndex.toString()}`
+                                        }
+                                      >
+                                        <PlayerName
+                                          discordName={player.discordName ?? player.gamertag ?? "Unknown"}
+                                          gamertag={player.gamertag}
+                                          showIcons={true}
+                                        />
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </section>
+                            ))}
+                          </div>
+                        </Container>
+                        {series.matches.length === 0 ? (
+                          <>
+                            <Container>
                               <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
-                              {series.preSeriesTableData != null && series.teams.length > 0 && (
+                            </Container>
+                            {series.preSeriesTableData != null && series.teams.length > 0 && (
+                              <Container>
                                 <PlayerPreSeriesInfo
                                   className={styles.preSeriesInfo}
                                   teams={series.preSeriesTableData.teams}
                                   playersAssociationData={series.preSeriesTableData.playersAssociationData}
                                   teamColors={renderModel.teamColors}
                                 />
-                              )}
-                            </div>
-                          ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
-                            <LoadingState text="Loading series stats..." />
-                          ) : state.kind === "series" && state.state.status === "error" ? (
-                            <Alert variant="error">{state.state.message}</Alert>
-                          ) : state.kind === "series" && state.state.status === "loaded" ? (
-                            <SeriesStatsView
-                              {...state.state.viewModel}
-                              noGutter={true}
-                              wide={true}
-                              onAnalyticsTabSelected={(module): void => {
-                                onLoadAnalytics?.(item, module);
-                              }}
-                            />
-                          ) : (
-                            <Alert variant="error">Unexpected entry state.</Alert>
-                          )}
-                          {series.plannedMatches.length > 0 && (
-                            <section className={styles.plannedMaps}>
-                              <h3 className={styles.plannedMapsTitle}>Map plan</h3>
-                              <ol className={styles.plannedMapsList} aria-label={`Map plan for ${series.title}`}>
-                                {series.plannedMatches.map((match) => (
-                                  <li
-                                    key={match.matchNumber}
-                                    className={classNames(styles.plannedMap, match.played && styles.plannedMapPlayed)}
-                                  >
-                                    <span className={styles.plannedMapNumber}>Match {match.matchNumber}</span>
-                                    <span className={styles.plannedMapDetails}>
-                                      {match.gameModeIconUrl != null && (
-                                        <img src={match.gameModeIconUrl} alt="" className={styles.plannedMapIcon} />
-                                      )}
-                                      <strong>{match.mode}</strong>
-                                      <span>{match.map}</span>
-                                    </span>
-                                    <span className={styles.plannedMapStatus}>
-                                      {match.played ? "Played" : "Upcoming"}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ol>
-                            </section>
-                          )}
-                        </Container>
+                              </Container>
+                            )}
+                          </>
+                        ) : (
+                          <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
+                            {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                              <LoadingState text="Loading series stats..." />
+                            ) : state.kind === "series" && state.state.status === "error" ? (
+                              <Alert variant="error">{state.state.message}</Alert>
+                            ) : state.kind === "series" && state.state.status === "loaded" ? (
+                              <SeriesStatsView
+                                {...state.state.viewModel}
+                                noGutter={true}
+                                wide={true}
+                                onAnalyticsTabSelected={(module): void => {
+                                  onLoadAnalytics?.(item, module);
+                                }}
+                              />
+                            ) : (
+                              <Alert variant="error">Unexpected entry state.</Alert>
+                            )}
+                          </Container>
+                        )}
                       </div>
                     </div>
                   </CSSTransition>
