@@ -189,18 +189,15 @@ describe("IndividualTrackerViewer", () => {
 
     renderViewer(view, "connected", true, new Set(["series:series-archive"]));
 
-    const seriesMatches = screen.getByRole("list", { name: "Series matches for Archived Series" });
+    const seriesMatches = screen.getByRole("list", { name: "Series score tiles" });
     const [firstMatch, secondMatch, upcomingMatch] = within(seriesMatches).getAllByRole("listitem");
-    expect(firstMatch).toHaveTextContent("Match 1");
-    expect(firstMatch).toHaveTextContent("Slayer");
     expect(firstMatch).toHaveTextContent("Actual Live Fire");
     expect(firstMatch).not.toHaveTextContent("Upcoming");
     expect(secondMatch).toHaveTextContent("Actual Streets");
-    expect(upcomingMatch).toHaveTextContent("Match 3");
-    expect(upcomingMatch).toHaveTextContent("Neutral Bomb");
-    expect(upcomingMatch).toHaveTextContent("Recharge");
-    expect(upcomingMatch).toHaveTextContent("Upcoming");
+    expect(upcomingMatch).toHaveTextContent("Neutral Bomb: Recharge");
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {
@@ -539,13 +536,13 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText("No matches tracked yet.")).not.toBeInTheDocument();
     expect(screen.getByText("Series is active and waiting for the first tracked match.")).toBeInTheDocument();
     expect(screen.getByText("Player Info")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Beta" })).toBeInTheDocument();
     expect(screen.getByLabelText("Player information")).toBeInTheDocument();
-    expect(screen.getByText("AlphaOne")).toBeInTheDocument();
+    expect(screen.getAllByText("AlphaOne").length).toBeGreaterThan(0);
     expect(screen.getAllByText("BetaTag").length).toBeGreaterThan(0);
     expect(screen.getByText("In progress")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Series matches for Ranked Series" })).toHaveTextContent(
-      "UpcomingSlayer: Live Fire",
-    );
+    expect(screen.getByRole("list", { name: "Series score tiles" })).toHaveTextContent("Slayer: Live Fire");
   });
 
   it("renders additional tracked matches message when active pre-series has no grouped series matches", () => {

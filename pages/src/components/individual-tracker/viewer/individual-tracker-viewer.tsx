@@ -19,6 +19,7 @@ import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
+import { PlayerName } from "../../player-name/player-name";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import {
@@ -623,47 +624,88 @@ export function IndividualTrackerViewer({
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
                         <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
-                          {series.seriesOverviewMatches.length > 0 && (
-                            <ul
-                              className={styles.seriesOverviewMatches}
-                              aria-label={`Series matches for ${series.title}`}
-                            >
-                              {series.seriesOverviewMatches.map((match) => (
-                                <li
-                                  key={`${match.matchNumber.toString()}-${match.isUpcoming ? "upcoming" : "played"}`}
-                                  className={classNames(
-                                    styles.seriesOverviewMatch,
-                                    match.isUpcoming && styles.seriesOverviewMatchUpcoming,
-                                  )}
-                                  style={
-                                    {
-                                      "--series-overview-bg": `url(${match.mapBackgroundUrl})`,
-                                      "--series-overview-color": match.colorHex ?? "transparent",
-                                    } as React.CSSProperties
-                                  }
-                                >
-                                  <div className={styles.seriesOverviewMatchHeader}>
-                                    <span>Match {match.matchNumber}</span>
-                                    {match.score != null && <strong>{match.score}</strong>}
-                                    {match.isUpcoming && <span>Upcoming</span>}
-                                  </div>
-                                  <div className={styles.seriesOverviewMatchDetails}>
-                                    {match.gameModeIconUrl != null && (
-                                      <img
-                                        src={match.gameModeIconUrl}
-                                        alt=""
-                                        className={styles.seriesOverviewMatchIcon}
-                                      />
-                                    )}
-                                    <span>{`${match.mode}: ${match.map}`}</span>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <div className={styles.seriesOverview}>
+                            <section className={styles.seriesScores}>
+                              {series.matches.length > 0 ? (
+                                <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
+                                  {series.score}
+                                </Heading>
+                              ) : (
+                                <div className={styles.noticeFlexFill}>
+                                  <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
+                                </div>
+                              )}
+                              {series.seriesOverviewMatches.length > 0 && (
+                                <ul className={styles.seriesOverviewScoresList} aria-label="Series score tiles">
+                                  {series.seriesOverviewMatches.map((match) => (
+                                    <li
+                                      key={`${match.matchNumber.toString()}-${match.isUpcoming ? "upcoming" : "played"}`}
+                                      className={classNames(
+                                        styles.seriesOverviewScore,
+                                        match.isUpcoming && styles.seriesOverviewScoreUpcoming,
+                                      )}
+                                      style={
+                                        {
+                                          "--series-score-bg": `url(${match.mapBackgroundUrl})`,
+                                          "--team-color": match.colorHex ?? "transparent",
+                                        } as React.CSSProperties
+                                      }
+                                    >
+                                      <div className={styles.seriesOverviewScoreLink}>
+                                        {match.gameModeIconUrl != null && (
+                                          <img
+                                            src={match.gameModeIconUrl}
+                                            alt={match.isUpcoming ? "" : match.mode}
+                                            className={styles.seriesOverviewGameTypeIcon}
+                                          />
+                                        )}
+                                        {match.score != null && <strong>{match.score}</strong>}
+                                        <span className={styles.seriesOverviewGameTypeAndMap}>
+                                          {match.isUpcoming ? `${match.mode}: ${match.map}` : match.map}
+                                        </span>
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </section>
+                            {series.seriesOverviewTeams.map((team, teamIndex) => (
+                              <section
+                                key={team.id}
+                                className={styles.teamCard}
+                                style={
+                                  {
+                                    "--team-color": renderModel.teamColors[teamIndex]?.hex ?? "transparent",
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <Heading tagName="h3" className={styles.teamName}>
+                                  {team.name}
+                                </Heading>
+                                {team.players.length > 0 && (
+                                  <ul className={styles.playerList}>
+                                    {team.players.map((player, playerIndex) => (
+                                      <li
+                                        key={
+                                          player.discordId ??
+                                          player.xboxId ??
+                                          `${team.id.toString()}:${playerIndex.toString()}`
+                                        }
+                                      >
+                                        <PlayerName
+                                          discordName={player.discordName ?? player.gamertag ?? "Unknown"}
+                                          gamertag={player.gamertag}
+                                          showIcons={true}
+                                        />
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </section>
+                            ))}
+                          </div>
                           {series.matches.length === 0 ? (
                             <div className={styles.preSeriesPanel}>
-                              <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
                               {series.preSeriesTableData != null && series.teams.length > 0 && (
                                 <PlayerPreSeriesInfo
                                   className={styles.preSeriesInfo}
