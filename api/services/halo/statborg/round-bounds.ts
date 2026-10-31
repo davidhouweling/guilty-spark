@@ -96,7 +96,7 @@ function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
 function marksInClockOrder(marks: readonly RoundMark[]): RoundMark[] {
   const kept: RoundMark[] = [];
   for (const mark of marks) {
-    if (mark.startMs > (kept.at(-1)?.endMs ?? -Infinity)) {
+    if (mark.startMs >= (kept.at(-1)?.endMs ?? -Infinity)) {
       kept.push(mark);
     }
   }

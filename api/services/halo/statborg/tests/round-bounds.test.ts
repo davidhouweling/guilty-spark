@@ -133,6 +133,14 @@ describe("resolveRoundBounds", () => {
     ]);
   });
 
+  it("keeps a later round whose consensus start shares the frame of the earlier round's consensus end", () => {
+    const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [700_000, 790_000])];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 700_000, endMs: null },
+    ]);
+  });
+
   it("drops a later round whose consensus overlaps the round before it", () => {
     const records = [...everySlot(0, [1_000, 800_000]), ...everySlot(1, [770_000, 790_000])];
     expect(resolveRoundBounds(records)).toEqual([{ round: 0, startMs: null, endMs: null }]);
