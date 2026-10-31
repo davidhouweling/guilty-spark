@@ -121,6 +121,18 @@ describe("resolveRoundBounds", () => {
     ]);
   });
 
+  it("leaves both edges open when most slots carry a misdated regulation record", () => {
+    const records = [
+      ...everySlot(0, [1_000, 700_000]),
+      ...SLOTS.slice(0, 6).flatMap((slot) => block(slot, 0, [800_000])),
+      ...everySlot(1, [770_000, 790_000]),
+    ];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: null },
+      { round: 1, startMs: null, endMs: null },
+    ]);
+  });
+
   it("leaves both edges open when the rounds overlap", () => {
     const records = [...everySlot(0, [1_000, 800_000]), ...everySlot(1, [770_000, 790_000])];
     expect(resolveRoundBounds(records)).toEqual([
@@ -217,8 +229,7 @@ describe("filterRecordsByRoundBounds", () => {
     const strays = SLOTS.slice(0, 5).flatMap((slot) => block(slot, 0, [800_000]));
     const records = [...everySlot(0, [1_000, 700_000]), ...strays, ...everySlot(1, [770_000, 790_000])];
     const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
-    expect(describeRecords(kept)).not.toEqual(expect.arrayContaining(describeRecords(strays)));
-    expect(kept).toHaveLength(records.length - strays.length);
+    expect(kept).toEqual(records.filter((record) => !strays.includes(record)));
   });
 
   it("drops an overtime record dated inside regulation", () => {
@@ -232,8 +243,7 @@ describe("filterRecordsByRoundBounds", () => {
     const earlyBlock = block(12, 1, [500_000, 505_000]);
     const records = [...everySlot(0, [1_000, 600_000]), ...earlyBlock, ...everySlot(1, [770_000, 790_000], [12])];
     const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
-    expect(describeRecords(kept)).not.toEqual(expect.arrayContaining(describeRecords(earlyBlock)));
-    expect(kept).toHaveLength(records.length - earlyBlock.length);
+    expect(kept).toEqual(records.filter((record) => !earlyBlock.includes(record)));
   });
 
   it("drops every record of a round without bounds", () => {

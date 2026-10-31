@@ -71,12 +71,15 @@ function emissionsByRound(records: readonly StatRecord[]): Map<number, RoundEmis
   return byRound;
 }
 
-// every match has a regulation round; any other is real when most slots declare it
+function isRegulationOrDeclaredByMostSlots(emissions: RoundEmissions, fullestSlotCount: number): boolean {
+  return emissions.round === REGULATION_ROUND || emissions.firstBySlot.size * 2 > fullestSlotCount;
+}
+
 function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
   const rounds = [...emissionsByRound(records).values()];
   const fullest = Math.max(0, ...rounds.map((emissions) => emissions.firstBySlot.size));
   return rounds
-    .filter((emissions) => emissions.round === REGULATION_ROUND || emissions.firstBySlot.size * 2 > fullest)
+    .filter((emissions) => isRegulationOrDeclaredByMostSlots(emissions, fullest))
     .map((emissions) => ({
       round: emissions.round,
       timestamps: emissions.timestamps,
