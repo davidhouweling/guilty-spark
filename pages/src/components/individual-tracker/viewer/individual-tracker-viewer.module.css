@@ -241,13 +241,6 @@
   padding-top: var(--space-4);
 }
 
-.preSeriesPanel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
-}
-
 .preSeriesInfo {
   margin: 0;
 }
@@ -260,13 +253,6 @@
 
 .seriesScores {
   flex: 1;
-}
-
-.noticeFlexFill {
-  align-items: center;
-  display: flex;
-  flex: 1;
-  justify-content: center;
 }
 
 .seriesScoresHeader {
