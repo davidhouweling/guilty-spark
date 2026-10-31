@@ -146,6 +146,27 @@ describe("resolveRoundBounds", () => {
     ]);
   });
 
+  it("keeps a later round whose consensus start ties the earlier round's", () => {
+    const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [1_000, 790_000])];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: null },
+      { round: 1, startMs: null, endMs: null },
+    ]);
+  });
+
+  it("bounds only the separated pair when one pair of a three-round chain overlaps", () => {
+    const records = [
+      ...everySlot(0, [1_000, 200_000]),
+      ...everySlot(1, [300_000, 700_000]),
+      ...everySlot(2, [600_000, 800_000]),
+    ];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 200_000 },
+      { round: 1, startMs: 300_000, endMs: null },
+      { round: 2, startMs: null, endMs: null },
+    ]);
+  });
+
   it("chains three rounds with an edge between each consecutive pair", () => {
     const records = [
       ...everySlot(0, [1_000, 200_000]),
@@ -181,7 +202,7 @@ describe("filterRecordsByRoundBounds", () => {
     expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(records);
   });
 
-  it("drops a regulation record dated inside overtime when its slot has regulation records in the window", () => {
+  it("drops a regulation record dated inside overtime", () => {
     const records = [
       ...everySlot(0, [1_000, 700_000]),
       ...block(12, 0, [800_000]),
@@ -200,19 +221,19 @@ describe("filterRecordsByRoundBounds", () => {
     expect(kept).toHaveLength(records.length - strays.length);
   });
 
-  it("drops an overtime record dated inside regulation when its slot has overtime records in the window", () => {
+  it("drops an overtime record dated inside regulation", () => {
     const records = [...everySlot(0, [1_000, 298_000]), ...block(10, 1, [85_000]), ...everySlot(1, [299_000, 320_000])];
     const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
     expect(describeRecords(kept)).not.toContain("10:1@85000");
     expect(kept).toHaveLength(records.length - 1);
   });
 
-  it("keeps a block that lies entirely outside its round's window", () => {
+  it("drops a slot's whole overtime block when all of it is dated inside regulation", () => {
     const earlyBlock = block(12, 1, [500_000, 505_000]);
     const records = [...everySlot(0, [1_000, 600_000]), ...earlyBlock, ...everySlot(1, [770_000, 790_000], [12])];
     const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
-    expect(describeRecords(kept)).toEqual(expect.arrayContaining(describeRecords(earlyBlock)));
-    expect(kept).toHaveLength(records.length);
+    expect(describeRecords(kept)).not.toEqual(expect.arrayContaining(describeRecords(earlyBlock)));
+    expect(kept).toHaveLength(records.length - earlyBlock.length);
   });
 
   it("drops every record of a round without bounds", () => {

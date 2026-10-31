@@ -2,8 +2,7 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { REGULATION_ROUND } from "./types";
 import type { StatRecord } from "./types";
 
-// A round's window on the film clock, inclusive at both ends; an edge is null where nothing
-// bounds it.
+// inclusive at both ends; null where nothing bounds the round
 export interface RoundBounds {
   round: number;
   startMs: number | null;
@@ -17,8 +16,9 @@ interface RoundEmissions {
   lastBySlot: Map<number, number>;
 }
 
-// a round's consensus start and end: the medians over its slots of their first and last emissions
-interface RoundMark extends RoundEmissions {
+interface RoundMark {
+  round: number;
+  timestamps: number[];
   startMs: number;
   endMs: number;
 }
@@ -86,7 +86,8 @@ function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
   return rounds
     .filter((emissions) => emissions.round === REGULATION_ROUND || emissions.firstBySlot.size * 2 > fullest)
     .map((emissions) => ({
-      ...emissions,
+      round: emissions.round,
+      timestamps: emissions.timestamps,
       startMs: median(emissions.firstBySlot.values()),
       endMs: median(emissions.lastBySlot.values()),
     }))
@@ -96,7 +97,7 @@ function consensusRoundMarks(records: readonly StatRecord[]): RoundMark[] {
 function marksFollowingTheClock(marks: readonly RoundMark[]): RoundMark[] {
   const kept: RoundMark[] = [];
   for (const mark of marks) {
-    if (mark.startMs > (kept.at(-1)?.startMs ?? -Infinity)) {
+    if (mark.startMs >= (kept.at(-1)?.startMs ?? -Infinity)) {
       kept.push(mark);
     }
   }
@@ -142,24 +143,13 @@ function isWithin(record: StatRecord, bounds: RoundBounds): boolean {
   );
 }
 
-function blockKey(record: StatRecord): string {
-  return `${String(record.slot)}:${String(record.round)}`;
-}
-
 export function filterRecordsByRoundBounds(
   records: readonly StatRecord[],
   bounds: readonly RoundBounds[],
 ): StatRecord[] {
   const boundsByRound = new Map(bounds.map((entry) => [entry.round, entry]));
-  const anchoredBlocks = new Set<string>();
-  for (const record of records) {
-    const roundBounds = boundsByRound.get(record.round);
-    if (roundBounds != null && isWithin(record, roundBounds)) {
-      anchoredBlocks.add(blockKey(record));
-    }
-  }
   return records.filter((record) => {
     const roundBounds = boundsByRound.get(record.round);
-    return roundBounds != null && (isWithin(record, roundBounds) || !anchoredBlocks.has(blockKey(record)));
+    return roundBounds != null && isWithin(record, roundBounds);
   });
 }
