@@ -535,6 +535,7 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByText("No matches tracked yet.")).not.toBeInTheDocument();
     expect(screen.getByText("Series is active and waiting for the first tracked match.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Series scores" })).toHaveTextContent("0:0");
     expect(screen.getByText("Player Info")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Beta" })).toBeInTheDocument();
