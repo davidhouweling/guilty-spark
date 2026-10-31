@@ -13,6 +13,11 @@ function everySlot(round: number, timestamps: readonly number[], except: readonl
   return SLOTS.filter((slot) => !except.includes(slot)).flatMap((slot) => block(slot, round, timestamps));
 }
 
+// each slot leads or trails the consensus by its own offset, as real emissions do
+function everySlotStaggered(round: number, firstMs: number, lastMs: number): StatRecord[] {
+  return SLOTS.flatMap((slot, index) => block(slot, round, [firstMs + index * 500, lastMs - index * 1_000]));
+}
+
 function describeRecords(records: readonly StatRecord[]): string[] {
   return records.map((record) => `${String(record.slot)}:${String(record.round)}@${String(record.timestampMs)}`);
 }
@@ -45,41 +50,50 @@ describe("resolveRoundBounds", () => {
     expect(resolveRoundBounds(records)).toEqual([{ round: 0, startMs: null, endMs: null }]);
   });
 
-  it("closes the gap between two rounds at their last and first emissions", () => {
+  it("always keeps regulation even when fewer slots declare it than a later round", () => {
     const records = [
-      ...everySlot(0, [1_000, 700_000]),
-      ...block(10, 1, [760_000, 790_000]),
-      ...block(12, 1, [760_000, 790_000]),
-      ...everySlot(1, [770_000, 790_000], [10, 12]),
+      ...SLOTS.slice(0, 4).flatMap((slot) => block(slot, 0, [1_000, 700_000])),
+      ...everySlot(1, [770_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 700_000 },
-      { round: 1, startMs: 760_000, endMs: null },
+      { round: 0, startMs: null, endMs: 735_000 },
+      { round: 1, startMs: 735_000, endMs: null },
     ]);
   });
 
-  it("ignores a slot's first emission that precedes the earlier round's consensus end", () => {
-    const records = [
-      ...everySlot(0, [1_000, 298_000]),
-      ...block(10, 1, [85_000, 300_000, 320_000]),
-      ...block(12, 1, [85_000, 300_000, 320_000]),
-      ...everySlot(1, [299_000, 320_000], [10, 12]),
-    ];
+  it("places the edge between two rounds in the middle of the gap their consensus brackets", () => {
+    const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [770_000, 790_000])];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 298_000 },
-      { round: 1, startMs: 299_000, endMs: null },
+      { round: 0, startMs: null, endMs: 735_000 },
+      { round: 1, startMs: 735_000, endMs: null },
     ]);
   });
 
-  it("ignores a slot's last emission that follows the later round's consensus start", () => {
+  it("takes the consensus from the median slot when slots lead and trail it", () => {
+    const records = [...everySlotStaggered(0, 1_000, 700_000), ...everySlotStaggered(1, 770_000, 800_000)];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 734_250 },
+      { round: 1, startMs: 734_250, endMs: null },
+    ]);
+  });
+
+  it("does not let a slot's stray early emission move the edge", () => {
+    const records = [...everySlot(0, [1_000, 298_000]), ...block(10, 1, [85_000]), ...everySlot(1, [299_000, 320_000])];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 298_500 },
+      { round: 1, startMs: 298_500, endMs: null },
+    ]);
+  });
+
+  it("does not let a slot's stray late emission move the edge", () => {
     const records = [
       ...everySlot(0, [1_000, 700_000]),
       ...block(12, 0, [800_000]),
       ...everySlot(1, [770_000, 790_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 700_000 },
-      { round: 1, startMs: 770_000, endMs: null },
+      { round: 0, startMs: null, endMs: 735_000 },
+      { round: 1, startMs: 735_000, endMs: null },
     ]);
   });
 
@@ -103,8 +117,8 @@ describe("resolveRoundBounds", () => {
       ...SLOTS.slice(0, 6).flatMap((slot) => block(slot, 3, [300_000])),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 700_000 },
-      { round: 1, startMs: 770_000, endMs: null },
+      { round: 0, startMs: null, endMs: 735_000 },
+      { round: 1, startMs: 735_000, endMs: null },
     ]);
   });
 
@@ -115,9 +129,9 @@ describe("resolveRoundBounds", () => {
       ...everySlot(2, [600_000, 800_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 200_000 },
-      { round: 1, startMs: 300_000, endMs: 500_000 },
-      { round: 2, startMs: 600_000, endMs: null },
+      { round: 0, startMs: null, endMs: 250_000 },
+      { round: 1, startMs: 250_000, endMs: 550_000 },
+      { round: 2, startMs: 550_000, endMs: null },
     ]);
   });
 });
@@ -129,13 +143,20 @@ describe("filterRecordsByRoundBounds", () => {
     expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(regulation);
   });
 
-  it("keeps every emission of two rounds separated by a gap", () => {
-    const records = [
-      ...everySlot(0, [1_000, 700_000]),
-      ...block(10, 1, [760_000, 790_000]),
-      ...everySlot(1, [770_000, 790_000], [10]),
-    ];
+  it("keeps every emission of two rounds whose slots lead and trail the consensus", () => {
+    const records = [...everySlotStaggered(0, 1_000, 700_000), ...everySlotStaggered(1, 770_000, 800_000)];
     expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(records);
+  });
+
+  it("drops a regulation record dated inside the intermission when its slot has regulation records in the window", () => {
+    const records = [
+      ...everySlotStaggered(0, 1_000, 700_000),
+      ...block(12, 0, [765_000]),
+      ...everySlotStaggered(1, 770_000, 800_000),
+    ];
+    const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
+    expect(describeRecords(kept)).not.toContain("12:0@765000");
+    expect(kept).toHaveLength(records.length - 1);
   });
 
   it("drops a regulation record dated inside overtime when its slot has regulation records in the window", () => {
