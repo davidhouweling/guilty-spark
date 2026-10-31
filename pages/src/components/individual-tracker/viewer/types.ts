@@ -45,6 +45,7 @@ export interface ViewerSeriesTab {
   readonly startTime: string;
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];
+  readonly seriesOverviewMatches: readonly ViewerSeriesOverviewMatch[];
   readonly plannedMatches: readonly ViewerPlannedMatch[];
   // Same-map/mode consecutive rematches collapsed to their final (actual) match, mirroring the
   // score's collapseSequentialSeriesEntries rule. Icon strips use this; the expanded per-match
@@ -59,6 +60,17 @@ export interface ViewerPlannedMatch {
   readonly map: string;
   readonly played: boolean;
   readonly gameModeIconUrl: string | null;
+}
+
+export interface ViewerSeriesOverviewMatch {
+  readonly matchNumber: number;
+  readonly mode: string;
+  readonly map: string;
+  readonly mapBackgroundUrl: string;
+  readonly gameModeIconUrl: string | null;
+  readonly score: string | null;
+  readonly colorHex: string | undefined;
+  readonly isUpcoming: boolean;
 }
 
 export interface ViewerSeriesTeamPlayer {

@@ -623,6 +623,44 @@ export function IndividualTrackerViewer({
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
                         <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
+                          {series.seriesOverviewMatches.length > 0 && (
+                            <ul
+                              className={styles.seriesOverviewMatches}
+                              aria-label={`Series matches for ${series.title}`}
+                            >
+                              {series.seriesOverviewMatches.map((match) => (
+                                <li
+                                  key={`${match.matchNumber.toString()}-${match.isUpcoming ? "upcoming" : "played"}`}
+                                  className={classNames(
+                                    styles.seriesOverviewMatch,
+                                    match.isUpcoming && styles.seriesOverviewMatchUpcoming,
+                                  )}
+                                  style={
+                                    {
+                                      "--series-overview-bg": `url(${match.mapBackgroundUrl})`,
+                                      "--series-overview-color": match.colorHex ?? "transparent",
+                                    } as React.CSSProperties
+                                  }
+                                >
+                                  <div className={styles.seriesOverviewMatchHeader}>
+                                    <span>Match {match.matchNumber}</span>
+                                    {match.score != null && <strong>{match.score}</strong>}
+                                    {match.isUpcoming && <span>Upcoming</span>}
+                                  </div>
+                                  <div className={styles.seriesOverviewMatchDetails}>
+                                    {match.gameModeIconUrl != null && (
+                                      <img
+                                        src={match.gameModeIconUrl}
+                                        alt=""
+                                        className={styles.seriesOverviewMatchIcon}
+                                      />
+                                    )}
+                                    <span>{`${match.mode}: ${match.map}`}</span>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                           {series.matches.length === 0 ? (
                             <div className={styles.preSeriesPanel}>
                               <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
@@ -650,31 +688,6 @@ export function IndividualTrackerViewer({
                             />
                           ) : (
                             <Alert variant="error">Unexpected entry state.</Alert>
-                          )}
-                          {series.plannedMatches.length > 0 && (
-                            <section className={styles.plannedMaps}>
-                              <h3 className={styles.plannedMapsTitle}>Map plan</h3>
-                              <ol className={styles.plannedMapsList} aria-label={`Map plan for ${series.title}`}>
-                                {series.plannedMatches.map((match) => (
-                                  <li
-                                    key={match.matchNumber}
-                                    className={classNames(styles.plannedMap, match.played && styles.plannedMapPlayed)}
-                                  >
-                                    <span className={styles.plannedMapNumber}>Match {match.matchNumber}</span>
-                                    <span className={styles.plannedMapDetails}>
-                                      {match.gameModeIconUrl != null && (
-                                        <img src={match.gameModeIconUrl} alt="" className={styles.plannedMapIcon} />
-                                      )}
-                                      <strong>{match.mode}</strong>
-                                      <span>{match.map}</span>
-                                    </span>
-                                    <span className={styles.plannedMapStatus}>
-                                      {match.played ? "Played" : "Upcoming"}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ol>
-                            </section>
                           )}
                         </Container>
                       </div>
