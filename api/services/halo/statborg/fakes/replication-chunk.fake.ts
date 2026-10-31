@@ -71,17 +71,25 @@ function writeDenseComponentList(writer: BitWriter, components: readonly StatCom
   }
 }
 
+// the dense form carries its components in ascending index order, whatever order the spec lists them in
+function componentsInWireOrder(record: StatRecordSpec): StatComponentSpec[] {
+  return record.dense === true
+    ? [...record.components].sort((left, right) => left.index - right.index)
+    : record.components;
+}
+
 function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number): void {
   writer.write(1, 1);
   writer.write(record.slot, 14);
   writer.write(0b10, 2);
+  const components = componentsInWireOrder(record);
   if (record.dense === true) {
-    writeDenseComponentList(writer, record.components);
+    writeDenseComponentList(writer, components);
   } else {
-    writeSparseComponentList(writer, record.components);
+    writeSparseComponentList(writer, components);
   }
   const round = record.round ?? 0;
-  for (const component of record.components) {
+  for (const component of components) {
     const [first, second] = component.headers ?? [round, record.secondRoundHeader ?? round];
     writer.write(first, 5);
     writer.write(second, 5);

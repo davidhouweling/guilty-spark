@@ -26,8 +26,9 @@ const DENSE_MASK_HALF_BITS = 32;
 // three rounds is the most any observed format plays; the bound keeps two constraint bits on
 // each header against chance matches
 const MAX_ROUND = 7;
-// LevelUp measured real counters at most 102 934 and chance matches from 2 415 919 104 up,
-// so one channel beyond this condemns the whole record as a chance match
+// LevelUp measured every real A and B channel at most 102 934 across eleven films of all modes
+// and chance matches from 2 415 919 104 up, so one such channel beyond this condemns the whole
+// record as a chance match; the conditional channels are unmeasured and left unbounded
 const MAX_COUNTER_MAGNITUDE = 1 << 20;
 const MIN_SLOT = 6;
 const MAX_SLOT = 24;

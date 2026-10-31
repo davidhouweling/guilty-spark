@@ -144,6 +144,20 @@ describe("scanFrameForStatRecords", () => {
     expect([...(record?.components ?? [])]).toEqual(components.map(({ index, a, b }) => [index, { a, b }]));
   });
 
+  it("maps dense components on both sides of the mask's 32-bit halves and at the top of the archetype", () => {
+    const components = [
+      { index: 57, a: 3, b: 0 },
+      { index: 31, a: 1, b: 0 },
+      { index: 32, a: 2, b: 0 },
+    ];
+    const payload = buildFramePayload([{ slot: 10, dense: true, components }]);
+    expect([...(scanFrameForStatRecords(payload, 0)[0]?.components ?? [])]).toEqual([
+      [31, { a: 1, b: 0 }],
+      [32, { a: 2, b: 0 }],
+      [57, { a: 3, b: 0 }],
+    ]);
+  });
+
   it("resumes after a dense record so the record that follows it still decodes", () => {
     const components = Array.from({ length: 8 }, (_, index) => ({ index: index * 3, a: index, b: 0 }));
     const payload = buildFramePayload(
