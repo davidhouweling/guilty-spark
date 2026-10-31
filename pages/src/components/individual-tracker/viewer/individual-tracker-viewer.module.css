@@ -252,65 +252,80 @@
   margin: 0;
 }
 
-.plannedMaps {
-  border-top: 1px solid color-mix(in srgb, var(--halo-teal-primary) 25%, transparent);
-  margin-top: var(--space-4);
-  padding: var(--space-4) var(--space-4) 0;
-}
-
-.plannedMapsTitle {
-  color: var(--halo-white);
-  font-size: var(--text-base);
-  margin: 0 0 var(--space-2);
-}
-
-.plannedMapsList {
+.seriesOverviewMatches {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   list-style: none;
-  margin: 0;
+  margin: 0 0 var(--space-4);
   padding: 0;
 }
 
-.plannedMap {
-  align-items: center;
-  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 15%, transparent);
+.seriesOverviewMatch {
+  background-color: var(--halo-bg-secondary);
+  background-image:
+    linear-gradient(to bottom, var(--series-overview-overlay), var(--series-overview-overlay)),
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--halo-white) 15%, transparent) 1px, transparent 1.5px),
+    var(--series-overview-bg);
+  background-position:
+    center,
+    0 0,
+    center;
+  background-repeat: no-repeat, repeat, no-repeat;
+  background-size:
+    100% 100%,
+    10px 10px,
+    cover;
+  border: 1px solid color-mix(in srgb, var(--series-overview-color) 45%, transparent);
   color: var(--halo-white);
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  justify-content: space-between;
+  min-height: 6rem;
+  min-width: 0;
+  padding: var(--space-3);
+  text-shadow: 0 1px 2px var(--halo-bg-secondary);
+
+  --series-overview-bg: none;
+  --series-overview-color: transparent;
+  --series-overview-overlay: color-mix(in srgb, var(--halo-bg-secondary) 28%, transparent);
 }
 
-.plannedMapPlayed {
+.seriesOverviewMatchUpcoming {
   color: var(--halo-gray);
+
+  --series-overview-overlay: color-mix(in srgb, var(--halo-bg-secondary) 52%, transparent);
 }
 
-.plannedMapNumber,
-.plannedMapStatus {
-  color: var(--halo-gray);
-  font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.plannedMapDetails {
+.seriesOverviewMatchHeader,
+.seriesOverviewMatchDetails {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-2);
+  gap: var(--space-2);
+  justify-content: space-between;
   min-width: 0;
+}
+
+.seriesOverviewMatchHeader {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+}
+
+.seriesOverviewMatchHeader strong {
+  color: var(--halo-white);
+  font-size: var(--text-lg);
+}
+
+.seriesOverviewMatchDetails {
+  font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 
-.plannedMapDetails strong {
-  color: var(--halo-accent);
-}
-
-.plannedMapPlayed .plannedMapDetails strong {
-  color: inherit;
-}
-
-.plannedMapIcon {
-  height: 20px;
-  width: 20px;
+.seriesOverviewMatchIcon {
+  flex: 0 0 auto;
+  height: 1.5rem;
+  width: 1.5rem;
 }
 
 .jumpToLatestButton {

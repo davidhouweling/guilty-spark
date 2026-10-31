@@ -626,6 +626,7 @@ export class IndividualTrackerOverlayPresenter {
       startTime: "",
       endTime: "",
       matches: [],
+      seriesOverviewMatches: [],
       iconMatches: [],
       colorHex: undefined,
     };

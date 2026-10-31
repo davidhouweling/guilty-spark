@@ -21,6 +21,7 @@ import type {
   ViewerMatchTab,
   ViewerPlannedMatch,
   ViewerPreSeriesTableData,
+  ViewerSeriesOverviewMatch,
   ViewerSeriesTeamPlayer,
   ViewerSeriesTeam,
   ViewerSeriesTab,
@@ -119,6 +120,39 @@ function toViewerPlannedMatches(
   });
 }
 
+function toViewerSeriesOverviewMatches(
+  matches: readonly ViewerMatchTab[],
+  plannedMatches: readonly ViewerPlannedMatch[],
+): readonly ViewerSeriesOverviewMatch[] {
+  const playedMatches = matches.map((match, index) => ({
+    matchNumber: index + 1,
+    mode: match.gameModeName,
+    map: match.mapName,
+    mapBackgroundUrl: match.mapBackgroundUrl,
+    gameModeIconUrl: gameModeIconSrcForModeName(match.gameModeName),
+    score: match.score,
+    colorHex: match.colorHex,
+    isUpcoming: false,
+  }));
+  const upcomingMatches = plannedMatches
+    .filter((match) => !match.played)
+    .map((match) => {
+      const matchingMap = matches.find((played) => played.mapName === match.map);
+      return {
+        matchNumber: match.matchNumber,
+        mode: match.mode,
+        map: match.map,
+        mapBackgroundUrl: matchingMap?.mapBackgroundUrl ?? "data:,",
+        gameModeIconUrl: match.gameModeIconUrl,
+        score: null,
+        colorHex: undefined,
+        isUpcoming: true,
+      };
+    });
+
+  return [...playedMatches, ...upcomingMatches];
+}
+
 function toViewerActiveSeriesContext(view: TrackerViewState): ViewerActiveSeriesContext | undefined {
   if (view.activeSeriesContext == null) {
     return undefined;
@@ -196,6 +230,7 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
 
   const activeSubtitle = activeSeriesContext.subtitle ?? "";
   const teams = activeSeriesContext.teams.map(toViewerSeriesTeam);
+  const plannedMatches = toViewerPlannedMatches(activeSeriesContext.plannedMaps, []);
 
   return {
     id: `${PENDING_ACTIVE_SERIES_ID_PREFIX}:${activeSeriesContext.title}:${activeSubtitle}`,
@@ -213,7 +248,8 @@ function toPendingActiveSeriesTab(view: TrackerViewState): ViewerSeriesTab {
     startTime: activeSeriesContext.startedAt ?? view.lastUpdateTime,
     endTime: "",
     matches: [],
-    plannedMatches: toViewerPlannedMatches(activeSeriesContext.plannedMaps, []),
+    seriesOverviewMatches: toViewerSeriesOverviewMatches([], plannedMatches),
+    plannedMatches,
     iconMatches: [],
     colorHex: undefined,
   };
@@ -392,6 +428,7 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
       const iconMatches = toIconMatches(seriesMatches, seriesSummaries);
       const plannedMaps =
         anchoredSeries.plannedMaps ?? (isCurrentActiveSeries ? view.activeSeriesContext?.plannedMaps : undefined);
+      const plannedMatches = toViewerPlannedMatches(plannedMaps, iconMatches);
       const series: ViewerSeriesTab = {
         id: anchoredSeries.id,
         title: anchoredSeries.title,
@@ -410,7 +447,8 @@ export function buildViewerRenderModel(options: BuildViewerRenderModelOptions): 
         endTime: seriesEndTime,
         matches: seriesMatches,
         iconMatches,
-        plannedMatches: toViewerPlannedMatches(plannedMaps, iconMatches),
+        seriesOverviewMatches: toViewerSeriesOverviewMatches(iconMatches, plannedMatches),
+        plannedMatches,
         colorHex: undefined,
       };
       const seriesWithPreSeriesData: ViewerSeriesTab =
