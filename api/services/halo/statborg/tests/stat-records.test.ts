@@ -144,6 +144,36 @@ describe("scanFrameForStatRecords", () => {
     expect([...(record?.components ?? [])]).toEqual(components.map(({ index, a, b }) => [index, { a, b }]));
   });
 
+  it("resumes after a dense record so the record that follows it still decodes", () => {
+    const components = Array.from({ length: 8 }, (_, index) => ({ index: index * 3, a: index, b: 0 }));
+    const payload = buildFramePayload(
+      [
+        { slot: 6, dense: true, components },
+        { slot: 12, round: 1, components: [{ index: 2, a: 5, b: 4 }] },
+      ],
+      0,
+    );
+    const records = scanFrameForStatRecords(payload, 0);
+    expect(records.map((record) => [record.slot, record.round, record.components.size])).toEqual([
+      [6, 0, 8],
+      [12, 1, 1],
+    ]);
+  });
+
+  it("decodes records of different rounds back to back", () => {
+    const payload = buildFramePayload(
+      [
+        { slot: 10, round: 1, components: [{ index: 2, a: 1, b: 0 }] },
+        { slot: 12, components: [{ index: 2, a: 7, b: 3 }] },
+      ],
+      0,
+    );
+    expect(scanFrameForStatRecords(payload, 0).map((record) => [record.slot, record.round])).toEqual([
+      [10, 1],
+      [12, 0],
+    ]);
+  });
+
   it("rejects a dense list that names a component beyond the archetype", () => {
     const payload = buildFramePayload([{ slot: 6, dense: true, components: [{ index: 58, a: 1, b: 1 }] }]);
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);

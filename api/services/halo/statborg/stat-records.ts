@@ -153,8 +153,6 @@ interface DecodedComponents {
   endBit: number;
 }
 
-// a real emission carries the same round in both headers of its first component; later
-// components' chained widths stop a misread on their own
 function readRound(payload: Uint8Array, firstComponentBit: number): number | null {
   const first = readBitsBE(payload, firstComponentBit, COMPONENT_HEADER_BITS);
   const second = readBitsBE(payload, firstComponentBit + COMPONENT_HEADER_BITS, COMPONENT_HEADER_BITS);
@@ -165,8 +163,6 @@ function isWithinCounterDomain(value: StatValue): boolean {
   return Math.abs(value.a) <= MAX_COUNTER_MAGNITUDE && Math.abs(value.b) <= MAX_COUNTER_MAGNITUDE;
 }
 
-// a record whose declared components do not all decode, or carry a value no counter reaches,
-// is a chance match, not a record
 function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedComponents | null {
   const { firstComponentBit } = header;
   const round = readRound(payload, firstComponentBit);

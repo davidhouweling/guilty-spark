@@ -62,7 +62,7 @@ export function assertCtfMatchSupported(matchStats: MatchStats): void {
 // overtime restarts every counter and reassigns the player slots, so only regulation is read
 // until identity is resolved per round
 function regulationRecords(unsorted: readonly StatRecord[]): StatRecord[] {
-  return sortStatRecords(unsorted).filter((record) => record.round === REGULATION_ROUND);
+  return sortStatRecords(unsorted.filter((record) => record.round === REGULATION_ROUND));
 }
 
 export function buildCtfFlagEventsFromRecords(

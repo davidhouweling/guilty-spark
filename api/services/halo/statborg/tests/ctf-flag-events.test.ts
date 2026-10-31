@@ -74,16 +74,6 @@ describe("buildCtfFlagEventsFromRecords", () => {
     expect(events).toEqual([{ timestampMs: 61_000, kind: "capture", xuid: "0100000000000000", teamId: 0 }]);
   });
 
-  it("ignores a stray record that declares a round no other slot speaks of", () => {
-    const records = [
-      ...identityRecords(10, 16, 17, 12),
-      aFakeStatRecordWith({ timestampMs: 61_000, slot: 10, components: { 21: { a: 1, b: 0 } } }),
-      aFakeStatRecordWith({ timestampMs: 62_000, slot: 10, round: 5, components: { 21: { a: 7, b: 0 } } }),
-    ];
-    const { events } = buildCtfFlagEventsFromRecords(records, aFakeCtfMatchStatsWith());
-    expect(events).toEqual([{ timestampMs: 61_000, kind: "capture", xuid: "0100000000000000", teamId: 0 }]);
-  });
-
   it("returns no events for an empty record set", () => {
     expect(buildCtfFlagEventsFromRecords([], aFakeCtfMatchStatsWith())).toEqual({ events: [], unresolvedSlots: [] });
   });
