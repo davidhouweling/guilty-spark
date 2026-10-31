@@ -22,7 +22,6 @@ const COMPONENT_HEADER_BITS = 5;
 const MAX_COMPONENT_INDEX = 58;
 const MAX_COMPONENTS_PER_RECORD = 7;
 const DENSE_MASK_BITS = 64;
-const DENSE_MASK_HALF_BITS = 32;
 // three rounds is the most any observed format plays; the bound keeps two constraint bits on
 // each header against chance matches
 const MAX_ROUND = 7;
@@ -115,17 +114,17 @@ function denseRecordHeader(payload: Uint8Array, slot: number, maskStart: number)
   if (maskStart + DENSE_MASK_BITS > payload.length * 8) {
     return null;
   }
-  const high = readBitsBE(payload, maskStart, DENSE_MASK_HALF_BITS);
-  const low = readBitsBE(payload, maskStart + DENSE_MASK_HALF_BITS, DENSE_MASK_HALF_BITS);
-  if ((high === 0 && low === 0) || high >>> (MAX_COMPONENT_INDEX - DENSE_MASK_HALF_BITS) !== 0) {
+  if (readBitsBE(payload, maskStart, DENSE_MASK_BITS - MAX_COMPONENT_INDEX) !== 0) {
     return null;
   }
   const componentIndices: number[] = [];
   for (let index = 0; index < MAX_COMPONENT_INDEX; index++) {
-    const half = index < DENSE_MASK_HALF_BITS ? low : high;
-    if (((half >>> (index % DENSE_MASK_HALF_BITS)) & 1) === 1) {
+    if (readBitsBE(payload, maskStart + DENSE_MASK_BITS - 1 - index, 1) === 1) {
       componentIndices.push(index);
     }
+  }
+  if (componentIndices.length === 0) {
+    return null;
   }
   return { slot, componentIndices, firstComponentBit: maskStart + DENSE_MASK_BITS };
 }

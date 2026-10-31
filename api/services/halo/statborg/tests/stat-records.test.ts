@@ -142,7 +142,7 @@ describe("scanFrameForStatRecords", () => {
     expect([...(record?.components ?? [])]).toEqual(components.map(({ index, a, b }) => [index, { a, b }]));
   });
 
-  it("maps dense components on both sides of the mask's 32-bit halves and at the top of the archetype", () => {
+  it("maps dense components across the whole mask up to the top of the archetype", () => {
     const components = [
       { index: 57, a: 3, b: 0 },
       { index: 31, a: 1, b: 0 },
