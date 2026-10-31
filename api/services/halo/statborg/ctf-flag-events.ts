@@ -7,9 +7,8 @@ import { filterRecordsByRoundBounds, resolveRoundBounds } from "./round-bounds";
 import { resolveSlotIdentities } from "./slot-identity";
 import { sortStatRecords } from "./stat-records";
 import { counterIncrementTimes } from "./stat-counters";
+import { REGULATION_ROUND } from "./types";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
-
-const REGULATION_ROUND = 0;
 
 interface CtfStatSlot {
   key: StatSlotKey;

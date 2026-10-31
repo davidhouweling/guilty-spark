@@ -56,32 +56,44 @@ describe("resolveRoundBounds", () => {
       ...everySlot(1, [770_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 735_000 },
-      { round: 1, startMs: 735_000, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
     ]);
   });
 
-  it("places the edge between two rounds in the middle of the gap their consensus brackets", () => {
+  it("ends a round at its last emission before the next round's consensus start and starts the next at its first emission after the earlier round's consensus end", () => {
     const records = [...everySlot(0, [1_000, 700_000]), ...everySlot(1, [770_000, 790_000])];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 735_000 },
-      { round: 1, startMs: 735_000, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
     ]);
   });
 
-  it("takes the consensus from the median slot when slots lead and trail it", () => {
+  it("keeps the emissions of slots that lead and trail the consensus inside their round", () => {
     const records = [...everySlotStaggered(0, 1_000, 700_000), ...everySlotStaggered(1, 770_000, 800_000)];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 734_250 },
-      { round: 1, startMs: 734_250, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
+    ]);
+  });
+
+  it("keeps a trailing end-of-round flush inside a short intermission", () => {
+    const records = [
+      ...everySlot(0, [1_000, 700_000]),
+      ...block(18, 0, [708_000]),
+      ...everySlot(1, [712_000, 790_000]),
+    ];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 708_000 },
+      { round: 1, startMs: 712_000, endMs: null },
     ]);
   });
 
   it("does not let a slot's stray early emission move the edge", () => {
     const records = [...everySlot(0, [1_000, 298_000]), ...block(10, 1, [85_000]), ...everySlot(1, [299_000, 320_000])];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 298_500 },
-      { round: 1, startMs: 298_500, endMs: null },
+      { round: 0, startMs: null, endMs: 298_000 },
+      { round: 1, startMs: 299_000, endMs: null },
     ]);
   });
 
@@ -92,8 +104,20 @@ describe("resolveRoundBounds", () => {
       ...everySlot(1, [770_000, 790_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 735_000 },
-      { round: 1, startMs: 735_000, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
+    ]);
+  });
+
+  it("still closes the edge when half the slots carry a misdated regulation record", () => {
+    const records = [
+      ...everySlot(0, [1_000, 700_000]),
+      ...SLOTS.slice(0, 5).flatMap((slot) => block(slot, 0, [800_000])),
+      ...everySlot(1, [770_000, 790_000]),
+    ];
+    expect(resolveRoundBounds(records)).toEqual([
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
     ]);
   });
 
@@ -117,8 +141,8 @@ describe("resolveRoundBounds", () => {
       ...SLOTS.slice(0, 6).flatMap((slot) => block(slot, 3, [300_000])),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 735_000 },
-      { round: 1, startMs: 735_000, endMs: null },
+      { round: 0, startMs: null, endMs: 700_000 },
+      { round: 1, startMs: 770_000, endMs: null },
     ]);
   });
 
@@ -129,9 +153,9 @@ describe("resolveRoundBounds", () => {
       ...everySlot(2, [600_000, 800_000]),
     ];
     expect(resolveRoundBounds(records)).toEqual([
-      { round: 0, startMs: null, endMs: 250_000 },
-      { round: 1, startMs: 250_000, endMs: 550_000 },
-      { round: 2, startMs: 550_000, endMs: null },
+      { round: 0, startMs: null, endMs: 200_000 },
+      { round: 1, startMs: 300_000, endMs: 500_000 },
+      { round: 2, startMs: 600_000, endMs: null },
     ]);
   });
 });
@@ -148,15 +172,13 @@ describe("filterRecordsByRoundBounds", () => {
     expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(records);
   });
 
-  it("drops a regulation record dated inside the intermission when its slot has regulation records in the window", () => {
+  it("keeps a regulation record dated inside the intermission before the overtime consensus start", () => {
     const records = [
-      ...everySlotStaggered(0, 1_000, 700_000),
+      ...everySlot(0, [1_000, 700_000]),
       ...block(12, 0, [765_000]),
-      ...everySlotStaggered(1, 770_000, 800_000),
+      ...everySlot(1, [770_000, 790_000]),
     ];
-    const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
-    expect(describeRecords(kept)).not.toContain("12:0@765000");
-    expect(kept).toHaveLength(records.length - 1);
+    expect(filterRecordsByRoundBounds(records, resolveRoundBounds(records))).toEqual(records);
   });
 
   it("drops a regulation record dated inside overtime when its slot has regulation records in the window", () => {
@@ -168,6 +190,14 @@ describe("filterRecordsByRoundBounds", () => {
     const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
     expect(describeRecords(kept)).not.toContain("12:0@800000");
     expect(kept).toHaveLength(records.length - 1);
+  });
+
+  it("drops the misdated regulation records of half the slots", () => {
+    const strays = SLOTS.slice(0, 5).flatMap((slot) => block(slot, 0, [800_000]));
+    const records = [...everySlot(0, [1_000, 700_000]), ...strays, ...everySlot(1, [770_000, 790_000])];
+    const kept = filterRecordsByRoundBounds(records, resolveRoundBounds(records));
+    expect(describeRecords(kept)).not.toEqual(expect.arrayContaining(describeRecords(strays)));
+    expect(kept).toHaveLength(records.length - strays.length);
   });
 
   it("drops an overtime record dated inside regulation when its slot has overtime records in the window", () => {

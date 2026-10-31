@@ -12,6 +12,8 @@ export interface StatRecord {
   components: Map<number, StatValue>;
 }
 
+export const REGULATION_ROUND = 0;
+
 export type StatSide = "a" | "b";
 
 export interface StatSlotKey {
