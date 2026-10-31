@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeCtfFlagRunWith } from "../fakes/ctf-flag-run.fake";
 import { aFakeCtfTimelineWith } from "../fakes/ctf-timeline.fake";
+import { TICK_FILL } from "../../../chart-constants";
 import {
   buildFlagAdvantageOverlay,
   buildFlagRunLegend,
@@ -27,19 +28,19 @@ describe("buildFlagRuns", () => {
     ]);
   });
 
-  it("signs progress by which flag is out and pins a capture to full progress", () => {
+  it("signs progress by which team carries and pins a capture to full progress", () => {
     const [captured, returned] = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
     expect(captured.points).toEqual([
       { timestampMs: 20000, progress: 0 },
-      { timestampMs: 30000, progress: 25 },
-      { timestampMs: 45000, progress: 60 },
-      { timestampMs: 60000, progress: 100 },
+      { timestampMs: 30000, progress: -25 },
+      { timestampMs: 45000, progress: -60 },
+      { timestampMs: 60000, progress: -100 },
     ]);
     expect(returned.points).toEqual([
       { timestampMs: 70000, progress: 0 },
-      { timestampMs: 80000, progress: -50 },
-      { timestampMs: 90000, progress: -86 },
-      { timestampMs: 100000, progress: -86 },
+      { timestampMs: 80000, progress: 50 },
+      { timestampMs: 90000, progress: 86 },
+      { timestampMs: 100000, progress: 86 },
     ]);
   });
 
@@ -47,13 +48,13 @@ describe("buildFlagRuns", () => {
     const [captured, returned] = buildFlagRuns(aFakeCtfTimelineWith(), TEAM_IDS, COLORS, DURATION_MS);
     expect(captured.markers).toEqual([
       { timestampMs: 20000, progress: 0, kind: "steal" },
-      { timestampMs: 30000, progress: 25, kind: "grab" },
-      { timestampMs: 60000, progress: 100, kind: "capture" },
+      { timestampMs: 30000, progress: -25, kind: "grab" },
+      { timestampMs: 60000, progress: -100, kind: "capture" },
     ]);
     expect(returned.markers.map((marker) => [marker.kind, marker.progress])).toEqual([
       ["steal", 0],
-      ["drop", -86],
-      ["return", -86],
+      ["drop", 86],
+      ["return", 86],
     ]);
   });
 
@@ -73,9 +74,9 @@ describe("buildFlagRuns", () => {
       ],
     });
     const [autoReturned, cutOff] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(autoReturned.reset).toEqual({ timestampMs: 60000, fromProgress: 60 });
+    expect(autoReturned.reset).toEqual({ timestampMs: 60000, fromProgress: -60 });
     expect(cutOff.reset).toBeNull();
-    expect(cutOff.points.at(-1)).toEqual({ timestampMs: 120000, progress: -30 });
+    expect(cutOff.points.at(-1)).toEqual({ timestampMs: 120000, progress: 30 });
   });
 
   it("keeps a capture stamped just past the match duration by clamping it onto the axis", () => {
@@ -93,9 +94,9 @@ describe("buildFlagRuns", () => {
       ],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: 100 });
-    expect(run.markers).toEqual([{ timestampMs: 120000, progress: 100, kind: "capture" }]);
-    expect(run.reset).toEqual({ timestampMs: 120000, fromProgress: 100 });
+    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: -100 });
+    expect(run.markers).toEqual([{ timestampMs: 120000, progress: -100, kind: "capture" }]);
+    expect(run.reset).toEqual({ timestampMs: 120000, fromProgress: -100 });
   });
 
   it("drops runs that start after the match, belong to unknown teams or have no span", () => {
@@ -108,7 +109,8 @@ describe("buildFlagRuns", () => {
         { ...base, startMs: 50000, endMs: 50000 },
       ],
     });
-    expect(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS)).toEqual([]);
+    const colorsWithThirdTeam = new Map([...COLORS, [3, "#00ff00"]]);
+    expect(buildFlagRuns(timeline, TEAM_IDS, colorsWithThirdTeam, DURATION_MS)).toEqual([]);
   });
 
   it("orders samples by time and clamps an event stamped just before the pull onto its start", () => {
@@ -140,7 +142,7 @@ describe("buildFlagRuns", () => {
       runs: [{ ...base, events: [{ timestampMs: 52500, kind: "grab" }] }],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.markers).toEqual([{ timestampMs: 52500, progress: 80, kind: "grab" }]);
+    expect(run.markers).toEqual([{ timestampMs: 52500, progress: -80, kind: "grab" }]);
   });
 
   it("uses a sample stamped at the run end and keeps the last of duplicate timestamps", () => {
@@ -160,10 +162,10 @@ describe("buildFlagRuns", () => {
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(run.points).toEqual([
       { timestampMs: 70000, progress: 0 },
-      { timestampMs: 80000, progress: -50 },
-      { timestampMs: 100000, progress: -90 },
+      { timestampMs: 80000, progress: 50 },
+      { timestampMs: 100000, progress: 90 },
     ]);
-    expect(run.reset).toEqual({ timestampMs: 100000, fromProgress: -90 });
+    expect(run.reset).toEqual({ timestampMs: 100000, fromProgress: 90 });
   });
 
   it("drops a run whose carrier is the flag's own team", () => {
@@ -186,7 +188,7 @@ describe("buildFlagRuns", () => {
       ],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.markers).toEqual([{ timestampMs: 60000, progress: 100, kind: "capture" }]);
+    expect(run.markers).toEqual([{ timestampMs: 60000, progress: -100, kind: "capture" }]);
   });
 
   it("draws a run captured beyond the match-end tolerance as cut off, without the capture", () => {
@@ -204,7 +206,7 @@ describe("buildFlagRuns", () => {
       ],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
-    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: 40 });
+    expect(run.points.at(-1)).toEqual({ timestampMs: 120000, progress: -40 });
     expect(run.markers).toEqual([]);
     expect(run.reset).toBeNull();
   });
@@ -223,19 +225,52 @@ describe("buildFlagRuns", () => {
 
   it("never emits negative zero for a below-axis flag at its stand", () => {
     const timeline = aFakeCtfTimelineWith({
-      runs: [aFakeCtfFlagRunWith({ flagTeamId: 1, carrierTeamId: 0, samples: [{ timestampMs: 30000, progress: 0 }] })],
+      runs: [aFakeCtfFlagRunWith({ samples: [{ timestampMs: 30000, progress: 0 }] })],
     });
     const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
     expect(Object.is(run.points[1].progress, 0)).toBe(true);
+  });
+
+  it("keeps a marker just off the stand exactly on the drawn line", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [aFakeCtfFlagRunWith({ events: [{ timestampMs: 20100, kind: "grab" }] })],
+    });
+    const [run] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(run.markers[0]?.progress).toBeCloseTo(-0.25);
+  });
+
+  it("rounds a half-percent sample to the same magnitude on both sides of the home line", () => {
+    const timeline = aFakeCtfTimelineWith({
+      runs: [
+        aFakeCtfFlagRunWith({ samples: [{ timestampMs: 30000, progress: 0.255 }] }),
+        aFakeCtfFlagRunWith({
+          flagTeamId: 1,
+          carrierTeamId: 0,
+          startMs: 70000,
+          endMs: 100000,
+          outcome: "return",
+          samples: [{ timestampMs: 80000, progress: 0.255 }],
+          events: [],
+        }),
+      ],
+    });
+    const [below, above] = buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS);
+    expect(below.points[1].progress).toBe(-26);
+    expect(above.points[1].progress).toBe(26);
   });
 });
 
 describe("buildFlagRunLegend", () => {
   it("describes each half of the chart by whose flag it is and who carries it", () => {
     expect(buildFlagRunLegend(TEAM_IDS, COLORS)).toEqual([
-      { key: "flag-0", color: "#ff0000", text: "Above: Eagle's flag, carried by Cobra" },
-      { key: "flag-1", color: "#0000ff", text: "Below: Cobra's flag, carried by Eagle" },
+      { key: "carrier-0", color: "#0000ff", text: "Above: Cobra's flag, carried by Eagle" },
+      { key: "carrier-1", color: "#ff0000", text: "Below: Eagle's flag, carried by Cobra" },
     ]);
+  });
+
+  it("falls back to the neutral swatch colour for a roster team without a colour", () => {
+    const missingCobra = new Map([[0, "#0000ff"]]);
+    expect(buildFlagRunLegend(TEAM_IDS, missingCobra).map((entry) => entry.color)).toEqual(["#0000ff", TICK_FILL]);
   });
 });
 
@@ -270,8 +305,8 @@ describe("buildFlagRunsChartPoints", () => {
     const points = buildFlagRunsChartPoints(runs);
     expect(points.map((point) => point.timestampMs)).toEqual([20000, 30000, 45000, 60000, 70000, 80000, 90000, 100000]);
     expect(points[0]).toEqual({ timestampMs: 20000, run1: 0, run2: null });
-    expect(points[3]).toEqual({ timestampMs: 60000, run1: 100, run2: null });
-    expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: -50 });
+    expect(points[3]).toEqual({ timestampMs: 60000, run1: -100, run2: null });
+    expect(points[5]).toEqual({ timestampMs: 80000, run1: null, run2: 50 });
   });
 
   it("carries the player advantage as a step value on every row when given its points", () => {
@@ -301,7 +336,7 @@ describe("buildFlagRunsChartPoints", () => {
     ]);
     expect(points.map((point) => point.playerAdvantage)).toEqual([0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 0]);
     expect(points[0]).toEqual({ timestampMs: 0, run1: null, run2: null, playerAdvantage: 0 });
-    expect(points[4]?.run1).toBe(60);
+    expect(points[4]?.run1).toBe(-60);
   });
 
   it("leaves the advantage null on rows before its first point and off the rows without it", () => {
@@ -327,12 +362,12 @@ describe("buildFlagRunsChartPoints", () => {
     const points = buildFlagRunsChartPoints(buildFlagRuns(timeline, TEAM_IDS, COLORS, DURATION_MS));
     expect(points.find((point) => point.timestampMs === 40000)).toEqual({
       timestampMs: 40000,
-      run1: 25 + ((40000 - 30000) / 15000) * 35,
+      run1: -(25 + ((40000 - 30000) / 15000) * 35),
       run2: 0,
     });
     expect(points.find((point) => point.timestampMs === 50000)).toEqual({
       timestampMs: 50000,
-      run1: 60 + ((50000 - 45000) / 15000) * 40,
+      run1: -(60 + ((50000 - 45000) / 15000) * 40),
       run2: 0,
     });
   });
