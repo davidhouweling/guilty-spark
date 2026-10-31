@@ -10,7 +10,6 @@ export interface StatComponentSpec {
   // conditional values gated by the component's two flag bits
   conditionalA?: number | undefined;
   conditionalB?: number | undefined;
-  // overrides the record's round headers on this component alone
   headers?: readonly [number, number] | undefined;
 }
 
@@ -55,7 +54,12 @@ export class BitWriter {
   }
 }
 
+const MAX_SPARSE_COMPONENTS = 7;
+
 function writeSparseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
+  if (components.length > MAX_SPARSE_COMPONENTS) {
+    throw new Error(`A sparse record carries at most ${String(MAX_SPARSE_COMPONENTS)} components; use dense: true`);
+  }
   writer.write(0, 1);
   writer.write(components.length, 3);
   for (const component of components) {
@@ -71,7 +75,6 @@ function writeDenseComponentList(writer: BitWriter, components: readonly StatCom
   }
 }
 
-// the dense form carries its components in ascending index order, whatever order the spec lists them in
 function componentsInWireOrder(record: StatRecordSpec): StatComponentSpec[] {
   return record.dense === true
     ? [...record.components].sort((left, right) => left.index - right.index)

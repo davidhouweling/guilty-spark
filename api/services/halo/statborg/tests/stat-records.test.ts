@@ -193,6 +193,18 @@ describe("scanFrameForStatRecords", () => {
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
   });
 
+  it("rejects a dense record whose payload ends inside the mask", () => {
+    const payload = buildFramePayload([{ slot: 6, dense: true, components: [{ index: 2, a: 1, b: 1 }] }]);
+    expect(scanFrameForStatRecords(payload.subarray(0, 7), 0)).toEqual([]);
+  });
+
+  it("rejects a dense record whose round headers disagree", () => {
+    const payload = buildFramePayload([
+      { slot: 6, dense: true, round: 1, secondRoundHeader: 0, components: [{ index: 2, a: 1, b: 1 }] },
+    ]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
   it("rejects a dense list with an empty mask", () => {
     const payload = buildFramePayload([{ slot: 6, dense: true, components: [] }]);
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
