@@ -651,6 +651,31 @@ export function IndividualTrackerViewer({
                           ) : (
                             <Alert variant="error">Unexpected entry state.</Alert>
                           )}
+                          {series.plannedMatches.length > 0 && (
+                            <section className={styles.plannedMaps}>
+                              <h3 className={styles.plannedMapsTitle}>Map plan</h3>
+                              <ol className={styles.plannedMapsList} aria-label={`Map plan for ${series.title}`}>
+                                {series.plannedMatches.map((match) => (
+                                  <li
+                                    key={match.matchNumber}
+                                    className={classNames(styles.plannedMap, match.played && styles.plannedMapPlayed)}
+                                  >
+                                    <span className={styles.plannedMapNumber}>Match {match.matchNumber}</span>
+                                    <span className={styles.plannedMapDetails}>
+                                      {match.gameModeIconUrl != null && (
+                                        <img src={match.gameModeIconUrl} alt="" className={styles.plannedMapIcon} />
+                                      )}
+                                      <strong>{match.mode}</strong>
+                                      <span>{match.map}</span>
+                                    </span>
+                                    <span className={styles.plannedMapStatus}>
+                                      {match.played ? "Played" : "Upcoming"}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                            </section>
+                          )}
                         </Container>
                       </div>
                     </div>

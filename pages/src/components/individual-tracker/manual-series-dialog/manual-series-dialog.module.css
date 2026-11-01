@@ -28,6 +28,46 @@
   gap: var(--space-2);
 }
 
+.mapGeneratorControls {
+  align-items: end;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mapGeneratorField {
+  color: var(--halo-gray);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+}
+
+.plannedMapsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plannedMapRow {
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--halo-teal-primary) 18%, transparent);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  padding: var(--space-2) 0;
+}
+
+.plannedMapField {
+  min-width: 0;
+}
+
+.plannedMapNumber {
+  color: var(--halo-gray);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .teamsGrid {
   display: grid;
   gap: var(--space-3);
@@ -64,6 +104,10 @@
 @media (--tablet-viewport) {
   .metaGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mapGeneratorControls {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   }
 
   .teamsGrid {

@@ -75,6 +75,10 @@ function ManualSeriesDialogSectionInternal({
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
+  const plannedMapRows = useMemo(
+    () => presenter.presentPlannedMaps(snapshot.plannedMaps),
+    [presenter, snapshot.plannedMaps],
+  );
 
   const handleSubmit = (): void => {
     if (snapshot.mode === "edit") {
@@ -89,6 +93,8 @@ function ManualSeriesDialogSectionInternal({
       isOpen={isOpen}
       trackerLabel={trackerLabel}
       snapshot={snapshot}
+      mapGeneratorOptions={presenter.getMapGeneratorOptions(snapshot.mapPlaylist)}
+      plannedMapRows={plannedMapRows}
       onClose={onClose}
       onTitleChange={(value): void => {
         presenter.setTitleOverride(value);
@@ -113,6 +119,27 @@ function ManualSeriesDialogSectionInternal({
       }}
       onBackfillMatchToggle={(matchId): void => {
         presenter.toggleBackfillMatch(matchId);
+      }}
+      onMapPlaylistChange={(value): void => {
+        presenter.setMapPlaylist(value);
+      }}
+      onMapFormatChange={(value): void => {
+        presenter.setMapFormat(value);
+      }}
+      onMapCountChange={(value): void => {
+        presenter.setMapCount(value);
+      }}
+      onGenerateMaps={(): void => {
+        presenter.generateMaps();
+      }}
+      onRemovePlannedMap={(index): void => {
+        presenter.removePlannedMap(index);
+      }}
+      onPlannedMapModeChange={(index, mode): void => {
+        presenter.setPlannedMapMode(index, mode);
+      }}
+      onPlannedMapNameChange={(index, mapName): void => {
+        presenter.setPlannedMapName(index, mapName);
       }}
       onStartSeries={handleSubmit}
     />
