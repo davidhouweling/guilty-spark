@@ -3,10 +3,16 @@ import type { WalkedChunk } from "./bit-reader";
 import type { StatRecord, StatValue } from "./types";
 
 // Entity-record grammar of the replication FRAME packets, measured by LevelUp against a
-// Cheat Engine capture (apps/go-api/internal/analysis/objectiveevents/statborg.go):
-//   [1 bit = 1][14 bits slot][2 bits = 10][1 bit = 0][3 bits N][N x 6 bits component index]
-//   then per index: [5 bits = 0][5 bits = 0][value A][value B][2 flags][conditional values]
-// Values are signed with a 2-bit width selector (8 << selector bits).
+// Cheat Engine capture (LevelUp apps/go-api/internal/games/halo_infinite/film/internal/grammar/
+// signaux/statborg.go on origin/main):
+//   [1 bit = 1][14 bits slot][2 bits = 10][1 bit list form][component list]
+//   sparse list (form 0): [3 bits N][N x 6 bits component index]
+//   dense list (form 1):  [64 bits mask, bit i set = component i]
+//   then per index: [5 bits round][5 bits round][value A][value B][2 flags][conditional values]
+// Values are signed with a 2-bit width selector (8 << selector bits). The two component headers
+// carry the 0-based round number, so a regulation-only reading is a round filter, not a format
+// constraint; the engine switches to the dense list when more than seven components change at
+// once, typically at the end of a round.
 const SLOT_BITS = 14;
 const GENERATION_BITS = 2;
 const GENERATION_VALUE = 0b10;
@@ -15,6 +21,14 @@ const COMPONENT_INDEX_BITS = 6;
 const COMPONENT_HEADER_BITS = 5;
 const MAX_COMPONENT_INDEX = 58;
 const MAX_COMPONENTS_PER_RECORD = 7;
+const DENSE_MASK_BITS = 64;
+// three rounds is the most any observed format plays; the bound keeps two constraint bits on
+// each header against chance matches
+const MAX_ROUND = 7;
+// LevelUp measured every real A and B channel at most 102 934 across eleven films of all modes
+// and chance matches from 2 415 919 104 up, so one such channel beyond this condemns the whole
+// record as a chance match; the conditional channels are unmeasured and left unbounded
+const MAX_COUNTER_MAGNITUDE = 1 << 20;
 const MIN_SLOT = 6;
 const MAX_SLOT = 24;
 // LevelUp's measured end-of-payload margin below which no record anchors
@@ -76,26 +90,12 @@ function decodeComponent(payload: Uint8Array, bitPos: number): { value: StatValu
   return { value: { a: a.value, b: b.value }, bitsConsumed: cursor - bitPos };
 }
 
-function matchRecordHeader(payload: Uint8Array, bitPos: number): RecordHeader | null {
-  if (readBitsBE(payload, bitPos - 1, 1) !== 1) {
-    return null;
-  }
-  const slot = readBitsBE(payload, bitPos, SLOT_BITS);
-  if (slot < MIN_SLOT || slot > MAX_SLOT || slot % 2 !== 0) {
-    return null;
-  }
-  if (readBitsBE(payload, bitPos + SLOT_BITS, GENERATION_BITS) !== GENERATION_VALUE) {
-    return null;
-  }
-  const maskBit = bitPos + SLOT_BITS + GENERATION_BITS;
-  if (readBitsBE(payload, maskBit, 1) !== 0) {
-    return null;
-  }
-  const componentCount = readBitsBE(payload, maskBit + 1, COMPONENT_COUNT_BITS);
+function sparseRecordHeader(payload: Uint8Array, slot: number, listStart: number): RecordHeader | null {
+  const componentCount = readBitsBE(payload, listStart, COMPONENT_COUNT_BITS);
   if (componentCount < 1 || componentCount > MAX_COMPONENTS_PER_RECORD) {
     return null;
   }
-  const indicesStart = maskBit + 1 + COMPONENT_COUNT_BITS;
+  const indicesStart = listStart + COMPONENT_COUNT_BITS;
   const componentIndices: number[] = [];
   let previous = -1;
   for (let i = 0; i < componentCount; i++) {
@@ -109,34 +109,77 @@ function matchRecordHeader(payload: Uint8Array, bitPos: number): RecordHeader | 
   return { slot, componentIndices, firstComponentBit: indicesStart + COMPONENT_INDEX_BITS * componentCount };
 }
 
+// the archetype has 58 components, so the mask's top six bits are never set
+function denseRecordHeader(payload: Uint8Array, slot: number, maskStart: number): RecordHeader | null {
+  if (maskStart + DENSE_MASK_BITS > payload.length * 8) {
+    return null;
+  }
+  if (readBitsBE(payload, maskStart, DENSE_MASK_BITS - MAX_COMPONENT_INDEX) !== 0) {
+    return null;
+  }
+  const componentIndices: number[] = [];
+  for (let index = 0; index < MAX_COMPONENT_INDEX; index++) {
+    if (readBitsBE(payload, maskStart + DENSE_MASK_BITS - 1 - index, 1) === 1) {
+      componentIndices.push(index);
+    }
+  }
+  if (componentIndices.length === 0) {
+    return null;
+  }
+  return { slot, componentIndices, firstComponentBit: maskStart + DENSE_MASK_BITS };
+}
+
+function matchRecordHeader(payload: Uint8Array, bitPos: number): RecordHeader | null {
+  if (readBitsBE(payload, bitPos - 1, 1) !== 1) {
+    return null;
+  }
+  const slot = readBitsBE(payload, bitPos, SLOT_BITS);
+  if (slot < MIN_SLOT || slot > MAX_SLOT || slot % 2 !== 0) {
+    return null;
+  }
+  if (readBitsBE(payload, bitPos + SLOT_BITS, GENERATION_BITS) !== GENERATION_VALUE) {
+    return null;
+  }
+  const listFormBit = bitPos + SLOT_BITS + GENERATION_BITS;
+  const listStart = listFormBit + 1;
+  return readBitsBE(payload, listFormBit, 1) === 1
+    ? denseRecordHeader(payload, slot, listStart)
+    : sparseRecordHeader(payload, slot, listStart);
+}
+
 interface DecodedComponents {
   components: Map<number, StatValue>;
+  round: number;
   endBit: number;
 }
 
-// Only the first component's two zero headers are enforced: measured at 99.1% of real
-// components, which is enough to reject chance header matches without dropping the real
-// records whose later components carry a non-zero header.
-function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedComponents {
-  const components = new Map<number, StatValue>();
+function readRound(payload: Uint8Array, firstComponentBit: number): number | null {
+  const first = readBitsBE(payload, firstComponentBit, COMPONENT_HEADER_BITS);
+  const second = readBitsBE(payload, firstComponentBit + COMPONENT_HEADER_BITS, COMPONENT_HEADER_BITS);
+  return first === second && first <= MAX_ROUND ? first : null;
+}
+
+function isWithinCounterDomain(value: StatValue): boolean {
+  return Math.abs(value.a) <= MAX_COUNTER_MAGNITUDE && Math.abs(value.b) <= MAX_COUNTER_MAGNITUDE;
+}
+
+function decodeComponents(payload: Uint8Array, header: RecordHeader): DecodedComponents | null {
   const { firstComponentBit } = header;
-  if (
-    readBitsBE(payload, firstComponentBit, COMPONENT_HEADER_BITS) !== 0 ||
-    readBitsBE(payload, firstComponentBit + COMPONENT_HEADER_BITS, COMPONENT_HEADER_BITS) !== 0
-  ) {
-    return { components, endBit: firstComponentBit };
+  const round = readRound(payload, firstComponentBit);
+  if (round == null) {
+    return null;
   }
+  const components = new Map<number, StatValue>();
   let cursor = firstComponentBit;
   for (const index of header.componentIndices) {
     const component = decodeComponent(payload, cursor);
-    if (component == null) {
-      // a record whose declared components do not all decode is a chance match, not a record
-      return { components: new Map(), endBit: firstComponentBit };
+    if (component == null || !isWithinCounterDomain(component.value)) {
+      return null;
     }
     components.set(index, component.value);
     cursor += component.bitsConsumed;
   }
-  return { components, endBit: cursor };
+  return { components, round, endBit: cursor };
 }
 
 // Every record starts with the prefix bit followed by a slot of at most 24, so the ten bits
@@ -155,11 +198,12 @@ function decodeRecordAt(
   if (header == null) {
     return null;
   }
-  const { components, endBit } = decodeComponents(payload, header);
-  if (components.size === 0) {
+  const decoded = decodeComponents(payload, header);
+  if (decoded == null) {
     return null;
   }
-  return { record: { timestampMs, slot: header.slot, components }, endBit };
+  const { components, round, endBit } = decoded;
+  return { record: { timestampMs, slot: header.slot, round, components }, endBit };
 }
 
 export function scanFrameForStatRecords(payload: Uint8Array, timestampMs: number): StatRecord[] {

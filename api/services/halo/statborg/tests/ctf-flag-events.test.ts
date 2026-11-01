@@ -51,6 +51,29 @@ describe("buildCtfFlagEventsFromRecords", () => {
     expect(unresolvedSlots).toEqual([18]);
   });
 
+  it("reads only the regulation round while overtime records are present", () => {
+    const slots = [6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+    const regulation = [
+      ...identityRecords(10, 16, 17, 12),
+      ...identityRecords(24, 19, 16, 6),
+      ...slots
+        .filter((slot) => slot !== 10 && slot !== 24)
+        .map((slot) => aFakeStatRecordWith({ timestampMs: 50, slot, components: { 2: { a: 0, b: 0 } } })),
+    ];
+    const overtime = slots.flatMap((slot) => [
+      aFakeStatRecordWith({ timestampMs: 770_000, slot, round: 1, components: { 2: { a: 0, b: 0 } } }),
+      aFakeStatRecordWith({ timestampMs: 800_000, slot, round: 1, components: { 21: { a: 1, b: 0 } } }),
+    ]);
+    const records = [
+      ...regulation,
+      aFakeStatRecordWith({ timestampMs: 61_000, slot: 10, components: { 21: { a: 1, b: 0 } } }),
+      ...overtime,
+    ];
+    const { events, unresolvedSlots } = buildCtfFlagEventsFromRecords(records, aFakeCtfMatchStatsWith());
+    expect(unresolvedSlots).toEqual([]);
+    expect(events).toEqual([{ timestampMs: 61_000, kind: "capture", xuid: "0100000000000000", teamId: 0 }]);
+  });
+
   it("returns no events for an empty record set", () => {
     expect(buildCtfFlagEventsFromRecords([], aFakeCtfMatchStatsWith())).toEqual({ events: [], unresolvedSlots: [] });
   });

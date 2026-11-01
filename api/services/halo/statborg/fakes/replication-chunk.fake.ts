@@ -10,11 +10,14 @@ export interface StatComponentSpec {
   // conditional values gated by the component's two flag bits
   conditionalA?: number | undefined;
   conditionalB?: number | undefined;
+  headers?: readonly [number, number] | undefined;
 }
 
 export interface StatRecordSpec {
   slot: number;
   components: StatComponentSpec[];
+  round?: number | undefined;
+  dense?: boolean | undefined;
 }
 
 export interface FrameSpec {
@@ -50,18 +53,51 @@ export class BitWriter {
   }
 }
 
+const MAX_SPARSE_COMPONENTS = 7;
+
+function writeSparseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
+  if (components.length > MAX_SPARSE_COMPONENTS) {
+    throw new Error(`A sparse record carries at most ${String(MAX_SPARSE_COMPONENTS)} components; use dense: true`);
+  }
+  writer.write(0, 1);
+  writer.write(components.length, 3);
+  for (const component of components) {
+    writer.write(component.index, 6);
+  }
+}
+
+const DENSE_MASK_BITS = 64;
+
+function writeDenseComponentList(writer: BitWriter, components: readonly StatComponentSpec[]): void {
+  const indices = new Set(components.map((component) => component.index));
+  if ([...indices].some((index) => index >= DENSE_MASK_BITS)) {
+    throw new Error(`A dense mask addresses components 0 to ${String(DENSE_MASK_BITS - 1)}`);
+  }
+  writer.write(1, 1);
+  for (let index = DENSE_MASK_BITS - 1; index >= 0; index--) {
+    writer.write(indices.has(index) ? 1 : 0, 1);
+  }
+}
+
+function componentsInWireOrder(record: StatRecordSpec): StatComponentSpec[] {
+  return [...record.components].sort((left, right) => left.index - right.index);
+}
+
 function writeRecord(writer: BitWriter, record: StatRecordSpec, gapBits: number): void {
   writer.write(1, 1);
   writer.write(record.slot, 14);
   writer.write(0b10, 2);
-  writer.write(0, 1);
-  writer.write(record.components.length, 3);
-  for (const component of record.components) {
-    writer.write(component.index, 6);
+  const components = componentsInWireOrder(record);
+  if (record.dense === true) {
+    writeDenseComponentList(writer, components);
+  } else {
+    writeSparseComponentList(writer, components);
   }
-  for (const component of record.components) {
-    writer.write(0, 5);
-    writer.write(0, 5);
+  const round = record.round ?? 0;
+  for (const component of components) {
+    const [first, second] = component.headers ?? [round, round];
+    writer.write(first, 5);
+    writer.write(second, 5);
     writer.writeSigned(component.a);
     writer.writeSigned(component.b);
     writer.write(component.conditionalA == null ? 0 : 1, 1);

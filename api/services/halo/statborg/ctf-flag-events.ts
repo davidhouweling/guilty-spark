@@ -8,6 +8,8 @@ import { sortStatRecords } from "./stat-records";
 import { counterIncrementTimes } from "./stat-counters";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
 
+const REGULATION_ROUND = 0;
+
 interface CtfStatSlot {
   key: StatSlotKey;
   kind: CtfFlagEventKind;
@@ -57,12 +59,17 @@ export function assertCtfMatchSupported(matchStats: MatchStats): void {
   }
 }
 
+// overtime reassigns the player slots, so only regulation is read until identity is per round
+function regulationRecords(unsorted: readonly StatRecord[]): StatRecord[] {
+  return sortStatRecords(unsorted.filter((record) => record.round === REGULATION_ROUND));
+}
+
 export function buildCtfFlagEventsFromRecords(
   unsorted: readonly StatRecord[],
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[] = [],
 ): CtfFlagEvents {
-  const records = sortStatRecords(unsorted);
+  const records = regulationRecords(unsorted);
   const identities = resolveSlotIdentities(records, matchStats, highlightEvents);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];
