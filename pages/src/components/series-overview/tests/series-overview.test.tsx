@@ -40,7 +40,7 @@ describe("SeriesOverview", () => {
       "listitem",
     );
 
-    expect(playedMatch?.getAttribute("style")).toContain("--team-color: #FE3939");
-    expect(upcomingMatch?.getAttribute("style")).not.toContain("--team-color");
+    expect(playedMatch.getAttribute("style")).toContain("--team-color: #FE3939");
+    expect(upcomingMatch.getAttribute("style")).not.toContain("--team-color");
   });
 });

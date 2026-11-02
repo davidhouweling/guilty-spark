@@ -9,6 +9,8 @@ import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-met
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesOverviewTeam } from "../../series-overview/types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -18,7 +20,12 @@ import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { EntryDetailController } from "./entry-detail-controller";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } from "./viewer-store";
-import type { IndividualTrackerViewerViewModel, ViewerTimelineItem } from "./types";
+import type {
+  IndividualTrackerViewerRenderModel,
+  IndividualTrackerViewerViewModel,
+  ViewerEntryState,
+  ViewerTimelineItem,
+} from "./types";
 
 interface Config {
   readonly individualTrackerService?: IndividualTrackerService;
@@ -28,6 +35,62 @@ interface Config {
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
+}
+
+function toSeriesOverviewTeams(viewModel: SeriesStatsViewModel): readonly SeriesOverviewTeam[] {
+  return viewModel.teams.map((team, teamIndex) => ({
+    id: `loaded:${teamIndex.toString()}:${team.name}`,
+    name: team.name,
+    teamColorHex: team.teamColorHex,
+    players: team.players.map((player, playerIndex) => ({
+      id: `${teamIndex.toString()}:${playerIndex.toString()}:${player}`,
+      discordName: player,
+      gamertag: null,
+    })),
+  }));
+}
+
+function applyLoadedSeriesDetails(
+  renderModel: IndividualTrackerViewerRenderModel,
+  entryStates: ReadonlyMap<string, ViewerEntryState>,
+): IndividualTrackerViewerRenderModel {
+  const timeline = renderModel.timeline.map((item) => {
+    if (item.type !== "series") {
+      return item;
+    }
+
+    const entryState = entryStates.get(`series:${item.series.id}`);
+    if (entryState?.kind !== "series" || entryState.state.status !== "loaded") {
+      return item;
+    }
+
+    const { viewModel } = entryState.state;
+    const summariesById = new Map(viewModel.matchSummaries.map((summary) => [summary.matchId, summary]));
+    const teams =
+      item.series.teams.length === 0 && viewModel.teams.length > 0
+        ? toSeriesOverviewTeams(viewModel)
+        : item.series.seriesOverview.teams;
+
+    return {
+      ...item,
+      series: {
+        ...item.series,
+        seriesOverview: {
+          ...item.series.seriesOverview,
+          teams,
+          matches: item.series.seriesOverview.matches.map((match) => {
+            const summary = summariesById.get(match.id);
+            if (summary == null) {
+              return match;
+            }
+            return { ...match, score: summary.gameScore, subScore: summary.gameSubScore };
+          }),
+        },
+      },
+    };
+  });
+
+  return { ...renderModel, timeline };
 }
 
 export class IndividualTrackerViewerPresenter {
@@ -59,15 +122,16 @@ export class IndividualTrackerViewerPresenter {
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {
     const streamerSettings = withStreamerViewSettingsDefaults(snapshot.view?.streamerSettings);
     const { teamColorId, enemyColorId } = getStreamerViewTeamColorIds(streamerSettings);
+    const baseRenderModel =
+      snapshot.view == null
+        ? null
+        : buildViewerRenderModel({
+            view: snapshot.view,
+            preferredTeamColorId: teamColorId,
+            preferredEnemyColorId: enemyColorId,
+          });
     return {
-      renderModel:
-        snapshot.view == null
-          ? null
-          : buildViewerRenderModel({
-              view: snapshot.view,
-              preferredTeamColorId: teamColorId,
-              preferredEnemyColorId: enemyColorId,
-            }),
+      renderModel: baseRenderModel == null ? null : applyLoadedSeriesDetails(baseRenderModel, snapshot.entryStates),
       connectionStatus: snapshot.connectionStatus,
       refreshPending: snapshot.refreshPending,
       expandedEntryKeys: snapshot.expandedEntryKeys,

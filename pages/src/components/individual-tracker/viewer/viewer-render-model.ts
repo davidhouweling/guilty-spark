@@ -144,6 +144,7 @@ function toViewerSeriesOverviewMatches(
 ): SeriesOverviewProps["matches"] {
   const playedMatches = matches.map((match) => ({
     id: match.matchId,
+    href: `#${match.matchId}`,
     mapBackgroundUrl: match.mapBackgroundUrl,
     gameModeIconUrl: gameModeIconSrcForModeName(match.gameModeName),
     gameModeAlt: match.gameModeName,
