@@ -1,3 +1,7 @@
+.seriesOverviewScroller {
+  overflow-x: auto;
+}
+
 .seriesOverview {
   display: flex;
   flex-direction: column;
@@ -132,6 +136,8 @@
 @media (--tablet-viewport) {
   .seriesOverview {
     flex-direction: row;
+    min-width: 100%;
+    width: max-content;
 
     > :nth-child(1) {
       order: 2;
@@ -154,6 +160,14 @@
   }
 
   .seriesScore {
-    flex: 1;
+    flex: 0 0 140px;
+  }
+
+  .seriesScores {
+    flex: 0 0 auto;
+  }
+
+  .teamCard {
+    flex: 0 0 140px;
   }
 }

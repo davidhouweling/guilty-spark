@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ComponentLoaderStatus } from "../../../../components/component-loader/component-loader";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import type { IndividualTrackerViewerSnapshot } from "../viewer-store";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
 import type { SeriesStatsViewModel } from "../../../series-stats/types";
@@ -15,8 +15,18 @@ describe("IndividualTrackerViewerPresenter", () => {
     const series = aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] });
     const view = aFakeTrackerViewStateWith({
       matches: [
-        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Loss", score: "Tracked-player order 0:1" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Win", score: "Tracked-player order 1:0" }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          outcome: "Loss",
+          score: "Tracked-player order 0:1",
+          mapBackgroundUrl: "data:,",
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          outcome: "Win",
+          score: "Tracked-player order 1:0",
+          mapBackgroundUrl: "https://cached.test/map-two.jpg",
+        }),
       ],
       series: [{ ...series, teams: [] }],
     });
@@ -37,7 +47,7 @@ describe("IndividualTrackerViewerPresenter", () => {
         },
         {
           matchId: "m1",
-          gameMapThumbnailUrl: "data:,",
+          gameMapThumbnailUrl: "https://cdn.test/map-one.jpg",
           gameModeIconUrl: "data:,",
           gameModeAlt: "Oddball",
           gameScore: "Roster order 1:0",
@@ -83,5 +93,9 @@ describe("IndividualTrackerViewerPresenter", () => {
     ]);
     expect(item.series.seriesOverview.matches[0]?.href).toBe("#m1");
     expect(item.series.seriesOverview.matches[1]?.href).toBe("#m2");
+    expect(item.series.seriesOverview.matches.map((match) => [match.id, match.mapBackgroundUrl])).toEqual([
+      ["m1", "https://cdn.test/map-one.jpg"],
+      ["m2", "https://cached.test/map-two.jpg"],
+    ]);
   });
 });

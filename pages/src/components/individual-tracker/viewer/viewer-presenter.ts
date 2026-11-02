@@ -83,7 +83,13 @@ function applyLoadedSeriesDetails(
             if (summary == null) {
               return match;
             }
-            return { ...match, score: summary.gameScore, subScore: summary.gameSubScore };
+            return {
+              ...match,
+              mapBackgroundUrl:
+                summary.gameMapThumbnailUrl !== "data:," ? summary.gameMapThumbnailUrl : match.mapBackgroundUrl,
+              score: summary.gameScore,
+              subScore: summary.gameSubScore,
+            };
           }),
         },
       },

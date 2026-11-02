@@ -1,6 +1,11 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import {
+  buildPresentAtBeginningTeamRosters,
+  resolveSeriesTeamMapping,
+} from "@guilty-spark/shared/halo/series-team-identity";
+import type { SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -54,6 +59,71 @@ export interface EntryDetailControllerConfig {
 }
 
 const SERIES_MATCHES_BATCH_SIZE = 30;
+
+function reverseTwoSideScore(score: string): string {
+  const sides = score.split(":");
+  const [firstSide, secondSide] = sides;
+  if (sides.length !== 2) {
+    return score;
+  }
+
+  return `${secondSide}:${firstSide}`;
+}
+
+function shouldReverseSeriesScores(series: ViewerSeriesTab, rawMatches: readonly MatchStats[]): boolean {
+  if (series.teams.length !== 2) {
+    return false;
+  }
+
+  const anchorMatchId = series.matches[0]?.matchId;
+  const anchorMatch = rawMatches.find((match) => match.MatchId === anchorMatchId);
+  if (anchorMatch == null) {
+    return false;
+  }
+
+  const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
+  if (anchorRosters == null) {
+    return false;
+  }
+
+  const configuredRosters: SeriesTeamRoster[] = series.teams.map((team) => {
+    const xuids = new Set(team.players.flatMap((player) => (player.xboxId != null ? [unwrapXuid(player.xboxId)] : [])));
+    return {
+      seriesTeamId: team.id,
+      xuids,
+      unidentifiedPlayerCount: team.players.length - xuids.size,
+    };
+  });
+  if (configuredRosters.some((roster) => roster.xuids.size === 0)) {
+    return false;
+  }
+
+  const normalizedAnchorRosters = anchorRosters.map((roster) => ({
+    ...roster,
+    xuids: new Set(Array.from(roster.xuids, unwrapXuid)),
+  }));
+  const resolution = resolveSeriesTeamMapping(configuredRosters, normalizedAnchorRosters);
+  const [firstConfiguredTeam] = series.teams;
+  const firstTeamResolution = resolution?.find((entry) => entry.seriesTeamId === firstConfiguredTeam.id);
+
+  return firstTeamResolution?.matchTeamId === normalizedAnchorRosters[1]?.matchTeamId;
+}
+
+function alignSeriesMatchScores(
+  series: ViewerSeriesTab,
+  matches: SeriesMatchesResponse["matches"],
+  rawMatches: readonly MatchStats[],
+): SeriesMatchesResponse["matches"] {
+  if (!shouldReverseSeriesScores(series, rawMatches)) {
+    return matches;
+  }
+
+  return matches.map((match) => ({
+    ...match,
+    gameScore: reverseTwoSideScore(match.gameScore),
+    gameSubScore: match.gameSubScore == null ? null : reverseTwoSideScore(match.gameSubScore),
+  }));
+}
 
 // Shared by the live tracker viewer and the search-based match history page — both render the
 // same timeline/entry-expand UI and only differ in how the top-level TrackerViewState is sourced.
@@ -348,12 +418,13 @@ export class EntryDetailController {
       const rawMatches = mergedSeriesData.matches
         .map((m) => m.rawMatch)
         .filter((m): m is MatchStats => isMatchStats(m));
+      const matches = alignSeriesMatchScores(series, mergedSeriesData.matches, rawMatches);
       const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
 
       const teamColors = this.resolveTeamColors();
       const viewModel = buildSeriesViewModel({
         series,
-        matches: mergedSeriesData.matches,
+        matches,
         rawMatches,
         medalMetadata,
         playerMap,
@@ -367,7 +438,7 @@ export class EntryDetailController {
       this.config.store.setSeriesEntryLoaded(key, state);
       this.seriesAnalyticsSources.set(key, {
         series,
-        matches: mergedSeriesData.matches,
+        matches,
         rawMatches,
         medalMetadata,
         playerMap,
