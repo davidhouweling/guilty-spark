@@ -623,7 +623,7 @@ export function IndividualTrackerViewer({
                   >
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
-                        <Container>
+                        <Container wide>
                           <div className={styles.seriesOverview}>
                             <section className={styles.seriesScores}>
                               <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
