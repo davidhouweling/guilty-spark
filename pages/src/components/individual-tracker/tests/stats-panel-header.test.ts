@@ -27,7 +27,6 @@ function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
     ...overrides,
   };
 }
-
 function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab {
   return {
     id: "series-1",
@@ -35,7 +34,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     subtitle: "Best of 3",
     isActive: false,
     teams: [],
-    seriesOverviewTeams: [],
+    seriesOverview: { score: "2:1", matches: [], teams: [] },
     matchBackgroundUrls: [],
     score: "2:1",
     duration: "30m",
@@ -44,7 +43,6 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     startTime: "2026-01-01T00:00:00.000Z",
     endTime: "2026-01-01T00:30:00.000Z",
     matches: [],
-    seriesOverviewMatches: [],
     plannedMatches: [],
     iconMatches: [],
     colorHex: undefined,

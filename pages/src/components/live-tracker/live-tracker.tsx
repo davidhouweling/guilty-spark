@@ -8,9 +8,10 @@ import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
 import type { ViewMode } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
-import { PlayerName } from "../player-name/player-name";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
 import { gameModeIconSrc as gameModeIconFromVariantCategory } from "../individual-tracker/game-mode-icon";
+import { SeriesOverview } from "../series-overview/series-overview";
+import type { SeriesOverviewMatch, SeriesOverviewTeam } from "../series-overview/types";
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
@@ -46,6 +47,72 @@ function emojifySeriesScore(seriesScore: string): string {
 
 function gameModeIconSrc(_gameMode: string, gameVariantCategory?: number): string {
   return gameModeIconFromVariantCategory(gameVariantCategory ?? 0);
+}
+
+function toLiveSeriesOverviewMatches(
+  state: LiveTrackerStateRenderModel,
+  team1Color: string,
+  team2Color: string,
+): readonly SeriesOverviewMatch[] {
+  const playedMatches = state.matches.map((match) => {
+    const winningTeam = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2);
+    const winningTeamIndex = winningTeam != null ? match.rawMatchStats?.Teams.indexOf(winningTeam) : -1;
+    const colorId = winningTeamIndex === 0 ? team1Color : team2Color;
+    const teamColorHex =
+      winningTeamIndex != null && winningTeamIndex >= 0 && winningTeamIndex < 2
+        ? getTeamColorOrDefault(colorId, winningTeamIndex).hex
+        : undefined;
+
+    return {
+      id: match.matchId,
+      href: `#${match.matchId}`,
+      mapBackgroundUrl: match.gameMapThumbnailUrl,
+      teamColorHex,
+      gameModeIconUrl: gameModeIconSrc(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+      gameModeAlt: match.gameType,
+      score: match.gameScore,
+      subScore: match.gameSubScore,
+      mapLabel: match.gameMap,
+      isUpcoming: false,
+    };
+  });
+  const upcomingMatches = state.plannedGames.map((match) => ({
+    id: `planned-${match.gameNumber.toString()}`,
+    mapBackgroundUrl: match.gameMapThumbnailUrl,
+    gameModeIconUrl: match.gameModeIconUrl,
+    gameModeAlt: "",
+    score: null,
+    subScore: null,
+    mapLabel: `${match.mode}: ${match.map}`,
+    isUpcoming: true,
+  }));
+
+  return [...playedMatches, ...upcomingMatches];
+}
+
+function toLiveSeriesOverviewTeams(
+  state: LiveTrackerStateRenderModel,
+  team1Color: string,
+  team2Color: string,
+): readonly SeriesOverviewTeam[] {
+  return state.teams.map((team, teamIndex) => {
+    const teamColorId = teamIndex === 0 ? team1Color : team2Color;
+    const teamColor = getTeamColorOrDefault(teamIndex < 2 ? teamColorId : undefined, teamIndex);
+
+    return {
+      id: `${teamIndex.toString()}:${team.name}`,
+      name: team.name,
+      teamColorHex: teamColor.hex,
+      players: team.players.map((player) => {
+        const playerData = state.playersAssociationData?.[player.id];
+        return {
+          id: player.id,
+          discordName: playerData?.discordName ?? player.displayName,
+          gamertag: playerData?.gamertag ?? null,
+        };
+      }),
+    };
+  });
 }
 
 export function LiveTrackerView(): React.ReactElement {
@@ -192,6 +259,8 @@ export function LiveTrackerView(): React.ReactElement {
   title.push("Live Tracker - Guilty Spark");
 
   const teamColorsArray = [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)];
+  const seriesOverviewMatches = hasState(state) ? toLiveSeriesOverviewMatches(state, team1Color, team2Color) : [];
+  const seriesOverviewTeams = hasState(state) ? toLiveSeriesOverviewTeams(state, team1Color, team2Color) : [];
 
   const settingsTrigger = (
     <SettingsTrigger
@@ -300,116 +369,12 @@ export function LiveTrackerView(): React.ReactElement {
                   </Heading>
                   {settingsTrigger}
                 </div>
-                <div className={styles.seriesOverview}>
-                  <section className={styles.seriesScores}>
-                    {hasMatches ? (
-                      <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
-                        {state.seriesScore}
-                      </Heading>
-                    ) : (
-                      <div className={styles.noticeFlexFill}>
-                        <Alert variant="info" icon="⏳">
-                          Waiting for first match to complete...
-                        </Alert>
-                      </div>
-                    )}
-                    {(hasMatches || state.plannedGames.length > 0) && (
-                      <ul className={styles.seriesScoresList} aria-label="Series score tiles">
-                        {state.matches.map((match) => {
-                          // Determine winning team for overlay color
-                          let winningTeamIndex: number | null = null;
-                          if (match.rawMatchStats) {
-                            const winningTeam = match.rawMatchStats.Teams.find((team) => team.Outcome === 2); // 2 = Win
-                            if (winningTeam) {
-                              winningTeamIndex = match.rawMatchStats.Teams.indexOf(winningTeam);
-                            }
-                          }
-
-                          const teamColorId = winningTeamIndex === 0 ? team1Color : team2Color;
-                          const teamColor =
-                            winningTeamIndex !== null && winningTeamIndex < 2
-                              ? getTeamColorOrDefault(teamColorId, winningTeamIndex)
-                              : undefined;
-
-                          return (
-                            <li
-                              key={match.matchId}
-                              className={styles.seriesScore}
-                              style={
-                                {
-                                  "--series-score-bg": `url(${match.gameMapThumbnailUrl})`,
-                                  "--team-color": teamColor?.hex ?? "transparent",
-                                } as React.CSSProperties
-                              }
-                            >
-                              <a href={`#${match.matchId}`} className={styles.seriesScoreLink}>
-                                <img
-                                  src={gameModeIconSrc(
-                                    match.gameType,
-                                    match.rawMatchStats?.MatchInfo.GameVariantCategory,
-                                  )}
-                                  alt={match.gameType}
-                                  className={styles.gameTypeIcon}
-                                />
-                                {match.gameScore}
-                                {match.gameSubScore != null ? (
-                                  <span className={styles.seriesSubScore}>({match.gameSubScore})</span>
-                                ) : (
-                                  ""
-                                )}
-                                <span className={styles.gameTypeAndMap}>{match.gameMap}</span>
-                              </a>
-                            </li>
-                          );
-                        })}
-                        {state.plannedGames.map((game) => (
-                          <li
-                            key={`planned-${game.gameNumber.toString()}`}
-                            className={classNames(styles.seriesScore, styles.seriesScoreUpcoming)}
-                            style={{ "--series-score-bg": `url(${game.gameMapThumbnailUrl})` } as React.CSSProperties}
-                          >
-                            <div className={styles.seriesScoreLink}>
-                              {game.gameModeIconUrl != null && (
-                                <img src={game.gameModeIconUrl} alt="" className={styles.gameTypeIcon} />
-                              )}
-                              <span className={styles.gameTypeAndMap}>{`${game.mode}: ${game.map}`}</span>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                  {state.teams.map((team, teamIndex) => {
-                    const teamColorId = teamIndex === 0 ? team1Color : team2Color;
-                    const teamColor = getTeamColorOrDefault(teamIndex < 2 ? teamColorId : undefined, teamIndex);
-
-                    return (
-                      <section
-                        key={team.name}
-                        className={styles.teamCard}
-                        style={{ "--team-color": teamColor.hex } as React.CSSProperties}
-                      >
-                        <Heading tagName="h3" className={styles.teamName}>
-                          {team.name}
-                        </Heading>
-                        <ul className={styles.playerList}>
-                          {team.players.map((player) => {
-                            const playerData = state.playersAssociationData?.[player.id];
-                            return (
-                              <li key={player.id}>
-                                <PlayerName
-                                  discordName={playerData?.discordName ?? player.displayName}
-                                  gamertag={playerData?.gamertag ?? null}
-                                  showIcons={true}
-                                />
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </section>
-                    );
-                  })}
-                </div>
+                <SeriesOverview
+                  score={state.seriesScore}
+                  matches={seriesOverviewMatches}
+                  teams={seriesOverviewTeams}
+                  waitingMessage={hasMatches ? undefined : "Waiting for first match to complete..."}
+                />
               </Container>
             )}
             {hasState(state) && seriesStats && (

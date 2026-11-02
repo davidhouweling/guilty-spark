@@ -9,8 +9,9 @@ import {
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { TrackerViewConnectionStatus } from "../../../../services/individual-tracker/view-types";
+import type { SeriesStatsViewModel } from "../../../series-stats/types";
 import { buildViewerRenderModel } from "../viewer-render-model";
-import type { IndividualTrackerViewerRenderModel } from "../types";
+import type { IndividualTrackerViewerRenderModel, ViewerEntryState } from "../types";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 
 vi.mock("react-time-ago", () => ({
@@ -36,13 +37,14 @@ function renderViewer(
   connectionStatus: TrackerViewConnectionStatus = "connected",
   canManage = true,
   expandedEntryKeys: ReadonlySet<string> = new Set(),
+  entryStates: ReadonlyMap<string, ViewerEntryState> = new Map(),
 ): void {
   render(
     <IndividualTrackerViewer
       renderModel={aModel(view)}
       connectionStatus={connectionStatus}
       expandedEntryKeys={expandedEntryKeys}
-      entryStates={new Map()}
+      entryStates={entryStates}
       canManage={canManage}
       refreshPending={false}
       onToggleEntry={() => undefined}
@@ -198,6 +200,55 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Eagle" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+  });
+
+  it("does not render a duplicate overview when series stats are loaded", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Shared Overview Map" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Second Match Map" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-loaded",
+          matchIds: ["m-1", "m-2"],
+          title: "Loaded Series",
+          score: "1:0",
+        }),
+      ],
+    });
+    const seriesStatsViewModel: SeriesStatsViewModel = {
+      title: "Loaded Series",
+      subtitle: "Best of 3",
+      seriesScore: "1:0",
+      matchSummaries: [
+        {
+          matchId: "m-1",
+          gameMapThumbnailUrl: "data:,",
+          gameModeIconUrl: "data:,",
+          gameModeAlt: "Slayer",
+          gameScore: "50:42",
+          gameSubScore: null,
+          gameMap: "Shared Overview Map",
+          winningTeamColorHex: null,
+        },
+      ],
+      teams: [],
+      seriesStats: null,
+      matchDetails: [],
+    };
+    const entryStates = new Map<string, ViewerEntryState>([
+      [
+        "series:series-loaded",
+        { kind: "series", state: { status: "loaded", seriesId: "series-loaded", viewModel: seriesStatsViewModel } },
+      ],
+    ]);
+
+    renderViewer(view, "connected", true, new Set(["series:series-loaded"]), entryStates);
+
+    expect(screen.getAllByRole("list", { name: "Series score tiles" })).toHaveLength(1);
+    expect(screen.getAllByText("Shared Overview Map")).toHaveLength(1);
+    expect(screen.getByText("Matches")).toBeInTheDocument();
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {

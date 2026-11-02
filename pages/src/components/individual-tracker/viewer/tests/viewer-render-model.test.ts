@@ -168,6 +168,26 @@ describe("buildViewerRenderModel", () => {
     ]);
   });
 
+  it("leaves played overview tiles neutral when winning team side is unavailable", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss", teamCount: 2 }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected a series timeline item");
+    }
+
+    expect(item.series.matches[0]?.colorHex).toBeDefined();
+    expect(item.series.seriesOverview.matches[0]?.teamColorHex).toBeUndefined();
+  });
+
   it("does not collapse matches on the same map/mode when they are not consecutive", () => {
     expect.assertions(1);
     const view = aFakeTrackerViewStateWith({
@@ -371,6 +391,40 @@ describe("buildViewerRenderModel", () => {
       expect.objectContaining({ matchNumber: 1, mode: "Slayer", map: "Actual Map", played: true }),
       expect.objectContaining({ matchNumber: 2, mode: "Oddball", map: "Planned Map Two", played: false }),
     ]);
+  });
+
+  it("uses saved teams for an archived series overview", () => {
+    const series = aFakeTrackerSeriesGroupWith({ id: "s-saved", matchIds: ["m1", "m2"] });
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [
+        {
+          ...series,
+          teams: [
+            {
+              id: 0,
+              name: "Eagle Prime",
+              players: [{ discordId: "discord-1", discordName: "Eagle One", gamertag: "EagleTag", xboxId: "xuid-1" }],
+            },
+            {
+              id: 1,
+              name: "Cobra Prime",
+              players: [{ discordId: "discord-2", discordName: "Cobra One", gamertag: "CobraTag", xboxId: "xuid-2" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected the archived series to remain grouped");
+    }
+
+    expect(item.series.seriesOverview.teams.map((team) => team.name)).toEqual(["Eagle Prime", "Cobra Prime"]);
+    expect(item.series.seriesOverview.teams[0]?.players[0]?.discordName).toBe("Eagle One");
   });
 
   it("passes statsHighlights from the view state through to the render model", () => {

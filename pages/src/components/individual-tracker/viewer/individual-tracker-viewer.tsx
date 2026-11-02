@@ -19,7 +19,7 @@ import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
-import { PlayerName } from "../../player-name/player-name";
+import { SeriesOverview } from "../../series-overview/series-overview";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import {
@@ -624,80 +624,7 @@ export function IndividualTrackerViewer({
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
                         <Container wide>
-                          <div className={styles.seriesOverview}>
-                            <section className={styles.seriesScores}>
-                              <Heading tagName="h3" className={styles.seriesScoresHeader} aria-label="Series scores">
-                                {series.matches.length > 0 ? series.score : "0:0"}
-                              </Heading>
-                              {series.seriesOverviewMatches.length > 0 && (
-                                <ul className={styles.seriesOverviewScoresList} aria-label="Series score tiles">
-                                  {series.seriesOverviewMatches.map((match) => (
-                                    <li
-                                      key={`${match.matchNumber.toString()}-${match.isUpcoming ? "upcoming" : "played"}`}
-                                      className={classNames(
-                                        styles.seriesOverviewScore,
-                                        match.isUpcoming && styles.seriesOverviewScoreUpcoming,
-                                      )}
-                                      style={
-                                        {
-                                          "--series-score-bg": `url(${match.mapBackgroundUrl})`,
-                                          "--team-color": match.colorHex ?? "transparent",
-                                        } as React.CSSProperties
-                                      }
-                                    >
-                                      <div className={styles.seriesOverviewScoreLink}>
-                                        {match.gameModeIconUrl != null && (
-                                          <img
-                                            src={match.gameModeIconUrl}
-                                            alt={match.isUpcoming ? "" : match.mode}
-                                            className={styles.seriesOverviewGameTypeIcon}
-                                          />
-                                        )}
-                                        {match.score != null && <strong>{match.score}</strong>}
-                                        <span className={styles.seriesOverviewGameTypeAndMap}>
-                                          {match.isUpcoming ? `${match.mode}: ${match.map}` : match.map}
-                                        </span>
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </section>
-                            {series.seriesOverviewTeams.map((team, teamIndex) => (
-                              <section
-                                key={team.id}
-                                className={styles.teamCard}
-                                style={
-                                  {
-                                    "--team-color": renderModel.teamColors[teamIndex]?.hex ?? "transparent",
-                                  } as React.CSSProperties
-                                }
-                              >
-                                <Heading tagName="h3" className={styles.teamName}>
-                                  {team.name}
-                                </Heading>
-                                {team.players.length > 0 && (
-                                  <ul className={styles.playerList}>
-                                    {team.players.map((player, playerIndex) => (
-                                      <li
-                                        key={
-                                          player.discordId ??
-                                          player.xboxId ??
-                                          `${team.id.toString()}:${playerIndex.toString()}`
-                                        }
-                                      >
-                                        <PlayerName
-                                          discordName={player.discordName ?? player.gamertag ?? "Unknown"}
-                                          gamertag={player.gamertag}
-                                          showIcons={true}
-                                        />
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </section>
-                            ))}
-                          </div>
+                          <SeriesOverview {...series.seriesOverview} />
                         </Container>
                         {series.matches.length === 0 ? (
                           <>
@@ -724,6 +651,7 @@ export function IndividualTrackerViewer({
                             ) : state.kind === "series" && state.state.status === "loaded" ? (
                               <SeriesStatsView
                                 {...state.state.viewModel}
+                                showSeriesOverview={false}
                                 noGutter={true}
                                 wide={true}
                                 onAnalyticsTabSelected={(module): void => {

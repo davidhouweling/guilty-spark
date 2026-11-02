@@ -10,6 +10,7 @@ import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../cont
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesOverviewProps } from "../../series-overview/types";
 
 export interface ViewerMatchTab {
   readonly matchId: string;
@@ -36,7 +37,7 @@ export interface ViewerSeriesTab {
   readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
-  readonly seriesOverviewTeams: readonly ViewerSeriesTeam[];
+  readonly seriesOverview: Pick<SeriesOverviewProps, "score" | "matches" | "teams">;
   readonly preSeriesTableData?: ViewerPreSeriesTableData;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
@@ -46,7 +47,6 @@ export interface ViewerSeriesTab {
   readonly startTime: string;
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];
-  readonly seriesOverviewMatches: readonly ViewerSeriesOverviewMatch[];
   readonly plannedMatches: readonly ViewerPlannedMatch[];
   // Same-map/mode consecutive rematches collapsed to their final (actual) match, mirroring the
   // score's collapseSequentialSeriesEntries rule. Icon strips use this; the expanded per-match
@@ -61,17 +61,6 @@ export interface ViewerPlannedMatch {
   readonly map: string;
   readonly played: boolean;
   readonly gameModeIconUrl: string | null;
-}
-
-export interface ViewerSeriesOverviewMatch {
-  readonly matchNumber: number;
-  readonly mode: string;
-  readonly map: string;
-  readonly mapBackgroundUrl: string;
-  readonly gameModeIconUrl: string | null;
-  readonly score: string | null;
-  readonly colorHex: string | undefined;
-  readonly isUpcoming: boolean;
 }
 
 export interface ViewerSeriesTeamPlayer {
