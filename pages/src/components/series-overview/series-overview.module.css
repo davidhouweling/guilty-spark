@@ -137,7 +137,7 @@
   .seriesOverview {
     flex-direction: row;
     min-width: 100%;
-    width: max-content;
+    width: 100%;
 
     > :nth-child(1) {
       order: 2;
@@ -160,11 +160,11 @@
   }
 
   .seriesScore {
-    flex: 0 0 140px;
+    flex: 1 0 140px;
   }
 
   .seriesScores {
-    flex: 0 0 auto;
+    flex: 1 0 0;
   }
 
   .teamCard {

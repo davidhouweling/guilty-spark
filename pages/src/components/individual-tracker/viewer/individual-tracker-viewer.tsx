@@ -628,18 +628,16 @@ export function IndividualTrackerViewer({
                         </Container>
                         {series.matches.length === 0 ? (
                           <>
-                            <Container>
+                            <Container className={styles.preSeriesNotice}>
                               <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
                             </Container>
                             {series.preSeriesTableData != null && series.teams.length > 0 && (
-                              <Container>
-                                <PlayerPreSeriesInfo
-                                  className={styles.preSeriesInfo}
-                                  teams={series.preSeriesTableData.teams}
-                                  playersAssociationData={series.preSeriesTableData.playersAssociationData}
-                                  teamColors={renderModel.teamColors}
-                                />
-                              </Container>
+                              <PlayerPreSeriesInfo
+                                className={styles.preSeriesInfo}
+                                teams={series.preSeriesTableData.teams}
+                                playersAssociationData={series.preSeriesTableData.playersAssociationData}
+                                teamColors={renderModel.teamColors}
+                              />
                             )}
                           </>
                         ) : (
