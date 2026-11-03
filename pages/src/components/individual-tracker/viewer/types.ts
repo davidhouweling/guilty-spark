@@ -10,6 +10,7 @@ import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../cont
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesOverviewProps } from "../../series-overview/types";
 
 export interface ViewerMatchTab {
   readonly matchId: string;
@@ -36,6 +37,7 @@ export interface ViewerSeriesTab {
   readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
+  readonly seriesOverview: Pick<SeriesOverviewProps, "score" | "matches" | "teams">;
   readonly preSeriesTableData?: ViewerPreSeriesTableData;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;

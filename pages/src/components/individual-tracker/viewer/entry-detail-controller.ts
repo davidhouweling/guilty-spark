@@ -1,6 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import {
+  buildPresentAtBeginningTeamRosters,
+  resolveMatchTeamIdToSeriesTeamId,
+  resolveSeriesTeamMapping,
+} from "@guilty-spark/shared/halo/series-team-identity";
+import type { SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
@@ -16,6 +22,8 @@ import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildSeriesViewModel } from "../../series-stats/build-series-view-model";
+import type { BuildSeriesViewModelArgs } from "../../series-stats/build-series-view-model";
+import type { SeriesStatsViewModel } from "../../series-stats/types";
 import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import type { IndividualTrackerViewerStore, MatchEntryLoadedState, SeriesEntryLoadedState } from "./viewer-store";
 import type { ViewerSeriesTab, ViewerTimelineItem } from "./types";
@@ -55,6 +63,69 @@ export interface EntryDetailControllerConfig {
 
 const SERIES_MATCHES_BATCH_SIZE = 30;
 
+function reverseTwoSideScore(score: string): string {
+  const sides = score.split(":");
+  const [firstSide, secondSide] = sides;
+  if (sides.length !== 2) {
+    return score;
+  }
+
+  return `${secondSide}:${firstSide}`;
+}
+
+function shouldReverseSeriesScores(
+  series: ViewerSeriesTab,
+  rawMatches: readonly MatchStats[],
+  matchId: string,
+): boolean {
+  const match = rawMatches.find((rawMatch) => rawMatch.MatchId === matchId);
+  if (series.teams.length !== 2 || match?.Teams.length !== 2) {
+    return false;
+  }
+
+  const anchorMatchId = series.matches[0]?.matchId;
+  const anchorMatch = rawMatches.find((candidate) => candidate.MatchId === anchorMatchId);
+  if (anchorMatch == null) {
+    return false;
+  }
+
+  const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
+  const matchRosters = buildPresentAtBeginningTeamRosters(match);
+  if (matchRosters == null) {
+    return false;
+  }
+
+  const isCanonical = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match) != null;
+  const scoreRosters = isCanonical
+    ? anchorRosters
+    : match.Teams.flatMap((team) => matchRosters.filter((roster) => roster.matchTeamId === team.TeamId));
+  if (scoreRosters?.length !== 2) {
+    return false;
+  }
+
+  const configuredRosters: SeriesTeamRoster[] = series.teams.map((team) => {
+    const xuids = new Set(team.players.flatMap((player) => (player.xboxId != null ? [unwrapXuid(player.xboxId)] : [])));
+    return {
+      seriesTeamId: team.id,
+      xuids,
+      unidentifiedPlayerCount: team.players.length - xuids.size,
+    };
+  });
+  if (configuredRosters.some((roster) => roster.xuids.size === 0)) {
+    return false;
+  }
+
+  const normalizedScoreRosters = scoreRosters.map((roster) => ({
+    ...roster,
+    xuids: new Set(Array.from(roster.xuids, unwrapXuid)),
+  }));
+  const resolution = resolveSeriesTeamMapping(configuredRosters, normalizedScoreRosters);
+  const [firstConfiguredTeam] = series.teams;
+  const firstTeamResolution = resolution?.find((entry) => entry.seriesTeamId === firstConfiguredTeam.id);
+
+  return firstTeamResolution?.matchTeamId === normalizedScoreRosters[1]?.matchTeamId;
+}
+
 // Shared by the live tracker viewer and the search-based match history page — both render the
 // same timeline/entry-expand UI and only differ in how the top-level TrackerViewState is sourced.
 export class EntryDetailController {
@@ -65,6 +136,25 @@ export class EntryDetailController {
 
   public constructor(config: EntryDetailControllerConfig) {
     this.config = config;
+  }
+
+  private buildSeriesViewModel(
+    args: BuildSeriesViewModelArgs & { readonly series: ViewerSeriesTab },
+  ): SeriesStatsViewModel {
+    const viewModel = buildSeriesViewModel(args);
+    return {
+      ...viewModel,
+      matchSummaries: viewModel.matchSummaries.map((summary) => {
+        if (!shouldReverseSeriesScores(args.series, args.rawMatches, summary.matchId)) {
+          return summary;
+        }
+        return {
+          ...summary,
+          gameScore: reverseTwoSideScore(summary.gameScore),
+          gameSubScore: summary.gameSubScore == null ? null : reverseTwoSideScore(summary.gameSubScore),
+        };
+      }),
+    };
   }
 
   private static entryKey(item: ViewerTimelineItem): string {
@@ -348,12 +438,13 @@ export class EntryDetailController {
       const rawMatches = mergedSeriesData.matches
         .map((m) => m.rawMatch)
         .filter((m): m is MatchStats => isMatchStats(m));
+      const { matches } = mergedSeriesData;
       const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
 
       const teamColors = this.resolveTeamColors();
-      const viewModel = buildSeriesViewModel({
+      const viewModel = this.buildSeriesViewModel({
         series,
-        matches: mergedSeriesData.matches,
+        matches,
         rawMatches,
         medalMetadata,
         playerMap,
@@ -367,7 +458,7 @@ export class EntryDetailController {
       this.config.store.setSeriesEntryLoaded(key, state);
       this.seriesAnalyticsSources.set(key, {
         series,
-        matches: mergedSeriesData.matches,
+        matches,
         rawMatches,
         medalMetadata,
         playerMap,
@@ -389,7 +480,7 @@ export class EntryDetailController {
     source: SeriesAnalyticsSource,
   ): Promise<void> {
     source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
-    const loadingViewModel = buildSeriesViewModel({
+    const loadingViewModel = this.buildSeriesViewModel({
       ...source,
       teamColors: this.resolveTeamColors(),
       killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
@@ -401,7 +492,7 @@ export class EntryDetailController {
     const uniqueMatchIds = [...new Set(requestedMatchIds)];
     if (uniqueMatchIds.length === 0) {
       source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
-      const loadedViewModel = buildSeriesViewModel({
+      const loadedViewModel = this.buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
         killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
@@ -441,7 +532,7 @@ export class EntryDetailController {
       }
 
       source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
-      const loadedViewModel = buildSeriesViewModel({
+      const loadedViewModel = this.buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
         killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
@@ -455,7 +546,7 @@ export class EntryDetailController {
 
       source.requestedModules.delete(module);
       source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
-      const erroredViewModel = buildSeriesViewModel({
+      const erroredViewModel = this.buildSeriesViewModel({
         ...source,
         teamColors: this.resolveTeamColors(),
         killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,

@@ -69,6 +69,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     guildIconUrl: overrides.guildIconUrl ?? null,
     isActive: overrides.isActive ?? false,
     teams: overrides.teams ?? [],
+    seriesOverview: overrides.seriesOverview ?? { score: overrides.score ?? "2:1", matches: [], teams: [] },
     matchBackgroundUrls: overrides.matchBackgroundUrls ?? matches.map(() => "data:,"),
     score: overrides.score ?? "2:1",
     duration: overrides.duration ?? "30m",

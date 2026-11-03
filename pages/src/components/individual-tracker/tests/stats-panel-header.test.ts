@@ -27,7 +27,6 @@ function aMatchWith(overrides: Partial<ViewerMatchTab> = {}): ViewerMatchTab {
     ...overrides,
   };
 }
-
 function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab {
   return {
     id: "series-1",
@@ -35,6 +34,7 @@ function aSeriesWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesTab 
     subtitle: "Best of 3",
     isActive: false,
     teams: [],
+    seriesOverview: { score: "2:1", matches: [], teams: [] },
     matchBackgroundUrls: [],
     score: "2:1",
     duration: "30m",

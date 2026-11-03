@@ -617,6 +617,7 @@ export class IndividualTrackerOverlayPresenter {
       guildIconUrl: renderModel.activeSeriesContext.guildIconUrl ?? null,
       isActive: true,
       teams: renderModel.activeSeriesContext.teams,
+      seriesOverview: { score: "0:0", matches: [], teams: [] },
       plannedMatches: renderModel.activeSeriesContext.plannedMatches ?? [],
       matchBackgroundUrls: [],
       score: "0:0",

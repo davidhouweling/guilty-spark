@@ -4,7 +4,7 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { aFakeMatchStatsWith, aFakePlayerWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
@@ -892,6 +892,156 @@ describe("useIndividualTrackerViewer", () => {
     expect(teamColor.id).toBe("mint");
     expect(enemyColor.id).toBe("lavender");
   });
+
+  it.each([false, true])(
+    "aligns overview scores without changing detail scores when substitution is %s",
+    async (substituted) => {
+      const matchId = "m-1";
+      const rawMatch = aFakeMatchStatsWith({ MatchId: matchId });
+      const secondMatchId = "m-2";
+      const secondRawMatch = aFakeMatchStatsWith({
+        MatchId: secondMatchId,
+        Players: rawMatch.Players.map((player) =>
+          aFakePlayerWith({
+            ...player,
+            PlayerId: substituted && player.PlayerId === "xuid(4444444444)" ? "xuid(5555555555)" : player.PlayerId,
+            LastTeamId: 1 - player.LastTeamId,
+            PlayerTeamStats: player.PlayerTeamStats.map((stats) => ({ ...stats, TeamId: 1 - stats.TeamId })),
+          }),
+        ),
+      });
+      const series = {
+        ...aFakeTrackerSeriesGroupWith({ id: "series-1", matchIds: [matchId, secondMatchId] }),
+        teams: [
+          {
+            id: 0,
+            name: "Alpha",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Alpha One", xboxId: "3333333333" },
+              { discordId: null, discordName: null, gamertag: "Alpha Two", xboxId: null },
+            ],
+          },
+          {
+            id: 1,
+            name: "Beta",
+            players: [
+              { discordId: null, discordName: null, gamertag: "Beta One", xboxId: "1111111111" },
+              { discordId: null, discordName: null, gamertag: "Beta Two", xboxId: "2222222222" },
+            ],
+          },
+        ],
+      };
+      const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+        view: aFakeTrackerViewStateWith({
+          trackerId: "tracker-1",
+          status: "active",
+          matches: [
+            aFakeTrackerMatchSummaryWith({ matchId }),
+            aFakeTrackerMatchSummaryWith({ matchId: secondMatchId }),
+          ],
+          series: [series],
+        }),
+      });
+      const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
+      let resolveSeriesAnalytics: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
+      const seriesAnalyticsPromise = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+        resolveSeriesAnalytics = resolve;
+      });
+      vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => seriesAnalyticsPromise);
+      vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
+        playerXuidToGametag: {},
+        matches: [rawMatch, secondRawMatch].map((match) => ({
+          matchId: match.MatchId,
+          gameTypeAndMap: "Slayer: Live Fire",
+          gameVariantCategory: 0,
+          gameType: "Slayer",
+          gameMap: "Live Fire",
+          gameMapThumbnailUrl: "https://cdn.test/map.jpg",
+          duration: "10m 00s",
+          gameScore: substituted && match.MatchId === secondMatchId ? "40:50" : "50:40",
+          gameSubScore: substituted && match.MatchId === secondMatchId ? "60:80" : "80:60",
+          startTime: match.MatchInfo.StartTime,
+          endTime: match.MatchInfo.EndTime,
+          rawMatch: match,
+        })),
+      });
+
+      const { result } = renderHook(() =>
+        useIndividualTrackerViewer({
+          individualTrackerViewService,
+          matchAnalyticsService,
+          seriesMatchesService,
+          medalMetadataResolver,
+          trackerId: "tracker-1",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+      });
+
+      const seriesItem = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+      act(() => {
+        if (seriesItem?.type === "series") {
+          result.current.onToggleEntry(seriesItem);
+        }
+      });
+
+      await waitFor(() => {
+        expect(result.current.snapshot.entryStates.get("series:series-1")).toMatchObject({
+          kind: "series",
+          state: { status: "loaded" },
+        });
+      });
+
+      const loadedSeries = result.current.model.renderModel?.timeline.find(
+        (item) => item.type === "series" && item.series.id === "series-1",
+      );
+      expect(loadedSeries?.type).toBe("series");
+      if (loadedSeries?.type !== "series") {
+        throw new Error("Expected a loaded series timeline item");
+      }
+      expect(loadedSeries.series.seriesOverview.matches[0]?.score).toBe("40:50");
+      expect(loadedSeries.series.seriesOverview.matches[0]?.subScore).toBe("60:80");
+      expect(loadedSeries.series.seriesOverview.matches[0]?.mapBackgroundUrl).toBe("https://cdn.test/map.jpg");
+      expect(loadedSeries.series.seriesOverview.matches[1]?.score).toBe("40:50");
+      expect(loadedSeries.series.seriesOverview.matches[1]?.subScore).toBe("60:80");
+      const state = result.current.snapshot.entryStates.get("series:series-1");
+      if (state?.kind !== "series" || state.state.status !== "loaded") {
+        throw new Error("Expected loaded series details");
+      }
+      expect(state.state.viewModel.matchDetails[0]?.score).toBe("50:40 (80:60)");
+      expect(state.state.viewModel.matchDetails[0]?.data?.map((team) => team.teamId)).toEqual([0, 1]);
+
+      act(() => {
+        result.current.onLoadAnalytics(loadedSeries, "killMatrix");
+      });
+      expect(result.current.snapshot.entryStates.get("series:series-1")).toMatchObject({
+        state: {
+          viewModel: {
+            seriesStats: { killMatrixStatus: ComponentLoaderStatus.LOADING },
+            matchSummaries: [{ gameScore: "40:50" }, { gameScore: "40:50" }],
+            matchDetails: [{ score: "50:40 (80:60)" }, { score: substituted ? "40:50 (60:80)" : "50:40 (80:60)" }],
+          },
+        },
+      });
+      await act(async () => {
+        resolveSeriesAnalytics?.({});
+        await seriesAnalyticsPromise;
+      });
+      await waitFor(() => {
+        expect(result.current.snapshot.entryStates.get("series:series-1")).toMatchObject({
+          state: {
+            viewModel: {
+              seriesStats: { killMatrixStatus: ComponentLoaderStatus.LOADED },
+              matchSummaries: [{ gameScore: "40:50" }, { gameScore: "40:50" }],
+              matchDetails: [{ score: "50:40 (80:60)" }, { score: substituted ? "40:50 (60:80)" : "50:40 (80:60)" }],
+            },
+          },
+        });
+      });
+    },
+  );
 
   it("loads long series in a single request when a series entry expands", async () => {
     const matchIds = Array.from({ length: 13 }, (_, index) => `m-${(index + 1).toString()}`);
