@@ -15,10 +15,18 @@ export function createMapCodeBuilder(): () => ReactElement {
       <MapCodeBuilder
         {...viewModel}
         onCopyCode={(): void => void presenter.copyCodeAsync()}
-        onCountChange={(count): void => { presenter.setCount(count); }}
-        onFormatChange={(format): void => { presenter.setFormat(format); }}
-        onPlaylistChange={(playlist): void => { presenter.setPlaylist(playlist); }}
-        onRandomize={(): void => { presenter.randomize(); }}
+        onCountChange={(count): void => {
+          presenter.setCount(count);
+        }}
+        onFormatChange={(format): void => {
+          presenter.setFormat(format);
+        }}
+        onPlaylistChange={(playlist): void => {
+          presenter.setPlaylist(playlist);
+        }}
+        onRandomize={(): void => {
+          presenter.randomize();
+        }}
       />
     );
   };

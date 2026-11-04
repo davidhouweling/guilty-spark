@@ -50,7 +50,9 @@ export function MapCodeBuilder({
           <Select
             aria-label="Select number of maps"
             value={count.toString()}
-            onChange={(event): void => { onCountChange(Number(event.currentTarget.value)); }}
+            onChange={(event): void => {
+              onCountChange(Number(event.currentTarget.value));
+            }}
           >
             {MAP_GENERATOR_COUNTS.map((option) => (
               <option key={option} value={option.toString()}>
@@ -64,8 +66,9 @@ export function MapCodeBuilder({
           <Select
             aria-label="Select a playlist"
             value={playlist}
-            onChange={(event): void => { onPlaylistChange(event.currentTarget.value === "historical" ? "historical" : "current"); }
-            }
+            onChange={(event): void => {
+              onPlaylistChange(event.currentTarget.value === "historical" ? "historical" : "current");
+            }}
           >
             {PLAYLIST_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -79,10 +82,11 @@ export function MapCodeBuilder({
           <Select
             aria-label="Select a map format"
             value={format}
-            onChange={(event): void => { onFormatChange(
+            onChange={(event): void => {
+              onFormatChange(
                 FORMAT_OPTIONS.find((option) => option.value === event.currentTarget.value)?.value ?? format,
-              ); }
-            }
+              );
+            }}
           >
             {FORMAT_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>

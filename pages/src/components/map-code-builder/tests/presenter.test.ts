@@ -42,7 +42,9 @@ describe("MapCodeBuilderPresenter", () => {
     writeClipboard.mockImplementationOnce(
       async () =>
         new Promise((resolve) => {
-          resolveWrite = (): void => { resolve(); };
+          resolveWrite = (): void => {
+            resolve();
+          };
         }),
     );
     const copyPromise = presenter.copyCodeAsync();
