@@ -1,0 +1,39 @@
+.page {
+  padding: var(--space-8) var(--gutter-mobile);
+}
+
+.controls {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.workspace {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.matchGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.code,
+.discordCommand {
+  overflow-wrap: anywhere;
+}
+
+.code {
+  display: block;
+}
+
+@media (--desktop-viewport) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
