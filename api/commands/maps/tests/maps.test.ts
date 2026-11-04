@@ -24,11 +24,11 @@ import {
   InteractionResponseType,
   ButtonStyle,
 } from "discord-api-types/v10";
-import type { MapMode } from "../../../services/halo/hcs";
+import type { MapMode } from "@guilty-spark/shared/halo/hcs";
+import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
 import { MapsCommand } from "../maps";
 import { GAMECOACH_GG_URLS } from "../gamecoachgg";
 import { InteractionComponent, MapsEmbed } from "../../../embeds/maps-embed";
-import { MAP_COUNTS } from "../../../services/halo/hcs";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { Services } from "../../../services/install";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";

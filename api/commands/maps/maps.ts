@@ -13,6 +13,8 @@ import {
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
+import type { MapMode } from "@guilty-spark/shared/halo/hcs";
+import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { BaseCommand } from "../base/base-command";
 import type {
@@ -21,8 +23,6 @@ import type {
   ApplicationCommandData,
   ComponentHandlerMap,
 } from "../base/base-command";
-import type { MapMode } from "../../services/halo/hcs";
-import { MAP_COUNTS } from "../../services/halo/hcs";
 import { MapsEmbed, InteractionComponent, mapPlaylistLabels, mapFormatLabels } from "../../embeds/maps-embed";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
 import type { LiveTrackerContext } from "../../services/live-tracker/live-tracker";

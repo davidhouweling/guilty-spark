@@ -15,6 +15,8 @@ import type {
 import { sub } from "date-fns";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import { decodeMapCode, encodeMapCode } from "@guilty-spark/shared/halo/map-code/codec";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS } from "@guilty-spark/shared/halo/hcs";
 import { HaloService } from "../halo";
 import type { CachedUserInfo, MatchPlayer } from "../types";
 import { FetchablePlaylist } from "../types";
@@ -40,6 +42,16 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakePlayerMatchesRateLimiterWith } from "../fakes/player-matches-rate-limiter.fake";
 import type { XboxService } from "../../xbox/xbox";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+
+describe("HCS map-code compatibility", () => {
+  const combinations = Object.entries({ current: CURRENT_HCS_MAPS, historical: HISTORICAL_HCS_MAPS }).flatMap(
+    ([pool, modes]) => Object.entries(modes).flatMap(([mode, maps]) => maps.map((map) => ({ pool, mode, map }))),
+  );
+
+  it.each(combinations)("round-trips $pool $mode on $map", ({ mode, map }) => {
+    expect(decodeMapCode(encodeMapCode([{ mode, map }]))).toEqual([{ mode, map }]);
+  });
+});
 
 describe("Halo service", () => {
   let env: Env;

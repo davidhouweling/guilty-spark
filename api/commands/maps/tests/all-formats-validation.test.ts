@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { MapMode } from "../../../services/halo/hcs";
+import type { MapMode } from "@guilty-spark/shared/halo/hcs";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
 
