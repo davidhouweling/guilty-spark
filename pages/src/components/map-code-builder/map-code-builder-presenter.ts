@@ -67,18 +67,15 @@ export class MapCodeBuilderPresenter {
     if (!MAP_GENERATOR_COUNTS.includes(count)) {
       return;
     }
-    const snapshot = this.store.getSnapshot();
-    this.updatePlan(count, snapshot.format, snapshot.playlist);
+    this.updatePlan(count, this.store.getSnapshot().format, this.store.getSnapshot().playlist);
   }
 
   public setFormat(format: MapCodeBuilderFormat): void {
-    const snapshot = this.store.getSnapshot();
-    this.updatePlan(snapshot.count, format, snapshot.playlist);
+    this.updatePlan(this.store.getSnapshot().count, format, this.store.getSnapshot().playlist);
   }
 
   public setPlaylist(playlist: MapCodeBuilderPlaylist): void {
-    const snapshot = this.store.getSnapshot();
-    this.updatePlan(snapshot.count, snapshot.format, playlist);
+    this.updatePlan(this.store.getSnapshot().count, this.store.getSnapshot().format, playlist);
   }
 
   public randomize(): void {

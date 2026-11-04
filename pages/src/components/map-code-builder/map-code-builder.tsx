@@ -6,6 +6,8 @@ import seriesStatsStyles from "../series-stats/series-stats.module.css";
 import type { MapCodeBuilderFormat, MapCodeBuilderPlaylist, MapCodeBuilderViewModel } from "./types";
 import styles from "./map-code-builder.module.css";
 
+type MapCodeBuilderCSSProperties = CSSProperties & { readonly "--series-score-bg": string };
+
 interface MapCodeBuilderProps extends MapCodeBuilderViewModel {
   readonly onCopyCode: () => void;
   readonly onCountChange: (count: number) => void;
@@ -14,17 +16,9 @@ interface MapCodeBuilderProps extends MapCodeBuilderViewModel {
   readonly onRandomize: () => void;
 }
 
-const FORMAT_OPTIONS: readonly { readonly value: MapCodeBuilderFormat; readonly label: string }[] = [
-  { value: "HCS", label: "HCS" },
-  { value: "R", label: "Random" },
-  { value: "O", label: "Objective only" },
-  { value: "S", label: "Slayer only" },
-];
-
-const PLAYLIST_OPTIONS: readonly { readonly value: MapCodeBuilderPlaylist; readonly label: string }[] = [
-  { value: "current", label: "LVT Pro League - Current" },
-  { value: "historical", label: "HCS + LVT Pro League - Historical" },
-];
+function mapBackgroundStyle(thumbnailUrl: string | null): MapCodeBuilderCSSProperties {
+  return { "--series-score-bg": thumbnailUrl == null ? "none" : `url(${thumbnailUrl})` };
+}
 
 export function MapCodeBuilder({
   count,
@@ -56,7 +50,7 @@ export function MapCodeBuilder({
           >
             {MAP_GENERATOR_COUNTS.map((option) => (
               <option key={option} value={option.toString()}>
-                {option.toString()}
+                {option}
               </option>
             ))}
           </Select>
@@ -70,11 +64,8 @@ export function MapCodeBuilder({
               onPlaylistChange(event.currentTarget.value === "historical" ? "historical" : "current");
             }}
           >
-            {PLAYLIST_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            <option value="current">LVT Pro League - Current</option>
+            <option value="historical">HCS + LVT Pro League - Historical</option>
           </Select>
         </label>
         <label>
@@ -83,16 +74,16 @@ export function MapCodeBuilder({
             aria-label="Select a map format"
             value={format}
             onChange={(event): void => {
-              onFormatChange(
-                FORMAT_OPTIONS.find((option) => option.value === event.currentTarget.value)?.value ?? format,
-              );
+              const selected = event.currentTarget.value;
+              if (selected === "HCS" || selected === "R" || selected === "O" || selected === "S") {
+                onFormatChange(selected);
+              }
             }}
           >
-            {FORMAT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            <option value="HCS">HCS</option>
+            <option value="R">Random</option>
+            <option value="O">Objective only</option>
+            <option value="S">Slayer only</option>
           </Select>
         </label>
         <Button variant="secondary" onClick={onRandomize}>
@@ -110,11 +101,7 @@ export function MapCodeBuilder({
               <li
                 className={seriesStatsStyles.seriesScore}
                 key={`${index.toString()}:${match.code}`}
-                style={
-                  {
-                    "--series-score-bg": match.thumbnailUrl == null ? "none" : `url(${match.thumbnailUrl})`,
-                  } as CSSProperties
-                }
+                style={mapBackgroundStyle(match.thumbnailUrl)}
               >
                 <div className={seriesStatsStyles.seriesScoreLink}>
                   <img className={seriesStatsStyles.gameTypeIcon} src={match.modeIconUrl} alt={match.mode} />

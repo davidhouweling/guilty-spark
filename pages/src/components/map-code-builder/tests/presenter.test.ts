@@ -4,14 +4,15 @@ import { MapCodeBuilderPresenter } from "../map-code-builder-presenter";
 import { MapCodeBuilderStore } from "../map-code-builder-store";
 
 describe("MapCodeBuilderPresenter", () => {
-  it("presents current and historical HCS sequences", () => {
+  it("presents current and historical HCS sequences with selected formats", () => {
     const store = new MapCodeBuilderStore();
-    const presenter = new MapCodeBuilderPresenter(store, () => 0.5);
+    const presenter = new MapCodeBuilderPresenter(store, () => 0.1);
     const model = presenter.present(store.getSnapshot());
 
     expect(model).toMatchObject({
       code: "CESOKLOSSR",
       matchCountLabel: "05 / 05",
+      discordCommand: "/maps code:CESOKLOSSR",
     });
     expect(model.matches[0]).toMatchObject({
       matchLabel: "MATCH 01",
@@ -19,14 +20,23 @@ describe("MapCodeBuilderPresenter", () => {
       thumbnailUrl: expect.stringContaining("blobs-infiniteugc.svc.halowaypoint.com/ugcstorage/map"),
     });
     presenter.setPlaylist("historical");
-    const historicalModel = presenter.present(store.getSnapshot());
-    const pool = Object.entries(HISTORICAL_HCS_MAPS);
-
     expect(
-      historicalModel.matches.every((match) =>
-        pool.some(([mode, maps]) => mode === match.mode && maps.includes(match.map)),
-      ),
+      presenter
+        .present(store.getSnapshot())
+        .matches.every((match) =>
+          Object.entries(HISTORICAL_HCS_MAPS).some(([mode, maps]) => mode === match.mode && maps.includes(match.map)),
+        ),
     ).toBe(true);
+    const slayerSlots = (): boolean[] =>
+      presenter.present(store.getSnapshot()).matches.map((match) => match.mode === "Slayer");
+    presenter.setFormat("HCS");
+    expect(slayerSlots()).toEqual([false, true, false, false, true]);
+    presenter.setFormat("O");
+    expect(slayerSlots().some(Boolean)).toBe(false);
+    presenter.setFormat("S");
+    expect(slayerSlots().every(Boolean)).toBe(true);
+    presenter.setFormat("R");
+    expect(slayerSlots().every(Boolean)).toBe(true);
   });
 
   it("reports clipboard outcomes only for the current plan", async () => {
