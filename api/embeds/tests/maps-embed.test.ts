@@ -2,11 +2,11 @@ import type { MockInstance } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ComponentType } from "discord-api-types/v10";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
 import { MapsEmbed, InteractionComponent } from "../maps-embed";
 import type { DiscordService } from "../../services/discord/discord";
 import { aFakeDiscordServiceWith } from "../../services/discord/fakes/discord.fake";
 import { MapsPlaylistType, MapsFormatType } from "../../services/database/types/guild_config";
-import { MAP_COUNTS } from "../../services/halo/hcs";
 
 describe("MapsEmbed", () => {
   let discordService: DiscordService;

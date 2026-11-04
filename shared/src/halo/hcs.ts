@@ -1,6 +1,4 @@
-import { MAP_GENERATOR_COUNTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
-
-// LVT Pro League map/mode pool. HCS names are retained for compatibility.
+import { MAP_GENERATOR_COUNTS } from "../contracts/individual-tracker/map-generation";
 
 export const HCS_LAST_UPDATED = "18 August 2026";
 

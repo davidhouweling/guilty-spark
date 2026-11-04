@@ -28,6 +28,7 @@ import {
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
+import { HCS_LAST_UPDATED, MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
 import type {
   BaseInteraction,
   ExecuteResponse,
@@ -42,7 +43,6 @@ import {
   MapsPlaylistType,
   MapsFormatType,
 } from "../../services/database/types/guild_config";
-import { HCS_LAST_UPDATED, MAP_COUNTS } from "../../services/halo/hcs";
 import { SetupConfigEmbed } from "../../embeds/setup/setup-config-embed";
 import { SetupStatsDisplayModeEmbed } from "../../embeds/setup/setup-stats-display-mode-embed";
 import { SetupNeatQueueInformerEmbed } from "../../embeds/setup/setup-neatqueue-informer-embed";

@@ -7,8 +7,8 @@ import type {
   APISelectMenuOption,
 } from "discord-api-types/v10";
 import { ComponentType, ButtonStyle } from "discord-api-types/v10";
-import { HCS_LAST_UPDATED, MAP_COUNTS } from "../services/halo/hcs";
-import type { MapMode } from "../services/halo/hcs";
+import { HCS_LAST_UPDATED, MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
+import type { MapMode } from "@guilty-spark/shared/halo/hcs";
 import type { DiscordService } from "../services/discord/discord";
 import { MapsFormatType, MapsPlaylistType } from "../services/database/types/guild_config";
 import { EmbedColors } from "./colors";
