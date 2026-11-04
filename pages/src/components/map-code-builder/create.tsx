@@ -11,33 +11,14 @@ export function createMapCodeBuilder(): () => ReactElement {
     const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
     const viewModel = presenter.present(snapshot);
 
-    async function copyCodeAsync(): Promise<void> {
-      try {
-        await navigator.clipboard.writeText(viewModel.code);
-        presenter.setNotice("Map code copied.");
-      } catch {
-        presenter.setNotice("Clipboard access is unavailable in this browser.");
-      }
-    }
-
     return (
       <MapCodeBuilder
         {...viewModel}
-        onCopyCode={(): void => {
-          void copyCodeAsync();
-        }}
-        onCountChange={(count): void => {
-          presenter.setCount(count);
-        }}
-        onFormatChange={(format): void => {
-          presenter.setFormat(format);
-        }}
-        onPlaylistChange={(playlist): void => {
-          presenter.setPlaylist(playlist);
-        }}
-        onRandomize={(): void => {
-          presenter.randomize();
-        }}
+        onCopyCode={(): void => void presenter.copyCodeAsync()}
+        onCountChange={(count): void => { presenter.setCount(count); }}
+        onFormatChange={(format): void => { presenter.setFormat(format); }}
+        onPlaylistChange={(playlist): void => { presenter.setPlaylist(playlist); }}
+        onRandomize={(): void => { presenter.randomize(); }}
       />
     );
   };

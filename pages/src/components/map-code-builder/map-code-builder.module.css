@@ -2,13 +2,6 @@
   padding: var(--space-8) var(--gutter-mobile);
 }
 
-.header h1,
-.sectionHeading h2 {
-  color: var(--halo-white);
-  font-family: var(--font-heading);
-  margin: 0;
-}
-
 .controls {
   align-items: end;
   display: flex;
@@ -30,16 +23,13 @@
   padding: 0;
 }
 
-.matchGrid > li {
-  min-height: 210px;
+.code,
+.discordCommand {
+  overflow-wrap: anywhere;
 }
 
 .code {
-  background: var(--halo-bg-primary);
-  color: var(--halo-teal-primary);
   display: block;
-  font: var(--text-xl)/1.5 var(--font-mono);
-  padding: var(--space-3);
 }
 
 @media (--desktop-viewport) {

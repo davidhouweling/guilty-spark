@@ -8,6 +8,8 @@ export interface MapCodeBuilderMatch {
 
 export interface MapCodeBuilderMatchViewModel extends MapCodeBuilderMatch {
   readonly code: string;
+  readonly matchLabel: string;
+  readonly modeAndMapLabel: string;
   readonly modeIconUrl: string;
   readonly thumbnailUrl: string | null;
 }
@@ -23,4 +25,6 @@ export interface MapCodeBuilderSnapshot {
 export interface MapCodeBuilderViewModel extends MapCodeBuilderSnapshot {
   readonly matches: readonly MapCodeBuilderMatchViewModel[];
   readonly code: string;
+  readonly discordCommand: string;
+  readonly matchCountLabel: string;
 }
