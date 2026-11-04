@@ -10,6 +10,7 @@ import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../cont
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesOverviewProps } from "../../series-overview/types";
 
 export interface ViewerMatchTab {
   readonly matchId: string;
@@ -36,6 +37,7 @@ export interface ViewerSeriesTab {
   readonly guildIconUrl?: string | null;
   readonly isActive: boolean;
   readonly teams: readonly ViewerSeriesTeam[];
+  readonly seriesOverview: Pick<SeriesOverviewProps, "score" | "matches" | "teams">;
   readonly preSeriesTableData?: ViewerPreSeriesTableData;
   readonly matchBackgroundUrls: readonly string[];
   readonly score: string;
@@ -45,11 +47,20 @@ export interface ViewerSeriesTab {
   readonly startTime: string;
   readonly endTime: string;
   readonly matches: readonly ViewerMatchTab[];
-  // Same-map/mode consecutive rematches collapsed to their final (actual) game, mirroring the
+  readonly plannedMatches: readonly ViewerPlannedMatch[];
+  // Same-map/mode consecutive rematches collapsed to their final (actual) match, mirroring the
   // score's collapseSequentialSeriesEntries rule. Icon strips use this; the expanded per-match
-  // list still uses `matches` so every individual game remains browsable.
+  // list still uses `matches` so every individual match remains browsable.
   readonly iconMatches: readonly ViewerMatchTab[];
   readonly colorHex: string | undefined;
+}
+
+export interface ViewerPlannedMatch {
+  readonly matchNumber: number;
+  readonly mode: string;
+  readonly map: string;
+  readonly played: boolean;
+  readonly gameModeIconUrl: string | null;
 }
 
 export interface ViewerSeriesTeamPlayer {
@@ -89,6 +100,7 @@ export interface ViewerActiveSeriesContext {
   readonly guildIconUrl?: string | null;
   readonly startedAt?: string;
   readonly teams: readonly ViewerSeriesTeam[];
+  readonly plannedMatches?: readonly ViewerPlannedMatch[] | undefined;
 }
 
 export type ViewerTimelineItem =

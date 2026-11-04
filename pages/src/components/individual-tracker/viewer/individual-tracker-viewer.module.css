@@ -241,15 +241,12 @@
   padding-top: var(--space-4);
 }
 
-.preSeriesPanel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 0 var(--space-4) var(--space-4);
+.preSeriesInfo {
+  margin-block: 0;
 }
 
-.preSeriesInfo {
-  margin: 0;
+.preSeriesNotice {
+  padding-top: var(--space-4);
 }
 
 .jumpToLatestButton {

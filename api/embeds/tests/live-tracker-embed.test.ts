@@ -268,7 +268,7 @@ describe("LiveTrackerEmbed", () => {
       expect(actions.length).toBeGreaterThan(0);
     });
 
-    it("appends Generate maps to the first action row when enabled", () => {
+    it("appends Maps to the first action row when enabled", () => {
       const liveTrackerEmbed = createLiveTrackerEmbed({
         status: "active",
         isPaused: false,
@@ -282,7 +282,7 @@ describe("LiveTrackerEmbed", () => {
         expect(firstRow.components.at(-1)).toEqual({
           type: ComponentType.Button,
           custom_id: "btn_maps_initiate",
-          label: "Generate maps",
+          label: "Maps",
           style: ButtonStyle.Secondary,
           emoji: { name: "🗺️" },
         });

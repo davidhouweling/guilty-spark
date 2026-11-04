@@ -9,8 +9,9 @@ import {
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { TrackerViewConnectionStatus } from "../../../../services/individual-tracker/view-types";
+import type { SeriesStatsViewModel } from "../../../series-stats/types";
 import { buildViewerRenderModel } from "../viewer-render-model";
-import type { IndividualTrackerViewerRenderModel } from "../types";
+import type { IndividualTrackerViewerRenderModel, ViewerEntryState } from "../types";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
 
 vi.mock("react-time-ago", () => ({
@@ -35,13 +36,15 @@ function renderViewer(
   view: ReturnType<typeof aFakeTrackerViewStateWith>,
   connectionStatus: TrackerViewConnectionStatus = "connected",
   canManage = true,
+  expandedEntryKeys: ReadonlySet<string> = new Set(),
+  entryStates: ReadonlyMap<string, ViewerEntryState> = new Map(),
 ): void {
   render(
     <IndividualTrackerViewer
       renderModel={aModel(view)}
       connectionStatus={connectionStatus}
-      expandedEntryKeys={new Set()}
-      entryStates={new Map()}
+      expandedEntryKeys={expandedEntryKeys}
+      entryStates={entryStates}
       canManage={canManage}
       refreshPending={false}
       onToggleEntry={() => undefined}
@@ -164,6 +167,88 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getByText("20:15:9 (1.53)")).toBeInTheDocument();
     expect(screen.getByText("8,200:7,500 (1.09)")).toBeInTheDocument();
     expect(screen.getByText(/End time/)).toBeInTheDocument();
+  });
+
+  it("appends upcoming planned matches to archived series overview tiles", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Actual Live Fire", mapAssetId: "map-1" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Actual Streets", mapAssetId: "map-2" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-archive",
+          matchIds: ["m-1", "m-2"],
+          title: "Archived Series",
+          plannedMaps: [
+            { mode: "Slayer", map: "Planned Live Fire" },
+            { mode: "Oddball", map: "Planned Streets" },
+            { mode: "Neutral Bomb", map: "Recharge" },
+          ],
+        }),
+      ],
+    });
+
+    renderViewer(view, "connected", true, new Set(["series:series-archive"]));
+
+    const seriesMatches = screen.getByRole("list", { name: "Series score tiles" });
+    const [firstMatch, secondMatch, upcomingMatch] = within(seriesMatches).getAllByRole("listitem");
+    expect(firstMatch).toHaveTextContent("Actual Live Fire");
+    expect(firstMatch).not.toHaveTextContent("Upcoming");
+    expect(secondMatch).toHaveTextContent("Actual Streets");
+    expect(upcomingMatch).toHaveTextContent("Neutral Bomb: Recharge");
+    expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+  });
+
+  it("does not render a duplicate overview when series stats are loaded", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Shared Overview Map" }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Second Match Map" }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "series-loaded",
+          matchIds: ["m-1", "m-2"],
+          title: "Loaded Series",
+          score: "1:0",
+        }),
+      ],
+    });
+    const seriesStatsViewModel: SeriesStatsViewModel = {
+      title: "Loaded Series",
+      subtitle: "Best of 3",
+      seriesScore: "1:0",
+      matchSummaries: [
+        {
+          matchId: "m-1",
+          gameMapThumbnailUrl: "data:,",
+          gameModeIconUrl: "data:,",
+          gameModeAlt: "Slayer",
+          gameScore: "50:42",
+          gameSubScore: null,
+          gameMap: "Shared Overview Map",
+          winningTeamColorHex: null,
+        },
+      ],
+      teams: [],
+      seriesStats: null,
+      matchDetails: [],
+    };
+    const entryStates = new Map<string, ViewerEntryState>([
+      [
+        "series:series-loaded",
+        { kind: "series", state: { status: "loaded", seriesId: "series-loaded", viewModel: seriesStatsViewModel } },
+      ],
+    ]);
+
+    renderViewer(view, "connected", true, new Set(["series:series-loaded"]), entryStates);
+
+    expect(screen.getAllByRole("list", { name: "Series score tiles" })).toHaveLength(1);
+    expect(screen.getAllByText("Shared Overview Map")).toHaveLength(1);
+    expect(screen.getByText("Matches")).toBeInTheDocument();
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {
@@ -464,6 +549,7 @@ describe("IndividualTrackerViewer", () => {
       activeSeriesContext: {
         title: "Ranked Series",
         subtitle: "Best of 5",
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           {
             id: 0,
@@ -500,11 +586,15 @@ describe("IndividualTrackerViewer", () => {
 
     expect(screen.queryByText("No matches tracked yet.")).not.toBeInTheDocument();
     expect(screen.getByText("Series is active and waiting for the first tracked match.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Series scores" })).toHaveTextContent("0:0");
     expect(screen.getByText("Player Info")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Beta" })).toBeInTheDocument();
     expect(screen.getByLabelText("Player information")).toBeInTheDocument();
-    expect(screen.getByText("AlphaOne")).toBeInTheDocument();
+    expect(screen.getAllByText("AlphaOne").length).toBeGreaterThan(0);
     expect(screen.getAllByText("BetaTag").length).toBeGreaterThan(0);
     expect(screen.getByText("In progress")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Series score tiles" })).toHaveTextContent("Slayer: Live Fire");
   });
 
   it("renders additional tracked matches message when active pre-series has no grouped series matches", () => {

@@ -36,6 +36,19 @@ describe("scanFrameForStatRecords", () => {
     expect(scanFrameForStatRecords(payload, 0)[0]?.components.get(1)).toEqual({ a: -115, b: 70_000 });
   });
 
+  it("rejects a record when any channel is beyond the counter domain", () => {
+    const payload = buildFramePayload([
+      {
+        slot: 10,
+        components: [
+          { index: 2, a: 1, b: 1 },
+          { index: 22, a: 10, b: -2_000_000 },
+        ],
+      },
+    ]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
   it("consumes flagged conditional values so the following component still decodes", () => {
     const payload = buildFramePayload([
       {
@@ -82,6 +95,119 @@ describe("scanFrameForStatRecords", () => {
     expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
   });
 
+  it("reads the round both component headers carry", () => {
+    const payload = buildFramePayload([{ slot: 12, round: 1, components: [{ index: 2, a: 3, b: 1 }] }]);
+    const [record] = scanFrameForStatRecords(payload, 0);
+    expect(record?.round).toBe(1);
+    expect(record?.components.get(2)).toEqual({ a: 3, b: 1 });
+  });
+
+  it("reads regulation records as round zero", () => {
+    const payload = buildFramePayload([{ slot: 12, components: [{ index: 2, a: 3, b: 1 }] }]);
+    expect(scanFrameForStatRecords(payload, 0)[0]?.round).toBe(0);
+  });
+
+  it("rejects a record whose two round headers disagree", () => {
+    const payload = buildFramePayload([{ slot: 12, components: [{ index: 2, a: 3, b: 1, headers: [1, 0] }] }]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
+  it("rejects a round beyond any observed format", () => {
+    const payload = buildFramePayload([{ slot: 12, round: 8, components: [{ index: 2, a: 3, b: 1 }] }]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
+  it("leaves the round headers of later components unconstrained", () => {
+    const payload = buildFramePayload([
+      {
+        slot: 12,
+        round: 1,
+        components: [
+          { index: 2, a: 3, b: 1 },
+          { index: 3, a: 4, b: 0, headers: [3, 0] },
+        ],
+      },
+    ]);
+    const [record] = scanFrameForStatRecords(payload, 0);
+    expect(record?.round).toBe(1);
+    expect(record?.components.get(3)).toEqual({ a: 4, b: 0 });
+  });
+
+  it("decodes the dense component list form", () => {
+    const components = Array.from({ length: 9 }, (_, index) => ({ index: index * 6, a: index, b: 100 + index }));
+    const payload = buildFramePayload([{ slot: 6, round: 1, dense: true, components }]);
+    const [record] = scanFrameForStatRecords(payload, 0);
+    expect(record?.slot).toBe(6);
+    expect(record?.round).toBe(1);
+    expect([...(record?.components ?? [])]).toEqual(components.map(({ index, a, b }) => [index, { a, b }]));
+  });
+
+  it("maps dense components across the whole mask up to the top of the archetype", () => {
+    const components = [
+      { index: 57, a: 3, b: 0 },
+      { index: 31, a: 1, b: 0 },
+      { index: 32, a: 2, b: 0 },
+    ];
+    const payload = buildFramePayload([{ slot: 10, dense: true, components }]);
+    expect([...(scanFrameForStatRecords(payload, 0)[0]?.components ?? [])]).toEqual([
+      [31, { a: 1, b: 0 }],
+      [32, { a: 2, b: 0 }],
+      [57, { a: 3, b: 0 }],
+    ]);
+  });
+
+  it("resumes after a dense record so the record that follows it still decodes", () => {
+    const components = Array.from({ length: 8 }, (_, index) => ({ index: index * 3, a: index, b: 0 }));
+    const payload = buildFramePayload(
+      [
+        { slot: 6, dense: true, components },
+        { slot: 12, round: 1, components: [{ index: 2, a: 5, b: 4 }] },
+      ],
+      0,
+    );
+    const records = scanFrameForStatRecords(payload, 0);
+    expect(records.map((record) => [record.slot, record.round, record.components.size])).toEqual([
+      [6, 0, 8],
+      [12, 1, 1],
+    ]);
+  });
+
+  it("decodes records of different rounds back to back", () => {
+    const payload = buildFramePayload(
+      [
+        { slot: 10, round: 1, components: [{ index: 2, a: 1, b: 0 }] },
+        { slot: 12, components: [{ index: 2, a: 7, b: 3 }] },
+      ],
+      0,
+    );
+    expect(scanFrameForStatRecords(payload, 0).map((record) => [record.slot, record.round])).toEqual([
+      [10, 1],
+      [12, 0],
+    ]);
+  });
+
+  it("rejects a dense list that names a component beyond the archetype", () => {
+    const payload = buildFramePayload([{ slot: 6, dense: true, components: [{ index: 58, a: 1, b: 1 }] }]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
+  it("rejects a dense record whose payload ends inside the mask", () => {
+    const payload = buildFramePayload([{ slot: 6, dense: true, components: [{ index: 2, a: 1, b: 1 }] }]);
+    expect(scanFrameForStatRecords(payload.subarray(0, 9), 0)).toEqual([]);
+  });
+
+  it("rejects a dense record whose round headers disagree", () => {
+    const payload = buildFramePayload([
+      { slot: 6, dense: true, components: [{ index: 2, a: 1, b: 1, headers: [1, 0] }] },
+    ]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
+  it("rejects a dense list with an empty mask", () => {
+    const payload = buildFramePayload([{ slot: 6, dense: true, components: [] }]);
+    expect(scanFrameForStatRecords(payload, 0)).toEqual([]);
+  });
+
   it("returns nothing for an empty payload", () => {
     expect(scanFrameForStatRecords(new Uint8Array(0), 0)).toEqual([]);
     expect(scanFrameForStatRecords(new Uint8Array(32), 0)).toEqual([]);
@@ -100,6 +226,34 @@ describe("scanFrameForStatRecords on a real film frame", () => {
     expect(records.map((record) => [record.slot, [...record.components]])).toEqual([
       [6, [[23, { a: 0, b: 3 }]]],
       [10, [[23, { a: 0, b: 1 }]]],
+    ]);
+  });
+});
+
+// 52 bytes of a real Empyrean frame at 6:10: the team-slot record the engine flushed in the
+// dense list form, carrying eight components at once
+const REAL_DENSE_RECORD_HEX =
+  "800d400000000008061b8000011a0e0000b021000061076c5076c00100fd02a4032c0009101e4000444c0000000b018000008012";
+
+describe("scanFrameForStatRecords on a real dense record", () => {
+  it("maps each mask bit to its component in the order the engine writes them", () => {
+    const payload = Uint8Array.from(Buffer.from(REAL_DENSE_RECORD_HEX, "hex"));
+    const records = scanFrameForStatRecords(payload, 370_886);
+    expect(records.map((record) => [record.slot, record.round, [...record.components]])).toEqual([
+      [
+        6,
+        0,
+        [
+          [1, { a: 0, b: 6670 }],
+          [2, { a: 44, b: 33 }],
+          [3, { a: 24, b: 1900 }],
+          [5, { a: 253, b: 10 }],
+          [6, { a: 36, b: 484 }],
+          [11, { a: 4400, b: 0 }],
+          [12, { a: 44, b: 24 }],
+          [21, { a: 2, b: 1 }],
+        ],
+      ],
     ]);
   });
 });

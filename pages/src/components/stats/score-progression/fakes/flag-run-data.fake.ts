@@ -8,16 +8,16 @@ export function aFakeFlagRunDataWith(overrides: Partial<FlagRunData> = {}): Flag
     color: "#ff0000",
     points: [
       { timestampMs: 20000, progress: 0 },
-      { timestampMs: 30000, progress: 25 },
-      { timestampMs: 45000, progress: 60 },
-      { timestampMs: 60000, progress: 100 },
+      { timestampMs: 30000, progress: -25 },
+      { timestampMs: 45000, progress: -60 },
+      { timestampMs: 60000, progress: -100 },
     ],
     markers: [
       { timestampMs: 20000, progress: 0, kind: "steal" },
-      { timestampMs: 30000, progress: 25, kind: "grab" },
-      { timestampMs: 60000, progress: 100, kind: "capture" },
+      { timestampMs: 30000, progress: -25, kind: "grab" },
+      { timestampMs: 60000, progress: -100, kind: "capture" },
     ],
-    reset: { timestampMs: 60000, fromProgress: 100 },
+    reset: { timestampMs: 60000, fromProgress: -100 },
     ...overrides,
   };
 }

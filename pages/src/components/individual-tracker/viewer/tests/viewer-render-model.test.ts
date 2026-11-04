@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -70,7 +71,7 @@ describe("buildViewerRenderModel", () => {
     }
   });
 
-  it("collapses a consecutive same-map/mode rematch to its final game in iconMatches, keeping matches intact", () => {
+  it("collapses a consecutive same-map/mode rematch to its final match in iconMatches, keeping matches intact", () => {
     expect.assertions(2);
     const view = aFakeTrackerViewStateWith({
       matches: [
@@ -103,6 +104,88 @@ describe("buildViewerRenderModel", () => {
       expect(first.series.matches.map((m) => m.matchId)).toEqual(["m1", "m2", "m3"]);
       expect(first.series.iconMatches.map((m) => m.matchId)).toEqual(["m1", "m3"]);
     }
+  });
+
+  it("shows full planned slots using collapsed actual games for played entries", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m1",
+          startTime: "2100-01-01T00:00:00.000Z",
+          mapAssetId: "map-a",
+          mapVersionId: "v1",
+          mapName: "Interrupted Map",
+          gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m2",
+          startTime: "2100-01-01T00:10:00.000Z",
+          mapAssetId: "map-a",
+          mapVersionId: "v1",
+          mapName: "Actual Map One",
+          gameVariantCategory: GameVariantCategory.MultiplayerSlayer,
+        }),
+        aFakeTrackerMatchSummaryWith({
+          matchId: "m3",
+          startTime: "2100-01-01T00:20:00.000Z",
+          mapAssetId: "map-b",
+          mapVersionId: "v2",
+          mapName: "Actual Map Two",
+          gameVariantCategory: GameVariantCategory.MultiplayerOddball,
+        }),
+      ],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "s1",
+          matchIds: ["m1", "m2", "m3"],
+          plannedMaps: [
+            { mode: "Slayer", map: "Planned Map One" },
+            { mode: "Oddball", map: "Planned Map Two" },
+            { mode: "Neutral Bomb", map: "Planned Map Three" },
+          ],
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [seriesItem] = model.timeline;
+
+    if (seriesItem.type !== "series") {
+      throw new Error("Expected a series timeline item");
+    }
+
+    expect(
+      seriesItem.series.plannedMatches.map(({ matchNumber, mode, map, played }) => ({
+        matchNumber,
+        mode,
+        map,
+        played,
+      })),
+    ).toEqual([
+      { matchNumber: 1, mode: "Slayer", map: "Actual Map One", played: true },
+      { matchNumber: 2, mode: "Oddball", map: "Actual Map Two", played: true },
+      { matchNumber: 3, mode: "Neutral Bomb", map: "Planned Map Three", played: false },
+    ]);
+  });
+
+  it("leaves played overview tiles neutral when winning team side is unavailable", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [
+        aFakeTrackerMatchSummaryWith({ matchId: "m1", outcome: "Win", teamCount: 2 }),
+        aFakeTrackerMatchSummaryWith({ matchId: "m2", outcome: "Loss", teamCount: 2 }),
+      ],
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] })],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected a series timeline item");
+    }
+
+    expect(item.series.matches[0]?.colorHex).toBeDefined();
+    expect(item.series.seriesOverview.matches[0]?.teamColorHex).toBeUndefined();
   });
 
   it("does not collapse matches on the same map/mode when they are not consecutive", () => {
@@ -280,6 +363,68 @@ describe("buildViewerRenderModel", () => {
       "m1",
       "m2",
     ]);
+  });
+
+  it("keeps an archived one-match series when it has planned maps", () => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1", mapName: "Actual Map" })],
+      series: [
+        aFakeTrackerSeriesGroupWith({
+          id: "s1",
+          matchIds: ["missing", "m1"],
+          plannedMaps: [
+            { mode: "Slayer", map: "Planned Map One" },
+            { mode: "Oddball", map: "Planned Map Two" },
+          ],
+        }),
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected the archived series to remain grouped");
+    }
+
+    expect(item.series.plannedMatches).toEqual([
+      expect.objectContaining({ matchNumber: 1, mode: "Slayer", map: "Actual Map", played: true }),
+      expect.objectContaining({ matchNumber: 2, mode: "Oddball", map: "Planned Map Two", played: false }),
+    ]);
+  });
+
+  it("uses saved teams for an archived series overview", () => {
+    const series = aFakeTrackerSeriesGroupWith({ id: "s-saved", matchIds: ["m1", "m2"] });
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+      series: [
+        {
+          ...series,
+          teams: [
+            {
+              id: 0,
+              name: "Eagle Prime",
+              players: [{ discordId: "discord-1", discordName: "Eagle One", gamertag: "EagleTag", xboxId: "xuid-1" }],
+            },
+            {
+              id: 1,
+              name: "Cobra Prime",
+              players: [{ discordId: "discord-2", discordName: "Cobra One", gamertag: "CobraTag", xboxId: "xuid-2" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const model = buildViewerRenderModel({ view });
+    const [item] = model.timeline;
+
+    if (item.type !== "series") {
+      throw new Error("Expected the archived series to remain grouped");
+    }
+
+    expect(item.series.seriesOverview.teams.map((team) => team.name)).toEqual(["Eagle Prime", "Cobra Prime"]);
+    expect(item.series.seriesOverview.teams[0]?.players[0]?.discordName).toBe("Eagle One");
   });
 
   it("passes statsHighlights from the view state through to the render model", () => {
@@ -531,6 +676,7 @@ describe("buildViewerRenderModel", () => {
   });
 
   it("replaces the pending pre-series row once active series match data is available", () => {
+    expect.assertions(10);
     const pendingView = aFakeTrackerViewStateWith({
       matches: [],
       series: [],
@@ -538,6 +684,7 @@ describe("buildViewerRenderModel", () => {
       activeSeriesContext: {
         title: "Alpha vs Beta",
         subtitle: "Bo3",
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           {
             id: 0,
@@ -558,6 +705,7 @@ describe("buildViewerRenderModel", () => {
     expect(pendingModel.timeline[0]?.type).toBe("series");
     if (pendingModel.timeline[0]?.type === "series") {
       expect(pendingModel.timeline[0].series.matches).toHaveLength(0);
+      expect(pendingModel.timeline[0].series.plannedMatches[0]?.played).toBe(false);
     }
 
     const activeSeriesView = aFakeTrackerViewStateWith({
@@ -574,6 +722,7 @@ describe("buildViewerRenderModel", () => {
       activeSeriesContext: {
         title: "Alpha vs Beta",
         subtitle: "Bo3",
+        plannedMaps: [{ mode: "Slayer", map: "Live Fire" }],
         teams: [
           {
             id: 0,
@@ -596,6 +745,7 @@ describe("buildViewerRenderModel", () => {
       expect(activeModel.timeline[0].series.id).toBe("series-live");
       expect(activeModel.timeline[0].series.matches).toHaveLength(2);
       expect(activeModel.timeline[0].series.isActive).toBe(true);
+      expect(activeModel.timeline[0].series.plannedMatches[0]?.played).toBe(true);
     }
   });
 

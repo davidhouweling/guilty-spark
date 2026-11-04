@@ -19,6 +19,7 @@ import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
 import { SeriesStatsView } from "../../series-stats/series-stats";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
+import { SeriesOverview } from "../../series-overview/series-overview";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import { gameModeIconSrc } from "../game-mode-icon";
 import {
@@ -622,36 +623,44 @@ export function IndividualTrackerViewer({
                   >
                     <div ref={getEntryBodyRef(key)} className={classNames(styles.entryBody, styles.seriesEntryBody)}>
                       <div className={styles.entryBodyInner}>
-                        <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
-                          {series.matches.length === 0 ? (
-                            <div className={styles.preSeriesPanel}>
-                              <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
-                              {series.preSeriesTableData != null && series.teams.length > 0 && (
-                                <PlayerPreSeriesInfo
-                                  className={styles.preSeriesInfo}
-                                  teams={series.preSeriesTableData.teams}
-                                  playersAssociationData={series.preSeriesTableData.playersAssociationData}
-                                  teamColors={renderModel.teamColors}
-                                />
-                              )}
-                            </div>
-                          ) : state == null || (state.kind === "series" && state.state.status === "loading") ? (
-                            <LoadingState text="Loading series stats..." />
-                          ) : state.kind === "series" && state.state.status === "error" ? (
-                            <Alert variant="error">{state.state.message}</Alert>
-                          ) : state.kind === "series" && state.state.status === "loaded" ? (
-                            <SeriesStatsView
-                              {...state.state.viewModel}
-                              noGutter={true}
-                              wide={true}
-                              onAnalyticsTabSelected={(module): void => {
-                                onLoadAnalytics?.(item, module);
-                              }}
-                            />
-                          ) : (
-                            <Alert variant="error">Unexpected entry state.</Alert>
-                          )}
+                        <Container wide>
+                          <SeriesOverview {...series.seriesOverview} />
                         </Container>
+                        {series.matches.length === 0 ? (
+                          <>
+                            <Container className={styles.preSeriesNotice}>
+                              <Alert variant="info">{preSeriesStatusMessage(renderModel.accumulated.total)}</Alert>
+                            </Container>
+                            {series.preSeriesTableData != null && series.teams.length > 0 && (
+                              <PlayerPreSeriesInfo
+                                className={styles.preSeriesInfo}
+                                teams={series.preSeriesTableData.teams}
+                                playersAssociationData={series.preSeriesTableData.playersAssociationData}
+                                teamColors={renderModel.teamColors}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          <Container mobileDown="0" tabletUp="0" desktopUp="0" ultrawideUp="0" wide>
+                            {state == null || (state.kind === "series" && state.state.status === "loading") ? (
+                              <LoadingState text="Loading series stats..." />
+                            ) : state.kind === "series" && state.state.status === "error" ? (
+                              <Alert variant="error">{state.state.message}</Alert>
+                            ) : state.kind === "series" && state.state.status === "loaded" ? (
+                              <SeriesStatsView
+                                {...state.state.viewModel}
+                                showSeriesOverview={false}
+                                noGutter={true}
+                                wide={true}
+                                onAnalyticsTabSelected={(module): void => {
+                                  onLoadAnalytics?.(item, module);
+                                }}
+                              />
+                            ) : (
+                              <Alert variant="error">Unexpected entry state.</Alert>
+                            )}
+                          </Container>
+                        )}
                       </div>
                     </div>
                   </CSSTransition>

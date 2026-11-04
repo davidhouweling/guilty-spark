@@ -11,6 +11,7 @@ import type { SeriesMatchDetail, SeriesMatchSummary, SeriesStatsViewModel, Serie
 
 interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesTitle?: boolean;
+  readonly showSeriesOverview?: boolean | undefined;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
@@ -116,6 +117,7 @@ export function SeriesStatsView({
   seriesStats,
   matchDetails,
   showSeriesTitle,
+  showSeriesOverview,
   noGutter,
   wide,
   onAnalyticsTabSelected,
@@ -124,29 +126,31 @@ export function SeriesStatsView({
 
   return (
     <div className={styles.seriesStats}>
-      <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
-        <Heading tagName="h2" styleAs="h3">
-          Series overview
-        </Heading>
-        <div className={styles.seriesOverviewWrap}>
-          <div className={styles.seriesOverview}>
-            <section className={styles.seriesScores}>
-              <Heading tagName="h3" className={styles.seriesScoresHeader}>
-                {seriesScore}
-              </Heading>
-              <ul className={styles.seriesScoresList}>
-                {matchSummaries.map((summary) => (
-                  <MatchSummaryItem key={summary.matchId} summary={summary} />
-                ))}
-              </ul>
-            </section>
+      {showSeriesOverview !== false && (
+        <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
+          <Heading tagName="h2" styleAs="h3">
+            Series overview
+          </Heading>
+          <div className={styles.seriesOverviewWrap}>
+            <div className={styles.seriesOverview}>
+              <section className={styles.seriesScores}>
+                <Heading tagName="h3" className={styles.seriesScoresHeader}>
+                  {seriesScore}
+                </Heading>
+                <ul className={styles.seriesScoresList}>
+                  {matchSummaries.map((summary) => (
+                    <MatchSummaryItem key={summary.matchId} summary={summary} />
+                  ))}
+                </ul>
+              </section>
 
-            {teams.map((team) => (
-              <TeamCardSection key={team.name} team={team} />
-            ))}
+              {teams.map((team) => (
+                <TeamCardSection key={team.name} team={team} />
+              ))}
+            </div>
           </div>
-        </div>
-      </Container>
+        </Container>
+      )}
 
       {seriesStats != null && (
         <Container

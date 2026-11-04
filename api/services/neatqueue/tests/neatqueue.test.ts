@@ -316,7 +316,7 @@ describe("NeatQueueService", () => {
                       "emoji": {
                         "name": "🗺️",
                       },
-                      "label": "Generate maps",
+                      "label": "Maps",
                       "style": 2,
                       "type": 2,
                     },
@@ -1929,7 +1929,7 @@ describe("NeatQueueService", () => {
                     "emoji": {
                       "name": "🗺️",
                     },
-                    "label": "Generate maps",
+                    "label": "Maps",
                     "style": 2,
                     "type": 2,
                   },

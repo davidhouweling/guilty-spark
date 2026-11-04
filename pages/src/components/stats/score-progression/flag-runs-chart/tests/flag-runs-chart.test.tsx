@@ -39,21 +39,13 @@ vi.mock("recharts", () => ({
   YAxis: ({
     yAxisId,
     domain,
-    reversed,
     tickFormatter,
   }: {
     yAxisId?: string;
     domain?: readonly [number, number];
-    reversed?: boolean;
     tickFormatter?: (value: number) => string;
   }): React.ReactElement => (
-    <div
-      data-testid="y-axis"
-      data-axis={yAxisId}
-      data-domain={domain?.join(",")}
-      data-reversed={reversed}
-      data-tick={tickFormatter?.(-2)}
-    />
+    <div data-testid="y-axis" data-axis={yAxisId} data-domain={domain?.join(",")} data-tick={tickFormatter?.(-2)} />
   ),
   Tooltip: (): React.ReactElement => <div data-testid="tooltip" />,
   Area: ({
@@ -109,17 +101,17 @@ describe("FlagRunsChart", () => {
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith()} />);
 
     const dots = screen.getAllByTestId("reference-dot");
-    expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "25", "100"]);
-    expect(resetSegments()).toEqual(["60000:100 60000:0"]);
+    expect(dots.map((dot) => dot.getAttribute("data-y"))).toEqual(["0", "-25", "-100"]);
+    expect(resetSegments()).toEqual(["60000:-100 60000:0"]);
   });
 
-  it("renders the player advantage from the shared rows as a named area on its own mirrored axis", () => {
+  it("renders the player advantage from the shared rows as a named area on its own axis with unsigned ticks", () => {
     const points = [
       { timestampMs: 0, run1: null, playerAdvantage: 0 },
       { timestampMs: 20000, run1: 0, playerAdvantage: 0 },
-      { timestampMs: 30000, run1: 25, playerAdvantage: -1 },
-      { timestampMs: 45000, run1: 60, playerAdvantage: -1 },
-      { timestampMs: 60000, run1: 100, playerAdvantage: -1 },
+      { timestampMs: 30000, run1: -25, playerAdvantage: -1 },
+      { timestampMs: 45000, run1: -60, playerAdvantage: -1 },
+      { timestampMs: 60000, run1: -100, playerAdvantage: -1 },
       { timestampMs: 120000, run1: null, playerAdvantage: -1 },
     ];
     render(<FlagRunsChart {...aFakeFlagRunsChartViewModelWith({ points, advantageDomain: [-1, 1] })} />);
@@ -133,7 +125,6 @@ describe("FlagRunsChart", () => {
     const advantageAxes = screen.getAllByTestId("y-axis").filter((axis) => axis.getAttribute("data-axis") != null);
     expect(advantageAxes).toHaveLength(1);
     expect(advantageAxes[0]).toHaveAttribute("data-domain", "-1,1");
-    expect(advantageAxes[0]).toHaveAttribute("data-reversed", "true");
     expect(advantageAxes[0]).toHaveAttribute("data-tick", "2");
   });
 

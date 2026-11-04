@@ -3,9 +3,11 @@ import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import { UnsupportedFilmError } from "../film-errors";
 import type { ParsedHighlightEvent } from "../types";
+import { filterRecordsByRoundBounds, resolveRoundBounds } from "./round-bounds";
 import { resolveSlotIdentities } from "./slot-identity";
 import { sortStatRecords } from "./stat-records";
 import { counterIncrementTimes } from "./stat-counters";
+import { REGULATION_ROUND } from "./types";
 import type { CtfFlagEvent, CtfFlagEventKind, CtfFlagEvents, StatRecord, StatSlotKey } from "./types";
 
 interface CtfStatSlot {
@@ -57,12 +59,20 @@ export function assertCtfMatchSupported(matchStats: MatchStats): void {
   }
 }
 
+// overtime reassigns the player slots, so only regulation is read until identity is per round
+function regulationRecords(unsorted: readonly StatRecord[]): StatRecord[] {
+  const records = sortStatRecords(unsorted);
+  return filterRecordsByRoundBounds(records, resolveRoundBounds(records)).filter(
+    (record) => record.round === REGULATION_ROUND,
+  );
+}
+
 export function buildCtfFlagEventsFromRecords(
   unsorted: readonly StatRecord[],
   matchStats: MatchStats,
   highlightEvents: readonly ParsedHighlightEvent[] = [],
 ): CtfFlagEvents {
-  const records = sortStatRecords(unsorted);
+  const records = regulationRecords(unsorted);
   const identities = resolveSlotIdentities(records, matchStats, highlightEvents);
   const teams = getTeamIdsByXuid(matchStats);
   const events: CtfFlagEvent[] = [];

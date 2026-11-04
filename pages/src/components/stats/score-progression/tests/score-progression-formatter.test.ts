@@ -779,7 +779,7 @@ describe("formatScoreProgression ctf", () => {
       ["Eagle flag · Cobra carrying", "#ff0000"],
       ["Cobra flag · Eagle carrying", "#0000ff"],
     ]);
-    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["carrier-0", "carrier-1"]);
     const { scoreLines } = result;
     expect(scoreLines?.teamLines.map((line) => line.points.at(-1)?.score)).toEqual([0, 1]);
     expect(scoreLines?.playerAdvantage).not.toBeNull();
@@ -806,7 +806,20 @@ describe("formatScoreProgression ctf", () => {
       [100000, 0],
       [120000, 0],
     ]);
-    expect(result.advantageOverlay?.rows[3]?.run1).toBe(25 + (10000 / 15000) * 35);
+    expect(result.advantageOverlay?.rows[3]?.run1).toBe(-(25 + (10000 / 15000) * 35));
+  });
+
+  it("draws a team's lead on the same side of the home line as its carries", () => {
+    const result = asCtf(formatScoreProgression(aCtfProgression(), TEAM_COLORS, 4));
+    const rows = result.advantageOverlay?.rows ?? [];
+
+    const cobraLeadsWhileCarrying = rows.find((row) => row.timestampMs === 40000);
+    expect(cobraLeadsWhileCarrying?.playerAdvantage).toBe(-1);
+    expect(cobraLeadsWhileCarrying?.run1).toBeLessThan(0);
+
+    const cobraLeadsWhileEagleCarries = rows.find((row) => row.timestampMs === 90000);
+    expect(cobraLeadsWhileEagleCarries?.playerAdvantage).toBe(-1);
+    expect(cobraLeadsWhileEagleCarries?.run2).toBeGreaterThan(0);
   });
 
   it("keeps the advantage overlay on the flag view when nobody captured", () => {
@@ -878,7 +891,7 @@ describe("formatScoreProgression ctf", () => {
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(2);
-    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["carrier-0", "carrier-1"]);
   });
 
   it("exposes the shared chart rows alongside the runs, without the advantage stepped in", () => {
@@ -938,7 +951,7 @@ describe("formatScoreProgression ctf", () => {
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(1);
-    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["carrier-0", "carrier-1"]);
   });
 
   it("ignores a same-team run when inferring the roster of a 0-0 match", () => {
@@ -948,7 +961,7 @@ describe("formatScoreProgression ctf", () => {
     });
     const result = asCtf(formatScoreProgression(aCtfProgression(timeline), TEAM_COLORS));
     expect(result.runs).toHaveLength(1);
-    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["carrier-0", "carrier-1"]);
   });
 
   it("keeps the valid runs of a 0-0 match when one run names a team outside it", () => {
@@ -975,7 +988,7 @@ describe("formatScoreProgression ctf", () => {
 
     expect(result.runs).toEqual([]);
     expect(result.points).toEqual([{ timestampMs: 0 }, { timestampMs: 120000 }]);
-    expect(result.legend.map((entry) => entry.key)).toEqual(["flag-0", "flag-1"]);
+    expect(result.legend.map((entry) => entry.key)).toEqual(["carrier-0", "carrier-1"]);
     expect(result.teamNames).toEqual(["Eagle", "Cobra"]);
     expect(result.scoreLines).toBeNull();
     expect(result.advantageOverlay?.rows.map((row) => row.playerAdvantage)).toEqual([0, 1, 0, -1, 0, 1, 0, 0]);

@@ -42,9 +42,9 @@ import {
   generateMapsRequestSchema,
 } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import { z } from "zod";
+import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
 import type { IndividualTrackersRow } from "../../services/database/types/individual_trackers";
 import { MapsFormatType, MapsPlaylistType } from "../../services/database/types/guild_config";
-import { MAP_COUNTS } from "../../services/halo/hcs";
 import {
   ActiveSeriesExistsError,
   NoActiveSeriesError,

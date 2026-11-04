@@ -151,8 +151,8 @@ export interface OddballViewData {
 
 export type FlagRunMarkerKind = "steal" | "grab" | "drop" | "return" | "capture";
 
-// progress is a signed percentage: positive for the first team's flag (carried by the second
-// team), negative for the second team's flag, so the two flags mirror around the home line
+// progress is a signed percentage: positive while the first team carries (the second team's
+// flag), negative while the second team carries, so the two flags mirror around the home line
 export interface FlagRunPoint {
   readonly timestampMs: number;
   readonly progress: number;

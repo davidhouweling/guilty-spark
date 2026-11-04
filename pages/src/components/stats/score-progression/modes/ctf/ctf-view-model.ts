@@ -1,7 +1,7 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { FLAG_ADVANTAGE_KEY, TICK_FILL } from "../../chart-constants";
+import { FLAG_ADVANTAGE_KEY, TICK_FILL, roundPercent } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
 import type {
   FlagAdvantageOverlay,
@@ -19,9 +19,18 @@ const FULL_PROGRESS = 100;
 
 type RunDirection = 1 | -1;
 
+function runDirection(carrierTeamId: number, firstTeamId: number): RunDirection {
+  return carrierTeamId === firstTeamId ? 1 : -1;
+}
+
+const SIDE_LABEL: Record<RunDirection, string> = { 1: "Above:", [-1]: "Below:" };
+
+function carrierColorOf(teamColorByTeamId: ReadonlyMap<number, string>, carrierTeamId: number): string {
+  return teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL;
+}
+
 function toSignedPercent(progress: number, direction: RunDirection): number {
-  const percent = Math.round(progress * FULL_PROGRESS);
-  return percent === 0 ? 0 : percent * direction;
+  return roundPercent(progress * FULL_PROGRESS * direction);
 }
 
 function orderedSamplesWithin(run: CtfFlagRun, endMs: number): Map<number, number> {
@@ -75,7 +84,10 @@ function buildRunMarkers(run: CtfFlagRun, points: readonly FlagRunPoint[], endMs
     const timestampMs = Math.min(Math.max(event.timestampMs, run.startMs), endMs);
     markers.push({
       timestampMs,
-      progress: Math.round(interpolateSeriesAt(points, timestampMs, (point) => point.progress) ?? 0),
+      progress: Preconditions.checkExists(
+        interpolateSeriesAt(points, timestampMs, (point) => point.progress),
+        "a clamped marker always lies within its run's points",
+      ),
       kind: MARKER_KIND_BY_EVENT[event.kind],
     });
   }
@@ -106,11 +118,14 @@ export function buildFlagRuns(
   const runs: FlagRunData[] = [];
   const orderedRuns = [...timeline.runs].sort((left, right) => left.startMs - right.startMs);
   for (const run of orderedRuns) {
-    const color = teamColorByTeamId.get(run.carrierTeamId);
-    if (color == null || !teamIds.includes(run.flagTeamId) || !isDrawableFlagRun(run, durationMs)) {
+    if (
+      !teamIds.includes(run.flagTeamId) ||
+      !teamIds.includes(run.carrierTeamId) ||
+      !isDrawableFlagRun(run, durationMs)
+    ) {
       continue;
     }
-    const direction: RunDirection = run.flagTeamId === firstTeamId ? 1 : -1;
+    const direction = runDirection(run.carrierTeamId, firstTeamId);
     const endMs = Math.min(run.endMs, durationMs);
     const finished = finishesWithinMatch(run, durationMs);
     const { points, endProgress } = buildRunPoints(run, endMs, direction, finished && run.outcome === "capture");
@@ -119,7 +134,7 @@ export function buildFlagRuns(
       runIndex,
       seriesKey: `run${String(runIndex)}`,
       seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
-      color,
+      color: carrierColorOf(teamColorByTeamId, run.carrierTeamId),
       points,
       markers: buildRunMarkers(run, points, endMs),
       reset: buildRunReset(finished, endMs, endProgress),
@@ -133,12 +148,15 @@ export function buildFlagRunLegend(
   teamColorByTeamId: ReadonlyMap<number, string>,
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
-  const entryFor = (flagTeamId: number, carrierTeamId: number, side: string): FlagRunLegendEntry => ({
-    key: `flag-${String(flagTeamId)}`,
-    color: teamColorByTeamId.get(carrierTeamId) ?? TICK_FILL,
-    text: `${side} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
-  });
-  return [entryFor(firstTeamId, secondTeamId, "Above:"), entryFor(secondTeamId, firstTeamId, "Below:")];
+  const carrierAndFlag: readonly (readonly [number, number])[] = [
+    [firstTeamId, secondTeamId],
+    [secondTeamId, firstTeamId],
+  ];
+  return carrierAndFlag.map(([carrierTeamId, flagTeamId]) => ({
+    key: `carrier-${String(carrierTeamId)}`,
+    color: carrierColorOf(teamColorByTeamId, carrierTeamId),
+    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+  }));
 }
 
 // one row per distinct instant so every series, the step-wise advantage included, shares the

@@ -111,15 +111,10 @@ export function advantageAxisProps(domain: readonly [number, number]): {
   };
 }
 
-// the flag chart's upper half is where the second team carries the first team's flag, so the
-// second team's lead (negative in the shared sign) is drawn upward; the halves say whose lead
-// it is, so the ticks are unsigned like the flag axis's
-export function flagAdvantageAxisProps(domain: readonly [number, number]): ReturnType<typeof advantageAxisProps> & {
-  reversed: true;
-} {
+// the halves already say whose lead it is, so the ticks are unsigned like the flag axis's
+export function flagAdvantageAxisProps(domain: readonly [number, number]): ReturnType<typeof advantageAxisProps> {
   return {
     ...advantageAxisProps(domain),
-    reversed: true,
     tickFormatter: (value: number): string => String(Math.abs(value)),
   };
 }
@@ -170,7 +165,8 @@ const PERCENT_AXIS_TICKS = [0, 25, 50, 75, 100];
 
 // rounds away from zero on both sides so a lead and its mirror image read the same
 export function roundPercent(value: number): number {
-  return Math.sign(value) * Math.round(Math.abs(value));
+  const rounded = Math.sign(value) * Math.round(Math.abs(value));
+  return rounded === 0 ? 0 : rounded;
 }
 
 export function formatScoreValue(value: number, unit: ScoreUnit): string {

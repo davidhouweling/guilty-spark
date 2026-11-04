@@ -7,6 +7,7 @@ export function aFakeStatRecordWith(
   return {
     timestampMs: 1000,
     slot: 10,
+    round: 0,
     components: new Map(
       Object.entries(components ?? { 2: { a: 1, b: 0 } }).map(([index, value]) => [Number(index), value]),
     ),

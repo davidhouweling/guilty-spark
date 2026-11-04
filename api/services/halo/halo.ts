@@ -25,6 +25,8 @@ import {
 } from "@guilty-spark/shared/halo/series-team-identity";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "@guilty-spark/shared/halo/hcs";
+import type { Format, MapMode } from "@guilty-spark/shared/halo/hcs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import type { DatabaseService } from "../database/database";
@@ -32,8 +34,6 @@ import type { LogService } from "../log/types";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config";
 import type { XboxService } from "../xbox/xbox";
-import type { Format, MapMode } from "./hcs";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "./hcs";
 import type { generateRoundRobinMapsFn } from "./round-robin";
 import { generateRoundRobinMaps } from "./round-robin";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter";
