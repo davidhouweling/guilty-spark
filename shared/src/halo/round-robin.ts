@@ -1,5 +1,5 @@
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { MapMode } from "@guilty-spark/shared/halo/hcs";
+import { Preconditions } from "../base/preconditions";
+import type { MapMode } from "./hcs";
 
 export interface RoundRobinArgs {
   count: number;

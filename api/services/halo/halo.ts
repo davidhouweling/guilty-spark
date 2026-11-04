@@ -25,8 +25,10 @@ import {
 } from "@guilty-spark/shared/halo/series-team-identity";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS, HCS_SET_FORMAT } from "@guilty-spark/shared/halo/hcs";
-import type { Format, MapMode } from "@guilty-spark/shared/halo/hcs";
+import { CURRENT_HCS_MAPS, getMapModeFormatSequence, HISTORICAL_HCS_MAPS } from "@guilty-spark/shared/halo/hcs";
+import type { generateRoundRobinMapsFn } from "@guilty-spark/shared/halo/round-robin";
+import { generateRoundRobinMaps } from "@guilty-spark/shared/halo/round-robin";
+import type { MapGenerationFormat, MapMode } from "@guilty-spark/shared/halo/hcs";
 import type { DiscordAssociationsRow } from "../database/types/discord_associations";
 import { AssociationReason, GamesRetrievable } from "../database/types/discord_associations";
 import type { DatabaseService } from "../database/database";
@@ -34,8 +36,6 @@ import type { LogService } from "../log/types";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { MapsFormatType, MapsPlaylistType } from "../database/types/guild_config";
 import type { XboxService } from "../xbox/xbox";
-import type { generateRoundRobinMapsFn } from "./round-robin";
-import { generateRoundRobinMaps } from "./round-robin";
 import type { IPlayerMatchesRateLimiter } from "./player-matches-rate-limiter";
 import { skillRankCombined } from "./skill-helpers";
 import type {
@@ -985,23 +985,13 @@ export class HaloService {
   }): Promise<{ mode: MapMode; map: string }[]> {
     const mapSet = await this.getMapSet(playlist);
     const validMapModes = await this.getMapModesForPlaylist(playlist);
-    const formatSequence = this.getMapModeFormat(validMapModes.length > 1 ? format : MapsFormatType.SLAYER, count);
-
-    // Build all possible (mode, map) pairs
-    const allPairs: { mode: MapMode; map: string }[] = [];
-    for (const [mode, maps] of Object.entries(mapSet)) {
-      for (const map of maps) {
-        allPairs.push({ mode: mode, map });
-      }
-    }
-
-    return this.roundRobinFn({
+    const formatSequence = getMapModeFormatSequence(
+      validMapModes.length > 1 ? this.toMapGenerationFormat(format) : "slayer",
       count,
-      pool: allPairs,
-      formatSequence: formatSequence.map((f: Format) =>
-        f === "random" ? (Math.random() < 1 / 6 ? "slayer" : "objective") : f,
-      ),
-    });
+    );
+    const allPairs = Object.entries(mapSet).flatMap(([mode, maps]) => maps.map((map) => ({ mode, map })));
+
+    return this.roundRobinFn({ count, pool: allPairs, formatSequence });
   }
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
@@ -2200,19 +2190,19 @@ export class HaloService {
     }
   }
 
-  private getMapModeFormat(format: MapsFormatType, count: number): Format[] {
+  private toMapGenerationFormat(format: MapsFormatType): MapGenerationFormat {
     switch (format) {
       case MapsFormatType.HCS: {
-        return Preconditions.checkExists(HCS_SET_FORMAT[count]);
+        return "HCS";
       }
       case MapsFormatType.RANDOM: {
-        return Array(count).fill("random") as Format[];
+        return "random";
       }
       case MapsFormatType.OBJECTIVE: {
-        return Array(count).fill("objective") as Format[];
+        return "objective";
       }
       case MapsFormatType.SLAYER: {
-        return Array(count).fill("slayer") as Format[];
+        return "slayer";
       }
       default: {
         throw new UnreachableError(format);
