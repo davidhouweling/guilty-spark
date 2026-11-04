@@ -165,6 +165,15 @@ exports[`MapsCommand > execute(): application command > jobToComplete > calls di
             "type": 2,
           },
           {
+            "custom_id": "btn_maps_use_code",
+            "emoji": {
+              "name": "🔑",
+            },
+            "label": "Use code",
+            "style": 2,
+            "type": 2,
+          },
+          {
             "custom_id": "btn_maps_confirm",
             "emoji": {
               "name": "✅",

@@ -68,3 +68,14 @@ export function encodeMapCode(matches: readonly LiveTrackerMap[]): string {
     })
     .join("");
 }
+
+export function encodeMapCodeIfSupported(matches: readonly LiveTrackerMap[]): string | undefined {
+  try {
+    return encodeMapCode(matches);
+  } catch (error: unknown) {
+    if (error instanceof MapCodeError) {
+      return undefined;
+    }
+    throw error;
+  }
+}

@@ -11,6 +11,7 @@ import type {
   APIEmbed,
   APIMessage,
   APIApplicationCommandInteractionDataOption,
+  APIModalSubmitInteraction,
 } from "discord-api-types/v10";
 import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, expect, vi } from "vitest";
@@ -23,6 +24,7 @@ import {
   MessageFlags,
   InteractionResponseType,
   ButtonStyle,
+  TextInputStyle,
 } from "discord-api-types/v10";
 import type { MapMode } from "@guilty-spark/shared/halo/hcs";
 import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
@@ -36,6 +38,7 @@ import {
   apiMessage,
   discordNeatQueueData,
   fakeBaseAPIApplicationCommandInteraction,
+  modalSubmitInteraction,
 } from "../../../services/discord/fakes/data";
 import { MapsFormatType, MapsPlaylistType } from "../../../services/database/types/guild_config";
 
@@ -285,6 +288,22 @@ function aFakeCountSelectInteraction(selectedCount: number): APIMessageComponent
   };
 }
 
+function aFakeCodeModalSubmitInteraction(code: string): APIModalSubmitInteraction {
+  return {
+    ...modalSubmitInteraction,
+    data: {
+      custom_id: InteractionComponent.CodeModal,
+      components: [
+        {
+          type: ComponentType.ActionRow,
+          components: [{ type: ComponentType.TextInput, custom_id: "map_code", value: code }],
+        },
+      ],
+    },
+    message: aFakeApiMessage({}),
+  };
+}
+
 function aFakeFormatSelectInteraction(
   selectedFormat: MapsFormatType,
   count = 5,
@@ -446,6 +465,75 @@ describe("MapsCommand", () => {
         expect(embed?.fields?.[0]?.value.split("\n")).toHaveLength(5);
       });
     });
+
+    describe("code option", () => {
+      it("imports the exact code and overrides count, playlist, and format", async () => {
+        const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+        const getMapModesSpy = vi
+          .spyOn(services.haloService, "getMapModesForPlaylist")
+          .mockResolvedValue([
+            "Slayer",
+            "Capture the Flag",
+            "Strongholds",
+            "Oddball",
+            "King of the Hill",
+            "Neutral Bomb",
+          ]);
+        const interaction = aFakeMapsInteractionWith([
+          { name: "count", value: 1, type: ApplicationCommandOptionType.Integer },
+          { name: "playlist", value: MapsPlaylistType.HCS_CURRENT, type: ApplicationCommandOptionType.String },
+          { name: "format", value: MapsFormatType.SLAYER, type: ApplicationCommandOptionType.String },
+          { name: "code", value: "cesoklossr", type: ApplicationCommandOptionType.String },
+        ]);
+        const { jobToComplete } = command.execute(interaction);
+
+        await jobToComplete?.();
+
+        expect(generateMapsSpy).not.toHaveBeenCalled();
+        expect(getMapModesSpy).toHaveBeenCalledWith(MapsPlaylistType.HCS_HISTORICAL);
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
+        expect(embed?.fields?.find((field) => field.name === "Map code")?.value).toBe("`CESOKLOSSR`");
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          ),
+        ).toMatchObject({ value: "5" });
+        expect(
+          getSelectMenu(data.components, InteractionComponent.PlaylistSelect).options.find(
+            (option) => option.default === true,
+          ),
+        ).toMatchObject({ value: MapsPlaylistType.HCS_HISTORICAL });
+        expect(
+          getSelectMenu(data.components, InteractionComponent.FormatSelect).options.find(
+            (option) => option.default === true,
+          ),
+        ).toMatchObject({ value: MapsFormatType.HCS });
+        expect(embed?.fields?.[1]?.value.split("\n")).toEqual([
+          "Capture the Flag",
+          "Slayer",
+          "King of the Hill",
+          "Oddball",
+          "Slayer",
+        ]);
+      });
+
+      it("returns an ephemeral error for an invalid code before deferring", () => {
+        const interaction = aFakeMapsInteractionWith([
+          { name: "code", value: "CES", type: ApplicationCommandOptionType.String },
+        ]);
+        const { response, jobToComplete } = command.execute(interaction);
+
+        expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
+        if (response.type !== InteractionResponseType.ChannelMessageWithSource) {
+          throw new Error("Expected an immediate error response");
+        }
+        expect(response.data.flags).toBe(MessageFlags.Ephemeral);
+        expect(response.data.content).toContain("Each match needs two characters");
+        expect(jobToComplete).toBeUndefined();
+      });
+    });
   });
 
   describe("execute(): message component interactions", () => {
@@ -478,6 +566,75 @@ describe("MapsCommand", () => {
     });
 
     describe("button interactions", () => {
+      it("opens the Use Code modal from an editable draft", () => {
+        const { response } = command.execute(aFakeButtonInteraction(InteractionComponent.UseCode));
+
+        expect(response.type).toBe(InteractionResponseType.Modal);
+        if (response.type !== InteractionResponseType.Modal) {
+          throw new Error("Expected a code-entry modal");
+        }
+        expect(response.data.custom_id).toBe(InteractionComponent.CodeModal);
+        expect(response.data.title).toBe("Use map code");
+        const [modalRow] = response.data.components;
+        if (modalRow?.type !== ComponentType.ActionRow) {
+          throw new Error("Expected a code input row");
+        }
+        const [textInput] = modalRow.components;
+        expect(textInput).toMatchObject({
+          type: ComponentType.TextInput,
+          custom_id: "map_code",
+          style: TextInputStyle.Short,
+          max_length: 26,
+        });
+      });
+
+      it("imports modal code into the existing draft without confirming it", async () => {
+        const generateMapsSpy = vi.spyOn(services.haloService, "generateMaps");
+        vi.spyOn(services.haloService, "getMapModesForPlaylist").mockResolvedValue([
+          "Slayer",
+          "Capture the Flag",
+          "Strongholds",
+          "Oddball",
+          "King of the Hill",
+          "Neutral Bomb",
+        ]);
+        const interaction = aFakeCodeModalSubmitInteraction("CESOKLOSSR");
+        const { response, jobToComplete } = command.execute(interaction);
+
+        expect(response).toEqual<APIInteractionResponse>({ type: InteractionResponseType.DeferredMessageUpdate });
+        await jobToComplete?.();
+
+        expect(generateMapsSpy).not.toHaveBeenCalled();
+        const [, data] = updateDeferredReplySpy.mock.calls[0] as [string, APIInteractionResponseCallbackData];
+        const embed = data.embeds?.[0];
+        expect(embed?.title).toContain(MapsPlaylistType.HCS_HISTORICAL);
+        expect(embed?.fields?.find((field) => field.name === "Map code")?.value).toBe("`CESOKLOSSR`");
+        expect(embed?.fields?.at(-1)?.value).toContain("Generated by");
+        expect(embed?.footer).toBeUndefined();
+        expect(
+          getSelectMenu(data.components, InteractionComponent.CountSelect).options.find(
+            (option) => option.default === true,
+          ),
+        ).toMatchObject({ value: "5" });
+        expect(getButtonRow(data.components).components.map((button) => button.custom_id)).toContain(
+          InteractionComponent.Confirm,
+        );
+      });
+
+      it("keeps the existing draft untouched when modal code is invalid", () => {
+        const interaction = aFakeCodeModalSubmitInteraction("CES");
+        const { response, jobToComplete } = command.execute(interaction);
+
+        expect(response.type).toBe(InteractionResponseType.ChannelMessageWithSource);
+        if (response.type !== InteractionResponseType.ChannelMessageWithSource) {
+          throw new Error("Expected an ephemeral validation response");
+        }
+        expect(response.data.flags).toBe(MessageFlags.Ephemeral);
+        expect(response.data.content).toContain("Each match needs two characters");
+        expect(jobToComplete).toBeUndefined();
+        expect(updateDeferredReplySpy).not.toHaveBeenCalled();
+      });
+
       it("returns deferred response and jobToComplete for roll button", () => {
         const interaction = aFakeButtonInteraction(InteractionComponent.Regenerate, MapsPlaylistType.HCS_HISTORICAL);
 
@@ -1134,7 +1291,7 @@ describe("MapsCommand", () => {
           expect(data.embeds?.[0]?.title).toContain("Maps: LVT Pro League - Current");
 
           const actionRow = getButtonRow(data.components);
-          expect(actionRow.components).toHaveLength(4);
+          expect(actionRow.components).toHaveLength(5);
         });
 
         it("renders Slayer as the format for an initiated Slayer-only message", async () => {

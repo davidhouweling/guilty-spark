@@ -264,7 +264,7 @@ describe("NeatQueuePlayersEmbed", () => {
       expect(firstAction.components[1]).toMatchObject({
         type: ComponentType.Button,
         style: ButtonStyle.Secondary,
-        label: "Generate maps",
+        label: "Maps",
         custom_id: "btn_maps_initiate",
       });
     }
