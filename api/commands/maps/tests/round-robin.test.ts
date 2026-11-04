@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { CURRENT_HCS_MAPS, HCS_SET_FORMAT, ALL_MODES } from "@guilty-spark/shared/halo/hcs";
 import type { MapMode } from "@guilty-spark/shared/halo/hcs";
-import { generateRoundRobinMaps } from "../round-robin";
+import { generateRoundRobinMaps } from "@guilty-spark/shared/halo/round-robin";
 
 function makeLcg(seed: number): () => number {
   let s = seed;
