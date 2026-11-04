@@ -3,18 +3,23 @@ import type {
   APIInteractionResponseCallbackData,
   APIMessageComponentButtonInteraction,
   APIMessageComponentSelectMenuInteraction,
+  APIModalSubmitInteraction,
 } from "discord-api-types/v10";
 import {
   ApplicationCommandType,
   ApplicationCommandOptionType,
+  ComponentType,
   InteractionResponseType,
   InteractionType,
+  MessageFlags,
+  TextInputStyle,
 } from "discord-api-types/v10";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { z } from "zod";
 import type { MapMode } from "@guilty-spark/shared/halo/hcs";
 import { MAP_COUNTS } from "@guilty-spark/shared/halo/hcs";
+import { decodeMapCode } from "@guilty-spark/shared/halo/map-code/codec";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 import { BaseCommand } from "../base/base-command";
 import type {
@@ -30,6 +35,7 @@ import { normalizeMapsFormat, readMapsDraftFromMessage } from "./maps-draft";
 import type { MapsDraft } from "./maps-draft";
 const mapsPlaylistSchema = z.enum(MapsPlaylistType);
 const mapsFormatSchema = z.enum(MapsFormatType);
+const MAP_CODE_MAX_LENGTH = 26;
 
 export class MapsCommand extends BaseCommand {
   readonly commands: ApplicationCommandData[] = [
@@ -45,6 +51,14 @@ export class MapsCommand extends BaseCommand {
           description: "Number of maps to generate",
           required: false,
           choices: MAP_COUNTS.map((count) => ({ name: count.toString(), value: count })),
+        },
+        {
+          type: ApplicationCommandOptionType.String,
+          name: "code",
+          description: "Import an exact HCS/LVT map code; overrides count, playlist, and format",
+          required: false,
+          min_length: 2,
+          max_length: MAP_CODE_MAX_LENGTH,
         },
         {
           type: ApplicationCommandOptionType.String,
@@ -90,6 +104,35 @@ export class MapsCommand extends BaseCommand {
       this.deferUpdate(async () => this.handleInitiate(interaction)),
     ),
 
+    [InteractionComponent.UseCode]: this.buttonHandler(() =>
+      this.immediateResponse({
+        type: InteractionResponseType.Modal,
+        data: {
+          custom_id: InteractionComponent.CodeModal,
+          title: "Use map code",
+          components: [
+            {
+              type: ComponentType.ActionRow,
+              components: [
+                {
+                  type: ComponentType.TextInput,
+                  custom_id: "map_code",
+                  label: "Map code",
+                  style: TextInputStyle.Short,
+                  min_length: 2,
+                  max_length: MAP_CODE_MAX_LENGTH,
+                  placeholder: "CESOKLOSSR",
+                  required: true,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    ),
+
+    [InteractionComponent.CodeModal]: this.modalSubmitHandler((interaction) => this.handleCodeModalSubmit(interaction)),
+
     [InteractionComponent.Regenerate]: this.buttonHandler((interaction) =>
       this.deferUpdate(async () => this.handleRegenerate(interaction)),
     ),
@@ -134,7 +177,8 @@ export class MapsCommand extends BaseCommand {
       case InteractionType.ApplicationCommand: {
         return this.applicationCommandJob(interaction);
       }
-      case InteractionType.MessageComponent: {
+      case InteractionType.MessageComponent:
+      case InteractionType.ModalSubmit: {
         const customId = interaction.data.custom_id;
         const handler = this.components[customId];
 
@@ -143,9 +187,6 @@ export class MapsCommand extends BaseCommand {
         }
 
         return this.executeComponentHandler(handler, interaction);
-      }
-      case InteractionType.ModalSubmit: {
-        throw new Error("This command cannot be used in this context.");
       }
       default:
         throw new UnreachableError(type);
@@ -187,6 +228,17 @@ export class MapsCommand extends BaseCommand {
 
     const { options } = interaction.data;
 
+    const codeOption = options?.find((option) => option.name === "code");
+    if (codeOption?.type === ApplicationCommandOptionType.String) {
+      const maps = decodeMapCode(codeOption.value);
+      const state = {
+        count: maps.length,
+        playlist: MapsPlaylistType.HCS_HISTORICAL,
+        format: MapsFormatType.HCS,
+      };
+      return this.generateDeferredResponse(interaction, state, Promise.resolve(maps));
+    }
+
     const countOption = options?.find((opt) => opt.name === "count");
     const count = countOption?.type === ApplicationCommandOptionType.Integer ? countOption.value : 5;
 
@@ -206,6 +258,48 @@ export class MapsCommand extends BaseCommand {
     const maps = this.services.haloService.generateMaps(state);
 
     return this.generateDeferredResponse(interaction, state, maps);
+  }
+
+  private handleCodeModalSubmit(interaction: APIModalSubmitInteraction): ExecuteResponse {
+    const code = this.services.discordService.extractModalSubmitData(interaction).get("map_code") ?? "";
+    let maps: { mode: MapMode; map: string }[];
+    try {
+      maps = decodeMapCode(code);
+    } catch (error: unknown) {
+      return this.immediateResponse({
+        type: InteractionResponseType.ChannelMessageWithSource,
+        data: {
+          content: error instanceof Error ? error.message : "Invalid map code.",
+          flags: MessageFlags.Ephemeral,
+        },
+      });
+    }
+
+    return this.deferUpdate(async () => this.handleCodeImport(interaction, maps));
+  }
+
+  private async handleCodeImport(
+    interaction: APIModalSubmitInteraction,
+    maps: { mode: MapMode; map: string }[],
+  ): Promise<void> {
+    try {
+      const previousDraft = this.getEditableDraft(interaction);
+      const playlist = MapsPlaylistType.HCS_HISTORICAL;
+      const availableModes = await this.services.haloService.getMapModesForPlaylist(playlist);
+      const draft: MapsDraft = {
+        ...previousDraft,
+        count: maps.length,
+        playlist,
+        format: normalizeMapsFormat(MapsFormatType.HCS, availableModes),
+        maps,
+      };
+      await this.updateDraftMessage(interaction, draft, availableModes);
+    } catch (error: unknown) {
+      this.services.logService.error(error);
+      await this.services.discordService.updateDeferredReplyWithError(interaction.token, error, {
+        preserveMessage: interaction.message,
+      });
+    }
   }
 
   private async handleInitiate(interaction: APIMessageComponentButtonInteraction): Promise<void> {
@@ -458,13 +552,15 @@ export class MapsCommand extends BaseCommand {
   }
 
   private getDraft(
-    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    interaction:
+      APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction | APIModalSubmitInteraction,
   ): MapsDraft {
-    return readMapsDraftFromMessage(interaction.message);
+    return readMapsDraftFromMessage(Preconditions.checkExists(interaction.message, "expected source maps message"));
   }
 
   private getEditableDraft(
-    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    interaction:
+      APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction | APIModalSubmitInteraction,
   ): MapsDraft {
     const draft = this.getDraft(interaction);
     if (draft.locked) {
@@ -507,7 +603,8 @@ export class MapsCommand extends BaseCommand {
   }
 
   private async updateDraftMessage(
-    interaction: APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction,
+    interaction:
+      APIMessageComponentButtonInteraction | APIMessageComponentSelectMenuInteraction | APIModalSubmitInteraction,
     draft: MapsDraft,
     availableModes?: MapMode[],
   ): Promise<void> {
@@ -523,7 +620,8 @@ export class MapsCommand extends BaseCommand {
     interaction:
       | APIApplicationCommandInteraction
       | APIMessageComponentButtonInteraction
-      | APIMessageComponentSelectMenuInteraction,
+      | APIMessageComponentSelectMenuInteraction
+      | APIModalSubmitInteraction,
   ): string {
     return Preconditions.checkExists(
       interaction.member?.user.id ?? interaction.user?.id,

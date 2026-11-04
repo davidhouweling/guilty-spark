@@ -156,7 +156,7 @@ export class NeatQueuePlayersEmbed extends BaseTableEmbed {
       buttons.push({
         type: ComponentType.Button,
         style: ButtonStyle.Secondary,
-        label: "Generate maps",
+        label: "Maps",
         custom_id: "btn_maps_initiate",
         emoji: {
           name: "🗺️",

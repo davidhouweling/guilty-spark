@@ -303,7 +303,7 @@ export class LiveTrackerEmbed extends BaseTableEmbed {
       components.push({
         type: ComponentType.Button,
         custom_id: GENERATE_MAPS_BUTTON_CUSTOM_ID,
-        label: "Generate maps",
+        label: "Maps",
         style: ButtonStyle.Secondary,
         emoji: { name: "🗺️" },
       });
