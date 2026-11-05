@@ -2,6 +2,53 @@ import { describe, expect, it, vi } from "vitest";
 import { MapCodeBuilderPresenter } from "../map-code-builder-presenter";
 import { MapCodeBuilderStore } from "../map-code-builder-store";
 describe("MapCodeBuilderPresenter", () => {
+  it("preserves compatible selections and resets unsupported historical pairs before sharing", () => {
+    const store = new MapCodeBuilderStore();
+    const presenter = new MapCodeBuilderPresenter(store, () => 0.1);
+    presenter.setPlaylist("historical");
+    const ids = store.getSnapshot().slots.map((slot) => slot.id);
+    const [compatible, unsupported, invalidDraft, validDraft] = ids;
+    function savePair(id: number, mode: string, map: string): void {
+      presenter.edit(id);
+      presenter.setMode(id, mode);
+      presenter.setMap(id, map);
+      presenter.save(id);
+    }
+    savePair(compatible, "Capture the Flag", "Origin");
+    savePair(unsupported, "Capture the Flag", "Bazaar");
+    savePair(invalidDraft, "Slayer", "Live Fire");
+    presenter.edit(invalidDraft);
+    presenter.setMap(invalidDraft, "Vacancy");
+    savePair(validDraft, "Capture the Flag", "Origin");
+    presenter.edit(validDraft);
+    presenter.setMap(validDraft, "Empyrean");
+
+    presenter.setPlaylist("current");
+    const { slots } = store.getSnapshot();
+    expect(slots.map((slot) => slot.id)).toEqual(ids);
+    expect(slots.at(0)).toMatchObject({
+      editing: false,
+      match: { mode: "Capture the Flag", map: "Origin" },
+      draft: { mode: "Capture the Flag", map: "Origin" },
+    });
+    expect(slots.at(1)).toMatchObject({ editing: true, match: null, draft: { mode: "Slayer", map: "Solitude" } });
+    expect(slots.at(2)).toMatchObject({
+      editing: true,
+      match: { mode: "Slayer", map: "Live Fire" },
+      draft: { mode: "Slayer", map: "Solitude" },
+    });
+    expect(slots.at(3)).toMatchObject({
+      editing: true,
+      match: { mode: "Capture the Flag", map: "Origin" },
+      draft: { mode: "Capture the Flag", map: "Empyrean" },
+    });
+    expect(presenter.present(store.getSnapshot()).code).toBe("");
+    presenter.save(unsupported);
+    presenter.save(invalidDraft);
+    expect(presenter.present(store.getSnapshot()).code).toBe("");
+    presenter.save(validDraft);
+    expect(presenter.present(store.getSnapshot()).code).toHaveLength(10);
+  });
   it("preserves compatible maps when selecting a game type", () => {
     const store = new MapCodeBuilderStore();
     const presenter = new MapCodeBuilderPresenter(store);

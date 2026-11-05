@@ -17,6 +17,29 @@ afterEach(() => {
 });
 
 describe("Dropdown", () => {
+  it("returns focus after keyboard cancellation without stealing outside-click focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <Dropdown trigger={<span>Open</span>} ariaLabel="Test dropdown" closeOnSelect>
+          <button type="button">Choose option</button>
+        </Dropdown>
+        <button type="button">Outside</button>
+      </div>,
+    );
+    const trigger = screen.getByRole("button", { name: "Test dropdown" });
+    await user.click(trigger);
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Choose option" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    const outside = screen.getByRole("button", { name: "Outside" });
+    await user.click(outside);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(outside).toHaveFocus();
+  });
   it("closes after keyboard selection and restores trigger focus when enabled", async () => {
     const user = userEvent.setup();
     render(

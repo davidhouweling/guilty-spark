@@ -42,6 +42,9 @@ export function Dropdown({
     const handleEscape = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         setIsOpen(false);
+        if (event.target instanceof Node && dropdownRef.current?.contains(event.target) === true) {
+          triggerRef.current?.focus();
+        }
       }
     };
 
