@@ -1,0 +1,55 @@
+.picker {
+  min-width: 0;
+  width: 100%;
+}
+
+.picker .trigger {
+  background: var(--halo-bg-primary);
+  border: 1px solid var(--halo-teal-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  opacity: 1;
+  width: 100%;
+}
+
+.picker .trigger:hover,
+.picker .trigger:focus-visible {
+  border-color: var(--halo-accent);
+}
+
+.chevron {
+  color: var(--halo-gray);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.option {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--halo-white);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+
+.option img {
+  flex-shrink: 0;
+  height: 32px;
+  object-fit: contain;
+  width: 48px;
+}
+
+.option span {
+  overflow-wrap: anywhere;
+}
+
+.option:hover,
+.option[aria-pressed="true"] {
+  background: var(--halo-teal-darker);
+}

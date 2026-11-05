@@ -4,7 +4,7 @@ const INITIAL_SNAPSHOT: MapCodeBuilderSnapshot = {
   count: 5,
   format: "HCS",
   playlist: "current",
-  matches: [],
+  slots: [],
   notice: null,
 };
 
