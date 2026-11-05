@@ -1,39 +1,43 @@
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { MAP_GENERATOR_COUNTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import { Button } from "../button/button";
 import { Select } from "../select/select";
-import seriesStatsStyles from "../series-stats/series-stats.module.css";
+import { Slot } from "./slot/slot";
 import type { MapCodeBuilderFormat, MapCodeBuilderPlaylist, MapCodeBuilderViewModel } from "./types";
 import styles from "./map-code-builder.module.css";
-
-type MapCodeBuilderCSSProperties = CSSProperties & { readonly "--series-score-bg": string };
-
 interface MapCodeBuilderProps extends MapCodeBuilderViewModel {
-  readonly onCopyCode: () => void;
-  readonly onCountChange: (count: number) => void;
-  readonly onFormatChange: (format: MapCodeBuilderFormat) => void;
-  readonly onPlaylistChange: (playlist: MapCodeBuilderPlaylist) => void;
-  readonly onRandomize: () => void;
+  readonly onCopy: () => void;
+  readonly onCount: (count: number) => void;
+  readonly onFormat: (format: MapCodeBuilderFormat) => void;
+  readonly onPlaylist: (playlist: MapCodeBuilderPlaylist) => void;
+  readonly onGenerate: () => void;
+  readonly onEditAll: () => void;
+  readonly onEdit: (id: number) => void;
+  readonly onMode: (id: number, mode: string) => void;
+  readonly onMap: (id: number, map: string) => void;
+  readonly onSave: (id: number) => void;
+  readonly onMove: (id: number, target: number) => void;
 }
-
-function mapBackgroundStyle(thumbnailUrl: string | null): MapCodeBuilderCSSProperties {
-  return { "--series-score-bg": thumbnailUrl == null ? "none" : `url(${thumbnailUrl})` };
-}
-
 export function MapCodeBuilder({
   count,
   format,
   playlist,
-  matches,
-  discordCommand,
+  slots,
   code,
+  discordCommand,
   matchCountLabel,
   notice,
-  onCopyCode,
-  onCountChange,
-  onFormatChange,
-  onPlaylistChange,
-  onRandomize,
+  onCopy,
+  onCount,
+  onFormat,
+  onPlaylist,
+  onGenerate,
+  onEditAll,
+  onEdit,
+  onMode,
+  onMap,
+  onSave,
+  onMove,
 }: MapCodeBuilderProps): ReactElement {
   return (
     <div className={styles.page}>
@@ -45,7 +49,7 @@ export function MapCodeBuilder({
             aria-label="Select number of maps"
             value={count.toString()}
             onChange={(event): void => {
-              onCountChange(Number(event.currentTarget.value));
+              onCount(Number(event.currentTarget.value));
             }}
           >
             {MAP_GENERATOR_COUNTS.map((option) => (
@@ -61,7 +65,7 @@ export function MapCodeBuilder({
             aria-label="Select a playlist"
             value={playlist}
             onChange={(event): void => {
-              onPlaylistChange(event.currentTarget.value === "historical" ? "historical" : "current");
+              onPlaylist(event.currentTarget.value === "historical" ? "historical" : "current");
             }}
           >
             <option value="current">LVT Pro League - Current</option>
@@ -74,9 +78,9 @@ export function MapCodeBuilder({
             aria-label="Select a map format"
             value={format}
             onChange={(event): void => {
-              const selected = event.currentTarget.value;
-              if (selected === "HCS" || selected === "R" || selected === "O" || selected === "S") {
-                onFormatChange(selected);
+              const { value } = event.currentTarget;
+              if (value === "HCS" || value === "R" || value === "O" || value === "S") {
+                onFormat(value);
               }
             }}
           >
@@ -86,51 +90,68 @@ export function MapCodeBuilder({
             <option value="S">Slayer only</option>
           </Select>
         </label>
-        <Button variant="secondary" onClick={onRandomize}>
-          Randomize sequence
+        <Button variant="secondary" onClick={onGenerate}>
+          Generate
+        </Button>
+        <Button variant="secondary" onClick={onEditAll}>
+          Edit all
         </Button>
       </section>
       <div className={styles.workspace}>
-        <section className={styles.sequence} aria-labelledby="sequence-heading">
-          <div>
-            <h2 id="sequence-heading">Match sequence</h2>
-            <span>{matchCountLabel}</span>
-          </div>
+        <section aria-labelledby="sequence-heading">
+          <h2 id="sequence-heading">Match sequence</h2>
+          <span>{matchCountLabel}</span>
           <ol className={styles.matchGrid} aria-label="Map sequence">
-            {matches.map((match, index) => (
-              <li
-                className={seriesStatsStyles.seriesScore}
-                key={`${index.toString()}:${match.code}`}
-                style={mapBackgroundStyle(match.thumbnailUrl)}
-              >
-                <div className={seriesStatsStyles.seriesScoreLink}>
-                  <img className={seriesStatsStyles.gameTypeIcon} src={match.modeIconUrl} alt={match.mode} />
-                  {match.code}
-                  <span className={seriesStatsStyles.seriesSubScore}>{match.matchLabel}</span>
-                  <span className={seriesStatsStyles.gameTypeAndMap}>{match.modeAndMapLabel}</span>
-                </div>
-              </li>
+            {slots.map((slot, index) => (
+              <Slot
+                {...slot}
+                key={slot.id}
+                onEdit={(): void => {
+                  onEdit(slot.id);
+                }}
+                onMode={(mode): void => {
+                  onMode(slot.id, mode);
+                }}
+                onMap={(map): void => {
+                  onMap(slot.id, map);
+                }}
+                onSave={(): void => {
+                  onSave(slot.id);
+                }}
+                onMove={(direction): void => {
+                  const target = slots.at(index + (direction === "up" ? -1 : 1));
+                  if (target != null) {
+                    onMove(slot.id, target.id);
+                  }
+                }}
+                onDrop={(source): void => {
+                  onMove(source, slot.id);
+                }}
+                onMoveTo={(target): void => {
+                  onMove(slot.id, target);
+                }}
+              />
             ))}
           </ol>
         </section>
         <aside aria-labelledby="code-heading">
-          <div>
-            <h2 id="code-heading">Share code</h2>
-          </div>
+          <h2 id="code-heading">Share code</h2>
           <output className={styles.code} aria-label="Generated map code">
-            {code}
+            {code || "Complete all matches to create a share code."}
           </output>
-          <Button variant="secondary" onClick={onCopyCode}>
+          <Button variant="secondary" disabled={!code} onClick={onCopy}>
             Copy code
           </Button>
           {notice != null && <p role="status">{notice}</p>}
-          <section aria-label="Discord map code instructions">
-            <h3>Use in Discord</h3>
-            <p>
-              Run <code className={styles.discordCommand}>{discordCommand}</code> for a draft, or choose{" "}
-              <strong>Use code</strong> on a Maps embed, paste the code, and select <strong>Confirm maps</strong>.
-            </p>
-          </section>
+          {code && (
+            <section aria-label="Discord map code instructions">
+              <h3>Use in Discord</h3>
+              <p>
+                Run <code className={styles.discordCommand}>{discordCommand}</code> for a draft, or choose{" "}
+                <strong>Use code</strong> on a Maps embed, paste the code, and select <strong>Confirm maps</strong>.
+              </p>
+            </section>
+          )}
         </aside>
       </div>
     </div>

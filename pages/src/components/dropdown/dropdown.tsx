@@ -9,6 +9,7 @@ interface DropdownProps {
   readonly dropdownWidth?: number;
   readonly dropdownHeight?: number;
   readonly scrollToSelected?: boolean;
+  readonly closeOnSelect?: boolean;
   readonly containerClassName?: string;
   readonly triggerClassName?: string;
 }
@@ -20,6 +21,7 @@ export function Dropdown({
   dropdownWidth = 200,
   dropdownHeight = 150,
   scrollToSelected = false,
+  closeOnSelect = false,
   containerClassName,
   triggerClassName,
 }: DropdownProps): React.ReactElement {
@@ -148,6 +150,13 @@ export function Dropdown({
         <div
           ref={dropdownContentRef}
           className={styles.dropdown}
+          hidden={closeOnSelect && !isOpen}
+          onClick={(event): void => {
+            if (closeOnSelect && event.target instanceof Element && event.target.closest("button") != null) {
+              setIsOpen(false);
+              triggerRef.current?.focus();
+            }
+          }}
           style={{ ...position, width: `${dropdownWidth.toString()}px`, maxHeight: `${dropdownHeight.toString()}px` }}
         >
           {children}
