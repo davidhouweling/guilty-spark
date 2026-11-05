@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import { CSSTransition } from "react-transition-group";
 import styles from "./dropdown.module.css";
 
@@ -6,6 +6,7 @@ interface DropdownProps {
   readonly trigger: React.ReactNode;
   readonly children: React.ReactNode;
   readonly ariaLabel: string;
+  readonly ariaDescription?: string | undefined;
   readonly dropdownWidth?: number;
   readonly dropdownHeight?: number;
   readonly scrollToSelected?: boolean;
@@ -18,6 +19,7 @@ export function Dropdown({
   trigger,
   children,
   ariaLabel,
+  ariaDescription,
   dropdownWidth = 200,
   dropdownHeight = 150,
   scrollToSelected = false,
@@ -31,6 +33,7 @@ export function Dropdown({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownContentRef = useRef<HTMLDivElement>(null);
+  const descriptionId = useId();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent): void => {
@@ -125,6 +128,11 @@ export function Dropdown({
 
   return (
     <div className={containerClassNames} ref={dropdownRef}>
+      {ariaDescription != null && (
+        <span id={descriptionId} hidden>
+          {ariaDescription}
+        </span>
+      )}
       <button
         ref={triggerRef}
         type="button"
@@ -133,6 +141,7 @@ export function Dropdown({
           setIsOpen(!isOpen);
         }}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescription == null ? undefined : descriptionId}
         aria-expanded={isOpen}
       >
         {trigger}

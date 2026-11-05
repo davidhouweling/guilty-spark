@@ -15,6 +15,7 @@ export function ImagePicker({ label, value, options, onSelect }: ImagePickerProp
     <Dropdown
       closeOnSelect
       ariaLabel={label}
+      ariaDescription={value}
       containerClassName={styles.picker}
       triggerClassName={styles.trigger}
       dropdownWidth={220}

@@ -113,9 +113,36 @@ it("starts generated, edits all tiles, saves selections, and regenerates", async
   const differentMode = trigger.textContent.includes("Strongholds") ? "Slayer" : "Strongholds";
   await user.click(trigger);
   await user.click(screen.getByRole("button", { name: differentMode }));
+  expect(screen.getByRole("button", { name: "Match 1 game type", description: differentMode })).toBe(trigger);
   expect(screen.getByRole("button", { name: "Match 1 game type" })).toBe(trigger);
   expect(document.activeElement).toBe(trigger);
   expect(trigger.getAttribute("aria-expanded")).toBe("false");
   await user.tab();
   expect(document.activeElement).toBe(screen.getByRole("button", { name: "Match 1 map" }));
+});
+
+it("keeps keyboard focus within an individually edited tile without stealing bulk-action focus", async () => {
+  const user = userEvent.setup();
+  const Builder = createMapCodeBuilder();
+  render(<Builder />);
+  const pencil = screen.getByRole("button", { name: "Edit Match 1" });
+  pencil.focus();
+  await user.keyboard("{Enter}");
+  const mode = screen.getByRole("button", { name: "Match 1 game type" });
+  expect(document.activeElement).toBe(mode);
+  const map = screen.getByRole("button", { name: "Match 1 map" });
+  expect(screen.getByRole("button", { name: "Match 1 game type", description: mode.textContent })).toBe(mode);
+  expect(screen.getByRole("button", { name: "Match 1 map", description: map.textContent })).toBe(map);
+  await user.tab();
+  expect(document.activeElement).toBe(map);
+  await user.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Save" }));
+  await user.keyboard("{Enter}");
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Edit Match 1" }));
+  const editAll = screen.getByRole("button", { name: "Edit all" });
+  await user.click(editAll);
+  expect(document.activeElement).toBe(editAll);
+  const generate = screen.getByRole("button", { name: "Generate" });
+  await user.click(generate);
+  expect(document.activeElement).toBe(generate);
 });

@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import { Button } from "../../button/button";
 import { PencilIcon } from "../../icons/pencil-icon";
@@ -43,7 +43,19 @@ export function Slot({
   onMoveTo,
 }: SlotProps): ReactElement {
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const pendingFocus = useRef<"editor" | "pencil" | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const pencilRef = useRef<HTMLButtonElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  useLayoutEffect(() => {
+    if (pendingFocus.current === "editor" && editing) {
+      editorRef.current?.querySelector("button")?.focus();
+      pendingFocus.current = null;
+    } else if (pendingFocus.current === "pencil" && !editing) {
+      pencilRef.current?.focus();
+      pendingFocus.current = null;
+    }
+  }, [editing]);
   const style: SlotStyle = { "--map-bg": background ? `url(${background})` : "none" };
   return (
     <li
@@ -73,21 +85,32 @@ export function Slot({
         <span>{matchLabel}</span>
         {!editing && (
           <button
+            ref={pencilRef}
             className={styles.icon}
             type="button"
             aria-label={`Edit ${matchLabel}`}
             title={`Edit ${matchLabel}`}
-            onClick={onEdit}
+            onClick={(): void => {
+              pendingFocus.current = "editor";
+              onEdit();
+            }}
           >
             <PencilIcon />
           </button>
         )}
       </header>
       {editing ? (
-        <div className={styles.editor}>
+        <div ref={editorRef} className={styles.editor}>
           <ImagePicker label={`${matchLabel} game type`} value={draftMode} options={modes} onSelect={onMode} />
           <ImagePicker label={`${matchLabel} map`} value={draftMap} options={maps} onSelect={onMap} />
-          <Button size="small" disabled={!canSave} onClick={onSave}>
+          <Button
+            size="small"
+            disabled={!canSave}
+            onClick={(): void => {
+              pendingFocus.current = "pencil";
+              onSave();
+            }}
+          >
             Save
           </Button>
         </div>
