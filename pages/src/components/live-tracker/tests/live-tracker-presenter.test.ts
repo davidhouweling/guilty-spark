@@ -157,6 +157,12 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     // All 5 matches fit in one batch (ANALYTICS_BATCH_SIZE = 30)
     expect(getBatchSpy).toHaveBeenCalledTimes(1);
     expect(getBatchSpy).toHaveBeenCalledWith(expect.arrayContaining(rawMatchIds));
+    expect(getBatchSpy.mock.calls[0]).toHaveLength(1);
+    expect(
+      [...mockStore.getSnapshot().analyticsByMatchId.values()].every(
+        (analytics) => analytics.scoreProgression === null,
+      ),
+    ).toBe(true);
     expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(rawMatchIds.length);
 
     presenter.dispose();
