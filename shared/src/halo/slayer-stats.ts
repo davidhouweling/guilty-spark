@@ -11,11 +11,11 @@ interface PlayerSlayerStatsOptions {
   locale?: string;
 }
 
-export function getPlayerSlayerStats(
+export function getPlayerSlayerStatValues(
   coreStats: Stats["CoreStats"],
   options: PlayerSlayerStatsOptions = {},
 ): StatsCollection {
-  const { includeRank = false, includeScore = true, rank, locale } = options;
+  const { includeRank = false, includeScore = true, rank } = options;
 
   const slayerStats: StatsCollection = new Map();
 
@@ -40,25 +40,49 @@ export function getPlayerSlayerStats(
   slayerStats.set("Accuracy", {
     value: coreStats.Accuracy,
     sortBy: StatsValueSortBy.DESC,
-    display: `${formatStatValue(coreStats.Accuracy, locale)}%`,
   });
   slayerStats.set("Damage dealt", { value: coreStats.DamageDealt, sortBy: StatsValueSortBy.DESC });
   slayerStats.set("Damage taken", { value: coreStats.DamageTaken, sortBy: StatsValueSortBy.ASC });
   slayerStats.set("Damage ratio", {
     value: getSafeRatioValue(coreStats.DamageDealt, coreStats.DamageTaken),
     sortBy: StatsValueSortBy.DESC,
-    display: formatDamageRatio(coreStats.DamageDealt, coreStats.DamageTaken, locale),
   });
   slayerStats.set("Avg life time", {
     value: getDurationInSeconds(coreStats.AverageLifeDuration),
     sortBy: StatsValueSortBy.DESC,
-    display: getReadableDuration(coreStats.AverageLifeDuration, locale),
   });
   slayerStats.set("Avg damage per life", {
     value: getSafeRatioValue(coreStats.DamageDealt, coreStats.Deaths + 1),
     sortBy: StatsValueSortBy.DESC,
-    display: formatDamageRatio(coreStats.DamageDealt, coreStats.Deaths + 1, locale),
   });
 
   return slayerStats;
+}
+
+export function withPlayerSlayerStatDisplays(
+  values: StatsCollection,
+  coreStats: Stats["CoreStats"],
+  locale?: string,
+): StatsCollection {
+  const result = new Map(values);
+  const displays = new Map([
+    ["Accuracy", `${formatStatValue(coreStats.Accuracy, locale)}%`],
+    ["Damage ratio", formatDamageRatio(coreStats.DamageDealt, coreStats.DamageTaken, locale)],
+    ["Avg life time", getReadableDuration(coreStats.AverageLifeDuration, locale)],
+    ["Avg damage per life", formatDamageRatio(coreStats.DamageDealt, coreStats.Deaths + 1, locale)],
+  ]);
+  for (const [key, display] of displays) {
+    const value = result.get(key);
+    if (value && value.display == null) {
+      result.set(key, { ...value, display });
+    }
+  }
+  return result;
+}
+
+export function getPlayerSlayerStats(
+  coreStats: Stats["CoreStats"],
+  options: PlayerSlayerStatsOptions = {},
+): StatsCollection {
+  return withPlayerSlayerStatDisplays(getPlayerSlayerStatValues(coreStats, options), coreStats, options.locale);
 }

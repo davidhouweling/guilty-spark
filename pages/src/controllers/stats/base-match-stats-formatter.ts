@@ -1,23 +1,14 @@
 import type { MatchStats, Stats } from "halo-infinite-api";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
 import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
-import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
+import { withPlayerSlayerStatDisplays } from "@guilty-spark/shared/halo/slayer-stats";
+import { calculateMatchStats } from "@guilty-spark/shared/halo/match-stat-calculation";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
-import {
-  getPlayerXuid,
-  getTeamPlayersFromMatches,
-  getBestStatValues,
-  getBestTeamStatValues,
-} from "@guilty-spark/shared/halo/match-stats";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "./types";
 
 export abstract class BaseMatchStatsFormatter {
   protected abstract getPlayerObjectiveStats(stats: Stats): StatsCollection;
-
-  protected getPlayerSlayerStats(stats: Stats, rank: number): StatsCollection {
-    return getSharedPlayerSlayerStats(stats.CoreStats, { includeRank: true, rank });
-  }
 
   getData(
     match: MatchStats,
@@ -26,62 +17,31 @@ export abstract class BaseMatchStatsFormatter {
   ): MatchStatsData[] {
     const results: MatchStatsData[] = [];
 
-    const teamsStats = new Map<number, StatsCollection>(
-      match.Teams.map((team) => [
-        team.TeamId,
-        new Map([...this.getPlayerSlayerStats(team.Stats, team.Rank), ...this.getPlayerObjectiveStats(team.Stats)]),
-      ]),
-    );
-
-    const playersStats = new Map<string, StatsCollection>(
-      match.Players.filter((player) => player.ParticipationInfo.PresentAtBeginning).map((player) => {
-        const stats = Preconditions.checkExists(player.PlayerTeamStats[0]);
-
-        return [
-          player.PlayerId,
-          new Map([
-            ...this.getPlayerSlayerStats(stats.Stats, player.Rank),
-            ...this.getPlayerObjectiveStats(stats.Stats),
-          ]),
-        ];
-      }),
-    );
-
-    const matchBestTeamValues = getBestStatValues(teamsStats);
-    const matchBestPlayerValues = getBestStatValues(playersStats);
-
-    for (const team of match.Teams) {
-      const teamPlayers = getTeamPlayersFromMatches([match], team);
-      const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
-      const teamStats = new Map([
-        ...this.getPlayerSlayerStats(team.Stats, team.Rank),
-        ...this.getPlayerObjectiveStats(team.Stats),
-      ]);
-
+    const calculated = calculateMatchStats(match, (stats) => this.getPlayerObjectiveStats(stats));
+    for (const team of calculated.teams) {
       const playerStats: MatchStatsPlayerData[] = [];
-      for (const teamPlayer of teamPlayers) {
+      for (const { player: teamPlayer, values, coreStats, medalStats } of team.players) {
         const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag = teamPlayer.PlayerType === 1 ? (players.get(playerXuid) ?? "*Unknown*") : "Bot";
 
-        const playerTeamStats = Preconditions.checkExists(
-          teamPlayer.PlayerTeamStats.find((pts) => pts.TeamId === team.TeamId),
-        );
-
         const outputStats = this.transformStats(
-          matchBestPlayerValues,
-          teamBestValues,
-          Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId)),
+          calculated.bestPlayerValues,
+          team.bestPlayerValues,
+          withPlayerSlayerStatDisplays(values, coreStats),
         );
         playerStats.push({
           name: playerGamertag,
           values: outputStats,
-          medals: extractMedals(playerTeamStats.Stats.CoreStats, medalMetadata),
+          medals: extractMedals(medalStats, medalMetadata),
         });
       }
 
       results.push({
-        teamId: team.TeamId,
-        teamStats: this.transformTeamStats(matchBestTeamValues, teamStats),
+        teamId: team.teamId,
+        teamStats: this.transformTeamStats(
+          calculated.bestTeamValues,
+          withPlayerSlayerStatDisplays(team.values, team.coreStats),
+        ),
         players: playerStats,
         teamMedals: aggregateSharedTeamMedals(playerStats),
       });
