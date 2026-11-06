@@ -17,6 +17,62 @@ afterEach(() => {
 });
 
 describe("Dropdown", () => {
+  it("returns focus after keyboard cancellation without stealing outside-click focus", async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <Dropdown trigger={<span>Open</span>} ariaLabel="Test dropdown" closeOnSelect>
+          <button type="button">Choose option</button>
+        </Dropdown>
+        <button type="button">Outside</button>
+      </div>,
+    );
+    const trigger = screen.getByRole("button", { name: "Test dropdown" });
+    await user.click(trigger);
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Choose option" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    const outside = screen.getByRole("button", { name: "Outside" });
+    await user.click(outside);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(outside).toHaveFocus();
+  });
+  it("closes after keyboard selection and restores trigger focus when enabled", async () => {
+    const user = userEvent.setup();
+    render(
+      <Dropdown trigger={<span>Open</span>} ariaLabel="Test dropdown" closeOnSelect>
+        <button type="button">Choose option</button>
+      </Dropdown>,
+    );
+    const trigger = screen.getByRole("button", { name: "Test dropdown" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Choose option" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveFocus();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Choose option" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("leaves selection closing disabled for existing consumers", async () => {
+    const user = userEvent.setup();
+    render(
+      <Dropdown trigger={<span>Open</span>} ariaLabel="Test dropdown">
+        <button type="button">Choose option</button>
+      </Dropdown>,
+    );
+    const trigger = screen.getByRole("button", { name: "Test dropdown" });
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Choose option" }));
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("renders trigger button", () => {
     render(
       <Dropdown trigger={<span>Open Menu</span>} ariaLabel="Test dropdown">

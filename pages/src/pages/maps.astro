@@ -1,0 +1,12 @@
+---
+import Layout from "../layouts/layout.astro";
+import { MapCodeBuilderApp } from "../apps/map-code-builder/create";
+---
+
+<Layout
+  title="Map Code Builder - Guilty Spark"
+  description="Build, visualize, and share an HCS or LVT Halo Infinite map sequence."
+  fullFooter={true}
+>
+  <MapCodeBuilderApp client:only="react" />
+</Layout>

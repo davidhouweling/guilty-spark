@@ -17,10 +17,10 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { getDurationInSeconds, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { decodeMapCode, encodeMapCode } from "@guilty-spark/shared/halo/map-code/codec";
 import { CURRENT_HCS_MAPS, HISTORICAL_HCS_MAPS } from "@guilty-spark/shared/halo/hcs";
+import type { generateRoundRobinMapsFn } from "@guilty-spark/shared/halo/round-robin";
 import { HaloService } from "../halo";
 import type { CachedUserInfo, MatchPlayer } from "../types";
 import { FetchablePlaylist } from "../types";
-import type { generateRoundRobinMapsFn } from "../round-robin";
 import type { DatabaseService } from "../../database/database";
 import { aFakeDatabaseServiceWith, aFakeDiscordAssociationsRow } from "../../database/fakes/database.fake";
 import {

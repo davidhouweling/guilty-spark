@@ -1,0 +1,124 @@
+.tile {
+  background:
+    linear-gradient(rgb(8 20 24 / 55%), rgb(8 20 24 / 65%)),
+    var(--map-bg) center / cover,
+    var(--halo-bg-secondary);
+  border: 1px solid var(--halo-teal-primary);
+  color: var(--halo-white);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  min-width: 0;
+  padding: var(--space-3);
+  position: relative;
+}
+
+.tile:hover,
+.tile:focus-within {
+  border-color: var(--halo-accent);
+}
+
+.tile:active {
+  cursor: grabbing;
+}
+
+.editing {
+  background: var(--halo-bg-secondary);
+  cursor: default;
+}
+
+.header,
+.actions {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.header {
+  min-height: 32px;
+}
+
+.editor {
+  display: grid;
+  gap: var(--space-2);
+  margin: auto 0;
+  min-width: 0;
+}
+
+.summary {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-3) 0;
+  text-align: center;
+  text-shadow: 0 1px 2px black;
+}
+
+.summary img {
+  height: 60px;
+  object-fit: contain;
+  width: 60px;
+}
+
+.summary strong {
+  font-size: var(--text-3xl);
+}
+
+.icon {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--halo-gray);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.icon:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.actions {
+  justify-content: end;
+  margin-top: var(--space-2);
+}
+
+.grip {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: grab;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  margin-right: auto;
+  opacity: 0.5;
+  touch-action: none;
+  user-select: none;
+  width: 32px;
+}
+
+.grip svg {
+  pointer-events: none;
+}
+
+.grip:active {
+  cursor: grabbing;
+}
+
+.dragging {
+  border-color: var(--halo-accent);
+  opacity: 0.6;
+}
+
+.tile:hover .grip {
+  opacity: 1;
+}

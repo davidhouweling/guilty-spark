@@ -1,4 +1,6 @@
 import { MAP_GENERATOR_COUNTS } from "../contracts/individual-tracker/map-generation";
+import { Preconditions } from "../base/preconditions";
+import { UnreachableError } from "../base/unreachable-error";
 
 export const HCS_LAST_UPDATED = "18 August 2026";
 
@@ -6,6 +8,8 @@ export type HcsMapMode =
   "Slayer" | "Capture the Flag" | "Strongholds" | "Oddball" | "King of the Hill" | "Neutral Bomb";
 export type MapMode = string;
 export type Format = "random" | "objective" | "slayer";
+export type MapGenerationFormat = "HCS" | Format;
+export type MapModeFormat = "slayer" | "objective";
 export const MAP_COUNTS = MAP_GENERATOR_COUNTS;
 
 export const CURRENT_HCS_MAPS: Record<HcsMapMode, string[]> = {
@@ -60,6 +64,32 @@ export const HCS_SET_FORMAT: Record<number, Format[]> = {
     "slayer",
   ],
 };
+
+export function getMapModeFormatSequence(
+  format: MapGenerationFormat,
+  count: number,
+  random: () => number = Math.random,
+): MapModeFormat[] {
+  switch (format) {
+    case "HCS": {
+      return Preconditions.checkExists(HCS_SET_FORMAT[count]).map((entry) =>
+        entry === "random" ? (random() < 1 / 6 ? "slayer" : "objective") : entry,
+      );
+    }
+    case "random": {
+      return Array.from({ length: count }, () => (random() < 1 / 6 ? "slayer" : "objective"));
+    }
+    case "objective": {
+      return Array.from({ length: count }, () => "objective");
+    }
+    case "slayer": {
+      return Array.from({ length: count }, () => "slayer");
+    }
+    default: {
+      throw new UnreachableError(format);
+    }
+  }
+}
 
 export const HISTORICAL_HCS_MAPS: Record<HcsMapMode, string[]> = {
   Slayer: ["Aquarius", "Live Fire", "Recharge", "Streets", "Solitude", "Empyrean", "Origin", "Vacancy"],
