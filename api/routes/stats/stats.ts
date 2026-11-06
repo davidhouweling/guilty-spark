@@ -4,6 +4,7 @@ import { batchMatchAnalyticsRoute } from "./batch-analytics";
 import { seriesMatchesRoute } from "./series-matches";
 import { statsPlayerRoute } from "./player";
 import { statsCompareRoute } from "./compare";
+import { statsPreSeriesRoute } from "./pre-series";
 
 export const statsRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   statsDiscordSeriesRoute(router, installServices);
@@ -11,4 +12,5 @@ export const statsRoutesRegisterHandler: RoutesRegisterHandler = (router, instal
   seriesMatchesRoute(router, installServices);
   statsPlayerRoute(router, installServices);
   statsCompareRoute(router, installServices);
+  statsPreSeriesRoute(router, installServices);
 };

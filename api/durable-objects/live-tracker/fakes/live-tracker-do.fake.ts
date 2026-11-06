@@ -10,6 +10,9 @@ import type {
   LiveTrackerStatusResponse,
   LiveTrackerRepostResponse,
 } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
+import { livePreSeriesContract } from "@guilty-spark/shared/contracts/stats/pre-series";
+import type { LivePreSeriesResponse } from "@guilty-spark/shared/contracts/stats/pre-series";
+import { aFakeLivePreSeriesResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/pre-series.fake";
 import type { LiveTrackerState } from "../types";
 import type { LiveTrackerDO } from "../live-tracker-do";
 import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
@@ -22,6 +25,7 @@ export interface FakeLiveTrackerDOOpts {
   refreshResponse?: LiveTrackerRefreshResponse;
   substitutionResponse?: LiveTrackerSubstitutionResponse;
   statusResponse?: LiveTrackerStatusResponse;
+  preSeriesResponse?: LivePreSeriesResponse;
   repostResponse?: LiveTrackerRepostResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
@@ -100,6 +104,11 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
 
     let responseBody: string;
     switch (path) {
+      case "/pre-series": {
+        const data = opts.preSeriesResponse ?? aFakeLivePreSeriesResponseWith();
+        const status = data.status === "resolved" ? 200 : data.status === "not-found" ? 404 : 410;
+        return livePreSeriesContract.toResponse(data, { status, noStore: true });
+      }
       case "/start":
         responseBody = JSON.stringify(startResponse);
         break;
