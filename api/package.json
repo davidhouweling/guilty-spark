@@ -34,9 +34,9 @@
   },
   "devDependencies": {
     "@sentry/cli": "^3.8.2",
-    "@sentry/cloudflare": "^11.9.0",
+    "@sentry/cloudflare": "^11.10.0",
     "@types/luxon": "^3.7.6",
     "dotenv": "^18.0.9",
-    "wrangler": "^4.154.0"
+    "wrangler": "^4.157.0"
   }
 }
