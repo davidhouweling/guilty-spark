@@ -51,14 +51,11 @@ describe("public live pre-series route", () => {
     expect(archiveSpy).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { status: "not-found", httpStatus: 404 },
-    { status: "stopped", httpStatus: 410 },
-  ] as const)("returns explicit $status without an empty success", async ({ status, httpStatus }) => {
-    const response = await createRoute({ status }).fetch();
-    expect(response.status).toBe(httpStatus);
+  it("returns not-found without an empty success when no active roster remains", async () => {
+    const response = await createRoute({ status: "not-found" }).fetch();
+    expect(response.status).toBe(404);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status });
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status: "not-found" });
   });
 
   it.each([

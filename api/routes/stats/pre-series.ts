@@ -17,7 +17,7 @@ export const statsPreSeriesRoute: RoutesRegisterHandler = (router, installServic
       const id = env.LIVE_TRACKER_DO.idFromName(`${guildId}:${queueNumber.toString()}`);
       const response = await env.LIVE_TRACKER_DO.get(id).fetch(new Request("https://live-tracker/pre-series"));
       const data = await livePreSeriesContract.fromResponse(response);
-      const status = data.status === "resolved" ? 200 : data.status === "not-found" ? 404 : 410;
+      const status = data.status === "resolved" ? 200 : 404;
       if (response.status !== status) {
         throw new Error("Unexpected live pre-series response status");
       }
