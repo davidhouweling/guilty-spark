@@ -5,6 +5,7 @@ import {
   getEliminationObjectiveStats,
   getExtractionObjectiveStats,
   getKothObjectiveStats,
+  getOddballObjectiveStats,
   getStrongholdsObjectiveStats,
 } from "../objective-stats";
 import { StatsValueSortBy } from "../stat-formatting";
@@ -87,6 +88,23 @@ describe("getCtfObjectiveStats", () => {
     expect(pagesResult.get("Grabs")?.value).toBe(apiResult.get("Grabs")?.value);
     expect(pagesResult.get("Carrier time")?.value).toBe(apiResult.get("Carrier time")?.value);
   });
+
+  it("preserves all CTF values, ordering, and default-locale display output", () => {
+    expect(getCtfObjectiveStats(aFakeCtfStatsWith())).toEqual(
+      new Map([
+        ["Captures", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Captures assists", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Carrier time", { value: 90, sortBy: StatsValueSortBy.DESC, display: "1m 30s" }],
+        ["Steals", { value: 6, sortBy: StatsValueSortBy.DESC }],
+        ["Grabs", { value: 8, sortBy: StatsValueSortBy.DESC }],
+        ["Secures", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Returns", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Carriers killed", { value: 5, sortBy: StatsValueSortBy.DESC }],
+        ["Returners killed", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Kills as returner", { value: 3, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
+  });
 });
 
 describe("zone objective stats", () => {
@@ -132,6 +150,47 @@ describe("zone objective stats", () => {
     expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT47.1S"));
     expect(result.has("Captures")).toBe(false);
     expect(result.has("Secures")).toBe(false);
+  });
+
+  it("preserves all KOTH values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      ZonesStats: {
+        StrongholdCaptures: 0,
+        StrongholdDefensiveKills: 1,
+        StrongholdOffensiveKills: 2,
+        StrongholdSecures: 0,
+        StrongholdOccupationTime: "PT47.1S",
+        StrongholdScoringTicks: 39,
+      },
+    } as never;
+
+    expect(getKothObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Scoring ticks", { value: 39, sortBy: StatsValueSortBy.DESC }],
+        ["Occupation time", { value: 47.1, sortBy: StatsValueSortBy.DESC, display: "47s" }],
+        ["Offensive kills", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Defensive kills", { value: 1, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
+  });
+});
+
+describe("getOddballObjectiveStats", () => {
+  it("preserves all values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      OddballStats: { TimeAsSkullCarrier: "PT2M3S", LongestTimeAsSkullCarrier: "PT38.5S" },
+    } as never;
+
+    expect(getOddballObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Total time as carrier", { value: 123, sortBy: StatsValueSortBy.DESC, display: "2m 3s" }],
+        ["Longest time as carrier", { value: 38.5, sortBy: StatsValueSortBy.DESC, display: "38s" }],
+      ]),
+    );
   });
 });
 

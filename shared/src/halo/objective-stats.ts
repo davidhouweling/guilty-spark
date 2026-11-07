@@ -1,5 +1,15 @@
 import type { GameVariantCategory, Stats } from "halo-infinite-api";
 import { getDurationInSeconds, getReadableDuration } from "./duration";
+import {
+  withCtfObjectiveStatDisplays,
+  withKothObjectiveStatDisplays,
+  withOddballObjectiveStatDisplays,
+} from "./objective-stats-displays";
+import {
+  getCtfObjectiveStatValues,
+  getKothObjectiveStatValues,
+  getOddballObjectiveStatValues,
+} from "./objective-stats-values";
 import { StatsValueSortBy } from "./stat-formatting";
 import type { StatsCollection } from "./types";
 
@@ -11,25 +21,7 @@ export function getCtfObjectiveStats(
   stats: Stats<GameVariantCategory.MultiplayerCtf>,
   locale?: string,
 ): StatsCollection {
-  return new Map([
-    ["Captures", { value: stats.CaptureTheFlagStats.FlagCaptures, sortBy: StatsValueSortBy.DESC }],
-    ["Captures assists", { value: stats.CaptureTheFlagStats.FlagCaptureAssists, sortBy: StatsValueSortBy.DESC }],
-    [
-      "Carrier time",
-      {
-        value: getDurationInSeconds(stats.CaptureTheFlagStats.TimeAsFlagCarrier),
-        sortBy: StatsValueSortBy.DESC,
-        display: getReadableDuration(stats.CaptureTheFlagStats.TimeAsFlagCarrier, locale),
-      },
-    ],
-    ["Steals", { value: stats.CaptureTheFlagStats.FlagSteals, sortBy: StatsValueSortBy.DESC }],
-    ["Grabs", { value: stats.CaptureTheFlagStats.FlagGrabs, sortBy: StatsValueSortBy.DESC }],
-    ["Secures", { value: stats.CaptureTheFlagStats.FlagSecures, sortBy: StatsValueSortBy.DESC }],
-    ["Returns", { value: stats.CaptureTheFlagStats.FlagReturns, sortBy: StatsValueSortBy.DESC }],
-    ["Carriers killed", { value: stats.CaptureTheFlagStats.FlagCarriersKilled, sortBy: StatsValueSortBy.DESC }],
-    ["Returners killed", { value: stats.CaptureTheFlagStats.KillsAsFlagReturner, sortBy: StatsValueSortBy.DESC }],
-    ["Kills as returner", { value: stats.CaptureTheFlagStats.KillsAsFlagReturner, sortBy: StatsValueSortBy.DESC }],
-  ]);
+  return withCtfObjectiveStatDisplays(getCtfObjectiveStatValues(stats), stats, locale);
 }
 
 export function getEliminationObjectiveStats(
@@ -137,24 +129,7 @@ export function getOddballObjectiveStats(
   stats: Stats<GameVariantCategory.MultiplayerOddball>,
   locale?: string,
 ): StatsCollection {
-  return new Map([
-    [
-      "Total time as carrier",
-      {
-        value: getDurationInSeconds(stats.OddballStats.TimeAsSkullCarrier),
-        sortBy: StatsValueSortBy.DESC,
-        display: getReadableDuration(stats.OddballStats.TimeAsSkullCarrier, locale),
-      },
-    ],
-    [
-      "Longest time as carrier",
-      {
-        value: getDurationInSeconds(stats.OddballStats.LongestTimeAsSkullCarrier),
-        sortBy: StatsValueSortBy.DESC,
-        display: getReadableDuration(stats.OddballStats.LongestTimeAsSkullCarrier, locale),
-      },
-    ],
-  ]);
+  return withOddballObjectiveStatDisplays(getOddballObjectiveStatValues(stats), stats, locale);
 }
 
 export function getStrongholdsObjectiveStats(
@@ -181,19 +156,7 @@ export function getKothObjectiveStats(
   stats: Stats<GameVariantCategory.MultiplayerKingOfTheHill>,
   locale?: string,
 ): StatsCollection {
-  return new Map([
-    ["Scoring ticks", { value: stats.ZonesStats.StrongholdScoringTicks, sortBy: StatsValueSortBy.DESC }],
-    [
-      "Occupation time",
-      {
-        value: getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
-        sortBy: StatsValueSortBy.DESC,
-        display: getReadableDuration(stats.ZonesStats.StrongholdOccupationTime, locale),
-      },
-    ],
-    ["Offensive kills", { value: stats.ZonesStats.StrongholdOffensiveKills, sortBy: StatsValueSortBy.DESC }],
-    ["Defensive kills", { value: stats.ZonesStats.StrongholdDefensiveKills, sortBy: StatsValueSortBy.DESC }],
-  ]);
+  return withKothObjectiveStatDisplays(getKothObjectiveStatValues(stats), stats, locale);
 }
 
 export function getStockpileObjectiveStats(
