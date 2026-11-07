@@ -6,6 +6,40 @@ describe("SeriesTeamStatsFormatter", () => {
   const presenter = new SeriesTeamStatsFormatter();
 
   describe("getSeriesData", () => {
+    it("preserves team column order, highlights, display values and aggregated fallback medals", () => {
+      const result = presenter.getSeriesData([aFakeMatchStatsWith()], new Map([["1111111111", "Player1"]]));
+      const [team] = result;
+      expect(team.teamStats.map(({ name }) => name)).toEqual([
+        "Score",
+        "Kills",
+        "Deaths",
+        "Assists",
+        "KDA",
+        "Headshot kills",
+        "Shots hit",
+        "Shots fired",
+        "Accuracy",
+        "Damage dealt",
+        "Damage taken",
+        "Damage ratio",
+        "Avg life time",
+        "Avg damage per life",
+      ]);
+      expect(team.teamStats.find((value) => value.name === "Kills")).toEqual({
+        name: "Kills",
+        value: 50,
+        display: "50",
+        bestInMatch: true,
+        bestInTeam: false,
+      });
+      expect(team.teamStats.find((value) => value.name === "Accuracy")?.display).toBe("52.1%");
+      expect(team.players.map(({ name }) => name)).toEqual(["Player1", "*Unknown*"]);
+      expect(team.teamMedals).toEqual([
+        { name: "622331684", count: 12, sortingWeight: 120 },
+        { name: "1169571763", count: 2, sortingWeight: 50 },
+      ]);
+    });
+
     it("returns data for each team", () => {
       const match1 = aFakeMatchStatsWith();
       const players = new Map([
