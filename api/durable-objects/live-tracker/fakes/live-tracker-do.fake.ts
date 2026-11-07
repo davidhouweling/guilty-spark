@@ -106,7 +106,7 @@ export function aFakeLiveTrackerDOWith(opts: FakeLiveTrackerDOOpts = {}): FakeLi
     switch (path) {
       case "/pre-series": {
         const data = opts.preSeriesResponse ?? aFakeLivePreSeriesResponseWith();
-        const status = data.status === "resolved" ? 200 : data.status === "not-found" ? 404 : 410;
+        const status = data.status === "resolved" ? 200 : 404;
         return livePreSeriesContract.toResponse(data, { status, noStore: true });
       }
       case "/start":

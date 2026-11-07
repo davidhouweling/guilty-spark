@@ -29,8 +29,9 @@ export const livePreSeriesContract = defineContract(
       rosterRevision: z.string(),
       players: z.array(livePreSeriesPlayerSchema),
     }),
-    z.object({ status: z.literal("not-found") }),
-    z.object({ status: z.literal("stopped") }),
+    z.object({
+      status: z.literal("not-found").describe("No active roster, including trackers removed by stop/disposal"),
+    }),
   ]),
 );
 

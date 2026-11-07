@@ -18,12 +18,16 @@ function createTracker(trackerState: LiveTrackerState | null): {
   errorSpy: MockInstance<Services["logService"]["error"]>;
   rawSpy: MockInstance<Env["APP_DATA"]["get"]>;
   writeSpy: MockInstance<DurableObjectStorage["put"]>;
-  fetch: () => Promise<Response>;
+  fetch: (action?: string) => Promise<Response>;
 } {
   const state = aFakeDurableObjectStateWith();
   const env = aFakeEnvWith();
   const services = installFakeServicesWith({ env });
-  vi.spyOn(state.storage, "get").mockResolvedValue(trackerState as never);
+  const getSpy = vi.spyOn(state.storage, "get").mockResolvedValue(trackerState as never);
+  vi.spyOn(state.storage, "deleteAll").mockImplementation(async () => {
+    getSpy.mockReset();
+    return Promise.resolve();
+  });
   const tracker = new LiveTrackerDO(state, env, () => services, aFakeWebSocketHibernationAdapter());
   const haloSpy = vi.spyOn(services.haloService, "getMatchDetails");
   const discordSpy = vi.spyOn(services.discordService, "getGuildMember");
@@ -36,7 +40,8 @@ function createTracker(trackerState: LiveTrackerState | null): {
     errorSpy,
     rawSpy,
     writeSpy,
-    fetch: async (): Promise<Response> => tracker.fetch(new Request("https://live-tracker/pre-series")),
+    fetch: async (action = "pre-series"): Promise<Response> =>
+      tracker.fetch(new Request(`https://live-tracker/${action}`)),
   };
 }
 
@@ -121,10 +126,20 @@ describe("LiveTrackerDO captured pre-series batch", () => {
   it.each(["not-found", "stopped"] as const)("returns explicit %s without refresh or logged errors", async (status) => {
     const tracker = createTracker(status === "stopped" ? aFakeLiveTrackerStateWith({ status }) : null);
     const response = await tracker.fetch();
-    expect(response.status).toBe(status === "stopped" ? 410 : 404);
+    expect(response.status).toBe(404);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status });
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status: "not-found" });
     expect(tracker.haloSpy).not.toHaveBeenCalled();
     expect(tracker.errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns not-found after a real stop removes the captured roster without retaining a marker", async () => {
+    const tracker = createTracker(aFakeLiveTrackerStateWith());
+    expect((await tracker.fetch("stop")).status).toBe(200);
+    const response = await tracker.fetch();
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status: "not-found" });
+    expect(tracker.writeSpy).not.toHaveBeenCalled();
   });
 });
