@@ -12,6 +12,14 @@ import { installFakeServicesWith } from "../../../services/fakes/services";
 import type { Services } from "../../../services/install";
 import { statsRoutesRegisterHandler } from "../stats";
 
+describe("live tracker pre-series fake", () => {
+  it("uses the default captured response when the override is explicitly undefined", async () => {
+    const stub = aFakeLiveTrackerDOWith({ preSeriesResponse: undefined });
+    const response = await stub.fetch(new Request("https://live-tracker/pre-series"));
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual(aFakeLivePreSeriesResponseWith());
+  });
+});
+
 describe("public live pre-series route", () => {
   let services: Services;
   let router: ApiRouter;

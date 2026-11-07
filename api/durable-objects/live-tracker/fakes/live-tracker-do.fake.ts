@@ -25,7 +25,7 @@ export interface FakeLiveTrackerDOOpts {
   refreshResponse?: LiveTrackerRefreshResponse;
   substitutionResponse?: LiveTrackerSubstitutionResponse;
   statusResponse?: LiveTrackerStatusResponse;
-  preSeriesResponse?: LivePreSeriesResponse;
+  preSeriesResponse?: LivePreSeriesResponse | undefined;
   repostResponse?: LiveTrackerRepostResponse;
   shouldThrowError?: boolean;
   errorMessage?: string;
