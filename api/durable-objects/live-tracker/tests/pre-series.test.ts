@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { livePreSeriesContract } from "@guilty-spark/shared/contracts/stats/pre-series";
@@ -12,35 +12,38 @@ import { LiveTrackerDO } from "../live-tracker-do";
 import type { LiveTrackerState } from "../types";
 import { aFakeLiveTrackerStateWith } from "../fakes/live-tracker-do.fake";
 
-function createTracker(trackerState: LiveTrackerState | null): {
-  haloSpy: MockInstance<Services["haloService"]["getMatchDetails"]>;
-  discordSpy: MockInstance<Services["discordService"]["getGuildMember"]>;
-  errorSpy: MockInstance<Services["logService"]["error"]>;
-  rawSpy: MockInstance<Env["APP_DATA"]["get"]>;
-  writeSpy: MockInstance<DurableObjectStorage["put"]>;
-  fetch: () => Promise<Response>;
-} {
-  const state = aFakeDurableObjectStateWith();
-  const env = aFakeEnvWith();
-  const services = installFakeServicesWith({ env });
-  vi.spyOn(state.storage, "get").mockResolvedValue(trackerState as never);
-  const tracker = new LiveTrackerDO(state, env, () => services, aFakeWebSocketHibernationAdapter());
-  const haloSpy = vi.spyOn(services.haloService, "getMatchDetails");
-  const discordSpy = vi.spyOn(services.discordService, "getGuildMember");
-  const errorSpy = vi.spyOn(services.logService, "error");
-  const rawSpy = vi.spyOn(env.APP_DATA, "get");
-  const writeSpy = vi.spyOn(state.storage, "put");
-  return {
-    haloSpy,
-    discordSpy,
-    errorSpy,
-    rawSpy,
-    writeSpy,
-    fetch: async (): Promise<Response> => tracker.fetch(new Request("https://live-tracker/pre-series")),
-  };
-}
-
 describe("LiveTrackerDO captured pre-series batch", () => {
+  let liveTrackerDO: LiveTrackerDO;
+  let services: Services;
+  let storage: DurableObjectStorage;
+  let env: Env;
+  let storageGetSpy: MockInstance<(key: string) => Promise<LiveTrackerState | null>>;
+  let storagePutSpy: MockInstance<DurableObjectStorage["put"]>;
+  let storageDeleteAllSpy: MockInstance<DurableObjectStorage["deleteAll"]>;
+  let getMatchDetailsSpy: MockInstance<Services["haloService"]["getMatchDetails"]>;
+  let getGuildMemberSpy: MockInstance<Services["discordService"]["getGuildMember"]>;
+  let logErrorSpy: MockInstance<Services["logService"]["error"]>;
+  let appDataGetSpy: MockInstance<Env["APP_DATA"]["get"]>;
+
+  beforeEach(() => {
+    const state = aFakeDurableObjectStateWith();
+    ({ storage } = state);
+    env = aFakeEnvWith();
+    services = installFakeServicesWith({ env });
+    storageGetSpy = vi.spyOn(storage, "get");
+    storageGetSpy.mockResolvedValue(aFakeLiveTrackerStateWith());
+    storagePutSpy = vi.spyOn(storage, "put");
+    storageDeleteAllSpy = vi.spyOn(storage, "deleteAll").mockImplementation(async () => {
+      storageGetSpy.mockResolvedValue(null);
+      await Promise.resolve();
+    });
+    getMatchDetailsSpy = vi.spyOn(services.haloService, "getMatchDetails");
+    getGuildMemberSpy = vi.spyOn(services.discordService, "getGuildMember");
+    logErrorSpy = vi.spyOn(services.logService, "error");
+    appDataGetSpy = vi.spyOn(env.APP_DATA, "get");
+    liveTrackerDO = new LiveTrackerDO(state, env, () => services, aFakeWebSocketHibernationAdapter());
+  });
+
   it("returns all eight captured players without refreshing values or exposing raw data", async () => {
     const captured = Preconditions.checkExists(aFakeLivePreSeriesPlayerWith().captured);
     const ids = Array.from({ length: 8 }, (_, index) => `player-${index.toString()}`);
@@ -53,8 +56,8 @@ describe("LiveTrackerDO captured pre-series batch", () => {
       playersAssociationData: Object.fromEntries(ids.map((id) => [id, { ...captured, discordId: id }])),
       matchIds: ["raw-match-id"],
     });
-    const tracker = createTracker(trackerState);
-    const response = await tracker.fetch();
+    storageGetSpy.mockResolvedValue(trackerState);
+    const response = await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series"));
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     const data = await livePreSeriesContract.fromResponse(response);
     expect(data.status).toBe("resolved");
@@ -73,12 +76,16 @@ describe("LiveTrackerDO captured pre-series batch", () => {
     expect(Object.keys(data).sort()).toEqual(
       ["status", "guildId", "queueNumber", "trackerStatus", "seriesStartedAt", "rosterRevision", "players"].sort(),
     );
-    expect(tracker.haloSpy).not.toHaveBeenCalled();
-    expect(tracker.discordSpy).not.toHaveBeenCalled();
-    expect(tracker.rawSpy).not.toHaveBeenCalled();
-    expect(tracker.writeSpy).not.toHaveBeenCalled();
+    expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+    expect(getGuildMemberSpy).not.toHaveBeenCalled();
+    expect(appDataGetSpy).not.toHaveBeenCalled();
+    expect(storagePutSpy).not.toHaveBeenCalled();
     trackerState.lastUpdateTime = "2026-01-02T00:00:00.000Z";
-    expect(await livePreSeriesContract.fromResponse(await tracker.fetch())).toEqual(data);
+    expect(
+      await livePreSeriesContract.fromResponse(
+        await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series")),
+      ),
+    ).toEqual(data);
   });
 
   it("selects only the substituted current roster and its incoming captured values", async () => {
@@ -97,8 +104,10 @@ describe("LiveTrackerDO captured pre-series batch", () => {
       ],
       isPaused: true,
     });
-    const tracker = createTracker(state);
-    const data = await livePreSeriesContract.fromResponse(await tracker.fetch());
+    storageGetSpy.mockResolvedValue(state);
+    const data = await livePreSeriesContract.fromResponse(
+      await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series")),
+    );
     if (data.status !== "resolved") {
       throw new Error("Expected captured roster");
     }
@@ -112,19 +121,31 @@ describe("LiveTrackerDO captured pre-series batch", () => {
       },
       { playerId: "missing", teamIndex: 0, rosterJoinedAt: state.startTime, captured: null },
     ]);
-    expect(tracker.errorSpy).not.toHaveBeenCalled();
+    expect(logErrorSpy).not.toHaveBeenCalled();
     state.teams[0]?.playerIds.splice(0, 1, "outgoing");
-    const next = await livePreSeriesContract.fromResponse(await tracker.fetch());
+    const next = await livePreSeriesContract.fromResponse(
+      await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series")),
+    );
     expect(next.status === "resolved" && next.rosterRevision).not.toEqual(data.rosterRevision);
   });
 
   it.each(["not-found", "stopped"] as const)("returns explicit %s without refresh or logged errors", async (status) => {
-    const tracker = createTracker(status === "stopped" ? aFakeLiveTrackerStateWith({ status }) : null);
-    const response = await tracker.fetch();
-    expect(response.status).toBe(status === "stopped" ? 410 : 404);
+    storageGetSpy.mockResolvedValue(status === "stopped" ? aFakeLiveTrackerStateWith({ status }) : null);
+    const response = await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series"));
+    expect(response.status).toBe(404);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status });
-    expect(tracker.haloSpy).not.toHaveBeenCalled();
-    expect(tracker.errorSpy).not.toHaveBeenCalled();
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status: "not-found" });
+    expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+    expect(logErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns not-found after a real stop removes the captured roster without retaining a marker", async () => {
+    expect((await liveTrackerDO.fetch(new Request("https://live-tracker/stop"))).status).toBe(200);
+    expect(storageDeleteAllSpy).toHaveBeenCalledOnce();
+    const response = await liveTrackerDO.fetch(new Request("https://live-tracker/pre-series"));
+    expect(response.status).toBe(404);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await livePreSeriesContract.fromResponse(response)).toEqual({ status: "not-found" });
+    expect(storagePutSpy).not.toHaveBeenCalled();
   });
 });

@@ -17,7 +17,7 @@ export class RealLivePreSeriesService implements LivePreSeriesService {
       { credentials: "include", cache: "no-store" },
     );
     const data = await livePreSeriesContract.fromResponse(response);
-    const expectedStatus = data.status === "resolved" ? 200 : data.status === "not-found" ? 404 : 410;
+    const expectedStatus = data.status === "resolved" ? 200 : 404;
     if (response.status !== expectedStatus) {
       throw new Error(`Unexpected live pre-series response status: ${response.status.toString()}`);
     }
