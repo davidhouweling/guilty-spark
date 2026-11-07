@@ -1,15 +1,9 @@
 import { StatsValueSortBy } from "../../../halo/stat-formatting";
-import type {
-  CondensedMedal,
-  CondensedPlayer,
-  CondensedPlayerTeamStats,
-  CondensedStat,
-  CondensedTeam,
-} from "../detail-primitives";
+import type { Medal, Player, PlayerTeamStats, Stat, Team } from "../detail-primitives";
 
-export function aFakeCondensedStatWith(
-  overrides: Partial<Extract<CondensedStat, { status: "available" }>> = {},
-): Extract<CondensedStat, { status: "available" }> {
+export function aFakeStatWith(
+  overrides: Partial<Extract<Stat, { status: "available" }>> = {},
+): Extract<Stat, { status: "available" }> {
   return {
     key: "Kills",
     name: "Kills",
@@ -22,7 +16,7 @@ export function aFakeCondensedStatWith(
   };
 }
 
-export function aFakeCondensedMedalWith(overrides: Partial<CondensedMedal> = {}): CondensedMedal {
+export function aFakeMedalWith(overrides: Partial<Medal> = {}): Medal {
   return {
     id: 1,
     count: 2,
@@ -34,19 +28,17 @@ export function aFakeCondensedMedalWith(overrides: Partial<CondensedMedal> = {})
   };
 }
 
-export function aFakeCondensedPlayerTeamStatsWith(
-  overrides: Partial<CondensedPlayerTeamStats> = {},
-): CondensedPlayerTeamStats {
+export function aFakePlayerTeamStatsWith(overrides: Partial<PlayerTeamStats> = {}): PlayerTeamStats {
   return {
     matchTeamId: 7,
     seriesTeamId: 0,
-    stats: [aFakeCondensedStatWith()],
-    medals: [aFakeCondensedMedalWith()],
+    stats: [aFakeStatWith()],
+    medals: [aFakeMedalWith()],
     ...overrides,
   };
 }
 
-export function aFakeCondensedPlayerWith(overrides: Partial<CondensedPlayer> = {}): CondensedPlayer {
+export function aFakePlayerWith(overrides: Partial<Player> = {}): Player {
   return {
     playerId: "xuid(1234567890)",
     xuid: "1234567890",
@@ -61,12 +53,12 @@ export function aFakeCondensedPlayerWith(overrides: Partial<CondensedPlayer> = {
       leftInProgress: false,
       presentAtCompletion: true,
     },
-    teamStats: [aFakeCondensedPlayerTeamStatsWith()],
+    teamStats: [aFakePlayerTeamStatsWith()],
     ...overrides,
   };
 }
 
-export function aFakeCondensedTeamWith(overrides: Partial<CondensedTeam> = {}): CondensedTeam {
+export function aFakeTeamWith(overrides: Partial<Team> = {}): Team {
   return {
     matchTeamId: 7,
     seriesTeamId: 0,
@@ -74,8 +66,8 @@ export function aFakeCondensedTeamWith(overrides: Partial<CondensedTeam> = {}): 
     outcome: "Win",
     rank: 1,
     playerIds: ["xuid(1234567890)"],
-    stats: [aFakeCondensedStatWith()],
-    medals: [aFakeCondensedMedalWith()],
+    stats: [aFakeStatWith()],
+    medals: [aFakeMedalWith()],
     ...overrides,
   };
 }

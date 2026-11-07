@@ -16,7 +16,7 @@ const statMetadataSchema = z.object({
 });
 
 // JSON cannot encode Infinity; preserve its ratio semantics instead of clamping or rounding it.
-export const condensedStatSchema = z.discriminatedUnion("status", [
+export const statSchema = z.discriminatedUnion("status", [
   statMetadataSchema.extend({
     status: z.literal("available"),
     value: finiteNumberSchema,
@@ -31,9 +31,9 @@ export const condensedStatSchema = z.discriminatedUnion("status", [
     status: z.literal("unavailable"),
   }),
 ]);
-export type CondensedStat = z.infer<typeof condensedStatSchema>;
+export type Stat = z.infer<typeof statSchema>;
 
-export const condensedMedalSchema = z.object({
+export const medalSchema = z.object({
   id: z.number().int().nonnegative().describe("Halo medal NameId / metadata nameId"),
   count: z.number().int().nonnegative(),
   name: z.string().nullable(),
@@ -41,21 +41,21 @@ export const condensedMedalSchema = z.object({
   difficultyIndex: z.number().int().nonnegative().nullable(),
   difficulty: z.string().nullable().describe("Metadata difficulties[difficultyIndex], null when unavailable"),
 });
-export type CondensedMedal = z.infer<typeof condensedMedalSchema>;
+export type Medal = z.infer<typeof medalSchema>;
 
-export const condensedTeamMappingSchema = z.object({
+export const teamMappingSchema = z.object({
   matchTeamId: teamIdSchema.describe("Raw TeamId for this match, independent of series side"),
   seriesTeamId: teamIdSchema.nullable().describe("Existing series side identity, null when mapping is ambiguous"),
 });
-export type CondensedTeamMapping = z.infer<typeof condensedTeamMappingSchema>;
+export type TeamMapping = z.infer<typeof teamMappingSchema>;
 
-export const condensedPlayerTeamStatsSchema = condensedTeamMappingSchema.extend({
-  stats: z.array(condensedStatSchema),
-  medals: z.array(condensedMedalSchema),
+export const playerTeamStatsSchema = teamMappingSchema.extend({
+  stats: z.array(statSchema),
+  medals: z.array(medalSchema),
 });
-export type CondensedPlayerTeamStats = z.infer<typeof condensedPlayerTeamStatsSchema>;
+export type PlayerTeamStats = z.infer<typeof playerTeamStatsSchema>;
 
-export const condensedPlayerSchema = z.object({
+export const playerSchema = z.object({
   playerId: z.string().min(1).describe("Unmodified Halo PlayerId, including bid(...) bot identities"),
   xuid: z.string().regex(/^\d+$/).optional().describe("Unwrapped numeric Xbox identity, when known"),
   discordUserId: z.string().regex(/^\d+$/).optional(),
@@ -70,18 +70,18 @@ export const condensedPlayerSchema = z.object({
     leftInProgress: z.boolean(),
     presentAtCompletion: z.boolean(),
   }),
-  teamStats: z.array(condensedPlayerTeamStatsSchema),
+  teamStats: z.array(playerTeamStatsSchema),
 });
-export type CondensedPlayer = z.infer<typeof condensedPlayerSchema>;
-export const condensedPlayerContract = defineContract(condensedPlayerSchema);
+export type Player = z.infer<typeof playerSchema>;
+export const playerContract = defineContract(playerSchema);
 
-export const condensedTeamSchema = condensedTeamMappingSchema.extend({
+export const teamSchema = teamMappingSchema.extend({
   name: z.string().nullable(),
   outcome: trackerMatchOutcomeSchema,
   rank: z.number().int().nonnegative().nullable(),
   playerIds: z.array(z.string().min(1)),
-  stats: z.array(condensedStatSchema),
-  medals: z.array(condensedMedalSchema),
+  stats: z.array(statSchema),
+  medals: z.array(medalSchema),
 });
-export type CondensedTeam = z.infer<typeof condensedTeamSchema>;
-export const condensedTeamContract = defineContract(condensedTeamSchema);
+export type Team = z.infer<typeof teamSchema>;
+export const teamContract = defineContract(teamSchema);
