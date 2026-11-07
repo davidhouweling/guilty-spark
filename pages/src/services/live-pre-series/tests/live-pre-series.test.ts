@@ -36,12 +36,9 @@ describe("RealLivePreSeriesService", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    { status: "not-found", httpStatus: 404 },
-    { status: "stopped", httpStatus: 410 },
-  ])("preserves $httpStatus $status", async ({ status, httpStatus }) => {
-    const data = livePreSeriesContract.parse({ status });
-    fetchSpy.mockResolvedValueOnce(livePreSeriesContract.toResponse(data, { status: httpStatus }));
+  it("preserves 404 not-found for absent and disposed trackers", async () => {
+    const data = livePreSeriesContract.parse({ status: "not-found" });
+    fetchSpy.mockResolvedValueOnce(livePreSeriesContract.toResponse(data, { status: 404 }));
     expect(await service.getCapturedRoster(identity)).toEqual(data);
   });
 

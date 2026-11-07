@@ -26,7 +26,7 @@ describe("LivePreSeriesCache", () => {
     expect(ticker).toBe(table);
     expect(table.status === "resolved" ? table.players.length : 0).toBe(8);
     // Backend disposal cannot replace an already captured final live snapshot.
-    spy.mockResolvedValue({ status: "stopped" });
+    spy.mockResolvedValue({ status: "not-found" });
     expect(await cache.load(aScopeWith())).toBe(table);
     expect(spy).toHaveBeenCalledTimes(1);
   });
@@ -100,13 +100,11 @@ describe("LivePreSeriesCache", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["not-found", "stopped"])("permits retry after %s", async (status) => {
+  it("permits retry after a missing or disposed roster", async () => {
     const service = aFakeLivePreSeriesServiceWith();
-    const spy = vi
-      .spyOn(service, "getCapturedRoster")
-      .mockResolvedValueOnce(status === "not-found" ? { status: "not-found" } : { status: "stopped" });
+    const spy = vi.spyOn(service, "getCapturedRoster").mockResolvedValueOnce({ status: "not-found" });
     const cache = new LivePreSeriesCache(service);
-    expect(await cache.load(aScopeWith())).toEqual({ status });
+    expect(await cache.load(aScopeWith())).toEqual({ status: "not-found" });
     expect(await cache.load(aScopeWith())).toEqual(aFakeLivePreSeriesResponseWith());
     expect(spy).toHaveBeenCalledTimes(2);
   });
