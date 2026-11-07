@@ -2,56 +2,54 @@ import { describe, expect, it } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
 import { aFakeMatchStatsWith } from "../../../halo/fakes/data";
 import {
-  aFakeCondensedMatchDetailWith,
-  aFakeCondensedSeriesPlayerWith,
-  aFakeCondensedSeriesTeamWith,
+  aFakeMatchDetailWith,
+  aFakeSeriesPlayerWith,
+  aFakeSeriesTeamWith,
   aFakeMatchDetailResponseWith,
   aFakeSeriesDetailResponseWith,
 } from "../fakes/detail.fake";
-import { aFakeCondensedPlayerWith, aFakeCondensedTeamWith } from "../fakes/detail-primitives.fake";
+import { aFakePlayerWith, aFakeTeamWith } from "../fakes/detail-primitives.fake";
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import {
-  condensedMatchDetailSchema,
-  condensedSeriesPlayerSchema,
-  condensedSeriesTeamSchema,
+  matchDetailSchema,
+  seriesPlayerSchema,
+  seriesTeamSchema,
   matchDetailContract,
   matchDetailQuerySchema,
   seriesDetailContract,
 } from "@guilty-spark/shared/contracts/stats/detail";
 
-describe("condensed match details", () => {
+describe("match details", () => {
   it("round trips numerical duration, chronological metadata and optional planned-map index", async () => {
-    const detail = aFakeCondensedMatchDetailWith({ plannedMapIndex: 3 });
+    const detail = aFakeMatchDetailWith({ plannedMapIndex: 3 });
     const batch = aFakeMatchDetailResponseWith({ results: [{ status: "resolved", matchId: detail.matchId, detail }] });
     expect(await matchDetailContract.fromResponse(matchDetailContract.toResponse(batch))).toEqual(batch);
     expect(detail.durationSeconds).toBe(525.5042357);
   });
 
   it.each([NaN, Infinity, -Infinity])("rejects nonfinite duration and score (%s)", (value) => {
-    expect(
-      condensedMatchDetailSchema.safeParse(aFakeCondensedMatchDetailWith({ durationSeconds: value })).success,
-    ).toBe(false);
+    expect(matchDetailSchema.safeParse(aFakeMatchDetailWith({ durationSeconds: value })).success).toBe(false);
     const score = {
       primary: { metric: "score", teams: [{ matchTeamId: 7, seriesTeamId: 0, value }] },
       secondary: null,
     };
-    expect(condensedMatchDetailSchema.safeParse({ ...aFakeCondensedMatchDetailWith(), score }).success).toBe(false);
+    expect(matchDetailSchema.safeParse({ ...aFakeMatchDetailWith(), score }).success).toBe(false);
   });
 
   it("rejects negative duration, invalid timestamps, reversed chronology and incorrect team counts", () => {
-    const detail = aFakeCondensedMatchDetailWith();
-    expect(condensedMatchDetailSchema.safeParse({ ...detail, durationSeconds: -1 }).success).toBe(false);
-    expect(condensedMatchDetailSchema.safeParse({ ...detail, startTime: "yesterday" }).success).toBe(false);
+    const detail = aFakeMatchDetailWith();
+    expect(matchDetailSchema.safeParse({ ...detail, durationSeconds: -1 }).success).toBe(false);
+    expect(matchDetailSchema.safeParse({ ...detail, startTime: "yesterday" }).success).toBe(false);
     expect(
-      condensedMatchDetailSchema.safeParse({ ...detail, endTime: detail.startTime, startTime: detail.endTime }).success,
+      matchDetailSchema.safeParse({ ...detail, endTime: detail.startTime, startTime: detail.endTime }).success,
     ).toBe(false);
-    expect(condensedMatchDetailSchema.safeParse({ ...detail, teamCount: 2 }).success).toBe(false);
+    expect(matchDetailSchema.safeParse({ ...detail, teamCount: 2 }).success).toBe(false);
   });
 
   it("preserves Oddball rounds and points separately without parsing a formatted score", () => {
-    const detail = aFakeCondensedMatchDetailWith({
+    const detail = aFakeMatchDetailWith({
       mode: {
-        ...aFakeCondensedMatchDetailWith().mode,
+        ...aFakeMatchDetailWith().mode,
         gameVariantCategory: GameVariantCategory.MultiplayerOddball,
         name: "Oddball",
       },
@@ -60,20 +58,18 @@ describe("condensed match details", () => {
         secondary: { metric: "score", teams: [{ matchTeamId: 7, seriesTeamId: 0, value: 173.25 }] },
       },
     });
-    expect(condensedMatchDetailSchema.parse(detail).score).toEqual(detail.score);
+    expect(matchDetailSchema.parse(detail).score).toEqual(detail.score);
   });
 
   it("accepts zero teams, unknown modes and bot identities without fabricating scores or mappings", async () => {
-    const detail = aFakeCondensedMatchDetailWith({
+    const detail = aFakeMatchDetailWith({
       teamCount: 0,
       teams: [],
       teamsEnabled: false,
       teamScoringEnabled: false,
       mode: { assetId: "unknown", versionId: "unknown-version", gameVariantCategory: -1, name: null },
       score: { primary: null, secondary: null },
-      players: [
-        aFakeCondensedPlayerWith({ playerId: "bid(42)", xuid: undefined, lastMatchTeamId: null, teamStats: [] }),
-      ],
+      players: [aFakePlayerWith({ playerId: "bid(42)", xuid: undefined, lastMatchTeamId: null, teamStats: [] })],
     });
     const batch = aFakeMatchDetailResponseWith({ results: [{ status: "resolved", matchId: detail.matchId, detail }] });
     const parsed = await matchDetailContract.fromResponse(matchDetailContract.toResponse(batch));
@@ -82,25 +78,25 @@ describe("condensed match details", () => {
   });
 
   it("preserves original per-game team statistics and scores when series sides swap", () => {
-    const detail = aFakeCondensedMatchDetailWith({
-      teams: [aFakeCondensedTeamWith({ matchTeamId: 19, seriesTeamId: 0, outcome: "Loss" })],
+    const detail = aFakeMatchDetailWith({
+      teams: [aFakeTeamWith({ matchTeamId: 19, seriesTeamId: 0, outcome: "Loss" })],
       score: {
         primary: { metric: "score", teams: [{ matchTeamId: 19, seriesTeamId: 0, value: 47 }] },
         secondary: null,
       },
       players: [
-        aFakeCondensedPlayerWith({
+        aFakePlayerWith({
           lastMatchTeamId: 19,
           teamStats: [{ matchTeamId: 19, seriesTeamId: 0, stats: [], medals: [] }],
         }),
       ],
     });
-    expect(condensedMatchDetailSchema.parse(detail)).toEqual(detail);
+    expect(matchDetailSchema.parse(detail)).toEqual(detail);
   });
 
   it("strips actual raw MatchStats and analytics at every response envelope boundary", async () => {
     const raw = aFakeMatchStatsWith();
-    const detail = { ...aFakeCondensedMatchDetailWith(), ...raw, rawMatch: raw, analytics: raw };
+    const detail = { ...aFakeMatchDetailWith(), ...raw, rawMatch: raw, analytics: raw };
     const response = {
       ...aFakeSeriesDetailResponseWith(),
       ...{ rawMatches: [raw] },
@@ -120,7 +116,7 @@ describe("condensed match details", () => {
 
 describe("bounded match detail batches", () => {
   it("retains duplicate requested IDs and mixed resolved/unavailable results in order", async () => {
-    const detail = aFakeCondensedMatchDetailWith();
+    const detail = aFakeMatchDetailWith();
     const response = aFakeMatchDetailResponseWith({
       matchIds: ["missing", detail.matchId, "missing"],
       results: [
@@ -139,9 +135,7 @@ describe("bounded match detail batches", () => {
     expect(
       matchDetailContract.safeParse({
         ...batch,
-        results: [
-          { status: "resolved", matchId: "match-one", detail: aFakeCondensedMatchDetailWith({ matchId: "other" }) },
-        ],
+        results: [{ status: "resolved", matchId: "match-one", detail: aFakeMatchDetailWith({ matchId: "other" }) }],
       }).success,
     ).toBe(false);
   });
@@ -166,16 +160,14 @@ describe("bounded match detail batches", () => {
 
 describe("backend series aggregation", () => {
   it.each([NaN, Infinity, -Infinity, -1, 1.5])("rejects invalid games played (%s)", (gamesPlayed) => {
-    expect(condensedSeriesPlayerSchema.safeParse(aFakeCondensedSeriesPlayerWith({ gamesPlayed })).success).toBe(false);
-    expect(condensedSeriesTeamSchema.safeParse(aFakeCondensedSeriesTeamWith({ gamesPlayed })).success).toBe(false);
+    expect(seriesPlayerSchema.safeParse(aFakeSeriesPlayerWith({ gamesPlayed })).success).toBe(false);
+    expect(seriesTeamSchema.safeParse(aFakeSeriesTeamWith({ gamesPlayed })).success).toBe(false);
   });
 
   it("preserves bot aggregate identity and stable numeric series IDs without a raw team requirement", () => {
-    const player = aFakeCondensedSeriesPlayerWith({ playerId: "bid(42)", xuid: undefined, teamStats: [] });
-    expect(condensedSeriesPlayerSchema.parse(player)).toEqual(player);
-    expect(condensedSeriesTeamSchema.safeParse({ ...aFakeCondensedSeriesTeamWith(), seriesTeamId: "0" }).success).toBe(
-      false,
-    );
+    const player = aFakeSeriesPlayerWith({ playerId: "bid(42)", xuid: undefined, teamStats: [] });
+    expect(seriesPlayerSchema.parse(player)).toEqual(player);
+    expect(seriesTeamSchema.safeParse({ ...aFakeSeriesTeamWith(), seriesTeamId: "0" }).success).toBe(false);
   });
 
   it("round trips backend totals and games played independently of the loaded match subset", async () => {
@@ -184,9 +176,9 @@ describe("backend series aggregation", () => {
         status: "resolved",
         gamesPlayed: 3,
         completedGameCount: 2,
-        teams: [aFakeCondensedSeriesTeamWith({ seriesTeamId: 19, gamesPlayed: 3, gamesWon: 2 })],
+        teams: [aFakeSeriesTeamWith({ seriesTeamId: 19, gamesPlayed: 3, gamesWon: 2 })],
         players: [
-          aFakeCondensedSeriesPlayerWith({
+          aFakeSeriesPlayerWith({
             gamesPlayed: 2,
             teamStats: [{ seriesTeamId: 19, gamesPlayed: 2, stats: [], medals: [] }],
           }),
@@ -203,8 +195,8 @@ describe("backend series aggregation", () => {
         status: "resolved",
         gamesPlayed: 2,
         completedGameCount: 1,
-        teams: [{ ...aFakeCondensedTeamWith(), ...aFakeCondensedSeriesTeamWith() }],
-        players: [{ ...aFakeCondensedPlayerWith(), ...aFakeCondensedSeriesPlayerWith() }],
+        teams: [{ ...aFakeTeamWith(), ...aFakeSeriesTeamWith() }],
+        players: [{ ...aFakePlayerWith(), ...aFakeSeriesPlayerWith() }],
       },
     });
     const parsed = await seriesDetailContract.fromResponse(seriesDetailContract.toResponse(response));

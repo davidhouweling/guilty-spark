@@ -3,29 +3,23 @@ import { z } from "zod";
 import { defineContract } from "../base";
 import { liveTrackerMapSchema } from "../durable-objects/live-tracker/maps";
 import { trackerMatchOutcomeSchema } from "../individual-tracker/view";
-import {
-  condensedMedalSchema,
-  condensedPlayerSchema,
-  condensedStatSchema,
-  condensedTeamMappingSchema,
-  condensedTeamSchema,
-} from "./detail-primitives";
+import { medalSchema, playerSchema, statSchema, teamMappingSchema, teamSchema } from "./detail-primitives";
 
 const matchIdSchema = z.string().trim().min(1).max(128);
 const matchIdsSchema = z.array(matchIdSchema).min(1).max(30);
 const countSchema = z.number().int().nonnegative();
 const totalsSchema = z.object({
-  stats: z.array(condensedStatSchema),
-  medals: z.array(condensedMedalSchema),
+  stats: z.array(statSchema),
+  medals: z.array(medalSchema),
 });
 
 // CoreStats.Score is not a formatted score string; Oddball uses RoundsWon as primary.
 export const matchScoreSectionSchema = z.object({
   metric: z.enum(["score", "rounds-won"]),
-  teams: z.array(condensedTeamMappingSchema.extend({ value: z.number() })),
+  teams: z.array(teamMappingSchema.extend({ value: z.number() })),
 });
 
-export const condensedMatchDetailSchema = z
+export const matchDetailSchema = z
   .object({
     matchId: matchIdSchema,
     startTime: z.iso.datetime(),
@@ -53,19 +47,19 @@ export const condensedMatchDetailSchema = z
       secondary: matchScoreSectionSchema.nullable(),
     }),
     plannedMapIndex: countSchema.optional(),
-    teams: z.array(condensedTeamSchema),
-    players: z.array(condensedPlayerSchema),
+    teams: z.array(teamSchema),
+    players: z.array(playerSchema),
   })
   .refine((match) => compareAsc(match.endTime, match.startTime) >= 0, { message: "End precedes start" })
   .refine((match) => match.teamCount === match.teams.length, { message: "Team count does not match teams" });
-export type CondensedMatchDetail = z.infer<typeof condensedMatchDetailSchema>;
+export type MatchDetail = z.infer<typeof matchDetailSchema>;
 
 export const matchDetailResultSchema = z
   .discriminatedUnion("status", [
     z.object({
       status: z.literal("resolved"),
       matchId: matchIdSchema,
-      detail: condensedMatchDetailSchema,
+      detail: matchDetailSchema,
     }),
     z.object({
       status: z.literal("unavailable"),
@@ -105,17 +99,17 @@ const seriesPlayerTeamTotalsSchema = totalsSchema.extend({
   seriesTeamId: z.number().int(),
   gamesPlayed: countSchema,
 });
-export const condensedSeriesPlayerSchema = condensedPlayerSchema
+export const seriesPlayerSchema = playerSchema
   .pick({ playerId: true, xuid: true, discordUserId: true, gamertag: true, playerType: true })
   .extend({
     gamesPlayed: countSchema,
-    stats: z.array(condensedStatSchema),
-    medals: z.array(condensedMedalSchema),
+    stats: z.array(statSchema),
+    medals: z.array(medalSchema),
     teamStats: z.array(seriesPlayerTeamTotalsSchema),
   });
-export type CondensedSeriesPlayer = z.infer<typeof condensedSeriesPlayerSchema>;
+export type SeriesPlayer = z.infer<typeof seriesPlayerSchema>;
 
-export const condensedSeriesTeamSchema = totalsSchema.extend({
+export const seriesTeamSchema = totalsSchema.extend({
   seriesTeamId: z.number().int(),
   name: z.string().nullable(),
   outcome: trackerMatchOutcomeSchema,
@@ -123,7 +117,7 @@ export const condensedSeriesTeamSchema = totalsSchema.extend({
   gamesWon: countSchema,
   playerIds: z.array(z.string().min(1)),
 });
-export type CondensedSeriesTeam = z.infer<typeof condensedSeriesTeamSchema>;
+export type SeriesTeam = z.infer<typeof seriesTeamSchema>;
 
 // Totals are backend products, never derived from whichever match details loaded successfully.
 export const seriesAggregationSchema = z.discriminatedUnion("status", [
@@ -131,8 +125,8 @@ export const seriesAggregationSchema = z.discriminatedUnion("status", [
     status: z.literal("resolved"),
     gamesPlayed: countSchema,
     completedGameCount: countSchema.describe("Backend-collapsed completed games, accounting for resumed/split games"),
-    teams: z.array(condensedSeriesTeamSchema),
-    players: z.array(condensedSeriesPlayerSchema),
+    teams: z.array(seriesTeamSchema),
+    players: z.array(seriesPlayerSchema),
   }),
   z.object({
     status: z.literal("unavailable"),

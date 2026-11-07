@@ -1,19 +1,8 @@
 import { GameVariantCategory } from "halo-infinite-api";
-import type {
-  CondensedMatchDetail,
-  CondensedSeriesPlayer,
-  CondensedSeriesTeam,
-  MatchDetailResponse,
-  SeriesDetailResponse,
-} from "../detail";
-import {
-  aFakeCondensedMedalWith,
-  aFakeCondensedPlayerWith,
-  aFakeCondensedStatWith,
-  aFakeCondensedTeamWith,
-} from "./detail-primitives.fake";
+import type { MatchDetail, SeriesPlayer, SeriesTeam, MatchDetailResponse, SeriesDetailResponse } from "../detail";
+import { aFakeMedalWith, aFakePlayerWith, aFakeStatWith, aFakeTeamWith } from "./detail-primitives.fake";
 
-export function aFakeCondensedMatchDetailWith(overrides: Partial<CondensedMatchDetail> = {}): CondensedMatchDetail {
+export function aFakeMatchDetailWith(overrides: Partial<MatchDetail> = {}): MatchDetail {
   return {
     matchId: "match-one",
     startTime: "2024-11-26T11:05:39.587Z",
@@ -35,14 +24,14 @@ export function aFakeCondensedMatchDetailWith(overrides: Partial<CondensedMatchD
       primary: { metric: "score", teams: [{ matchTeamId: 7, seriesTeamId: 0, value: 50 }] },
       secondary: null,
     },
-    teams: [aFakeCondensedTeamWith()],
-    players: [aFakeCondensedPlayerWith()],
+    teams: [aFakeTeamWith()],
+    players: [aFakePlayerWith()],
     ...overrides,
   };
 }
 
 export function aFakeMatchDetailResponseWith(overrides: Partial<MatchDetailResponse> = {}): MatchDetailResponse {
-  const detail = aFakeCondensedMatchDetailWith();
+  const detail = aFakeMatchDetailWith();
   return {
     matchIds: [detail.matchId],
     results: [{ status: "resolved", matchId: detail.matchId, detail }],
@@ -50,28 +39,28 @@ export function aFakeMatchDetailResponseWith(overrides: Partial<MatchDetailRespo
   };
 }
 
-export function aFakeCondensedSeriesPlayerWith(overrides: Partial<CondensedSeriesPlayer> = {}): CondensedSeriesPlayer {
+export function aFakeSeriesPlayerWith(overrides: Partial<SeriesPlayer> = {}): SeriesPlayer {
   return {
     playerId: "xuid(1234567890)",
     xuid: "1234567890",
     gamertag: "Spartan One",
     playerType: 1,
     gamesPlayed: 2,
-    stats: [aFakeCondensedStatWith({ value: 24 })],
-    medals: [aFakeCondensedMedalWith({ count: 4 })],
+    stats: [aFakeStatWith({ value: 24 })],
+    medals: [aFakeMedalWith({ count: 4 })],
     teamStats: [
       {
         seriesTeamId: 0,
         gamesPlayed: 2,
-        stats: [aFakeCondensedStatWith({ value: 24 })],
-        medals: [aFakeCondensedMedalWith({ count: 4 })],
+        stats: [aFakeStatWith({ value: 24 })],
+        medals: [aFakeMedalWith({ count: 4 })],
       },
     ],
     ...overrides,
   };
 }
 
-export function aFakeCondensedSeriesTeamWith(overrides: Partial<CondensedSeriesTeam> = {}): CondensedSeriesTeam {
+export function aFakeSeriesTeamWith(overrides: Partial<SeriesTeam> = {}): SeriesTeam {
   return {
     seriesTeamId: 0,
     name: "Eagle",
@@ -79,8 +68,8 @@ export function aFakeCondensedSeriesTeamWith(overrides: Partial<CondensedSeriesT
     gamesPlayed: 2,
     gamesWon: 2,
     playerIds: ["xuid(1234567890)"],
-    stats: [aFakeCondensedStatWith({ value: 24 })],
-    medals: [aFakeCondensedMedalWith({ count: 4 })],
+    stats: [aFakeStatWith({ value: 24 })],
+    medals: [aFakeMedalWith({ count: 4 })],
     ...overrides,
   };
 }
@@ -93,8 +82,8 @@ export function aFakeSeriesDetailResponseWith(overrides: Partial<SeriesDetailRes
       status: "resolved",
       gamesPlayed: 2,
       completedGameCount: 1,
-      teams: [aFakeCondensedSeriesTeamWith()],
-      players: [aFakeCondensedSeriesPlayerWith()],
+      teams: [aFakeSeriesTeamWith()],
+      players: [aFakeSeriesPlayerWith()],
     },
     ...overrides,
   };
