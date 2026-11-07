@@ -59,3 +59,105 @@ export function getKothObjectiveStatValues(
     ["Defensive kills", { value: stats.ZonesStats.StrongholdDefensiveKills, sortBy: StatsValueSortBy.DESC }],
   ]);
 }
+
+export function getInfectionObjectiveStatValues(
+  stats: Stats<GameVariantCategory.MultiplayerInfection>,
+): StatsCollection {
+  return new Map([
+    ["Alphas killed", { value: stats.InfectionSTats.AlphasKilled, sortBy: StatsValueSortBy.DESC }],
+    ["Infected killed", { value: stats.InfectionSTats.InfectedKilled, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Kills as last spartan standing",
+      { value: stats.InfectionSTats.KillsAsLastSpartanStanding, sortBy: StatsValueSortBy.DESC },
+    ],
+    [
+      "Rounds survived as spartan",
+      { value: stats.InfectionSTats.RoundsSurvivedAsSpartan, sortBy: StatsValueSortBy.DESC },
+    ],
+    [
+      "Time as last spartan standing",
+      {
+        value: getDurationInSeconds(stats.InfectionSTats.TimeAsLastSpartanStanding),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+    ["Spartans infected", { value: stats.InfectionSTats.SpartansInfected, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Spartans infected as alpha",
+      { value: stats.InfectionSTats.SpartansInfectedAsAlpha, sortBy: StatsValueSortBy.DESC },
+    ],
+  ]);
+}
+
+export function getStrongholdsObjectiveStatValues(
+  stats: Stats<GameVariantCategory.MultiplayerStrongholds>,
+): StatsCollection {
+  return new Map([
+    ["Captures", { value: stats.ZonesStats.StrongholdCaptures, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Occupation time",
+      {
+        value: getDurationInSeconds(stats.ZonesStats.StrongholdOccupationTime),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+    ["Secures", { value: stats.ZonesStats.StrongholdSecures, sortBy: StatsValueSortBy.DESC }],
+    ["Offensive kills", { value: stats.ZonesStats.StrongholdOffensiveKills, sortBy: StatsValueSortBy.DESC }],
+    ["Defensive kills", { value: stats.ZonesStats.StrongholdDefensiveKills, sortBy: StatsValueSortBy.DESC }],
+  ]);
+}
+
+export function getStockpileObjectiveStatValues(
+  stats: Stats<GameVariantCategory.MultiplayerStockpile>,
+): StatsCollection {
+  return new Map([
+    ["Power seeds deposited", { value: stats.StockpileStats.PowerSeedsDeposited, sortBy: StatsValueSortBy.DESC }],
+    ["Power seeds stolen", { value: stats.StockpileStats.PowerSeedsStolen, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Kills as power seed carrier",
+      { value: stats.StockpileStats.KillsAsPowerSeedCarrier, sortBy: StatsValueSortBy.DESC },
+    ],
+    [
+      "Power seed carriers killed",
+      { value: stats.StockpileStats.PowerSeedCarriersKilled, sortBy: StatsValueSortBy.DESC },
+    ],
+    [
+      "Time as power seed carrier",
+      {
+        value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedCarrier),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+    [
+      "Time as power seed driver",
+      {
+        value: getDurationInSeconds(stats.StockpileStats.TimeAsPowerSeedDriver),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+  ]);
+}
+
+export function getVipObjectiveStatValues(stats: Stats<GameVariantCategory.MultiplayerVIP>): StatsCollection {
+  return new Map([
+    ["VIP kills", { value: stats.VipStats.VipKills, sortBy: StatsValueSortBy.DESC }],
+    ["VIP Assists", { value: stats.VipStats.VipAssists, sortBy: StatsValueSortBy.DESC }],
+    ["Kills as VIP", { value: stats.VipStats.KillsAsVip, sortBy: StatsValueSortBy.DESC }],
+    ["Times selected as VIP", { value: stats.VipStats.TimesSelectedAsVip, sortBy: StatsValueSortBy.DESC }],
+    ["Max killing spree as VIP", { value: stats.VipStats.MaxKillingSpreeAsVip, sortBy: StatsValueSortBy.DESC }],
+    [
+      "Longest Time as VIP",
+      {
+        value: getDurationInSeconds(stats.VipStats.LongestTimeAsVip),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+    [
+      "Time as VIP",
+      {
+        value: getDurationInSeconds(stats.VipStats.TimeAsVip),
+        sortBy: StatsValueSortBy.DESC,
+      },
+    ],
+  ]);
+}
