@@ -787,11 +787,8 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Method Not Allowed", { status: 405, headers: { "Cache-Control": "no-store" } });
     }
     const trackerState = await this.getState();
-    if (!trackerState) {
+    if (!trackerState || trackerState.status === "stopped") {
       return livePreSeriesContract.toResponse({ status: "not-found" }, { status: 404, noStore: true });
-    }
-    if (trackerState.status === "stopped") {
-      return livePreSeriesContract.toResponse({ status: "stopped" }, { status: 410, noStore: true });
     }
     const players = this.getCapturedRoster(trackerState);
     const rosterRevision = JSON.stringify([
