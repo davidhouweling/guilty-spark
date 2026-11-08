@@ -2,25 +2,10 @@ import type { HaloInfiniteClient } from "halo-infinite-api";
 import { describe, expect, it } from "vitest";
 import { medalSchema } from "../../contracts/stats/detail-primitives";
 import { aFakeCoreStatsWith } from "../fakes/data";
+import { aFakeMedalMetadataWith } from "../fakes/medal-metadata.fake";
 import { serializeMedalDetails } from "../medal-detail-serialization";
 
 type MetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
-
-function aFakeMedalMetadataWith(
-  overrides: Partial<MetadataFile["medals"][number]> = {},
-): MetadataFile["medals"][number] {
-  return {
-    name: { value: "Killing Spree", translations: { fr: "Folie meurtrière" } },
-    description: { value: "Kill 5 enemies without dying.", translations: {} },
-    spriteIndex: 17,
-    sortingWeight: 100,
-    difficultyIndex: 1,
-    typeIndex: 0,
-    personalScore: 20,
-    nameId: 622331684,
-    ...overrides,
-  };
-}
 
 describe("serializeMedalDetails", () => {
   it("preserves nonsequential IDs, order, counts and duplicate entries without leaking raw fields", () => {
