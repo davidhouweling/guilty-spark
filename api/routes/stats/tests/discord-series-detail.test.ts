@@ -63,8 +63,9 @@ describe("/api/stats/discord/:guildId/:queueNumber/detail", () => {
       .spyOn(services.haloService, "getPlayerXuidsToGametags")
       .mockResolvedValue(new Map());
     vi.spyOn(services.haloService, "getMedalsMetadata").mockResolvedValue(getMedalsMetadata());
-    vi.spyOn(services.haloService, "getGameTypeAndMapParts").mockResolvedValue({ gameMap: "Map", gameType: "Slayer" });
-    vi.spyOn(services.haloService, "getMapThumbnailUrl").mockResolvedValue("https://example.com/map.png");
+    vi.spyOn(services.haloService, "getMapName").mockResolvedValue("Map");
+    vi.spyOn(services.haloService, "getGameType").mockResolvedValue("Slayer");
+    vi.spyOn(services.haloService, "getMapThumbnailUrlStrict").mockResolvedValue("https://example.com/map.png");
     logErrorSpy = vi.spyOn(services.logService, "error");
     getClientForUserSpy = vi.spyOn(services.userTokenProvider, "getClientForUser");
     statsRoutesRegisterHandler(
@@ -81,6 +82,7 @@ describe("/api/stats/discord/:guildId/:queueNumber/detail", () => {
   }
 
   it("maps a fresh normal lookup with stable side-swap identities and numerical totals", async () => {
+    getPlayerXuidsToGametagsSpy.mockResolvedValue(new Map([["0100000000000000", "Spartan"]]));
     getSeriesStatsLookupSpy.mockResolvedValue({
       status: "lookup-resolved",
       guildId: GUILD_ID,
@@ -100,6 +102,13 @@ describe("/api/stats/discord/:guildId/:queueNumber/detail", () => {
     ]);
     expect(detailAt(series, 1).players.map((player) => player.lastMatchTeamId)).toEqual([7, 7, 3, 3]);
     expect(series.aggregation).toMatchObject({ status: "resolved", gamesPlayed: 2 });
+    if (series.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregation");
+    }
+    expect(series.aggregation.players.find((player) => player.playerId === "0100000000000000")?.gamertag).toBe(
+      "Spartan",
+    );
+    expect(detailAt(series, 0).players[0]?.gamertag).toBe("Spartan");
     expect(getMatchDetailsSpy.mock.calls).toEqual([[["match-0"]], [["match-1"]]]);
     expect(getSeriesStatsLookupSpy).toHaveBeenCalledExactlyOnceWith(GUILD_ID, QUEUE_NUMBER);
     expect(getSeriesStatsSpy).not.toHaveBeenCalled();

@@ -28,13 +28,14 @@ export const statsDiscordSeriesDetailRoute: RoutesRegisterHandler = (router, ins
             lookup.status === "pending-index" ? { "Retry-After": Math.ceil(lookup.retryAfterSeconds).toString() } : {},
         });
       }
-      const { batch, rawMatches } = await prepareMatchDetails(haloService, lookup.matchIds, logService);
+      const { batch, rawMatches, rosterOptions } = await prepareMatchDetails(haloService, lookup.matchIds, logService);
       const detail = mapSeriesDetail(
         `${guildId}:${queueNumber.toString()}`,
         batch.matchIds,
         batch.results,
         rawMatches,
         {
+          ...rosterOptions,
           isManualSeries: lookup.isManualSeries === true,
         },
       );
