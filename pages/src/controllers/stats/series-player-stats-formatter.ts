@@ -1,16 +1,12 @@
 import type { MatchStats } from "halo-infinite-api";
-import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { getPlayerObjectiveStats } from "@guilty-spark/shared/halo/objective-summary";
+import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
+import type { PlayerObjectiveSummary } from "@guilty-spark/shared/halo/objective-summary";
+import { calculateSeriesPlayerStats } from "@guilty-spark/shared/halo/series-stat-calculation";
 import { resolveStatsValue } from "@guilty-spark/shared/halo/stat-formatting";
 import type { StatsCollection, StatsValue } from "@guilty-spark/shared/halo/types";
 import { aggregateTeamMedals as aggregateSharedTeamMedals, extractMedals } from "@guilty-spark/shared/halo/medals";
-import {
-  aggregatePlayerCoreStats,
-  getPlayerMatches as getSharedPlayerMatches,
-  getSeriesTeamPlayersFromMatches,
-} from "@guilty-spark/shared/halo/series-player";
-import { getPlayerSlayerStats as getSharedPlayerSlayerStats } from "@guilty-spark/shared/halo/slayer-stats";
-import { getBestStatValues, getBestTeamStatValues, getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
+import { withPlayerSlayerStatDisplays } from "@guilty-spark/shared/halo/slayer-stats";
+import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { MatchStatsData, MatchStatsPlayerData } from "./types";
 
 export class SeriesPlayerStatsFormatter {
@@ -19,46 +15,29 @@ export class SeriesPlayerStatsFormatter {
     players: Map<string, string>,
     medalMetadata?: Record<number, { name: string; sortingWeight: number }>,
   ): MatchStatsData[] {
-    const firstMatch = Preconditions.checkExists(matches[0], "No matches found");
     const results: MatchStatsData[] = [];
-
-    const playerMatches = getSharedPlayerMatches(matches);
-    const playersCoreStats = aggregatePlayerCoreStats(matches);
-    const playersStats = new Map<string, StatsCollection>();
-    for (const [playerId, stats] of playersCoreStats) {
-      const slayerStats = getSharedPlayerSlayerStats(stats);
-      const objectiveStats = getPlayerObjectiveStats(playerMatches.get(playerId) ?? [], playerId);
-      playersStats.set(playerId, new Map([...slayerStats, ...objectiveStats]));
-    }
-
-    const seriesBestValues = getBestStatValues(playersStats);
-
-    for (const team of firstMatch.Teams) {
-      const teamPlayers = getSeriesTeamPlayersFromMatches(matches, team, playersCoreStats);
-      const teamBestValues = getBestTeamStatValues(playersStats, teamPlayers);
-
+    const calculated = calculateSeriesPlayerStats(matches);
+    for (const team of calculated.teams) {
       const playerStats: MatchStatsPlayerData[] = [];
-      for (const teamPlayer of teamPlayers) {
+      for (const { player: teamPlayer, values, coreStats, gamesPlayed, objectiveSummary } of team.players) {
         const playerXuid = getPlayerXuid(teamPlayer);
         const playerGamertag = teamPlayer.PlayerType === 1 ? (players.get(playerXuid) ?? "*Unknown*") : "Bot";
 
-        const stats = Preconditions.checkExists(playersStats.get(teamPlayer.PlayerId));
-        const outputStats = this.transformStats(seriesBestValues, teamBestValues, stats);
-        const playerCoreStats = Preconditions.checkExists(playersCoreStats.get(teamPlayer.PlayerId));
-
-        const playedGames = playerMatches.get(teamPlayer.PlayerId)?.length ?? 0;
+        const stats = withPlayerSlayerStatDisplays(values, coreStats);
+        this.addObjectiveDisplays(stats, objectiveSummary);
+        const outputStats = this.transformStats(calculated.bestValues, team.bestPlayerValues, stats);
         const gamesInfo =
-          playedGames < matches.length ? ` (${playedGames.toString()}/${matches.length.toString()} games)` : "";
+          gamesPlayed < matches.length ? ` (${gamesPlayed.toString()}/${matches.length.toString()} games)` : "";
 
         playerStats.push({
           name: `${playerGamertag}${gamesInfo}`,
           values: outputStats,
-          medals: extractMedals(playerCoreStats, medalMetadata),
+          medals: extractMedals(coreStats, medalMetadata),
         });
       }
 
       results.push({
-        teamId: team.TeamId,
+        teamId: team.teamId,
         teamStats: [],
         players: playerStats,
         teamMedals: aggregateSharedTeamMedals(playerStats),
@@ -66,6 +45,29 @@ export class SeriesPlayerStatsFormatter {
     }
 
     return results;
+  }
+
+  private addObjectiveDisplays(stats: StatsCollection, summary: PlayerObjectiveSummary | null): void {
+    if (summary == null) {
+      return;
+    }
+    const time = stats.get("Objective time");
+    const contribution = stats.get("Team objective contribution");
+    if (time) {
+      stats.set("Objective time", {
+        ...time,
+        display: getReadableDuration(getDurationInIsoString(summary.objectiveTimeSeconds)),
+      });
+    }
+    if (contribution) {
+      stats.set("Team objective contribution", {
+        ...contribution,
+        display:
+          summary.objectiveTeamContribution == null
+            ? "n/a"
+            : `${(summary.objectiveTeamContribution * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`,
+      });
+    }
   }
 
   private transformStats(

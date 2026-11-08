@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { StatsController } from "../../../controllers/stats/stats-controller";
@@ -6,8 +6,34 @@ import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "../../
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import { aFakeDiscordSeriesStatsResultWith } from "../../../services/stats/fakes/discord-series.fake";
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "../discord-series-stats-store";
+
+describe("DiscordSeriesStatsPresenter.start", () => {
+  it("requests kill matrix and score progression for every resolved series match", async () => {
+    const response = aFakeDiscordSeriesStatsResultWith().data;
+    if (response.status !== "resolved") {
+      throw new Error("Expected resolved series stats fixture");
+    }
+    const analyticsService = aFakeMatchAnalyticsServiceWith();
+    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+    const presenter = new DiscordSeriesStatsPresenter(
+      response.renderData,
+      new StatsController(),
+      new DiscordSeriesStatsStore(),
+      analyticsService,
+      new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+    );
+
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(getBatchSpy).toHaveBeenCalledWith(response.matchIds, ["killMatrix", "scoreProgression"]);
+    });
+    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+    presenter.dispose();
+  });
+});
 
 describe("DiscordSeriesStatsPresenter.present", () => {
   it("uses stable-team matches for browser series aggregation and raw matches for game data", () => {

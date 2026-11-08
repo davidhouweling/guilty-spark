@@ -39,6 +39,8 @@ import {
 import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/maps";
 import type { LiveTrackerRefreshRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/management";
 import { liveTrackerSeriesDataContract } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/series-data";
+import { livePreSeriesContract } from "@guilty-spark/shared/contracts/stats/pre-series";
+import type { LivePreSeriesPlayer } from "@guilty-spark/shared/contracts/stats/pre-series";
 import { parseJsonBody } from "@guilty-spark/shared/base/request-parsing";
 import type { LogService } from "../../services/log/types";
 import type { DiscordService } from "../../services/discord/discord";
@@ -147,6 +149,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
           case "series-data": {
             return await this.handleGetSeriesData();
           }
+          case "pre-series": {
+            return await this.handleGetPreSeries(request);
+          }
           case "maps": {
             return await this.handleMaps(request);
           }
@@ -160,7 +165,10 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       } catch (error) {
         this.logService.error("LiveTrackerDO fetch error:", new Map([["error", String(error)]]));
         Sentry.captureException(error);
-        return new Response("Internal Server Error", { status: 500 });
+        return new Response("Internal Server Error", {
+          status: 500,
+          headers: action === "pre-series" ? { "Cache-Control": "no-store" } : {},
+        });
       }
     });
   }
@@ -772,6 +780,55 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     );
 
     return this.createRepostResponse(oldMessageId ?? "none", newMessageId);
+  }
+
+  private async handleGetPreSeries(request: Request): Promise<Response> {
+    if (request.method !== "GET") {
+      return new Response("Method Not Allowed", { status: 405, headers: { "Cache-Control": "no-store" } });
+    }
+    const trackerState = await this.getState();
+    if (!trackerState || trackerState.status === "stopped") {
+      return livePreSeriesContract.toResponse({ status: "not-found" }, { status: 404, noStore: true });
+    }
+    const players = this.getCapturedRoster(trackerState);
+    const rosterRevision = JSON.stringify([
+      trackerState.startTime,
+      players.map((player) => [
+        player.playerId,
+        player.teamIndex,
+        player.rosterJoinedAt,
+        player.captured !== null,
+        player.captured?.xboxId,
+        player.captured?.gamertag,
+      ]),
+    ]);
+    return livePreSeriesContract.toResponse(
+      {
+        status: "resolved",
+        guildId: trackerState.guildId,
+        queueNumber: trackerState.queueNumber,
+        trackerStatus: trackerState.isPaused ? "paused" : trackerState.status,
+        seriesStartedAt: trackerState.startTime,
+        rosterRevision,
+        players,
+      },
+      { noStore: true },
+    );
+  }
+
+  private getCapturedRoster(trackerState: LiveTrackerState): LivePreSeriesPlayer[] {
+    return trackerState.teams.flatMap((team, teamIndex) =>
+      team.playerIds.map((playerId) => {
+        // Existing state records roster admission, not an exact enrichment capture timestamp.
+        const substitution = trackerState.substitutions.findLast((entry) => entry.playerInId === playerId);
+        return {
+          playerId,
+          teamIndex,
+          rosterJoinedAt: substitution?.timestamp ?? trackerState.startTime,
+          captured: trackerState.playersAssociationData[playerId] ?? null,
+        };
+      }),
+    );
   }
 
   private async handleGetSeriesData(): Promise<Response> {

@@ -4,8 +4,12 @@ import {
   getEmptyObjectiveStats,
   getEliminationObjectiveStats,
   getExtractionObjectiveStats,
+  getInfectionObjectiveStats,
   getKothObjectiveStats,
+  getOddballObjectiveStats,
+  getStockpileObjectiveStats,
   getStrongholdsObjectiveStats,
+  getVipObjectiveStats,
 } from "../objective-stats";
 import { StatsValueSortBy } from "../stat-formatting";
 import { getDurationInSeconds } from "../duration";
@@ -87,6 +91,23 @@ describe("getCtfObjectiveStats", () => {
     expect(pagesResult.get("Grabs")?.value).toBe(apiResult.get("Grabs")?.value);
     expect(pagesResult.get("Carrier time")?.value).toBe(apiResult.get("Carrier time")?.value);
   });
+
+  it("preserves all CTF values, ordering, and default-locale display output", () => {
+    expect(getCtfObjectiveStats(aFakeCtfStatsWith())).toEqual(
+      new Map([
+        ["Captures", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Captures assists", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Carrier time", { value: 90, sortBy: StatsValueSortBy.DESC, display: "1m 30s" }],
+        ["Steals", { value: 6, sortBy: StatsValueSortBy.DESC }],
+        ["Grabs", { value: 8, sortBy: StatsValueSortBy.DESC }],
+        ["Secures", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Returns", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Carriers killed", { value: 5, sortBy: StatsValueSortBy.DESC }],
+        ["Returners killed", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Kills as returner", { value: 3, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
+  });
 });
 
 describe("zone objective stats", () => {
@@ -110,6 +131,15 @@ describe("zone objective stats", () => {
     expect(result.get("Secures")?.value).toBe(2);
     expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT1M20S"));
     expect(result.has("Points")).toBe(false);
+    expect(result).toEqual(
+      new Map([
+        ["Captures", { value: 8, sortBy: StatsValueSortBy.DESC }],
+        ["Occupation time", { value: 80, sortBy: StatsValueSortBy.DESC, display: "1m 20s" }],
+        ["Secures", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Offensive kills", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Defensive kills", { value: 3, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
   });
 
   it("maps points rather than zero captures for King of the Hill", () => {
@@ -132,6 +162,131 @@ describe("zone objective stats", () => {
     expect(result.get("Occupation time")?.value).toBe(getDurationInSeconds("PT47.1S"));
     expect(result.has("Captures")).toBe(false);
     expect(result.has("Secures")).toBe(false);
+  });
+
+  it("preserves all KOTH values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      ZonesStats: {
+        StrongholdCaptures: 0,
+        StrongholdDefensiveKills: 1,
+        StrongholdOffensiveKills: 2,
+        StrongholdSecures: 0,
+        StrongholdOccupationTime: "PT47.1S",
+        StrongholdScoringTicks: 39,
+      },
+    } as never;
+
+    expect(getKothObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Scoring ticks", { value: 39, sortBy: StatsValueSortBy.DESC }],
+        ["Occupation time", { value: 47.1, sortBy: StatsValueSortBy.DESC, display: "47s" }],
+        ["Offensive kills", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Defensive kills", { value: 1, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
+  });
+});
+
+describe("getOddballObjectiveStats", () => {
+  it("preserves all values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {} as never,
+      PvpStats: {} as never,
+      OddballStats: { TimeAsSkullCarrier: "PT2M3S", LongestTimeAsSkullCarrier: "PT38.5S" },
+    } as never;
+
+    expect(getOddballObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Total time as carrier", { value: 123, sortBy: StatsValueSortBy.DESC, display: "2m 3s" }],
+        ["Longest time as carrier", { value: 38.5, sortBy: StatsValueSortBy.DESC, display: "38s" }],
+      ]),
+    );
+  });
+});
+
+describe("remaining display-bearing objective stats", () => {
+  it("preserves all Infection values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {},
+      PvpStats: {},
+      InfectionSTats: {
+        AlphasKilled: 1,
+        InfectedKilled: 2,
+        KillsAsLastSpartanStanding: 3,
+        RoundsSurvivedAsSpartan: 4,
+        TimeAsLastSpartanStanding: "PT1M20S",
+        SpartansInfected: 5,
+        SpartansInfectedAsAlpha: 6,
+      },
+    } as never;
+
+    expect(getInfectionObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Alphas killed", { value: 1, sortBy: StatsValueSortBy.DESC }],
+        ["Infected killed", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Kills as last spartan standing", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Rounds survived as spartan", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Time as last spartan standing", { value: 80, sortBy: StatsValueSortBy.DESC, display: "1m 20s" }],
+        ["Spartans infected", { value: 5, sortBy: StatsValueSortBy.DESC }],
+        ["Spartans infected as alpha", { value: 6, sortBy: StatsValueSortBy.DESC }],
+      ]),
+    );
+  });
+
+  it("preserves all Stockpile values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {},
+      PvpStats: {},
+      StockpileStats: {
+        PowerSeedsDeposited: 1,
+        PowerSeedsStolen: 2,
+        KillsAsPowerSeedCarrier: 3,
+        PowerSeedCarriersKilled: 4,
+        TimeAsPowerSeedCarrier: "PT1M20S",
+        TimeAsPowerSeedDriver: "PT35S",
+      },
+    } as never;
+
+    expect(getStockpileObjectiveStats(stats)).toEqual(
+      new Map([
+        ["Power seeds deposited", { value: 1, sortBy: StatsValueSortBy.DESC }],
+        ["Power seeds stolen", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Kills as power seed carrier", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Power seed carriers killed", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Time as power seed carrier", { value: 80, sortBy: StatsValueSortBy.DESC, display: "1m 20s" }],
+        ["Time as power seed driver", { value: 35, sortBy: StatsValueSortBy.DESC, display: "35s" }],
+      ]),
+    );
+  });
+
+  it("preserves all VIP values, ordering, and default-locale display output", () => {
+    const stats = {
+      CoreStats: {},
+      PvpStats: {},
+      VipStats: {
+        VipKills: 1,
+        VipAssists: 2,
+        KillsAsVip: 3,
+        TimesSelectedAsVip: 4,
+        MaxKillingSpreeAsVip: 5,
+        LongestTimeAsVip: "PT1M1S",
+        TimeAsVip: "PT2M30S",
+      },
+    } as never;
+
+    expect(getVipObjectiveStats(stats)).toEqual(
+      new Map([
+        ["VIP kills", { value: 1, sortBy: StatsValueSortBy.DESC }],
+        ["VIP Assists", { value: 2, sortBy: StatsValueSortBy.DESC }],
+        ["Kills as VIP", { value: 3, sortBy: StatsValueSortBy.DESC }],
+        ["Times selected as VIP", { value: 4, sortBy: StatsValueSortBy.DESC }],
+        ["Max killing spree as VIP", { value: 5, sortBy: StatsValueSortBy.DESC }],
+        ["Longest Time as VIP", { value: 61, sortBy: StatsValueSortBy.DESC, display: "1m 1s" }],
+        ["Time as VIP", { value: 150, sortBy: StatsValueSortBy.DESC, display: "2m 30s" }],
+      ]),
+    );
   });
 });
 
