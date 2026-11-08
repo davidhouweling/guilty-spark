@@ -368,7 +368,7 @@ export class HaloService {
       ]),
     );
     const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids, opts);
-    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers);
+    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers, opts);
     return [...cachedUsers, ...fetchedUsers, ...snapshotUsers];
   }
 
@@ -446,7 +446,11 @@ export class HaloService {
     return fetchedUsers;
   }
 
-  private async getLeaderboardSnapshotUsers(missingXuids: string[], resolvedUsers: UserInfo[]): Promise<UserInfo[]> {
+  private async getLeaderboardSnapshotUsers(
+    missingXuids: string[],
+    resolvedUsers: UserInfo[],
+    opts: { propagateFailures?: boolean | undefined } = {},
+  ): Promise<UserInfo[]> {
     const resolvedXuids = new Set(resolvedUsers.map((user) => user.xuid));
     const unresolvedXuids = missingXuids.filter((xuid) => !resolvedXuids.has(xuid));
     if (unresolvedXuids.length === 0) {
@@ -464,6 +468,9 @@ export class HaloService {
 
       return Array.from(snapshots, ([xuid, gamertag]) => ({ xuid, gamertag }));
     } catch (error) {
+      if (opts.propagateFailures === true) {
+        throw error;
+      }
       this.logService.warn(error, new Map([["context", "Failed to load leaderboard gamertag snapshots"]]));
       return [];
     }

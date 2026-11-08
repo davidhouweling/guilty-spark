@@ -10,6 +10,8 @@ import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake";
 import { getAssetVersion } from "../fakes/data";
 import type { XboxService } from "../../xbox/xbox";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+import type { DatabaseService } from "../../database/database";
+import { aFakeDatabaseServiceWith } from "../../database/fakes/database.fake";
 import type { LogService } from "../../log/types";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { prepareMatchDetails } from "../prepare-match-details";
@@ -19,10 +21,12 @@ describe("prepareMatchDetails with the real HaloService", () => {
   let haloService: HaloService;
   let infiniteClient: HaloInfiniteClient;
   let xboxService: XboxService;
+  let databaseService: DatabaseService;
   let logService: LogService;
   let getMatchStatsSpy: MockInstance<HaloInfiniteClient["getMatchStats"]>;
   let getUsersSpy: MockInstance<HaloInfiniteClient["getUsers"]>;
   let getUsersByXuidsSpy: MockInstance<XboxService["getUsersByXuids"]>;
+  let getLatestGamertagSnapshotsByXuidsSpy: MockInstance<DatabaseService["getLatestGamertagSnapshotsByXuids"]>;
   let getSpecificAssetVersionSpy: MockInstance<HaloInfiniteClient["getSpecificAssetVersion"]>;
   let logWarnSpy: MockInstance<LogService["warn"]>;
   let matches: MatchStats[];
@@ -30,9 +34,11 @@ describe("prepareMatchDetails with the real HaloService", () => {
   beforeEach(() => {
     infiniteClient = aFakeHaloInfiniteClient();
     xboxService = aFakeXboxServiceWith();
+    databaseService = aFakeDatabaseServiceWith();
+    getLatestGamertagSnapshotsByXuidsSpy = vi.spyOn(databaseService, "getLatestGamertagSnapshotsByXuids");
     getUsersByXuidsSpy = vi.spyOn(xboxService, "getUsersByXuids");
     logService = aFakeLogServiceWith();
-    haloService = aFakeHaloServiceWith({ infiniteClient, logService, xboxService });
+    haloService = aFakeHaloServiceWith({ infiniteClient, logService, xboxService, databaseService });
     matches = [aFakeMatchStatsWith({ MatchId: "first" }), aFakeMatchStatsWith({ MatchId: "second" })];
     getMatchStatsSpy = vi
       .spyOn(infiniteClient, "getMatchStats")
@@ -67,6 +73,21 @@ describe("prepareMatchDetails with the real HaloService", () => {
     expect(await haloService.getPlayerXuidsToGametags(match)).toEqual(new Map([["123", "*Unknown*"]]));
     expect(getUsersSpy).toHaveBeenCalledTimes(1);
     expect(getMatchStatsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates snapshot lookup errors in preparation while preserving legacy best-effort behavior", async () => {
+    const match = Preconditions.checkExists(matches[0]);
+    match.Players = [aFakePlayerWith({ PlayerId: "xuid(123)", PlayerType: 1 })];
+    getUsersSpy.mockResolvedValue([]);
+    const error = new Error("Snapshot lookup failed");
+    getLatestGamertagSnapshotsByXuidsSpy.mockRejectedValue(error);
+    await expect(prepareMatchDetails(haloService, ["first"], logService)).rejects.toBe(error);
+    expect(logWarnSpy).not.toHaveBeenCalled();
+    expect(await haloService.getPlayerXuidsToGametags(match)).toEqual(new Map([["123", "*Unknown*"]]));
+    expect(logWarnSpy).toHaveBeenCalledExactlyOnceWith(
+      error,
+      new Map([["context", "Failed to load leaderboard gamertag snapshots"]]),
+    );
   });
 
   it("propagates identity lookup failures when both providers fail during detail preparation", async () => {
