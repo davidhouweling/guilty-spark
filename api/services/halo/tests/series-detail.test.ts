@@ -45,6 +45,23 @@ function assemble(matches: MatchStats[], options: SeriesDetailOptions = {}): Ser
   );
 }
 
+describe("aFakeSeriesDetailMatchWith", () => {
+  it.each([
+    { index: 9, hour: "2024-01-01T09" },
+    { index: 10, hour: "2024-01-01T10" },
+    { index: 23, hour: "2024-01-01T23" },
+    { index: 24, hour: "2024-01-02T00" },
+    { index: 29, hour: "2024-01-02T05" },
+  ])("returns valid detail timestamps for index $index", ({ index, hour }) => {
+    const match = aFakeSeriesDetailMatchWith(index);
+    expect(match.MatchInfo.StartTime).toBe(`${hour}:00:00.000Z`);
+    expect(match.MatchInfo.EndTime).toBe(`${hour}:10:00.000Z`);
+    const detail = detailAt(assemble([match]), 0);
+    expect(detail.startTime).toBe(match.MatchInfo.StartTime);
+    expect(detail.endTime).toBe(match.MatchInfo.EndTime);
+  });
+});
+
 describe("series detail identity validation", () => {
   it.each(["teams", "players"])("rejects duplicate %s identities that omit a raw identity", (field) => {
     const match = aFakeSeriesDetailMatchWith(1);
