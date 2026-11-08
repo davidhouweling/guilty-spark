@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import { AssetKind } from "halo-infinite-api";
+import { AssetKind, RequestError } from "halo-infinite-api";
 import type { HaloInfiniteClient, MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
@@ -8,6 +8,8 @@ import type { HaloService } from "../halo";
 import { aFakeHaloServiceWith } from "../fakes/halo.fake";
 import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake";
 import { getAssetVersion } from "../fakes/data";
+import type { XboxService } from "../../xbox/xbox";
+import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
 import type { LogService } from "../../log/types";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { prepareMatchDetails } from "../prepare-match-details";
@@ -16,17 +18,21 @@ import { TimeInSeconds } from "../types";
 describe("prepareMatchDetails with the real HaloService", () => {
   let haloService: HaloService;
   let infiniteClient: HaloInfiniteClient;
+  let xboxService: XboxService;
   let logService: LogService;
   let getMatchStatsSpy: MockInstance<HaloInfiniteClient["getMatchStats"]>;
   let getUsersSpy: MockInstance<HaloInfiniteClient["getUsers"]>;
+  let getUsersByXuidsSpy: MockInstance<XboxService["getUsersByXuids"]>;
   let getSpecificAssetVersionSpy: MockInstance<HaloInfiniteClient["getSpecificAssetVersion"]>;
   let logWarnSpy: MockInstance<LogService["warn"]>;
   let matches: MatchStats[];
 
   beforeEach(() => {
     infiniteClient = aFakeHaloInfiniteClient();
+    xboxService = aFakeXboxServiceWith();
+    getUsersByXuidsSpy = vi.spyOn(xboxService, "getUsersByXuids");
     logService = aFakeLogServiceWith();
-    haloService = aFakeHaloServiceWith({ infiniteClient, logService });
+    haloService = aFakeHaloServiceWith({ infiniteClient, logService, xboxService });
     matches = [aFakeMatchStatsWith({ MatchId: "first" }), aFakeMatchStatsWith({ MatchId: "second" })];
     getMatchStatsSpy = vi
       .spyOn(infiniteClient, "getMatchStats")
@@ -61,6 +67,51 @@ describe("prepareMatchDetails with the real HaloService", () => {
     expect(await haloService.getPlayerXuidsToGametags(match)).toEqual(new Map([["123", "*Unknown*"]]));
     expect(getUsersSpy).toHaveBeenCalledTimes(1);
     expect(getMatchStatsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates identity lookup failures when both providers fail during detail preparation", async () => {
+    const match = Preconditions.checkExists(matches[0]);
+    match.Players = [aFakePlayerWith({ PlayerId: "xuid(123)", PlayerType: 1 })];
+    const haloError = new RequestError(new URL("https://example.com"), new Response("", { status: 500 }));
+    getUsersSpy.mockRejectedValueOnce(haloError);
+    getUsersByXuidsSpy.mockRejectedValueOnce(new Error("Xbox profile lookup failed"));
+
+    await expect(prepareMatchDetails(haloService, ["first"], logService)).rejects.toBe(haloError);
+    expect(getUsersSpy).toHaveBeenCalledExactlyOnceWith(["123"], {
+      cf: { cacheTtlByStatus: { "200-299": TimeInSeconds["1_HOUR"], 404: TimeInSeconds["1_HOUR"], "500-599": 0 } },
+    });
+    expect(getUsersByXuidsSpy).toHaveBeenCalledExactlyOnceWith(["123"]);
+  });
+
+  it("uses a successful Xbox identity fallback during detail preparation", async () => {
+    const match = Preconditions.checkExists(matches[0]);
+    match.Players = [aFakePlayerWith({ PlayerId: "xuid(123)", PlayerType: 1 })];
+    getUsersSpy.mockRejectedValueOnce(
+      new RequestError(new URL("https://example.com"), new Response("", { status: 503 })),
+    );
+    getUsersByXuidsSpy.mockResolvedValueOnce([{ xuid: "123", gamertag: "XboxPlayer" }]);
+
+    const prepared = await prepareMatchDetails(haloService, ["first"], logService);
+
+    expect(prepared.batch.results[0]).toMatchObject({
+      status: "resolved",
+      detail: { players: [{ gamertag: "XboxPlayer" }] },
+    });
+    expect(getUsersByXuidsSpy).toHaveBeenCalledExactlyOnceWith(["123"]);
+  });
+
+  it("treats a successful empty Halo identity response as unresolved without trying Xbox", async () => {
+    const match = Preconditions.checkExists(matches[0]);
+    match.Players = [aFakePlayerWith({ PlayerId: "xuid(123)", PlayerType: 1 })];
+    getUsersSpy.mockResolvedValueOnce([]);
+
+    const prepared = await prepareMatchDetails(haloService, ["first"], logService);
+
+    expect(prepared.batch.results[0]).toMatchObject({
+      status: "resolved",
+      detail: { players: [{ gamertag: null }] },
+    });
+    expect(getUsersByXuidsSpy).not.toHaveBeenCalled();
   });
 
   it("reuses in-flight map name and thumbnail requests across concurrent matches with distinct modes", async () => {

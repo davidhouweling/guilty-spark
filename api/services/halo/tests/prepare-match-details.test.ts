@@ -57,7 +57,9 @@ describe("prepareMatchDetails", () => {
     ]);
     expect(getMatchDetailsSpy.mock.calls).toEqual([[["second"]], [["first"]]]);
     expect(prepared.rawMatches.map((match) => match.MatchId)).toEqual(["second", "first"]);
-    expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledExactlyOnceWith(prepared.rawMatches);
+    expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledExactlyOnceWith(prepared.rawMatches, {
+      propagateFailures: true,
+    });
     expect(getMedalsMetadataSpy).toHaveBeenCalledTimes(1);
     expect(getMapNameSpy).toHaveBeenCalledTimes(1);
     expect(getGameTypeSpy).toHaveBeenCalledTimes(1);

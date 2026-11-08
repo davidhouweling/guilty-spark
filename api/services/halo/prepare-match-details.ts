@@ -59,7 +59,7 @@ async function loadMatches(
 
 async function loadRosterOptions(haloService: HaloService, matches: MatchStats[]): Promise<MatchDetailRosterOptions> {
   const [gamertags, metadata] = await Promise.all([
-    haloService.getPlayerXuidsToGametags(matches),
+    haloService.getPlayerXuidsToGametags(matches, { propagateFailures: true }),
     haloService.getMedalsMetadata(),
   ]);
   const identitiesByPlayerId = new Map<string, Pick<Player, "gamertag" | "discordUserId">>();

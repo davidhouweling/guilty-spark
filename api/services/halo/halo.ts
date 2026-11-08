@@ -291,7 +291,7 @@ export class HaloService {
 
   async getPlayerXuidsToGametags(
     matches: MatchStats | MatchStats[],
-    opts: { presentAtBeginningOnly?: boolean } = {},
+    opts: { presentAtBeginningOnly?: boolean; propagateFailures?: boolean | undefined } = {},
   ): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
@@ -308,7 +308,7 @@ export class HaloService {
     if (uniqueXuids.size) {
       const usersArray = Array.from(uniqueXuids);
 
-      const users = await this.getUsersByXuids(usersArray);
+      const users = await this.getUsersByXuids(usersArray, opts);
       for (const user of usersArray) {
         const userInfo = users.find((u) => u.xuid === user);
         this.xuidToGamerTagCache.set(user, userInfo?.gamertag ?? "*Unknown*");
@@ -347,7 +347,7 @@ export class HaloService {
     return user;
   }
 
-  async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+  async getUsersByXuids(xuids: string[], opts: { propagateFailures?: boolean | undefined } = {}): Promise<UserInfo[]> {
     if (xuids.length === 0) {
       return [];
     }
@@ -367,7 +367,7 @@ export class HaloService {
         ["staleCount", staleXuids.length.toString()],
       ]),
     );
-    const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids);
+    const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids, opts);
     const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers);
     return [...cachedUsers, ...fetchedUsers, ...snapshotUsers];
   }
@@ -422,7 +422,10 @@ export class HaloService {
     }
   }
 
-  private async fetchAndCacheUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+  private async fetchAndCacheUsersByXuids(
+    xuids: string[],
+    opts: { propagateFailures?: boolean | undefined } = {},
+  ): Promise<UserInfo[]> {
     const fetchedUsers = await this.fetchWithResilientFallback(
       async () =>
         this.infiniteClient.getUsers(xuids, {
@@ -434,7 +437,7 @@ export class HaloService {
         const xboxUsers = await this.xboxService.getUsersByXuids(xuids);
         return xboxUsers.map((xboxUser) => ({ xuid: xboxUser.xuid, gamertag: xboxUser.gamertag }));
       },
-      [],
+      opts.propagateFailures === true ? null : [],
       `${xuids.length.toString()} xuids`,
       true,
     );
