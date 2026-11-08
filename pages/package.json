@@ -57,7 +57,7 @@
     "postcss-load-config": "^6.0.1",
     "postcss-nesting": "^14.0.3",
     "postcss-preset-env": "^11.6.2",
-    "stylelint": "^17.16.0",
+    "stylelint": "^18.0.0",
     "stylelint-config-css-modules": "^4.6.0",
     "stylelint-config-standard": "^40.0.0",
     "stylelint-order": "^8.1.3",
