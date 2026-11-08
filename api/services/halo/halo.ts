@@ -291,7 +291,7 @@ export class HaloService {
 
   async getPlayerXuidsToGametags(
     matches: MatchStats | MatchStats[],
-    opts: { presentAtBeginningOnly?: boolean } = {},
+    opts: { presentAtBeginningOnly?: boolean; propagateFailures?: boolean | undefined } = {},
   ): Promise<Map<string, string>> {
     const xuidsToResolve = (Array.isArray(matches) ? matches : [matches])
       .flatMap((match) => match.Players)
@@ -308,7 +308,7 @@ export class HaloService {
     if (uniqueXuids.size) {
       const usersArray = Array.from(uniqueXuids);
 
-      const users = await this.getUsersByXuids(usersArray);
+      const users = await this.getUsersByXuids(usersArray, opts);
       for (const user of usersArray) {
         const userInfo = users.find((u) => u.xuid === user);
         this.xuidToGamerTagCache.set(user, userInfo?.gamertag ?? "*Unknown*");
@@ -347,7 +347,7 @@ export class HaloService {
     return user;
   }
 
-  async getUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+  async getUsersByXuids(xuids: string[], opts: { propagateFailures?: boolean | undefined } = {}): Promise<UserInfo[]> {
     if (xuids.length === 0) {
       return [];
     }
@@ -367,8 +367,8 @@ export class HaloService {
         ["staleCount", staleXuids.length.toString()],
       ]),
     );
-    const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids);
-    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers);
+    const fetchedUsers = await this.fetchAndCacheUsersByXuids(missingXuids, opts);
+    const snapshotUsers = await this.getLeaderboardSnapshotUsers(missingXuids, fetchedUsers, opts);
     return [...cachedUsers, ...fetchedUsers, ...snapshotUsers];
   }
 
@@ -422,7 +422,10 @@ export class HaloService {
     }
   }
 
-  private async fetchAndCacheUsersByXuids(xuids: string[]): Promise<UserInfo[]> {
+  private async fetchAndCacheUsersByXuids(
+    xuids: string[],
+    opts: { propagateFailures?: boolean | undefined } = {},
+  ): Promise<UserInfo[]> {
     const fetchedUsers = await this.fetchWithResilientFallback(
       async () =>
         this.infiniteClient.getUsers(xuids, {
@@ -434,7 +437,7 @@ export class HaloService {
         const xboxUsers = await this.xboxService.getUsersByXuids(xuids);
         return xboxUsers.map((xboxUser) => ({ xuid: xboxUser.xuid, gamertag: xboxUser.gamertag }));
       },
-      [],
+      opts.propagateFailures === true ? null : [],
       `${xuids.length.toString()} xuids`,
       true,
     );
@@ -443,7 +446,11 @@ export class HaloService {
     return fetchedUsers;
   }
 
-  private async getLeaderboardSnapshotUsers(missingXuids: string[], resolvedUsers: UserInfo[]): Promise<UserInfo[]> {
+  private async getLeaderboardSnapshotUsers(
+    missingXuids: string[],
+    resolvedUsers: UserInfo[],
+    opts: { propagateFailures?: boolean | undefined } = {},
+  ): Promise<UserInfo[]> {
     const resolvedXuids = new Set(resolvedUsers.map((user) => user.xuid));
     const unresolvedXuids = missingXuids.filter((xuid) => !resolvedXuids.has(xuid));
     if (unresolvedXuids.length === 0) {
@@ -461,6 +468,9 @@ export class HaloService {
 
       return Array.from(snapshots, ([xuid, gamertag]) => ({ xuid, gamertag }));
     } catch (error) {
+      if (opts.propagateFailures === true) {
+        throw error;
+      }
       this.logService.warn(error, new Map([["context", "Failed to load leaderboard gamertag snapshots"]]));
       return [];
     }
@@ -643,13 +653,17 @@ export class HaloService {
     }
   }
 
-  async getMedal(medalId: number): Promise<Medal | undefined> {
+  async getMedalsMetadata(): ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> {
     this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
       },
     });
-    const metadata = await this.metadataJsonCache;
+    return this.metadataJsonCache;
+  }
+
+  async getMedal(medalId: number): Promise<Medal | undefined> {
+    const metadata = await this.getMedalsMetadata();
     const medal = metadata.medals.find(({ nameId }) => nameId === medalId);
 
     if (medal == null) {
@@ -996,29 +1010,7 @@ export class HaloService {
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
     try {
-      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
-        },
-      });
-
-      const { Prefix, FileRelativePaths } = asset.Files;
-
-      const thumbnailFile = FileRelativePaths.find((file) => file.includes("thumbnail"));
-      if (thumbnailFile != null) {
-        return `${Prefix}${thumbnailFile}`;
-      }
-
-      const heroFile = FileRelativePaths.find((file) => file.includes("hero"));
-      if (heroFile != null) {
-        return `${Prefix}${heroFile}`;
-      }
-
-      if (FileRelativePaths.length > 0) {
-        return `${Prefix}${Preconditions.checkExists(FileRelativePaths[0])}`;
-      }
-
-      return null;
+      return await this.getMapThumbnailUrlStrict(assetId, versionId);
     } catch (error) {
       this.logService.warn(
         error,
@@ -1026,6 +1018,21 @@ export class HaloService {
       );
       return null;
     }
+  }
+
+  /** Returns null only for a valid asset without files; lookup and extraction errors propagate. */
+  async getMapThumbnailUrlStrict(assetId: string, versionId: string): Promise<string | null> {
+    const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
+      },
+    });
+    const { Prefix, FileRelativePaths } = asset.Files;
+    const file =
+      FileRelativePaths.find((path) => path.includes("thumbnail")) ??
+      FileRelativePaths.find((path) => path.includes("hero")) ??
+      (FileRelativePaths.length > 0 ? Preconditions.checkExists(FileRelativePaths[0]) : null);
+    return file == null ? null : `${Prefix}${file}`;
   }
 
   async validateDiscordAssociationsFromMatches(
@@ -1558,7 +1565,7 @@ export class HaloService {
     return playlistName;
   }
 
-  private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
+  async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
     const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
     if (!this.gameTypeCache.has(cacheKey)) {
       const mapModeData = await this.infiniteClient.getSpecificAssetVersion(
