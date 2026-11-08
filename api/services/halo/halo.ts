@@ -643,13 +643,17 @@ export class HaloService {
     }
   }
 
-  async getMedal(medalId: number): Promise<Medal | undefined> {
+  async getMedalsMetadata(): ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]> {
     this.metadataJsonCache ??= this.infiniteClient.getMedalsMetadataFile({
       cf: {
         cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_MINUTE"], "500-599": 0 },
       },
     });
-    const metadata = await this.metadataJsonCache;
+    return this.metadataJsonCache;
+  }
+
+  async getMedal(medalId: number): Promise<Medal | undefined> {
+    const metadata = await this.getMedalsMetadata();
     const medal = metadata.medals.find(({ nameId }) => nameId === medalId);
 
     if (medal == null) {
