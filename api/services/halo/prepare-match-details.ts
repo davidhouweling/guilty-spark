@@ -133,10 +133,11 @@ export async function prepareMatchDetails(
   const matchIds = matchDetailBatchSchema.shape.matchIds.parse(requestedIds);
   const loadedMatches = await loadMatches(haloService, [...new Set(matchIds)], logService);
   const rawMatches = loadedMatches.filter((match): match is MatchStats => !("status" in match));
+  const rosterOptions = rawMatches.length === 0 ? {} : await loadRosterOptions(haloService, rawMatches);
   const resultsById =
     rawMatches.length === 0
       ? new Map<string, MatchDetailResult>()
-      : await mapDetails(haloService, rawMatches, await loadRosterOptions(haloService, rawMatches));
+      : await mapDetails(haloService, rawMatches, rosterOptions);
   for (const match of loadedMatches) {
     if ("status" in match) {
       resultsById.set(match.matchId, match);
@@ -145,5 +146,5 @@ export async function prepareMatchDetails(
   const results = matchIds.map(
     (matchId): MatchDetailResult => resultsById.get(matchId) ?? { status: "unavailable", matchId, reason: "not-found" },
   );
-  return { batch: matchDetailBatchSchema.parse({ matchIds, results }), rawMatches };
+  return { batch: matchDetailBatchSchema.parse({ matchIds, results }), rawMatches, rosterOptions };
 }

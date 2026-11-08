@@ -80,21 +80,6 @@ Environment and platform setup references:
 - `pages/` Astro + React website and overlay surfaces
 - `shared/` shared contracts, types, and utilities
 
-### Selected series detail API
-
-`GET /api/stats/series-details/:seriesId?matchIds=one,two` returns numerical match
-details and stable series totals using the shared `seriesDetailContract`, with
-`Cache-Control: no-store`. Supply 1–30 comma-separated match IDs (1–128 characters
-each); results preserve request order and duplicates, while totals count distinct
-matches and use the chronological roster anchor.
-
-This endpoint composes a caller-selected normal series, not an archived-series
-lookup or manual roster-mapping API. Missing/failed matches and ambiguous rosters
-produce explicit unavailable aggregates. Optional `trackerId` uses the existing
-live tracker owner credential resolution, falling back to bot credentials.
-Raw matches, canonicalized working copies, and tokens remain server-side.
-Existing stats endpoints are unchanged.
-
 ## Common Scripts
 
 ```bash

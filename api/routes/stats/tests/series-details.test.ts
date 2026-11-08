@@ -32,6 +32,11 @@ describe("/api/stats/series-details/:seriesId", () => {
   let ownerService: HaloService;
   let userClient: ReturnType<typeof aFakeHaloInfiniteClient>;
   let getMatchDetailsSpy: MockInstance<HaloService["getMatchDetails"]>;
+  let getPlayerXuidsToGametagsSpy: MockInstance<HaloService["getPlayerXuidsToGametags"]>;
+  let getMedalsMetadataSpy: MockInstance<HaloService["getMedalsMetadata"]>;
+  let getMapNameSpy: MockInstance<HaloService["getMapName"]>;
+  let getGameTypeSpy: MockInstance<HaloService["getGameType"]>;
+  let getMapThumbnailUrlStrictSpy: MockInstance<HaloService["getMapThumbnailUrlStrict"]>;
   let ownerGetMatchDetailsSpy: MockInstance<HaloService["getMatchDetails"]>;
   let getIndividualTrackerSpy: MockInstance<Services["databaseService"]["getIndividualTracker"]>;
   let getClientForUserSpy: MockInstance<Services["userTokenProvider"]["getClientForUser"]>;
@@ -53,10 +58,15 @@ describe("/api/stats/series-details/:seriesId", () => {
     getClientForUserSpy = vi.spyOn(services.userTokenProvider, "getClientForUser").mockResolvedValue(null);
     withUserClientSpy = vi.spyOn(services.haloService, "withUserClient").mockReturnValue(ownerService);
     logErrorSpy = vi.spyOn(services.logService, "error");
-    vi.spyOn(services.haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
-    vi.spyOn(services.haloService, "getMedalsMetadata").mockResolvedValue(getMedalsMetadata());
-    vi.spyOn(services.haloService, "getGameTypeAndMapParts").mockResolvedValue({ gameMap: "Map", gameType: "Mode" });
-    vi.spyOn(services.haloService, "getMapThumbnailUrl").mockResolvedValue("https://example.com/map.png");
+    getPlayerXuidsToGametagsSpy = vi
+      .spyOn(services.haloService, "getPlayerXuidsToGametags")
+      .mockResolvedValue(new Map());
+    getMedalsMetadataSpy = vi.spyOn(services.haloService, "getMedalsMetadata").mockResolvedValue(getMedalsMetadata());
+    getMapNameSpy = vi.spyOn(services.haloService, "getMapName").mockResolvedValue("Map");
+    getGameTypeSpy = vi.spyOn(services.haloService, "getGameType").mockResolvedValue("Mode");
+    getMapThumbnailUrlStrictSpy = vi
+      .spyOn(services.haloService, "getMapThumbnailUrlStrict")
+      .mockResolvedValue("https://example.com/map.png");
     statsRoutesRegisterHandler(
       router,
       vi.fn<typeof installFakeServicesWith>(() => services),
@@ -117,6 +127,60 @@ describe("/api/stats/series-details/:seriesId", () => {
       value: 3,
     });
     expect(json).not.toMatch(/rawMatch|seriesMatch|MatchInfo|CoreStats|PlayerTeamStats|accessToken|refreshToken/);
+  });
+
+  it("retains resolved identities and medal metadata in aggregate and per-game details", async () => {
+    const metadata = getMedalsMetadata();
+    const medal = Preconditions.checkExists(metadata.medals[0]);
+    getPlayerXuidsToGametagsSpy.mockResolvedValue(new Map([["0100000000000000", "Known Spartan"]]));
+    getMatchDetailsSpy.mockImplementation(async ([id]) => {
+      const match = aFakeSeriesDetailMatchWith(id === "match-0" ? 0 : 1, id !== "match-0");
+      if (id === "match-0") {
+        const player = Preconditions.checkExists(
+          match.Players.find((candidate) => candidate.PlayerId === "0100000000000000"),
+        );
+        const teamStats = Preconditions.checkExists(player.PlayerTeamStats[0]);
+        teamStats.Stats.CoreStats.Medals = [
+          { NameId: medal.nameId, Count: 2, TotalPersonalScoreAwarded: medal.personalScore * 2 },
+        ];
+      }
+      return Promise.resolve([match]);
+    });
+
+    const response = await request("?matchIds=match-0,match-1");
+    const json = await response.clone().text();
+    const series = await seriesDetailContract.fromResponse(response);
+    expect(response.status).toBe(200);
+    if (series.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregate");
+    }
+
+    const medalDetails = {
+      id: medal.nameId,
+      name: medal.name.value,
+      sortingWeight: medal.sortingWeight,
+      difficultyIndex: medal.difficultyIndex,
+      difficulty: metadata.difficulties[medal.difficultyIndex],
+    };
+    const aggregatePlayer = Preconditions.checkExists(
+      series.aggregation.players.find((player) => player.playerId === "0100000000000000"),
+    );
+    expect(aggregatePlayer.gamertag).toBe("Known Spartan");
+    expect(aggregatePlayer.medals[0]).toMatchObject(medalDetails);
+    expect(Preconditions.checkExists(aggregatePlayer.medals[0]).count).toBeGreaterThan(0);
+
+    const gamePlayer = Preconditions.checkExists(
+      detailAt(series, 0).players.find((player) => player.playerId === "0100000000000000"),
+    );
+    expect(gamePlayer.gamertag).toBe("Known Spartan");
+    expect(gamePlayer.teamStats[0]?.medals[0]).toMatchObject({ ...medalDetails, count: 2 });
+    expect(json).not.toMatch(
+      /rawMatches|rosterOptions|identitiesByPlayerId|medalMetadataById|medalDifficulties|MatchInfo|CoreStats|PlayerTeamStats/,
+    );
+    expect(getMedalsMetadataSpy).toHaveBeenCalledTimes(1);
+    expect(getMapNameSpy).toHaveBeenCalledTimes(2);
+    expect(getGameTypeSpy).toHaveBeenCalledTimes(1);
+    expect(getMapThumbnailUrlStrictSpy).toHaveBeenCalledTimes(2);
   });
 
   it("retains partial matches but explicitly declines incomplete totals", async () => {

@@ -30,8 +30,12 @@ export const seriesDetailsRoute: RoutesRegisterHandler = (router, installService
         normalizeTrackerId(url.searchParams.get("trackerId")),
         "Failed to resolve user credentials for series details tracker",
       );
-      const { batch, rawMatches } = await prepareMatchDetails(haloService, query.data.matchIds, logService);
-      const detail = mapSeriesDetail(params.data.seriesId, batch.matchIds, batch.results, rawMatches);
+      const { batch, rawMatches, rosterOptions } = await prepareMatchDetails(
+        haloService,
+        query.data.matchIds,
+        logService,
+      );
+      const detail = mapSeriesDetail(params.data.seriesId, batch.matchIds, batch.results, rawMatches, rosterOptions);
       return seriesDetailContract.toResponse(detail, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve series details route"]]));
