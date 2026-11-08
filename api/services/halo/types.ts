@@ -1,5 +1,22 @@
-import type { UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
+import type { HaloInfiniteClient, UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
+import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+
+type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
+
+export interface MatchDetailRosterOptions {
+  identitiesByPlayerId?: ReadonlyMap<string, Pick<Player, "gamertag" | "discordUserId">> | undefined;
+  matchTeamIdToSeriesTeamId?: ReadonlyMap<number, number | null> | undefined;
+  medalMetadataById?: Record<number, MedalMetadataFile["medals"][number] | null | undefined> | undefined;
+  medalDifficulties?: MedalMetadataFile["difficulties"] | undefined;
+}
+
+export interface MatchDetailOptions extends MatchDetailRosterOptions {
+  mapName: string | null;
+  modeName: string | null;
+  mapThumbnailUrl: string | null;
+  plannedMapIndex?: number | undefined;
+}
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
