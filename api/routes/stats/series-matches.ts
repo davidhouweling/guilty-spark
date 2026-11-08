@@ -5,11 +5,12 @@ import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { seriesMatchesContract, seriesMatchesQuerySchema } from "@guilty-spark/shared/contracts/stats/series-matches";
 import type { RoutesRegisterHandler } from "../base/types";
 import { normalizeTrackerId } from "./normalize-tracker-id";
+import { resolveTrackerHaloService } from "./resolve-tracker-halo-service";
 
 export const seriesMatchesRoute: RoutesRegisterHandler = (router, installServices) => {
   router.get("/api/stats/series-matches", async (request, env: Env) => {
     const services = installServices({ env });
-    const { haloService, logService, databaseService, userTokenProvider } = services;
+    const { logService } = services;
 
     try {
       const url = new URL(request.url);
@@ -26,26 +27,11 @@ export const seriesMatchesRoute: RoutesRegisterHandler = (router, installService
           : uniqueMatchIds;
       const trackerId = normalizeTrackerId(url.searchParams.get("trackerId"));
 
-      let resolvedHaloService = haloService;
-      if (trackerId != null) {
-        try {
-          const tracker = await databaseService.getIndividualTracker(trackerId);
-          if (tracker?.IsLive === 1) {
-            const userClient = await userTokenProvider.getClientForUser(tracker.UserId);
-            if (userClient != null) {
-              resolvedHaloService = haloService.withUserClient(userClient);
-            }
-          }
-        } catch (error) {
-          logService.error(
-            error,
-            new Map([
-              ["context", "Failed to resolve user credentials for series matches tracker"],
-              ["trackerId", trackerId],
-            ]),
-          );
-        }
-      }
+      const resolvedHaloService = await resolveTrackerHaloService(
+        services,
+        trackerId,
+        "Failed to resolve user credentials for series matches tracker",
+      );
 
       const matches = await resolvedHaloService.getMatchDetails([...new Set(canonicalMatchIds)]);
       const matchesById: Record<string, MatchStats> = {};
