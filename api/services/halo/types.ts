@@ -18,6 +18,13 @@ export interface MatchDetailOptions extends MatchDetailRosterOptions {
   plannedMapIndex?: number | undefined;
 }
 
+export interface SeriesDetailAggregationOptions {
+  identitiesByPlayerId?: ReadonlyMap<string, Pick<Player, "gamertag" | "discordUserId">> | undefined;
+  teamNamesBySeriesTeamId?: ReadonlyMap<number, string> | undefined;
+  medalMetadataById?: MatchDetailRosterOptions["medalMetadataById"];
+  medalDifficulties?: MatchDetailRosterOptions["medalDifficulties"];
+}
+
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };
 
