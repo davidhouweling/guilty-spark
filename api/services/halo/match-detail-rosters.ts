@@ -1,4 +1,4 @@
-import type { HaloInfiniteClient, MatchStats } from "halo-infinite-api";
+import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { playerSchema, teamMappingSchema, teamSchema } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import type { Player, PlayerTeamStats, Team } from "@guilty-spark/shared/contracts/stats/detail-primitives";
@@ -8,15 +8,7 @@ import { calculateMatchStats } from "@guilty-spark/shared/halo/match-stat-calcul
 import { getMatchObjectiveStatValues } from "@guilty-spark/shared/halo/match-objective-stat-values";
 import { serializeMedalDetails } from "@guilty-spark/shared/halo/medal-detail-serialization";
 import { serializeStatDetails } from "@guilty-spark/shared/halo/stat-detail-serialization";
-
-type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
-
-interface MatchDetailRosterOptions {
-  identitiesByPlayerId?: ReadonlyMap<string, Pick<Player, "gamertag" | "discordUserId">> | undefined;
-  matchTeamIdToSeriesTeamId?: ReadonlyMap<number, number | null> | undefined;
-  medalMetadataById?: Record<number, MedalMetadataFile["medals"][number] | null | undefined> | undefined;
-  medalDifficulties?: MedalMetadataFile["difficulties"] | undefined;
-}
+import type { MatchDetailRosterOptions } from "./types";
 
 function validateSourceIdentities(
   match: MatchStats,
