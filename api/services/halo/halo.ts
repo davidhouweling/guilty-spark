@@ -1000,29 +1000,7 @@ export class HaloService {
 
   async getMapThumbnailUrl(assetId: string, versionId: string): Promise<string | null> {
     try {
-      const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
-        cf: {
-          cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
-        },
-      });
-
-      const { Prefix, FileRelativePaths } = asset.Files;
-
-      const thumbnailFile = FileRelativePaths.find((file) => file.includes("thumbnail"));
-      if (thumbnailFile != null) {
-        return `${Prefix}${thumbnailFile}`;
-      }
-
-      const heroFile = FileRelativePaths.find((file) => file.includes("hero"));
-      if (heroFile != null) {
-        return `${Prefix}${heroFile}`;
-      }
-
-      if (FileRelativePaths.length > 0) {
-        return `${Prefix}${Preconditions.checkExists(FileRelativePaths[0])}`;
-      }
-
-      return null;
+      return await this.getMapThumbnailUrlStrict(assetId, versionId);
     } catch (error) {
       this.logService.warn(
         error,
@@ -1030,6 +1008,21 @@ export class HaloService {
       );
       return null;
     }
+  }
+
+  /** Returns null only for a valid asset without files; lookup and extraction errors propagate. */
+  async getMapThumbnailUrlStrict(assetId: string, versionId: string): Promise<string | null> {
+    const asset = await this.infiniteClient.getSpecificAssetVersion(AssetKind.Map, assetId, versionId, {
+      cf: {
+        cacheTtlByStatus: { "200-299": TimeInSeconds["1_WEEK"], 404: TimeInSeconds["1_DAY"], "500-599": 0 },
+      },
+    });
+    const { Prefix, FileRelativePaths } = asset.Files;
+    const file =
+      FileRelativePaths.find((path) => path.includes("thumbnail")) ??
+      FileRelativePaths.find((path) => path.includes("hero")) ??
+      (FileRelativePaths.length > 0 ? Preconditions.checkExists(FileRelativePaths[0]) : null);
+    return file == null ? null : `${Prefix}${file}`;
   }
 
   async validateDiscordAssociationsFromMatches(
@@ -1562,7 +1555,7 @@ export class HaloService {
     return playlistName;
   }
 
-  private async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
+  async getGameType(ugcGameVariantAssetId: string, ucgGameVariantVersionId: string): Promise<string> {
     const cacheKey = `${ugcGameVariantAssetId}:${ucgGameVariantVersionId}`;
     if (!this.gameTypeCache.has(cacheKey)) {
       const mapModeData = await this.infiniteClient.getSpecificAssetVersion(

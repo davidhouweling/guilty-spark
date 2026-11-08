@@ -25,8 +25,9 @@ describe("prepareMatchDetails", () => {
   let getMatchDetailsSpy: MockInstance<HaloService["getMatchDetails"]>;
   let getPlayerXuidsToGametagsSpy: MockInstance<HaloService["getPlayerXuidsToGametags"]>;
   let getMedalsMetadataSpy: MockInstance<HaloService["getMedalsMetadata"]>;
-  let getGameTypeAndMapPartsSpy: MockInstance<HaloService["getGameTypeAndMapParts"]>;
-  let getMapThumbnailUrlSpy: MockInstance<HaloService["getMapThumbnailUrl"]>;
+  let getMapNameSpy: MockInstance<HaloService["getMapName"]>;
+  let getGameTypeSpy: MockInstance<HaloService["getGameType"]>;
+  let getMapThumbnailUrlSpy: MockInstance<HaloService["getMapThumbnailUrlStrict"]>;
 
   beforeEach(() => {
     haloService = aFakeHaloServiceWith();
@@ -39,11 +40,10 @@ describe("prepareMatchDetails", () => {
       );
     getPlayerXuidsToGametagsSpy = vi.spyOn(haloService, "getPlayerXuidsToGametags").mockResolvedValue(new Map());
     getMedalsMetadataSpy = vi.spyOn(haloService, "getMedalsMetadata").mockResolvedValue(getMedalsMetadata());
-    getGameTypeAndMapPartsSpy = vi
-      .spyOn(haloService, "getGameTypeAndMapParts")
-      .mockResolvedValue({ gameMap: "Aquarius", gameType: "Slayer" });
+    getMapNameSpy = vi.spyOn(haloService, "getMapName").mockResolvedValue("Aquarius");
+    getGameTypeSpy = vi.spyOn(haloService, "getGameType").mockResolvedValue("Slayer");
     getMapThumbnailUrlSpy = vi
-      .spyOn(haloService, "getMapThumbnailUrl")
+      .spyOn(haloService, "getMapThumbnailUrlStrict")
       .mockResolvedValue("https://example.com/map.png");
   });
 
@@ -59,7 +59,8 @@ describe("prepareMatchDetails", () => {
     expect(prepared.rawMatches.map((match) => match.MatchId)).toEqual(["second", "first"]);
     expect(getPlayerXuidsToGametagsSpy).toHaveBeenCalledExactlyOnceWith(prepared.rawMatches);
     expect(getMedalsMetadataSpy).toHaveBeenCalledTimes(1);
-    expect(getGameTypeAndMapPartsSpy).toHaveBeenCalledTimes(1);
+    expect(getMapNameSpy).toHaveBeenCalledTimes(1);
+    expect(getGameTypeSpy).toHaveBeenCalledTimes(1);
     expect(getMapThumbnailUrlSpy).toHaveBeenCalledTimes(1);
     expect(prepared.batch.results[0]).toEqual(prepared.batch.results[2]);
   });
@@ -141,7 +142,8 @@ describe("prepareMatchDetails", () => {
     expect(prepared.rawMatches).toEqual([]);
     expect(getPlayerXuidsToGametagsSpy).not.toHaveBeenCalled();
     expect(getMedalsMetadataSpy).not.toHaveBeenCalled();
-    expect(getGameTypeAndMapPartsSpy).not.toHaveBeenCalled();
+    expect(getMapNameSpy).not.toHaveBeenCalled();
+    expect(getGameTypeSpy).not.toHaveBeenCalled();
     expect(getMapThumbnailUrlSpy).not.toHaveBeenCalled();
   });
 
@@ -171,12 +173,12 @@ describe("prepareMatchDetails", () => {
       raw.MatchInfo.MapVariant.AssetId = raw.MatchId;
       return [raw];
     });
-    getGameTypeAndMapPartsSpy.mockImplementation(async () => {
+    getMapNameSpy.mockImplementation(async () => {
       activeNames += 1;
       maximumNames = Math.max(maximumNames, activeNames);
       await Promise.resolve();
       activeNames -= 1;
-      return { gameMap: "Aquarius", gameType: "Slayer" };
+      return "Aquarius";
     });
     const prepared = await prepareMatchDetails(
       haloService,
@@ -262,14 +264,16 @@ describe("prepareMatchDetails", () => {
     expect(logErrorSpy).not.toHaveBeenCalled();
   });
 
-  it.each(["identities", "medals", "names", "thumbnail"])("propagates %s enrichment failures", async (source) => {
+  it.each(["identities", "medals", "map", "mode", "thumbnail"])("propagates %s enrichment failures", async (source) => {
     const error = new Error(`${source} failed`);
     if (source === "identities") {
       getPlayerXuidsToGametagsSpy.mockRejectedValue(error);
     } else if (source === "medals") {
       getMedalsMetadataSpy.mockRejectedValue(error);
-    } else if (source === "names") {
-      getGameTypeAndMapPartsSpy.mockRejectedValue(error);
+    } else if (source === "map") {
+      getMapNameSpy.mockRejectedValue(error);
+    } else if (source === "mode") {
+      getGameTypeSpy.mockRejectedValue(error);
     } else {
       getMapThumbnailUrlSpy.mockRejectedValue(error);
     }
@@ -284,7 +288,8 @@ describe("prepareMatchDetails", () => {
       Promise.resolve(matches.filter((match: MatchStats) => match.MatchId === matchId)),
     );
     await prepareMatchDetails(haloService, ["first", "second", "third"], logService);
-    expect(getGameTypeAndMapPartsSpy).toHaveBeenCalledTimes(3);
+    expect(getMapNameSpy).toHaveBeenCalledTimes(2);
+    expect(getGameTypeSpy).toHaveBeenCalledTimes(2);
     expect(getMapThumbnailUrlSpy).toHaveBeenCalledTimes(2);
   });
 });

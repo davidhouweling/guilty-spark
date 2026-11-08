@@ -64,8 +64,9 @@ async function loadRosterOptions(haloService: HaloService, matches: MatchStats[]
   ]);
   const identitiesByPlayerId = new Map<string, Pick<Player, "gamertag" | "discordUserId">>();
   for (const player of matches.flatMap((match) => match.Players)) {
+    const gamertag = player.PlayerType === 1 ? gamertags.get(getPlayerXuid(player)) : undefined;
     identitiesByPlayerId.set(player.PlayerId, {
-      gamertag: player.PlayerType === 1 ? (gamertags.get(getPlayerXuid(player)) ?? null) : null,
+      gamertag: gamertag === "*Unknown*" ? null : (gamertag ?? null),
     });
   }
   return {
@@ -80,21 +81,26 @@ async function mapDetails(
   matches: MatchStats[],
   rosterOptions: MatchDetailRosterOptions,
 ): Promise<Map<string, MatchDetailResult>> {
-  const names = new Map<string, ReturnType<HaloService["getGameTypeAndMapParts"]>>();
-  const thumbnails = new Map<string, ReturnType<HaloService["getMapThumbnailUrl"]>>();
+  const mapNames = new Map<string, ReturnType<HaloService["getMapName"]>>();
+  const modeNames = new Map<string, ReturnType<HaloService["getGameType"]>>();
+  const thumbnails = new Map<string, ReturnType<HaloService["getMapThumbnailUrlStrict"]>>();
   const results = new Map<string, MatchDetailResult>();
   async function mapDetail(match: MatchStats): Promise<void> {
     const info = match.MatchInfo;
     const mapKey = JSON.stringify([info.MapVariant.AssetId, info.MapVariant.VersionId]);
-    const namesKey = JSON.stringify([mapKey, info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId]);
-    if (!names.has(namesKey)) {
-      names.set(namesKey, haloService.getGameTypeAndMapParts(info));
+    const modeKey = JSON.stringify([info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId]);
+    if (!mapNames.has(mapKey)) {
+      mapNames.set(mapKey, haloService.getMapName(info.MapVariant.AssetId, info.MapVariant.VersionId));
+    }
+    if (!modeNames.has(modeKey)) {
+      modeNames.set(modeKey, haloService.getGameType(info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId));
     }
     if (!thumbnails.has(mapKey)) {
-      thumbnails.set(mapKey, haloService.getMapThumbnailUrl(info.MapVariant.AssetId, info.MapVariant.VersionId));
+      thumbnails.set(mapKey, haloService.getMapThumbnailUrlStrict(info.MapVariant.AssetId, info.MapVariant.VersionId));
     }
-    const [{ gameMap, gameType }, thumbnail] = await Promise.all([
-      Preconditions.checkExists(names.get(namesKey)),
+    const [gameMap, gameType, thumbnail] = await Promise.all([
+      Preconditions.checkExists(mapNames.get(mapKey)),
+      Preconditions.checkExists(modeNames.get(modeKey)),
       Preconditions.checkExists(thumbnails.get(mapKey)),
     ]);
     results.set(match.MatchId, {
@@ -114,7 +120,11 @@ async function mapDetails(
   return results;
 }
 
-/** Prepares bounded public results, including upstream HTTP failures, alongside backend-only raw matches. */
+/**
+ * Prepares bounded public results alongside backend-only raw matches.
+ * Raw HTTP failures become unavailable results; enrichment failures propagate.
+ * Map names, mode names and thumbnails reuse independent asset-version promises within this request.
+ */
 export async function prepareMatchDetails(
   haloService: HaloService,
   requestedIds: readonly string[],
