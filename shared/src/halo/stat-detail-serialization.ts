@@ -4,6 +4,7 @@ import type { StatsCollection, StatsValue } from "./types";
 
 const semanticFormats = new Map<string, Stat["format"]>([
   ["Accuracy", "percentage"],
+  ["Team objective contribution", "percentage"],
   ["Damage ratio", "ratio"],
   ["Avg damage per life", "ratio"],
   ["Avg life time", "duration-seconds"],
@@ -16,19 +17,35 @@ const semanticFormats = new Map<string, Stat["format"]>([
   ["Time as power seed driver", "duration-seconds"],
   ["Longest Time as VIP", "duration-seconds"],
   ["Time as VIP", "duration-seconds"],
+  ["Objective time", "duration-seconds"],
 ]);
 
+function getPercentageMetadata(key: string): Stat["percentage"] {
+  if (key === "Accuracy") {
+    return { scale: "percentage-points", maximumFractionDigits: 2 };
+  }
+  if (key === "Team objective contribution") {
+    return { scale: "fraction", maximumFractionDigits: 1 };
+  }
+  return undefined;
+}
+
 function serializeStat(key: string, stat: StatsValue, coreStats: Stats["CoreStats"]): Stat {
+  const percentage = getPercentageMetadata(key);
   const metadata = {
     key,
     name: key,
     sortBy: stat.sortBy,
     isComparable: stat.isComparable ?? true,
     format: semanticFormats.get(key) ?? "number",
+    ...(percentage === undefined ? {} : { percentage }),
     ...(stat.prefix === undefined ? {} : { prefix: stat.prefix }),
   };
 
   if (Number.isFinite(stat.value)) {
+    if (key === "Team objective contribution" && stat.isComparable === false) {
+      return { ...metadata, status: "unavailable" };
+    }
     return { ...metadata, status: "available", value: stat.value };
   }
 

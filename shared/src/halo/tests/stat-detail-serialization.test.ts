@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Stats } from "halo-infinite-api";
+import { GameVariantCategory } from "halo-infinite-api";
+import { Preconditions } from "../../base/preconditions";
 import { statSchema } from "../../contracts/stats/detail-primitives";
-import { aFakeCoreStatsWith, aFakeCtfStatsWith } from "../fakes/data";
+import {
+  aFakeCoreStatsWith,
+  aFakeCtfStatsWith,
+  aFakeMatchStatsWith,
+  aFakePlayerWith,
+  aFakeTeamWith,
+} from "../fakes/data";
+import { calculateSeriesPlayerStats } from "../series-stat-calculation";
 import { getCtfObjectiveStatValues } from "../objective-stats-values";
 import { getPlayerSlayerStatValues, getPlayerSlayerStats } from "../slayer-stats";
 import { serializeStatDetails } from "../stat-detail-serialization";
@@ -38,6 +47,7 @@ describe("serializeStatDetails", () => {
         sortBy: StatsValueSortBy.DESC,
         isComparable: true,
         format: "percentage",
+        percentage: { scale: "percentage-points", maximumFractionDigits: 2 },
         status: "available",
         value: 123.456789,
       },
@@ -101,6 +111,7 @@ describe("serializeStatDetails", () => {
     "Time as power seed driver",
     "Longest Time as VIP",
     "Time as VIP",
+    "Objective time",
   ])("marks the exact duration key %s as seconds without rounding", (key) => {
     const values: StatsCollection = new Map([[key, { value: 90.123456, sortBy: StatsValueSortBy.DESC }]]);
     expect(serializeStatDetails(values, aFakeCoreStatsWith())).toEqual([
@@ -123,6 +134,76 @@ describe("serializeStatDetails", () => {
         (stat) => stat.key === "Carrier time",
       ),
     ).toMatchObject({ status: "available", format: "duration-seconds", value: 90.1 });
+  });
+
+  it.each([
+    { teamTime: "PT60S", status: "available", value: 0.5 },
+    { teamTime: "PT0S", status: "unavailable", value: undefined },
+  ])(
+    "preserves actual series objective duration and $status fractional contribution",
+    ({ teamTime, status, value }) => {
+      expect.assertions(status === "unavailable" ? 4 : 3);
+      const match = aFakeMatchStatsWith({
+        MatchInfo: { ...aFakeMatchStatsWith().MatchInfo, GameVariantCategory: GameVariantCategory.MultiplayerCtf },
+        Teams: [aFakeTeamWith({ TeamId: 7, Stats: aFakeCtfStatsWith({ TimeAsFlagCarrier: teamTime }) })],
+        Players: [
+          aFakePlayerWith({
+            PlayerId: "xuid(1)",
+            LastTeamId: 7,
+            PlayerTeamStats: [{ TeamId: 7, Stats: aFakeCtfStatsWith({ TimeAsFlagCarrier: "PT30S" }) }],
+          }),
+        ],
+      });
+      const player = Preconditions.checkExists(calculateSeriesPlayerStats([match]).teams[0]?.players[0]);
+      const result = serializeStatDetails(player.values, player.coreStats);
+      expect(result.find((stat) => stat.key === "Objective time")).toMatchObject({
+        format: "duration-seconds",
+        value: 30,
+      });
+      const contribution = Preconditions.checkExists(result.find((stat) => stat.key === "Team objective contribution"));
+      expect(contribution).toEqual({
+        key: "Team objective contribution",
+        name: "Team objective contribution",
+        sortBy: StatsValueSortBy.DESC,
+        isComparable: status === "available",
+        format: "percentage",
+        percentage: { scale: "fraction", maximumFractionDigits: 1 },
+        status,
+        ...(value === undefined ? {} : { value }),
+      });
+      expect(statSchema.parse(JSON.parse(JSON.stringify(contribution)))).toEqual(contribution);
+      if (status === "unavailable") {
+        expect(contribution).not.toHaveProperty("value");
+      }
+    },
+  );
+
+  it.each([-1, 1.5, 21])("rejects invalid percentage precision %s in the contract", (maximumFractionDigits) => {
+    const stat = serializeStatDetails(getPlayerSlayerStatValues(aFakeCoreStatsWith()), aFakeCoreStatsWith()).find(
+      (entry) => entry.key === "Accuracy",
+    );
+    expect(
+      statSchema.safeParse({ ...stat, percentage: { scale: "percentage-points", maximumFractionDigits } }).success,
+    ).toBe(false);
+  });
+
+  it("accepts existing percentage contracts without metadata but rejects an unknown explicit scale", () => {
+    const metadata = {
+      key: "Accuracy",
+      name: "Accuracy",
+      sortBy: StatsValueSortBy.DESC,
+      isComparable: true,
+      format: "percentage",
+      status: "available",
+      value: 50,
+    };
+    expect(statSchema.parse(metadata)).toEqual(metadata);
+    expect(
+      statSchema.safeParse({
+        ...metadata,
+        percentage: { scale: "unknown", maximumFractionDigits: 2 },
+      }).success,
+    ).toBe(false);
   });
 
   it.each([
