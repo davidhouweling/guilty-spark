@@ -1,5 +1,6 @@
 import type { HaloInfiniteClient, UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 
 type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
@@ -23,6 +24,11 @@ export interface SeriesDetailAggregationOptions {
   teamNamesBySeriesTeamId?: ReadonlyMap<number, string> | undefined;
   medalMetadataById?: MatchDetailRosterOptions["medalMetadataById"];
   medalDifficulties?: MatchDetailRosterOptions["medalDifficulties"];
+}
+
+export interface SeriesDetailOptions extends SeriesDetailAggregationOptions {
+  isManualSeries?: boolean | undefined;
+  context?: SeriesDetailResponse["context"];
 }
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
