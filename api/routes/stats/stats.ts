@@ -1,5 +1,6 @@
 import type { RoutesRegisterHandler } from "../base/types";
 import { statsDiscordSeriesRoute } from "./discord-series";
+import { statsDiscordSeriesDetailRoute } from "./discord-series-detail";
 import { batchMatchAnalyticsRoute } from "./batch-analytics";
 import { seriesMatchesRoute } from "./series-matches";
 import { matchDetailsRoute } from "./match-details";
@@ -10,6 +11,7 @@ import { statsPreSeriesRoute } from "./pre-series";
 
 export const statsRoutesRegisterHandler: RoutesRegisterHandler = (router, installServices) => {
   statsDiscordSeriesRoute(router, installServices);
+  statsDiscordSeriesDetailRoute(router, installServices);
   batchMatchAnalyticsRoute(router, installServices);
   seriesMatchesRoute(router, installServices);
   matchDetailsRoute(router, installServices);
