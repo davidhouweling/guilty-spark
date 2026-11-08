@@ -12,6 +12,12 @@ const statMetadataSchema = z.object({
   sortBy: z.enum(StatsValueSortBy),
   isComparable: z.boolean(),
   format: z.enum(["number", "percentage", "duration-seconds", "ratio"]),
+  percentage: z
+    .object({
+      scale: z.enum(["fraction", "percentage-points"]),
+      maximumFractionDigits: z.number().int().min(0).max(20),
+    })
+    .optional(),
   prefix: z.string().optional(),
 });
 
