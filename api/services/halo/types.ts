@@ -7,8 +7,9 @@ type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadat
 
 export interface PreparedMatchDetails {
   batch: MatchDetailResponse;
-  /** Backend-only working data; serialize batch, never this preparation result. */
+  /** Backend-only inputs and working data; serialize batch, never this preparation result. */
   rawMatches: MatchStats[];
+  rosterOptions: MatchDetailRosterOptions;
 }
 
 export interface MatchDetailRosterOptions {

@@ -80,6 +80,10 @@ export const matchDetailQuerySchema = z.object({
 });
 export type MatchDetailQuery = z.infer<typeof matchDetailQuerySchema>;
 
+export const seriesDetailParamsSchema = z.object({
+  seriesId: z.string().min(1),
+});
+
 // One result per requested ID, including failures and duplicates, in request order.
 export const matchDetailBatchSchema = z
   .object({

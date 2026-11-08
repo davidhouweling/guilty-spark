@@ -115,6 +115,9 @@ describe("prepareMatchDetails", () => {
     expect(result.detail.map.thumbnailUrl).toBe("https://example.com/map.png");
     expect(result.detail.teams[0]?.seriesTeamId).toBeNull();
     expect(prepared.rawMatches).toEqual([raw]);
+    expect(prepared.rosterOptions.identitiesByPlayerId?.get("xuid(123)")).toEqual({ gamertag: "Spartan" });
+    expect(prepared.rosterOptions.medalMetadataById?.[medal.nameId]).toEqual(medal);
+    expect(prepared.rosterOptions.medalDifficulties).toEqual(getMedalsMetadata().difficulties);
     const response = await matchDetailContract.toResponse(prepared.batch).json();
     expect(response).toEqual(prepared.batch);
     expect(JSON.stringify(response)).not.toMatch(/rawMatches|MatchInfo|CoreStats|PlayerTeamStats/);
@@ -142,6 +145,7 @@ describe("prepareMatchDetails", () => {
     getMatchDetailsSpy.mockResolvedValue([]);
     const prepared = await prepareMatchDetails(haloService, ["missing"], logService);
     expect(prepared.rawMatches).toEqual([]);
+    expect(prepared.rosterOptions).toEqual({});
     expect(getPlayerXuidsToGametagsSpy).not.toHaveBeenCalled();
     expect(getMedalsMetadataSpy).not.toHaveBeenCalled();
     expect(getMapNameSpy).not.toHaveBeenCalled();
