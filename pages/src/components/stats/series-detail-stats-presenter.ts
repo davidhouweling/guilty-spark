@@ -1,7 +1,7 @@
 import type { SeriesAggregation, SeriesPlayer, SeriesTeam } from "@guilty-spark/shared/contracts/stats/detail";
 import type { SeriesStatsData } from "../../controllers/stats/stats-controller";
 import type { MatchStatsPlayerData } from "../../controllers/stats/types";
-import { DetailStatsFormatter } from "./match-detail-stats-presenter";
+import { DetailStatsFormatter } from "./detail-stats-formatter";
 
 type ResolvedAggregation = Extract<SeriesAggregation, { status: "resolved" }>;
 interface TeamPlayer {
