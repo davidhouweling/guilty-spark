@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
-import { createDiscordSeriesStats } from "../../components/discord-series-stats/create";
+import { createDiscordSeriesDetailStats } from "../../components/discord-series-stats/create-detail";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
-import type { Services } from "./services";
 import { installServices } from "./services";
 
 interface DiscordSeriesStatsAppProps {
@@ -20,7 +20,6 @@ interface DiscordSeriesStatsAppProps {
 interface DiscordSeriesStatsDataProps {
   readonly discordSeriesStatsService: DiscordSeriesStatsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly medalMetadataResolver: Services["medalMetadataResolver"];
   readonly guildId: string;
   readonly queueNumber: string;
 }
@@ -28,24 +27,21 @@ interface DiscordSeriesStatsDataProps {
 function DiscordSeriesStatsData({
   discordSeriesStatsService,
   matchAnalyticsService,
-  medalMetadataResolver,
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
-  const DiscordSeriesStats = useMemo(
-    () => createDiscordSeriesStats({ matchAnalyticsService, medalMetadataResolver }),
-    [matchAnalyticsService, medalMetadataResolver],
-  );
+  const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
 
   const presenter = useMemo(() => {
     return new DiscordSeriesStatsPresenter({
       store,
       discordSeriesStatsService,
+      matchAnalyticsService,
       guildId,
       queueNumber,
     });
-  }, [discordSeriesStatsService, guildId, queueNumber, store]);
+  }, [discordSeriesStatsService, guildId, matchAnalyticsService, queueNumber, store]);
 
   useEffect(() => {
     presenter.start();
@@ -62,6 +58,12 @@ function DiscordSeriesStatsData({
   );
 
   const model = useMemo(() => DiscordSeriesStatsPresenter.present(snapshot), [snapshot]);
+  const onAnalyticsTabSelected = useCallback(
+    (module: AnalyticsModule, matchId?: string): void => {
+      presenter.loadAnalytics(module, matchId);
+    },
+    [presenter],
+  );
 
   const loaderStatus =
     model.state === "loading"
@@ -77,7 +79,11 @@ function DiscordSeriesStatsData({
       error={<ErrorState message={model.state === "error" ? model.message : "Failed to load stats"} />}
       loaded={
         model.state === "resolved" ? (
-          <DiscordSeriesStats data={model.data} />
+          <DiscordSeriesStats
+            data={model.data}
+            analyticsByMatchId={snapshot.analyticsByMatchId}
+            onAnalyticsTabSelected={onAnalyticsTabSelected}
+          />
         ) : model.state === "pending-index" ? (
           <LoadingState
             text={`Stats are still indexing. Retry in ${Math.ceil(model.retryAfterSeconds).toString()}s.`}
@@ -96,7 +102,7 @@ function DiscordSeriesStatsData({
 
 export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: DiscordSeriesStatsAppProps): ReactElement {
   const [loadingServices, setLoadingServices] = useState(ComponentLoaderStatus.PENDING);
-  const [services, setServices] = useState<Services | null>(null);
+  const [services, setServices] = useState<Awaited<ReturnType<typeof installServices>> | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -139,7 +145,6 @@ export function DiscordSeriesStatsApp({ apiHost, guildId, queueNumber }: Discord
           <DiscordSeriesStatsData
             discordSeriesStatsService={services.discordSeriesStatsService}
             matchAnalyticsService={services.matchAnalyticsService}
-            medalMetadataResolver={services.medalMetadataResolver}
             guildId={guildId}
             queueNumber={queueNumber}
           />

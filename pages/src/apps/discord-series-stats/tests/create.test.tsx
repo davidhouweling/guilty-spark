@@ -2,13 +2,14 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { DiscordSeriesStatsApp } from "../create";
 import {
   aFakeDiscordSeriesStatsAppServicesWith,
-  aFakeForbiddenDiscordSeriesStatsWith,
-  aFakeNotFoundDiscordSeriesStatsWith,
-  aFakePendingDiscordSeriesStatsWith,
-  aFakeResolvedDiscordSeriesStatsWith,
+  aFakeForbiddenDiscordSeriesStatsDetailResultWith,
+  aFakeNotFoundDiscordSeriesStatsDetailResultWith,
+  aFakePendingDiscordSeriesStatsDetailResultWith,
+  aFakeResolvedDiscordSeriesStatsDetailResultWith,
 } from "../fakes/create.fake";
 
 const { mockInstallServices } = vi.hoisted(() => {
@@ -23,6 +24,14 @@ vi.mock("../services", () => {
   };
 });
 
+vi.mock("../../../components/icons/team-icon", () => ({
+  TeamIcon: ({ teamId }: { teamId: number }): ReactNode => <div>Team {teamId.toString()}</div>,
+}));
+
+vi.mock("../../../components/icons/medal-icon", () => ({
+  MedalIcon: ({ medalName }: { medalName: string }): ReactNode => <div>{medalName}</div>,
+}));
+
 afterEach(() => {
   cleanup();
   mockInstallServices.mockReset();
@@ -30,9 +39,7 @@ afterEach(() => {
 
 describe("DiscordSeriesStatsApp", () => {
   it("loads and renders resolved queue stats", async () => {
-    mockInstallServices.mockResolvedValue({
-      ...aFakeDiscordSeriesStatsAppServicesWith(aFakeResolvedDiscordSeriesStatsWith()),
-    });
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
 
     render(
       <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
@@ -44,7 +51,7 @@ describe("DiscordSeriesStatsApp", () => {
 
   it("renders pending message when stats are indexing", async () => {
     mockInstallServices.mockResolvedValue({
-      ...aFakeDiscordSeriesStatsAppServicesWith(aFakePendingDiscordSeriesStatsWith()),
+      ...aFakeDiscordSeriesStatsAppServicesWith(aFakePendingDiscordSeriesStatsDetailResultWith()),
     });
 
     render(
@@ -56,7 +63,7 @@ describe("DiscordSeriesStatsApp", () => {
 
   it("renders queue not found state", async () => {
     mockInstallServices.mockResolvedValue({
-      ...aFakeDiscordSeriesStatsAppServicesWith(aFakeNotFoundDiscordSeriesStatsWith()),
+      ...aFakeDiscordSeriesStatsAppServicesWith(aFakeNotFoundDiscordSeriesStatsDetailResultWith()),
     });
 
     render(
@@ -68,7 +75,7 @@ describe("DiscordSeriesStatsApp", () => {
 
   it("renders access forbidden state", async () => {
     mockInstallServices.mockResolvedValue({
-      ...aFakeDiscordSeriesStatsAppServicesWith(aFakeForbiddenDiscordSeriesStatsWith()),
+      ...aFakeDiscordSeriesStatsAppServicesWith(aFakeForbiddenDiscordSeriesStatsDetailResultWith()),
     });
 
     render(
@@ -81,11 +88,9 @@ describe("DiscordSeriesStatsApp", () => {
   });
 
   it("renders error state when fetch fails", async () => {
-    mockInstallServices.mockResolvedValue({
-      discordSeriesStatsService: {
-        getStats: async (): Promise<never> => Promise.reject(new Error("boom")),
-      },
-    });
+    const services = aFakeDiscordSeriesStatsAppServicesWith(aFakeResolvedDiscordSeriesStatsDetailResultWith());
+    vi.spyOn(services.discordSeriesStatsService, "getDetail").mockRejectedValue(new Error("boom"));
+    mockInstallServices.mockResolvedValue(services);
 
     render(
       <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,

@@ -1,13 +1,15 @@
-import type {
-  DiscordSeriesStats,
-  DiscordSeriesStatsResolved,
-} from "@guilty-spark/shared/contracts/stats/discord-series";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
+import type { DiscordSeriesStatsDetailResult } from "../../services/stats/discord-series-types";
+
+type DiscordSeriesStatsResponse = DiscordSeriesStatsDetailResult["data"];
 
 export interface DiscordSeriesStatsSnapshot {
   readonly loaderStatus: ComponentLoaderStatus;
-  readonly response: DiscordSeriesStats | null;
+  readonly response: DiscordSeriesStatsResponse | null;
   readonly errorMessage: string | null;
+  readonly analyticsByMatchId: SeriesMatchAnalyticsById;
 }
 
 export type DiscordSeriesStatsViewModel =
@@ -20,7 +22,7 @@ export type DiscordSeriesStatsViewModel =
     }
   | {
       readonly state: "resolved";
-      readonly data: DiscordSeriesStatsResolved;
+      readonly data: SeriesDetailResponse;
     }
   | {
       readonly state: "pending-index";
