@@ -4,7 +4,7 @@ import type { Stat } from "@guilty-spark/shared/contracts/stats/detail-primitive
 import { aFakeSeriesPlayerWith, aFakeSeriesTeamWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { aFakeMedalWith, aFakeStatWith } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import { SeriesDetailStatsPresenter } from "../series-detail-stats-presenter";
+import { StatsDetailController } from "../stats-detail-controller";
 
 type ResolvedAggregation = Extract<SeriesAggregation, { status: "resolved" }>;
 
@@ -23,10 +23,10 @@ function flags(stats: { bestInTeam: boolean; bestInMatch: boolean }[]): boolean[
   return stats.map(({ bestInTeam, bestInMatch }) => [bestInTeam, bestInMatch]);
 }
 
-describe("SeriesDetailStatsPresenter", () => {
+describe("StatsDetailController series mapping", () => {
   it("maps stable team and player IDs, per-team totals, medals and missing-games names", () => {
     const switching = playerWith("switch", 7, [aFakeStatWith({ value: 7 })]);
-    const result = new SeriesDetailStatsPresenter("en-US").present(
+    const result = new StatsDetailController("en-US").mapSeriesAggregationToStats(
       aggregationWith({
         teams: [
           aFakeSeriesTeamWith({
@@ -97,7 +97,7 @@ describe("SeriesDetailStatsPresenter", () => {
       aFakeStatWith({ key: "deaths", name: "Same", value: deaths, sortBy: StatsValueSortBy.ASC }),
       aFakeStatWith({ key: "ignored", value: kills, isComparable: false }),
     ];
-    const result = new SeriesDetailStatsPresenter().present(
+    const result = new StatsDetailController().mapSeriesAggregationToStats(
       aggregationWith({
         teams: [
           aFakeSeriesTeamWith({ seriesTeamId: 42, playerIds: ["a", "b"], stats: stats(50, 10) }),
@@ -159,7 +159,7 @@ describe("SeriesDetailStatsPresenter", () => {
     };
     const unavailable: Stat = { ...unbounded, status: "unavailable" };
     const finite = aFakeStatWith({ key: "ratio", format: "ratio", value: 999 });
-    const result = new SeriesDetailStatsPresenter("en-US").present(
+    const result = new StatsDetailController("en-US").mapSeriesAggregationToStats(
       aggregationWith({
         teams: [
           aFakeSeriesTeamWith({
@@ -194,8 +194,11 @@ describe("SeriesDetailStatsPresenter", () => {
   });
 
   it("preserves empty teams and zero-game aggregations without inventing rows or suffixes", () => {
-    expect(new SeriesDetailStatsPresenter().present(aggregationWith())).toEqual({ teamData: [], playerData: [] });
-    const result = new SeriesDetailStatsPresenter().present(
+    expect(new StatsDetailController().mapSeriesAggregationToStats(aggregationWith())).toEqual({
+      teamData: [],
+      playerData: [],
+    });
+    const result = new StatsDetailController().mapSeriesAggregationToStats(
       aggregationWith({
         gamesPlayed: 0,
         completedGameCount: 0,

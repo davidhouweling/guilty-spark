@@ -7,18 +7,13 @@ import { createMatchStatsFormatter } from "./create";
 import { SeriesTeamStatsFormatter } from "./series-team-stats-formatter";
 import { SeriesPlayerStatsFormatter } from "./series-player-stats-formatter";
 import { KillMatrixFormatter } from "./kill-matrix/kill-matrix-formatter";
-import type { MatchStatsData } from "./types";
+import type { MatchStatsData, SeriesStatsData } from "./types";
 import type { KillMatrixViewRow } from "./kill-matrix/types";
 
 export interface StatsPlayer {
   readonly xuid: string;
   readonly gamertag: string;
   readonly teamId: number | null;
-}
-
-export interface SeriesStatsData {
-  readonly teamData: MatchStatsData[];
-  readonly playerData: MatchStatsData[];
 }
 
 export class StatsController {
