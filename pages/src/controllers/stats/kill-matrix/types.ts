@@ -12,8 +12,8 @@ export interface KillMatrixPivotRow {
   readonly killerId: string;
   readonly killerGamertag: string;
   readonly killerTeamId: number | null;
-  readonly kills: ReadonlyMap<string, number>; // keyed by victim gamertag
-  readonly perfects: ReadonlyMap<string, number>; // keyed by victim gamertag
+  readonly kills: ReadonlyMap<string, number>; // keyed by victim XUID
+  readonly perfects: ReadonlyMap<string, number>; // keyed by victim XUID
 }
 
 export interface KillMatrixPivotData {

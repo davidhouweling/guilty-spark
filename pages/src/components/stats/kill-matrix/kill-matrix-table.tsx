@@ -143,14 +143,14 @@ export function KillMatrixTable({
       },
     ];
 
-    for (const { gamertag, teamId } of activeCrossTeamData.columnHeaders) {
+    for (const { gamertag, teamId, xuid } of activeCrossTeamData.columnHeaders) {
       const colTeamId: number | null = teamId;
       cols.push({
-        id: gamertag,
+        id: xuid,
         header: renderPlayerHeader(gamertag, colTeamId),
         headerClassName: styles.colHeader,
         headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
-        accessorFn: (row: KillMatrixCrossTeamRow): number => row.cells.get(gamertag)?.kills ?? 0,
+        accessorFn: (row: KillMatrixCrossTeamRow): number => row.cells.get(xuid)?.kills ?? 0,
         sortFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
@@ -158,7 +158,7 @@ export function KillMatrixTable({
             ? (row: KillMatrixCrossTeamRow): React.CSSProperties => cellTeamStyle(row.playerTeamId, colTeamId)
             : undefined,
         cell: (_value: unknown, row: KillMatrixCrossTeamRow): React.ReactNode => {
-          const cell = row.cells.get(gamertag);
+          const cell = row.cells.get(xuid);
           return (
             <button
               className={styles.cellButton}
@@ -207,14 +207,14 @@ export function KillMatrixTable({
       },
     ];
 
-    for (const { gamertag, teamId, xuid: colXuid } of activePivotData.columnHeaders) {
+    for (const { gamertag, teamId, xuid } of activePivotData.columnHeaders) {
       const colTeamId: number | null = teamId;
       cols.push({
-        id: gamertag,
+        id: xuid,
         header: renderPlayerHeader(gamertag, colTeamId),
         headerClassName: styles.colHeader,
         headerStyle: teamColors != null ? colTeamStyle(colTeamId) : undefined,
-        accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(gamertag) ?? 0,
+        accessorFn: (row: KillMatrixPivotRow): number => row.kills.get(xuid) ?? 0,
         sortFn: "basic",
         cellClassName: styles.killCell,
         cellStyle:
@@ -223,7 +223,7 @@ export function KillMatrixTable({
             : undefined,
         cell: (_value: unknown, row: KillMatrixPivotRow): React.ReactNode => {
           const aRow = pivotRowByXuid.get(row.killerId);
-          const bRow = pivotRowByXuid.get(colXuid);
+          const bRow = pivotRowByXuid.get(xuid);
           return (
             <button
               className={styles.cellButton}
@@ -231,15 +231,15 @@ export function KillMatrixTable({
                 setH2hData({
                   playerA: { gamertag: row.killerGamertag, teamId: row.killerTeamId },
                   playerB: { gamertag, teamId: colTeamId },
-                  aKillsOnB: aRow?.kills.get(gamertag) ?? 0,
-                  bKillsOnA: bRow?.kills.get(row.killerGamertag) ?? 0,
-                  aPerfsOnB: aRow?.perfects.get(gamertag) ?? 0,
-                  bPerfsOnA: bRow?.perfects.get(row.killerGamertag) ?? 0,
+                  aKillsOnB: aRow?.kills.get(xuid) ?? 0,
+                  bKillsOnA: bRow?.kills.get(row.killerId) ?? 0,
+                  aPerfsOnB: aRow?.perfects.get(xuid) ?? 0,
+                  bPerfsOnA: bRow?.perfects.get(row.killerId) ?? 0,
                 });
               }}
               aria-label={`${row.killerGamertag} vs ${gamertag} head to head`}
             >
-              {row.kills.get(gamertag) ?? 0}
+              {row.kills.get(xuid) ?? 0}
             </button>
           );
         },

@@ -54,6 +54,37 @@ describe("KillMatrixTable", () => {
     expect(screen.getByText("Deaths")).toBeInTheDocument();
   });
 
+  it("renders duplicate display labels with distinct kill counts", () => {
+    const pivotData = KillMatrixFormatter.pivot([
+      {
+        key: "111:222",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "222", gamertag: "*Unknown*", teamId: 1 },
+        count: 3,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+      {
+        key: "111:333",
+        killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+        victim: { xuid: "333", gamertag: "*Unknown*", teamId: 1 },
+        count: 7,
+        perfects: 0,
+        classification: "enemy-kill",
+      },
+    ]);
+
+    render(<KillMatrixTable pivotData={pivotData} ariaLabel="Kill matrix" emptyMessage="No kill matrix data." />);
+
+    const table = screen.getByRole("table", { name: "Kill matrix" });
+    expect(screen.getAllByText("*Unknown*")).toHaveLength(2);
+    expect(Array.from(table.querySelectorAll("tbody tr td"), (cell) => cell.textContent.trim())).toEqual([
+      "Team 0Alpha",
+      "3",
+      "7",
+    ]);
+  });
+
   it("shows shimmer skeleton when status is loading", () => {
     render(
       <KillMatrixTable
@@ -294,7 +325,7 @@ describe("KillMatrixTable", () => {
           playerId: "111",
           playerGamertag: "Alpha",
           playerTeamId: 0,
-          cells: new Map([["Bravo", { kills: 3, deaths: 1, killPerfects: 0, deathPerfects: 0 }]]),
+          cells: new Map([["222", { kills: 3, deaths: 1, killPerfects: 0, deathPerfects: 0 }]]),
         },
       ],
       columnHeaders: [{ gamertag: "Bravo", teamId: 1, xuid: "222" }],
@@ -306,7 +337,7 @@ describe("KillMatrixTable", () => {
           playerId: "222",
           playerGamertag: "Bravo",
           playerTeamId: 1,
-          cells: new Map([["Alpha", { kills: 1, deaths: 3, killPerfects: 0, deathPerfects: 0 }]]),
+          cells: new Map([["111", { kills: 1, deaths: 3, killPerfects: 0, deathPerfects: 0 }]]),
         },
       ],
       columnHeaders: [{ gamertag: "Alpha", teamId: 0, xuid: "111" }],
@@ -328,6 +359,44 @@ describe("KillMatrixTable", () => {
       const firstDataCell = table.querySelector("tbody tr td:nth-child(2)");
       expect(firstDataCell).toBeInTheDocument();
       expect(firstDataCell?.textContent).toBe("3:1");
+    });
+
+    it("renders duplicate display labels with distinct cross-team counts", () => {
+      const data: KillMatrixCrossTeamData = {
+        tableRows: [
+          {
+            playerId: "111",
+            playerGamertag: "Alpha",
+            playerTeamId: 0,
+            cells: new Map([
+              ["222", { kills: 3, deaths: 0, killPerfects: 0, deathPerfects: 0 }],
+              ["333", { kills: 7, deaths: 0, killPerfects: 0, deathPerfects: 0 }],
+            ]),
+          },
+        ],
+        columnHeaders: [
+          { gamertag: "*Unknown*", teamId: 1, xuid: "222" },
+          { gamertag: "*Unknown*", teamId: 1, xuid: "333" },
+        ],
+        footnote: null,
+      };
+
+      render(
+        <KillMatrixTable
+          pivotData={EMPTY_KILL_MATRIX_PIVOT_DATA}
+          ariaLabel="Kill matrix"
+          emptyMessage="No kill matrix data."
+          crossTeamData={data}
+        />,
+      );
+
+      const table = screen.getByRole("table", { name: "Kill matrix" });
+      expect(screen.getAllByText("*Unknown*")).toHaveLength(2);
+      expect(Array.from(table.querySelectorAll("tbody tr td"), (cell) => cell.textContent.trim())).toEqual([
+        "Team 0Alpha",
+        "3:0",
+        "7:0",
+      ]);
     });
 
     it("swap button switches which team is on rows vs columns", async () => {

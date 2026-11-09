@@ -67,7 +67,7 @@ describe("KillMatrixFormatter", () => {
       expect(result.columnHeaders).toEqual([{ gamertag: "Bravo", teamId: 1, xuid: "222" }]);
       expect(result.tableRows).toHaveLength(1);
       expect(result.tableRows[0]).toMatchObject({ killerId: "111", killerGamertag: "Alpha", killerTeamId: 0 });
-      expect(result.tableRows[0].kills.get("Bravo")).toBe(5);
+      expect(result.tableRows[0].kills.get("222")).toBe(5);
     });
 
     it("includes xuid in each column header", () => {
@@ -95,7 +95,44 @@ describe("KillMatrixFormatter", () => {
       expect(result.columnHeaders.map((h) => h.xuid)).toEqual(["222", "333"]);
     });
 
-    it("propagates perfects into pivot rows keyed by victim gamertag", () => {
+    it("keeps duplicate display labels distinct by XUID", () => {
+      const rows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "222", gamertag: "*Unknown*", teamId: 1 },
+          count: 3,
+          perfects: 1,
+          classification: "enemy-kill",
+        },
+        {
+          key: "111:333",
+          killer: { xuid: "111", gamertag: "Alpha", teamId: 0 },
+          victim: { xuid: "333", gamertag: "*Unknown*", teamId: 1 },
+          count: 7,
+          perfects: 2,
+          classification: "enemy-kill",
+        },
+      ];
+
+      const result = KillMatrixFormatter.pivot(rows);
+
+      expect(result.columnHeaders.map((header) => header.gamertag)).toEqual(["*Unknown*", "*Unknown*"]);
+      expect(result.tableRows[0]?.kills).toEqual(
+        new Map([
+          ["222", 3],
+          ["333", 7],
+        ]),
+      );
+      expect(result.tableRows[0]?.perfects).toEqual(
+        new Map([
+          ["222", 1],
+          ["333", 2],
+        ]),
+      );
+    });
+
+    it("propagates perfects into pivot rows keyed by victim XUID", () => {
       const rows: KillMatrixViewRow[] = [
         {
           key: "111:222",
@@ -109,7 +146,7 @@ describe("KillMatrixFormatter", () => {
 
       const result = KillMatrixFormatter.pivot(rows);
 
-      expect(result.tableRows[0].perfects.get("Bravo")).toBe(2);
+      expect(result.tableRows[0].perfects.get("222")).toBe(2);
     });
 
     it("sorts killers and victims alphabetically and fills zeros for missing kills", () => {
@@ -145,11 +182,11 @@ describe("KillMatrixFormatter", () => {
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Alpha", "Bravo"]);
       expect(result.tableRows).toHaveLength(2);
       expect(result.tableRows[0]).toMatchObject({ killerId: "333", killerGamertag: "Alpha" });
-      expect(result.tableRows[0].kills.get("Alpha")).toBe(1);
-      expect(result.tableRows[0].kills.get("Bravo")).toBe(0);
+      expect(result.tableRows[0].kills.get("111")).toBe(1);
+      expect(result.tableRows[0].kills.get("444")).toBe(0);
       expect(result.tableRows[1]).toMatchObject({ killerId: "222", killerGamertag: "Charlie" });
-      expect(result.tableRows[1].kills.get("Alpha")).toBe(2);
-      expect(result.tableRows[1].kills.get("Bravo")).toBe(3);
+      expect(result.tableRows[1].kills.get("111")).toBe(2);
+      expect(result.tableRows[1].kills.get("444")).toBe(3);
     });
 
     it("correctly handles players who appear as both killer and victim", () => {
@@ -177,11 +214,11 @@ describe("KillMatrixFormatter", () => {
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Alpha", "Bravo"]);
       expect(result.tableRows).toHaveLength(2);
       expect(result.tableRows[0]).toMatchObject({ killerGamertag: "Alpha" });
-      expect(result.tableRows[0].kills.get("Alpha")).toBe(0);
-      expect(result.tableRows[0].kills.get("Bravo")).toBe(3);
+      expect(result.tableRows[0].kills.get("111")).toBe(0);
+      expect(result.tableRows[0].kills.get("222")).toBe(3);
       expect(result.tableRows[1]).toMatchObject({ killerGamertag: "Bravo" });
-      expect(result.tableRows[1].kills.get("Alpha")).toBe(1);
-      expect(result.tableRows[1].kills.get("Bravo")).toBe(0);
+      expect(result.tableRows[1].kills.get("111")).toBe(1);
+      expect(result.tableRows[1].kills.get("222")).toBe(0);
     });
 
     it("respects orderedPlayers when provided", () => {
@@ -324,7 +361,7 @@ describe("KillMatrixFormatter", () => {
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Alpha"]);
       expect(result.tableRows).toHaveLength(1);
       expect(result.tableRows[0]).toMatchObject({ killerId: "222", killerGamertag: "Bravo" });
-      expect(result.tableRows[0].kills.get("Alpha")).toBe(5);
+      expect(result.tableRows[0].kills.get("111")).toBe(5);
     });
   });
 
@@ -379,20 +416,20 @@ describe("KillMatrixFormatter", () => {
       expect(result.tableRows).toHaveLength(2);
       expect(result.columnHeaders.map((h) => h.gamertag)).toEqual(["Bravo", "Delta"]);
       expect(result.tableRows[0]).toMatchObject({ playerId: "111", playerGamertag: "Alpha", playerTeamId: 0 });
-      expect(result.tableRows[0].cells.get("Bravo")).toEqual({
+      expect(result.tableRows[0].cells.get("222")).toEqual({
         kills: 3,
         deaths: 1,
         killPerfects: 0,
         deathPerfects: 0,
       });
-      expect(result.tableRows[0].cells.get("Delta")).toEqual({
+      expect(result.tableRows[0].cells.get("444")).toEqual({
         kills: 0,
         deaths: 0,
         killPerfects: 0,
         deathPerfects: 0,
       });
       expect(result.tableRows[1]).toMatchObject({ playerId: "333", playerGamertag: "Charlie", playerTeamId: 0 });
-      expect(result.tableRows[1].cells.get("Bravo")).toEqual({
+      expect(result.tableRows[1].cells.get("222")).toEqual({
         kills: 0,
         deaths: 0,
         killPerfects: 0,
@@ -424,10 +461,52 @@ describe("KillMatrixFormatter", () => {
 
       const result = KillMatrixFormatter.pivotCrossTeam(rowsWithPerfects, team0, team1);
 
-      expect(result.tableRows[0].cells.get("Bravo")).toEqual({
+      expect(result.tableRows[0].cells.get("222")).toEqual({
         kills: 3,
         deaths: 1,
         killPerfects: 1,
+        deathPerfects: 0,
+      });
+    });
+
+    it("keeps duplicate display labels distinct by XUID", () => {
+      const rowTeamPlayers = [{ xuid: "111", gamertag: "Alpha", teamId: 0 }];
+      const colTeamPlayers = [
+        { xuid: "222", gamertag: "*Unknown*", teamId: 1 },
+        { xuid: "333", gamertag: "*Unknown*", teamId: 1 },
+      ];
+      const unknownRows: KillMatrixViewRow[] = [
+        {
+          key: "111:222",
+          killer: rowTeamPlayers[0],
+          victim: colTeamPlayers[0],
+          count: 3,
+          perfects: 1,
+          classification: "enemy-kill",
+        },
+        {
+          key: "111:333",
+          killer: rowTeamPlayers[0],
+          victim: colTeamPlayers[1],
+          count: 7,
+          perfects: 2,
+          classification: "enemy-kill",
+        },
+      ];
+
+      const result = KillMatrixFormatter.pivotCrossTeam(unknownRows, rowTeamPlayers, colTeamPlayers);
+
+      expect(result.columnHeaders.map((header) => header.gamertag)).toEqual(["*Unknown*", "*Unknown*"]);
+      expect(result.tableRows[0]?.cells.get("222")).toEqual({
+        kills: 3,
+        deaths: 0,
+        killPerfects: 1,
+        deathPerfects: 0,
+      });
+      expect(result.tableRows[0]?.cells.get("333")).toEqual({
+        kills: 7,
+        deaths: 0,
+        killPerfects: 2,
         deathPerfects: 0,
       });
     });
@@ -494,8 +573,8 @@ describe("KillMatrixFormatter", () => {
     it("swappedCrossTeamData has kills and deaths mirrored from crossTeamData", () => {
       const result = KillMatrixFormatter.buildCrossTeam(rows, orderedPlayers);
 
-      const alphaVsBravo = result?.crossTeamData.tableRows[0]?.cells.get("Bravo");
-      const bravoVsAlpha = result?.swappedCrossTeamData.tableRows[0]?.cells.get("Alpha");
+      const alphaVsBravo = result?.crossTeamData.tableRows[0]?.cells.get("222");
+      const bravoVsAlpha = result?.swappedCrossTeamData.tableRows[0]?.cells.get("111");
 
       expect(alphaVsBravo).toEqual({ kills: 4, deaths: 2, killPerfects: 0, deathPerfects: 0 });
       expect(bravoVsAlpha).toEqual({ kills: 2, deaths: 4, killPerfects: 0, deathPerfects: 0 });

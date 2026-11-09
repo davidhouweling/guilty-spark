@@ -168,7 +168,11 @@ export class SeriesDetailStatsViewModelPresenter {
       scoreProgressionViewData:
         scoreProgressionState?.data == null
           ? null
-          : formatScoreProgression(scoreProgressionState.data, teamColors, teamSize),
+          : formatScoreProgression(
+              scoreProgressionState.data,
+              this.presentScoreProgressionTeamColors(detail, teamColors),
+              teamSize,
+            ),
     };
   }
 
@@ -275,6 +279,12 @@ export class SeriesDetailStatsViewModelPresenter {
     return teamColors;
   }
 
+  private presentScoreProgressionTeamColors(detail: MatchDetail, teamColors: readonly TeamColor[]): TeamColor[] {
+    return [...detail.teams]
+      .sort((left, right) => left.matchTeamId - right.matchTeamId)
+      .map((team, index) => teamColors[team.matchTeamId] ?? this.presentTeamColor(index));
+  }
+
   private presentTeamColor(teamIndex: number): TeamColor {
     return getTeamColorOrDefault(undefined, teamIndex);
   }
@@ -371,7 +381,7 @@ export class SeriesDetailStatsViewModelPresenter {
     const seriesPlayers = this.getSeriesKillMatrixPlayers(aggregation);
     const playersByXuid = new Map(seriesPlayers.map((player) => [player.xuid, player]));
     const matchKillMatrixRows: ReturnType<KillMatrixFormatter["present"]> = [];
-    for (const matchId of matchIds) {
+    for (const matchId of new Set(matchIds)) {
       const killMatrix = analyticsByMatchId.get(matchId)?.killMatrix?.data;
       if (killMatrix == null) {
         continue;
