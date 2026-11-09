@@ -14,7 +14,7 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesOverview?: boolean | undefined;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
-  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
 interface MatchSummaryItemProps {
@@ -65,7 +65,7 @@ interface MatchDetailSectionProps {
   readonly detail: SeriesMatchDetail;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
-  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule) => void) | undefined;
+  readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
 function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: MatchDetailSectionProps): ReactElement {
@@ -101,7 +101,7 @@ function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: 
           killMatrixStatus={detail.killMatrixStatus}
           scoreProgressionStatus={detail.scoreProgressionStatus}
           scoreProgressionViewData={detail.scoreProgressionViewData}
-          onAnalyticsTabSelected={onAnalyticsTabSelected}
+          onAnalyticsTabSelected={(module): void => onAnalyticsTabSelected?.(module, detail.matchId)}
         />
       ) : (
         <Alert variant="warning">Failed to load detailed stats for match {detail.matchId}.</Alert>
@@ -112,6 +112,7 @@ function MatchDetailSection({ detail, noGutter, wide, onAnalyticsTabSelected }: 
 
 export function SeriesStatsView({
   seriesScore,
+  seriesStatsWarning,
   matchSummaries,
   teams,
   seriesStats,
@@ -149,6 +150,12 @@ export function SeriesStatsView({
               ))}
             </div>
           </div>
+        </Container>
+      )}
+
+      {seriesStatsWarning != null && (
+        <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
+          <Alert variant="warning">{seriesStatsWarning}</Alert>
         </Container>
       )}
 
