@@ -15,7 +15,7 @@ import { Alert } from "../alert/alert";
 import { LoadingState } from "../loading-state/loading-state";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
-import type { MatchStatsData, MatchStatsPlayerData } from "../../controllers/stats/types";
+import type { MatchStatsData, MatchStatsPlayerData, MatchStatsValues } from "../../controllers/stats/types";
 import { sortByMedals, getTeamMedalsMap, getPlayerMedalsMap } from "../../controllers/stats/medals-sorting";
 import { KillMatrixTable } from "./kill-matrix/kill-matrix-table";
 import { createScoreProgression } from "./score-progression/create";
@@ -48,6 +48,10 @@ interface MatchStatsProps {
 }
 
 type MatchStatsRow = MatchStatsData & { player: MatchStatsPlayerData };
+
+function getStatId(stat: MatchStatsValues): string {
+  return stat.key ?? stat.name;
+}
 
 export function MatchStats({
   data,
@@ -97,19 +101,19 @@ export function MatchStats({
         sortFn: "basic",
       },
       ...statColumns.map((stat) => ({
-        id: stat.name,
+        id: getStatId(stat),
         header: stat.name,
         accessorFn: (row: MatchStatsData): number => {
-          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          const teamStat = row.teamStats.find((s) => getStatId(s) === getStatId(stat));
           return teamStat?.value ?? 0;
         },
         cell: (value: unknown, row: MatchStatsData): React.ReactNode => {
-          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          const teamStat = row.teamStats.find((s) => getStatId(s) === getStatId(stat));
           return teamStat?.display ?? String(value);
         },
         headerClassName: undefined,
         cellClassName: (row: MatchStatsData): string => {
-          const teamStat = row.teamStats.find((s) => s.name === stat.name);
+          const teamStat = row.teamStats.find((s) => getStatId(s) === getStatId(stat));
           return classNames(tableStyles.statCell, {
             [tableStyles.bestInMatch]: teamStat?.bestInMatch ?? false,
           });
@@ -156,19 +160,19 @@ export function MatchStats({
         sortFn: "alphanumeric",
       },
       ...statColumns.map((stat) => ({
-        id: stat.name,
+        id: getStatId(stat),
         header: stat.name,
         accessorFn: (row: MatchStatsRow): number => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          const playerStat = row.player.values.find((s) => getStatId(s) === getStatId(stat));
           return playerStat?.value ?? 0;
         },
         cell: (value: unknown, row: MatchStatsRow): React.ReactNode => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          const playerStat = row.player.values.find((s) => getStatId(s) === getStatId(stat));
           return playerStat?.display ?? String(value);
         },
         headerClassName: undefined,
         cellClassName: (row: MatchStatsRow): string => {
-          const playerStat = row.player.values.find((s) => s.name === stat.name);
+          const playerStat = row.player.values.find((s) => getStatId(s) === getStatId(stat));
           return classNames(tableStyles.statCell, {
             [tableStyles.bestInTeam]: playerStat?.bestInTeam ?? false,
             [tableStyles.bestInMatch]: playerStat?.bestInMatch ?? false,

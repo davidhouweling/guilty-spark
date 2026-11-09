@@ -8,8 +8,10 @@ import { MatchStats } from "../match-stats";
 import {
   aFakeMatchStatsDataWith,
   aFakeMatchStatsPlayerDataWith,
+  aFakeMatchStatsValuesWith,
 } from "../../../controllers/stats/fakes/component-data";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import tableStyles from "../../table/table.module.css";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../score-progression/types";
 import { SCORE_SCALE } from "../score-progression/score-scales";
@@ -147,6 +149,48 @@ describe("MatchStats", () => {
     expect(within(playerStatisticsTable).queryByRole("button", { name: "Team" })).not.toBeInTheDocument();
     expect(screen.getByText("PlayerAlpha")).toBeInTheDocument();
     expect(screen.getByText("PlayerBeta")).toBeInTheDocument();
+  });
+
+  it("renders stats with duplicate labels using their distinct keys", () => {
+    const kills = aFakeMatchStatsValuesWith({
+      key: "kills",
+      name: "Combat",
+      value: 10,
+      display: "10 kills",
+      bestInMatch: true,
+      bestInTeam: true,
+    });
+    const deaths = aFakeMatchStatsValuesWith({
+      key: "deaths",
+      name: "Combat",
+      value: 2,
+      display: "2 deaths",
+    });
+    const player = aFakeMatchStatsPlayerDataWith({ values: [kills, deaths] });
+    const data = [aFakeMatchStatsDataWith({ teamStats: [kills, deaths], players: [player] })];
+
+    render(
+      <MatchStats
+        data={data}
+        id="match-1"
+        backgroundImageUrl="https://example.com/background.png"
+        gameModeIconUrl="https://example.com/icon.png"
+        gameModeAlt=""
+        matchNumber={1}
+        gameTypeAndMap=""
+        duration=""
+        score=""
+        startTime=""
+        endTime=""
+      />,
+    );
+
+    const teamTable = screen.getByLabelText("Team statistics");
+    const playerTable = screen.getByLabelText("Player statistics");
+    expect(within(teamTable).getByText("10 kills")).toHaveClass(tableStyles.bestInMatch);
+    expect(within(teamTable).getByText("2 deaths")).not.toHaveClass(tableStyles.bestInMatch);
+    expect(within(playerTable).getByText("10 kills")).toHaveClass(tableStyles.bestInTeam);
+    expect(within(playerTable).getByText("2 deaths")).not.toHaveClass(tableStyles.bestInTeam);
   });
 
   it("formats start and end times as locale strings", () => {
