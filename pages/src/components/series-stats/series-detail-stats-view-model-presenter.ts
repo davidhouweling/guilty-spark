@@ -9,6 +9,7 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
@@ -16,8 +17,6 @@ import { formatScoreProgression } from "../stats/score-progression/score-progres
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import type { TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
-import { MatchDetailStatsPresenter } from "../stats/match-detail-stats-presenter";
-import { SeriesDetailStatsPresenter } from "../stats/series-detail-stats-presenter";
 import type {
   SeriesMatchDetail,
   SeriesMatchAnalyticsById,
@@ -51,14 +50,12 @@ const AGGREGATION_WARNINGS: Record<Extract<SeriesAggregation, { status: "unavail
 };
 
 export class SeriesDetailStatsViewModelPresenter {
-  private readonly matchPresenter: MatchDetailStatsPresenter;
-  private readonly seriesPresenter: SeriesDetailStatsPresenter;
   private readonly killMatrixFormatter = new KillMatrixFormatter();
 
-  constructor(private readonly locale?: string) {
-    this.matchPresenter = new MatchDetailStatsPresenter(locale);
-    this.seriesPresenter = new SeriesDetailStatsPresenter(locale);
-  }
+  constructor(
+    private readonly statsDetailController: StatsDetailController,
+    private readonly locale?: string,
+  ) {}
 
   present(
     response: SeriesDetailResponse,
@@ -105,7 +102,7 @@ export class SeriesDetailStatsViewModelPresenter {
 
     const { detail } = result;
     const labels = this.presentMatchLabels(detail);
-    const data = this.matchPresenter.present(detail);
+    const data = this.statsDetailController.mapMatchDetailToStats(detail);
     const teamColors = this.presentMatchTeamColors(detail);
     return {
       matchId: result.matchId,
@@ -365,7 +362,7 @@ export class SeriesDetailStatsViewModelPresenter {
     matchIds: readonly string[],
     analyticsByMatchId: SeriesMatchAnalyticsById,
   ): SeriesStatsSummary {
-    const data = this.seriesPresenter.present(aggregation);
+    const data = this.statsDetailController.mapSeriesAggregationToStats(aggregation);
     const teamColors: TeamColor[] = [];
     const teams = [...aggregation.teams].sort((left, right) => left.seriesTeamId - right.seriesTeamId);
     for (const [index, team] of teams.entries()) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { aFakeSeriesDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 
 describe("SeriesDetailStatsViewModelPresenter", () => {
@@ -8,7 +9,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       context: { title: "League", subtitle: "Queue #8" },
     });
 
-    expect(new SeriesDetailStatsViewModelPresenter().present(response)).toMatchObject({
+    expect(new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(response)).toMatchObject({
       title: "League",
       subtitle: "Queue #8",
     });
