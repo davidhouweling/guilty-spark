@@ -11,12 +11,17 @@ import {
   aFakePlayerWith,
   aFakeTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { aFakeCtfMatchAnalyticsWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { SeriesMatchAnalyticsById } from "../types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 
 type ResolvedAggregation = Extract<SeriesAggregation, { status: "resolved" }>;
+
+function createPresenter(locale?: string): SeriesDetailStatsViewModelPresenter {
+  return new SeriesDetailStatsViewModelPresenter(new StatsDetailController(locale), locale);
+}
 
 function responseWith(
   details: readonly MatchDetail[],
@@ -86,7 +91,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ],
       players: [aFakeSeriesPlayerWith()],
     };
-    const viewModel = new SeriesDetailStatsViewModelPresenter("en-US").present(responseWith([detail], aggregation));
+    const viewModel = createPresenter("en-US").present(responseWith([detail], aggregation));
 
     expect(viewModel.seriesScore).toBe("2:1");
     expect(viewModel.matchSummaries[0]).toMatchObject({
@@ -166,7 +171,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ["second", { killMatrix: { status: ComponentLoaderStatus.LOADED, data: killMatrix } }],
     ]);
 
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(
+    const viewModel = createPresenter().present(
       responseWith([firstMatch, secondMatch], aggregation),
       analyticsByMatchId,
     );
@@ -208,7 +213,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ],
     ]);
 
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(responseWith([detail]), analyticsByMatchId);
+    const viewModel = createPresenter().present(responseWith([detail]), analyticsByMatchId);
 
     expect(viewModel.matchDetails[0]).toMatchObject({
       killMatrixStatus: ComponentLoaderStatus.LOADED,
@@ -226,7 +231,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
         },
       ],
     ]);
-    const loadingViewModel = new SeriesDetailStatsViewModelPresenter().present(
+    const loadingViewModel = createPresenter().present(
       responseWith([detail]),
       loadingAnalyticsByMatchId,
     );
@@ -274,7 +279,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
         aFakeSeriesPlayerWith({ playerId: "a", gamertag: "Alpha Player" }),
       ],
     };
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(responseWith([older, latest], aggregation));
+    const viewModel = createPresenter().present(responseWith([older, latest], aggregation));
 
     expect(viewModel.matchSummaries[1]?.winningTeamColorHex).toBe("#FE3939");
     expect(viewModel.matchDetails[1]?.teamColors[11]?.hex).toBe("#FE3939");
@@ -294,7 +299,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       teamCount: 1,
     });
 
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(responseWith([detail]));
+    const viewModel = createPresenter().present(responseWith([detail]));
 
     expect(viewModel.teams[0]?.players).toEqual(["human", "Bot"]);
   });
@@ -307,7 +312,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ],
       teamCount: 2,
     });
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(responseWith([detail]));
+    const viewModel = createPresenter().present(responseWith([detail]));
 
     expect(viewModel.matchSummaries[0]?.winningTeamColorHex).toBe("#FE3939");
     expect(viewModel.matchDetails[0]?.teamColors[7]?.hex).toBe("#FE3939");
@@ -319,7 +324,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       matches: { matchIds: ["missing"], results: [{ status: "unavailable", matchId: "missing", reason: "not-found" }] },
       aggregation: { status: "unavailable", reason: "incomplete-matches" },
     });
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(response);
+    const viewModel = createPresenter().present(response);
 
     expect(viewModel.seriesScore).toBe("Unavailable");
     expect(viewModel.seriesStats).toBeNull();
@@ -329,7 +334,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
   });
 
   it("uses series context labels and clear defaults when context is absent", () => {
-    const presenter = new SeriesDetailStatsViewModelPresenter();
+    const presenter = createPresenter();
     const details = [aFakeMatchDetailWith()];
 
     expect(
