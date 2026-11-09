@@ -381,11 +381,13 @@ export class SeriesDetailStatsViewModelPresenter {
     const seriesPlayers = this.getSeriesKillMatrixPlayers(aggregation);
     const playersByXuid = new Map(seriesPlayers.map((player) => [player.xuid, player]));
     const matchKillMatrixRows: ReturnType<KillMatrixFormatter["present"]> = [];
+    let hasKillMatrixData = false;
     for (const matchId of new Set(matchIds)) {
       const killMatrix = analyticsByMatchId.get(matchId)?.killMatrix?.data;
       if (killMatrix == null) {
         continue;
       }
+      hasKillMatrixData = true;
       matchKillMatrixRows.push(
         ...this.killMatrixFormatter.present({
           analytics: this.createKillMatrixAnalytics(killMatrix),
@@ -394,7 +396,7 @@ export class SeriesDetailStatsViewModelPresenter {
       );
     }
     const aggregatedRows = KillMatrixFormatter.aggregate(matchKillMatrixRows);
-    const crossTeam = KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers);
+    const crossTeam = hasKillMatrixData ? KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers) : null;
     return {
       teamData: data.teamData,
       playerData: data.playerData,
@@ -425,7 +427,7 @@ export class SeriesDetailStatsViewModelPresenter {
 
   private getSeriesKillMatrixPlayers(aggregation: ResolvedAggregation): KillMatrixPlayer[] {
     const playersById = new Map(aggregation.players.map((player) => [player.playerId, player]));
-    const players: KillMatrixPlayer[] = [];
+    const playersByXuid = new Map<string, KillMatrixPlayer>();
     const teams = [...aggregation.teams].sort((left, right) => left.seriesTeamId - right.seriesTeamId);
     for (const team of teams) {
       for (const playerId of team.playerIds) {
@@ -433,14 +435,19 @@ export class SeriesDetailStatsViewModelPresenter {
         if (player?.xuid == null) {
           continue;
         }
-        players.push({
-          xuid: player.xuid,
-          gamertag: player.gamertag ?? "*Unknown*",
-          teamId: team.seriesTeamId,
-        });
+        const existing = playersByXuid.get(player.xuid);
+        if (existing == null) {
+          playersByXuid.set(player.xuid, {
+            xuid: player.xuid,
+            gamertag: player.gamertag ?? "*Unknown*",
+            teamId: team.seriesTeamId,
+          });
+        } else if (existing.teamId !== team.seriesTeamId && existing.teamId != null) {
+          playersByXuid.set(player.xuid, { ...existing, teamId: null });
+        }
       }
     }
-    return players;
+    return [...playersByXuid.values()];
   }
 
   private getSeriesKillMatrixStatus(
