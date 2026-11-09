@@ -1,8 +1,10 @@
 import type { DiscordSeriesStatsResolved } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { aFakeSeriesDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import type { LiveTrackerMatchSummary } from "@guilty-spark/shared/live-tracker/types";
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import type {
+  DiscordSeriesStatsDetailResult,
   DiscordSeriesStatsLookupResult,
   DiscordSeriesStatsResult,
   DiscordSeriesStatsService,
@@ -10,6 +12,7 @@ import type {
 
 interface FakeDiscordSeriesStatsServiceOptions {
   readonly result: DiscordSeriesStatsResult;
+  readonly detailResult: DiscordSeriesStatsDetailResult;
   readonly lookupResult: DiscordSeriesStatsLookupResult;
 }
 
@@ -75,17 +78,34 @@ export function aFakeDiscordSeriesStatsLookupResultWith(
   };
 }
 
+export function aFakeDiscordSeriesStatsDetailResultWith(
+  overrides: Partial<DiscordSeriesStatsDetailResult> = {},
+): DiscordSeriesStatsDetailResult {
+  return {
+    status: 200,
+    data: aFakeSeriesDetailResponseWith(),
+    retryAfterSeconds: null,
+    ...overrides,
+  };
+}
+
 export class FakeDiscordSeriesStatsService implements DiscordSeriesStatsService {
   private readonly result: DiscordSeriesStatsResult;
+  private readonly detailResult: DiscordSeriesStatsDetailResult;
   private readonly lookupResult: DiscordSeriesStatsLookupResult;
 
   constructor(options?: Partial<FakeDiscordSeriesStatsServiceOptions>) {
     this.result = options?.result ?? aFakeDiscordSeriesStatsResultWith();
+    this.detailResult = options?.detailResult ?? aFakeDiscordSeriesStatsDetailResultWith();
     this.lookupResult = options?.lookupResult ?? aFakeDiscordSeriesStatsLookupResultWith();
   }
 
   async getStats(): Promise<DiscordSeriesStatsResult> {
     return Promise.resolve(this.result);
+  }
+
+  async getDetail(): Promise<DiscordSeriesStatsDetailResult> {
+    return Promise.resolve(this.detailResult);
   }
 
   async getLookup(): Promise<DiscordSeriesStatsLookupResult> {
