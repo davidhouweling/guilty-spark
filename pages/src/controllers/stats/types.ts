@@ -11,6 +11,11 @@ export interface MatchStatsData {
   teamMedals: MedalEntry[];
 }
 
+export interface SeriesStatsData {
+  teamData: MatchStatsData[];
+  playerData: MatchStatsData[];
+}
+
 export interface MatchStatsPlayerData {
   name: string;
   values: MatchStatsValues[];

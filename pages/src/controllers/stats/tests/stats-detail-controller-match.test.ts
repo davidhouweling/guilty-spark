@@ -9,11 +9,11 @@ import {
   aFakeTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import { MatchDetailStatsPresenter } from "../match-detail-stats-presenter";
+import { StatsDetailController } from "../stats-detail-controller";
 
 type DetailStat = MatchDetail["teams"][number]["stats"][number];
 
-describe("MatchDetailStatsPresenter", () => {
+describe("StatsDetailController match mapping", () => {
   it("keeps team and membership order, selects team entries by stable IDs and maps serialized medals", () => {
     const switchingPlayer = aFakePlayerWith({
       playerId: "switching",
@@ -64,7 +64,7 @@ describe("MatchDetailStatsPresenter", () => {
         }),
       ],
     });
-    const result = new MatchDetailStatsPresenter("en-US").present(detail);
+    const result = new StatsDetailController("en-US").mapMatchDetailToStats(detail);
     expect(result.map((team) => team.teamId)).toEqual([42, 7]);
     expect(result.map((team) => team.players.map((player) => player.name))).toEqual([
       ["Bot", "Switcher", "*Unknown*"],
@@ -104,7 +104,7 @@ describe("MatchDetailStatsPresenter", () => {
         }),
       ],
     });
-    const result = new MatchDetailStatsPresenter().present(detail);
+    const result = new StatsDetailController().mapMatchDetailToStats(detail);
     expect(result[0].players[0].values.map(({ key }) => key)).toEqual(["kills", "deaths", "ignored"]);
     const flags = (values: (typeof result)[number]["teamStats"]): boolean[][] =>
       values.map(({ bestInTeam, bestInMatch }) => [bestInTeam, bestInMatch]);
@@ -166,7 +166,7 @@ describe("MatchDetailStatsPresenter", () => {
         }),
       ),
     });
-    const [team] = new MatchDetailStatsPresenter().present(detail);
+    const [team] = new StatsDetailController().mapMatchDetailToStats(detail);
     expect(team.players.map((player) => [player.values[0].bestInTeam, player.values[0].bestInMatch])).toEqual([
       [true, true],
       [true, true],
@@ -174,7 +174,7 @@ describe("MatchDetailStatsPresenter", () => {
       [false, false],
       [false, false],
     ]);
-    const [finiteTeam] = new MatchDetailStatsPresenter().present({
+    const [finiteTeam] = new StatsDetailController().mapMatchDetailToStats({
       ...detail,
       players: detail.players.slice(2),
     });
@@ -190,9 +190,11 @@ describe("MatchDetailStatsPresenter", () => {
       teams: [aFakeTeamWith({ playerIds: ["missing", "xuid(1234567890)"], stats: [], medals: [] })],
       players: [aFakePlayerWith({ teamStats: [aFakePlayerTeamStatsWith({ matchTeamId: 42 })] })],
     });
-    expect(new MatchDetailStatsPresenter().present(detail)).toEqual([
+    expect(new StatsDetailController().mapMatchDetailToStats(detail)).toEqual([
       { teamId: 7, teamStats: [], teamMedals: [], players: [] },
     ]);
-    expect(new MatchDetailStatsPresenter().present(aFakeMatchDetailWith({ teams: [], teamCount: 0 }))).toEqual([]);
+    expect(
+      new StatsDetailController().mapMatchDetailToStats(aFakeMatchDetailWith({ teams: [], teamCount: 0 })),
+    ).toEqual([]);
   });
 });

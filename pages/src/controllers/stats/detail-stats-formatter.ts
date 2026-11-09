@@ -3,7 +3,7 @@ import type { Stat, Medal } from "@guilty-spark/shared/contracts/stats/detail-pr
 import { getDurationInIsoString, getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import { formatStatValue, StatsValueSortBy } from "@guilty-spark/shared/halo/stat-formatting";
-import type { MatchStatsValues } from "../../controllers/stats/types";
+import type { MatchStatsValues } from "./types";
 
 type DetailStat = Stat;
 type DetailMedal = Medal;
