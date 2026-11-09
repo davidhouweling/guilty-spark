@@ -12,8 +12,8 @@ export interface MatchStatsData {
 }
 
 export interface SeriesStatsData {
-  teamData: MatchStatsData[];
-  playerData: MatchStatsData[];
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
 }
 
 export interface MatchStatsPlayerData {
