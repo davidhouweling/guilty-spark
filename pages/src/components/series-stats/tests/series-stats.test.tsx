@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { aFakeSeriesDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 import { SeriesStatsView } from "../series-stats";
 
@@ -28,7 +29,8 @@ vi.mock("../../icons/medal-icon", () => ({
 describe("SeriesStatsView analytics selection", () => {
   it("requests only selected analytics and forwards match identity for match-level tabs", () => {
     const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule, matchId?: string) => void>();
-    const viewModel = new SeriesDetailStatsViewModelPresenter().present(aFakeSeriesDetailResponseWith());
+    const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
+    const viewModel = presenter.present(aFakeSeriesDetailResponseWith());
 
     render(<SeriesStatsView {...viewModel} showSeriesTitle={false} onAnalyticsTabSelected={onAnalyticsTabSelected} />);
 
