@@ -18,6 +18,7 @@ export interface MatchStatsPlayerData {
 }
 
 export interface MatchStatsValues {
+  key?: string | undefined;
   name: string;
   value: number;
   bestInTeam: boolean;

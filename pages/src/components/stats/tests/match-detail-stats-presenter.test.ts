@@ -168,6 +168,7 @@ describe("MatchDetailStatsPresenter", () => {
       ],
     });
     const result = new MatchDetailStatsPresenter().present(detail);
+    expect(result[0].players[0].values.map(({ key }) => key)).toEqual(["kills", "deaths", "ignored"]);
     const flags = (values: (typeof result)[number]["teamStats"]): boolean[][] =>
       values.map(({ bestInTeam, bestInMatch }) => [bestInTeam, bestInMatch]);
     expect(result.map((team) => flags(team.teamStats))).toEqual([

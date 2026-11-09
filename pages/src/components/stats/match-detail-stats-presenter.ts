@@ -47,6 +47,7 @@ export class DetailStatsFormatter {
     const value = this.getNumericValue(stat);
     const comparable = stat.isComparable && stat.status !== "unavailable";
     return {
+      key: stat.key,
       name: stat.name,
       value,
       display: this.getDisplay(stat),
