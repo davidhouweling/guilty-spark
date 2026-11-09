@@ -1,3 +1,4 @@
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
@@ -65,8 +66,21 @@ export interface SeriesStatsViewModel {
   readonly title: string;
   readonly subtitle: string;
   readonly seriesScore: string;
+  readonly seriesStatsWarning?: string | null | undefined;
   readonly matchSummaries: readonly SeriesMatchSummary[];
   readonly teams: readonly SeriesTeamCard[];
   readonly seriesStats: SeriesStatsSummary | null;
   readonly matchDetails: readonly SeriesMatchDetail[];
 }
+
+export interface SeriesAnalyticsModuleState<TData> {
+  readonly status: ComponentLoaderStatus;
+  readonly data: TData | null;
+}
+
+export interface SeriesMatchAnalyticsState {
+  readonly killMatrix?: SeriesAnalyticsModuleState<MatchAnalytics["killMatrix"]> | undefined;
+  readonly scoreProgression?: SeriesAnalyticsModuleState<MatchAnalytics["scoreProgression"]> | undefined;
+}
+
+export type SeriesMatchAnalyticsById = ReadonlyMap<string, SeriesMatchAnalyticsState>;

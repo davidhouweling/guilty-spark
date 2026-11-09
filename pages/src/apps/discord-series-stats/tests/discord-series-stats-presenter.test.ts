@@ -4,6 +4,7 @@ import { ComponentLoaderStatus } from "../../../components/component-loader/comp
 import { DiscordSeriesStatsPresenter } from "../discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "../discord-series-stats-store";
 import { aFakeResolvedDiscordSeriesStatsWith } from "../fakes/create.fake";
+import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
 
 function createServiceWith(getStats: DiscordSeriesStatsService["getStats"]): DiscordSeriesStatsService {
   return {
@@ -11,6 +12,7 @@ function createServiceWith(getStats: DiscordSeriesStatsService["getStats"]): Dis
     getLookup: async (): Promise<{ status: number; retryAfterSeconds: number | null }> => {
       return Promise.resolve({ status: 200, retryAfterSeconds: null });
     },
+    getDetail: async () => aFakeDiscordSeriesStatsServiceWith().getDetail(),
   };
 }
 

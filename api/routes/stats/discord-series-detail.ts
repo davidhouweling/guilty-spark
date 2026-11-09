@@ -5,6 +5,8 @@ import {
   discordSeriesStatsParamsSchema,
 } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import { getDiscordGuildDisplayInfo } from "../../services/discord/discord-series-stats";
 import { prepareMatchDetails } from "../../services/halo/prepare-match-details";
 import { mapSeriesDetail } from "../../services/halo/series-detail";
 import type { RoutesRegisterHandler } from "../base/types";
@@ -39,7 +41,13 @@ export const statsDiscordSeriesDetailRoute: RoutesRegisterHandler = (router, ins
           isManualSeries: lookup.isManualSeries === true,
         },
       );
-      return seriesDetailContract.toResponse(detail, { noStore: true });
+      const { subtitle, guildIconUrl } = await getDiscordGuildDisplayInfo(guildId, discordService, logService);
+      const context: NonNullable<SeriesDetailResponse["context"]> = {
+        title: `Queue #${queueNumber.toString()} Series Stats`,
+        subtitle,
+        guildIconUrl,
+      };
+      return seriesDetailContract.toResponse({ ...detail, context }, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve discord series detail route"]]));
       return errorContract.toResponse(

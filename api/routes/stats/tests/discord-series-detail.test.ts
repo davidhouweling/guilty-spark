@@ -95,6 +95,11 @@ describe("/api/stats/discord/:guildId/:queueNumber/detail", () => {
     const text = await response.clone().text();
     const series = await seriesDetailContract.fromResponse(response);
     expect(series.seriesId).toBe(`${GUILD_ID}:${QUEUE_NUMBER.toString()}`);
+    expect(series.context).toEqual({
+      title: `Queue #${QUEUE_NUMBER.toString()} Series Stats`,
+      subtitle: `Guild ${GUILD_ID}`,
+      guildIconUrl: null,
+    });
     expect(series.matches.matchIds).toEqual(MATCH_IDS);
     expect(detailAt(series, 1).teams.map((team) => [team.matchTeamId, team.seriesTeamId])).toEqual([
       [7, 3],
