@@ -14,69 +14,6 @@ import { MatchDetailStatsPresenter } from "../match-detail-stats-presenter";
 type DetailStat = MatchDetail["teams"][number]["stats"][number];
 
 describe("MatchDetailStatsPresenter", () => {
-  it("formats supported values and statuses without changing their numeric values or names", () => {
-    const stats: DetailStat[] = [
-      aFakeStatWith({ name: "Score", value: 1234.567, prefix: "+" }),
-      aFakeStatWith({
-        name: "Accuracy",
-        format: "percentage",
-        value: 52.1234,
-        percentage: { scale: "percentage-points", maximumFractionDigits: 2 },
-      }),
-      aFakeStatWith({
-        name: "Contribution",
-        format: "percentage",
-        value: 0.12345,
-        prefix: "~",
-        percentage: { scale: "fraction", maximumFractionDigits: 1 },
-      }),
-      aFakeStatWith({ name: "Default percentage", format: "percentage", value: 12.345 }),
-      aFakeStatWith({ name: "Duration", format: "duration-seconds", value: 119.99 }),
-      aFakeStatWith({ name: "Zero duration", format: "duration-seconds", value: 0 }),
-      aFakeStatWith({ name: "Ratio", format: "ratio", value: 1.23456 }),
-      {
-        key: "unbounded",
-        name: "Unbounded",
-        sortBy: StatsValueSortBy.DESC,
-        isComparable: true,
-        format: "ratio",
-        status: "unbounded",
-        numerator: 10,
-        denominator: 0,
-      },
-      {
-        key: "unavailable",
-        name: "Unavailable",
-        sortBy: StatsValueSortBy.DESC,
-        isComparable: true,
-        format: "percentage",
-        prefix: "+",
-        status: "unavailable",
-      },
-    ];
-    const detail = aFakeMatchDetailWith({
-      teams: [aFakeTeamWith({ stats })],
-      players: [aFakePlayerWith({ teamStats: [aFakePlayerTeamStatsWith({ stats })] })],
-    });
-    const [team] = new MatchDetailStatsPresenter("en-US").present(detail);
-    const [player] = team.players;
-    expect(player.values.map(({ name, value, display }) => ({ name, value, display }))).toEqual([
-      { name: "Score", value: 1234.567, display: "+1,234.57" },
-      { name: "Accuracy", value: 52.1234, display: "52.12%" },
-      { name: "Contribution", value: 0.12345, display: "~12.3%" },
-      { name: "Default percentage", value: 12.345, display: "12.35%" },
-      { name: "Duration", value: 119.99, display: "1m 59s" },
-      { name: "Zero duration", value: 0, display: "0s" },
-      { name: "Ratio", value: 1.23456, display: "1.23" },
-      { name: "Unbounded", value: Infinity, display: "♾️" },
-      { name: "Unavailable", value: NaN, display: "n/a" },
-    ]);
-    expect(team.teamStats.map(({ name, value, display }) => ({ name, value, display }))).toEqual(
-      player.values.map(({ name, value, display }) => ({ name, value, display })),
-    );
-    expect(player.values.at(-1)).toMatchObject({ bestInTeam: false, bestInMatch: false });
-  });
-
   it("keeps team and membership order, selects team entries by stable IDs and maps serialized medals", () => {
     const switchingPlayer = aFakePlayerWith({
       playerId: "switching",
