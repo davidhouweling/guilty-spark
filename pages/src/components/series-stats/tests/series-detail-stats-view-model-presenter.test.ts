@@ -231,10 +231,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
         },
       ],
     ]);
-    const loadingViewModel = createPresenter().present(
-      responseWith([detail]),
-      loadingAnalyticsByMatchId,
-    );
+    const loadingViewModel = createPresenter().present(responseWith([detail]), loadingAnalyticsByMatchId);
 
     expect(loadingViewModel.matchDetails[0]).toMatchObject({
       killMatrixStatus: ComponentLoaderStatus.LOADING,
