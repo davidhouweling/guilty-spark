@@ -183,8 +183,8 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     expect(viewModel.matchDetails[0]?.killMatrixPivotData.tableRows[0]).toMatchObject({
       killerId: "100",
       kills: new Map([
-        ["first", 0],
-        ["second", 2],
+        ["100", 0],
+        ["200", 2],
       ]),
     });
     expect(viewModel.matchDetails[0]?.scoreProgressionViewData).not.toBeNull();
@@ -192,8 +192,8 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     expect(viewModel.seriesStats?.killMatrixPivotData.tableRows[0]).toMatchObject({
       killerId: "100",
       kills: new Map([
-        ["Alpha", 0],
-        ["Bravo", 4],
+        ["100", 0],
+        ["200", 4],
       ]),
     });
   });
