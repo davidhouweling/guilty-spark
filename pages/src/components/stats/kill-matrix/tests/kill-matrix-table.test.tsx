@@ -10,6 +10,10 @@ vi.mock("../../../icons/team-icon", () => ({
 }));
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { aFakeSeriesDetailWithTeamSwap } from "../../../series-stats/fakes/series-detail-team-swap.fake";
+import { SeriesDetailStatsViewModelPresenter } from "../../../series-stats/series-detail-stats-view-model-presenter";
+import { StatsDetailController } from "../../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { KillMatrixFormatter } from "../../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
@@ -52,6 +56,49 @@ describe("KillMatrixTable", () => {
     expect(screen.getByText("Bravo")).toBeInTheDocument();
     expect(screen.getByText("Kills")).toBeInTheDocument();
     expect(screen.getByText("Deaths")).toBeInTheDocument();
+  });
+
+  it("renders the full series matrix with latest team labels when cross-team layout is requested after swaps", async () => {
+    const user = userEvent.setup();
+    const model = new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
+      aFakeSeriesDetailWithTeamSwap(),
+      new Map([
+        [
+          "match-one",
+          { killMatrix: { status: ComponentLoaderStatus.LOADED, data: { "111:333": { count: 4, perfects: 1 } } } },
+        ],
+        [
+          "match-two",
+          { killMatrix: { status: ComponentLoaderStatus.LOADED, data: { "111:333": { count: 6, perfects: 2 } } } },
+        ],
+      ]),
+    );
+    const stats = Preconditions.checkExists(model.seriesStats);
+    render(
+      <KillMatrixTable
+        pivotData={stats.killMatrixPivotData}
+        transposedPivotData={stats.transposedKillMatrixPivotData}
+        crossTeamData={stats.crossTeamKillMatrixData ?? undefined}
+        teamColors={stats.teamColors}
+        ariaLabel="Series kill matrix"
+        emptyMessage="No kill matrix data."
+        status={stats.killMatrixStatus}
+        useCrossTeamLayout={true}
+      />,
+    );
+
+    expect(screen.queryByText("No kill matrix data.")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("team-icon-1")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Alpha vs Charlie head to head" })).toHaveTextContent("10");
+    expect(screen.getByRole("button", { name: "Alpha vs Charlie head to head" }).closest("td")).toHaveStyle({
+      "--row-team-color": "#3B9DFF",
+      "--col-team-color": "#3B9DFF",
+    });
+    const table = screen.getByRole("table", { name: "Series kill matrix" });
+    await user.click(within(table).getByRole("button", { name: "" }));
+    expect(screen.getByRole("button", { name: "Charlie vs Alpha head to head" })).toHaveTextContent("10");
+    await user.click(screen.getByRole("button", { name: "Charlie vs Alpha head to head" }));
+    expect(screen.getByRole("dialog", { name: "Head to head" })).toBeInTheDocument();
   });
 
   it("renders duplicate display labels with distinct kill counts", () => {

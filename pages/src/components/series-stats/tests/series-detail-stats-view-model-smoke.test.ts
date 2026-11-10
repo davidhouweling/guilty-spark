@@ -11,6 +11,7 @@ import { StatsDetailController } from "../../../controllers/stats/stats-detail-c
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { aFakeScoreProgressionWith } from "../../stats/score-progression/fakes/score-progression.fake";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
+import { aFakeSeriesDetailWithTeamSwap } from "../fakes/series-detail-team-swap.fake";
 
 describe("SeriesDetailStatsViewModelPresenter", () => {
   it("uses series context labels", () => {
@@ -132,7 +133,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       new Map([["match-one", { killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix } }]]),
     );
 
-    const {seriesStats} = viewModel;
+    const { seriesStats } = viewModel;
     expect(seriesStats?.crossTeamKillMatrixData).toBeNull();
     expect(seriesStats?.swappedCrossTeamKillMatrixData).toBeNull();
     expect(seriesStats?.killMatrixPivotData.columnHeaders).toContainEqual({
@@ -147,6 +148,69 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     expect(
       seriesStats?.killMatrixPivotData.tableRows.find(({ killerId }) => killerId === "333")?.kills.get("222"),
     ).toBe(4);
+  });
+
+  it("uses the latest roster for matrix display without moving historical team totals", () => {
+    const response = aFakeSeriesDetailWithTeamSwap();
+    const viewModel = new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
+      response,
+      new Map([
+        [
+          "match-one",
+          {
+            killMatrix: {
+              status: ComponentLoaderStatus.LOADED,
+              data: { "111:333": { count: 4, perfects: 1 }, "111:222": { count: 2, perfects: 0 } },
+            },
+          },
+        ],
+        [
+          "match-two",
+          {
+            killMatrix: {
+              status: ComponentLoaderStatus.LOADED,
+              data: { "111:333": { count: 6, perfects: 2 }, "111:222": { count: 3, perfects: 0 } },
+            },
+          },
+        ],
+      ]),
+    );
+
+    expect(viewModel.teams.map(({ name, players }) => ({ name, players }))).toEqual([
+      { name: "Eagle", players: ["Bravo"] },
+      { name: "Cobra", players: ["Alpha", "Charlie"] },
+    ]);
+    expect(viewModel.seriesStats?.crossTeamKillMatrixData).toBeNull();
+    expect(viewModel.seriesStats?.killMatrixPivotData.tableRows).toMatchObject([{ killerId: "111", killerTeamId: 1 }]);
+    expect(viewModel.seriesStats?.killMatrixPivotData.columnHeaders).toEqual([
+      { xuid: "222", gamertag: "Bravo", teamId: 0 },
+      { xuid: "333", gamertag: "Charlie", teamId: 1 },
+    ]);
+    expect(viewModel.seriesStats?.killMatrixPivotData.tableRows[0]?.kills.get("222")).toBe(5);
+    expect(viewModel.seriesStats?.killMatrixPivotData.tableRows[0]?.kills.get("333")).toBe(10);
+    expect(viewModel.seriesStats?.killMatrixPivotData.tableRows[0]?.perfects.get("333")).toBe(3);
+    expect(viewModel.seriesStats?.teamData.map(({ teamId, teamStats }) => [teamId, teamStats[0]?.value])).toEqual([
+      [0, 12],
+      [1, 18],
+    ]);
+    expect(
+      viewModel.seriesStats?.playerData.map(({ players }) =>
+        players.map(({ name, values }) => [name, values[0]?.value]),
+      ),
+    ).toEqual([
+      [
+        ["Alpha (1/2 games)", 5],
+        ["Bravo (1/2 games)", 5],
+      ],
+      [
+        ["Bravo (1/2 games)", 8],
+        ["Charlie", 8],
+        ["Alpha (1/2 games)", 8],
+      ],
+    ]);
+    expect(
+      viewModel.matchDetails.map(({ crossTeamKillMatrixData }) => crossTeamKillMatrixData?.tableRows[0]?.playerTeamId),
+    ).toEqual([7, 7]);
   });
 
   it("does not present zero cross-team totals when all loaded kill matrices are unavailable", () => {

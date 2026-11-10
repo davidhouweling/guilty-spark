@@ -85,7 +85,13 @@ export class SeriesDetailStatsViewModelPresenter {
       seriesStats:
         aggregation == null
           ? null
-          : this.presentSeriesStats(aggregation, metadata, response.matches.matchIds, analyticsByMatchId),
+          : this.presentSeriesStats(
+              aggregation,
+              metadata,
+              response.matches.matchIds,
+              analyticsByMatchId,
+              this.getLatestMatch(resolvedMatches),
+            ),
       seriesStatsWarning,
       matchDetails,
     };
@@ -371,6 +377,7 @@ export class SeriesDetailStatsViewModelPresenter {
     metadata: SeriesStatsSummary["metadata"],
     matchIds: readonly string[],
     analyticsByMatchId: SeriesMatchAnalyticsById,
+    latestMatch: MatchDetail | null,
   ): SeriesStatsSummary {
     const data = this.statsDetailController.mapSeriesAggregationToStats(aggregation);
     const teamColors: TeamColor[] = [];
@@ -378,7 +385,9 @@ export class SeriesDetailStatsViewModelPresenter {
     for (const [index, team] of teams.entries()) {
       teamColors[team.seriesTeamId] = this.presentTeamColor(index);
     }
-    const seriesPlayers = this.getSeriesKillMatrixPlayers(aggregation);
+    const historicalPlayers = this.getSeriesKillMatrixPlayers(aggregation);
+    const hasTeamChanges = historicalPlayers.some((player) => player.teamId == null);
+    const seriesPlayers = this.presentSeriesKillMatrixPlayers(historicalPlayers, latestMatch);
     const playersByXuid = new Map(seriesPlayers.map((player) => [player.xuid, player]));
     const matchKillMatrixRows: ReturnType<KillMatrixFormatter["present"]> = [];
     let hasKillMatrixData = false;
@@ -396,7 +405,8 @@ export class SeriesDetailStatsViewModelPresenter {
       );
     }
     const aggregatedRows = KillMatrixFormatter.aggregate(matchKillMatrixRows);
-    const crossTeam = hasKillMatrixData ? KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers) : null;
+    const crossTeam =
+      hasKillMatrixData && !hasTeamChanges ? KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers) : null;
     return {
       teamData: data.teamData,
       playerData: data.playerData,
@@ -448,6 +458,23 @@ export class SeriesDetailStatsViewModelPresenter {
       }
     }
     return [...playersByXuid.values()];
+  }
+
+  private presentSeriesKillMatrixPlayers(
+    players: readonly KillMatrixPlayer[],
+    latestMatch: MatchDetail | null,
+  ): KillMatrixPlayer[] {
+    const latestPlayers = new Map(latestMatch?.players.map((player) => [player.xuid, player]) ?? []);
+    const teams = new Map(latestMatch?.teams.map((team) => [team.matchTeamId, team.seriesTeamId]) ?? []);
+    return players
+      .map((player) => {
+        const latestPlayer = latestPlayers.get(player.xuid);
+        const teamId = latestPlayer?.lastMatchTeamId;
+        return latestPlayer == null
+          ? player
+          : { ...player, teamId: teamId == null ? null : (teams.get(teamId) ?? null) };
+      })
+      .sort((left, right) => (left.teamId ?? Infinity) - (right.teamId ?? Infinity));
   }
 
   private getSeriesKillMatrixStatus(

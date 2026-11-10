@@ -441,7 +441,7 @@ export function KillMatrixTable({
         status={effectiveStatus}
         loading={isCrossTeam ? crossTeamShimmer : shimmer}
         error={<Alert variant="warning">{errorMessage ?? emptyMessage}</Alert>}
-        loaded={isCrossTeam ? crossTeamLoaded : loaded}
+        loaded={activeCrossTeamData != null ? crossTeamLoaded : loaded}
       />
       <KillMatrixH2HDialog
         data={h2hData}
