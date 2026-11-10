@@ -151,8 +151,8 @@ export class KillMatrixFormatter {
       const kills = new Map<string, number>();
       const perfects = new Map<string, number>();
       for (const victim of sortedVictims) {
-        kills.set(victim.gamertag, victimCounts.get(victim.xuid) ?? 0);
-        perfects.set(victim.gamertag, victimPerfects.get(victim.xuid) ?? 0);
+        kills.set(victim.xuid, victimCounts.get(victim.xuid) ?? 0);
+        perfects.set(victim.xuid, victimPerfects.get(victim.xuid) ?? 0);
       }
       return {
         killerId: killer.xuid,
@@ -212,7 +212,7 @@ export class KillMatrixFormatter {
     const tableRows = rowTeamPlayers.map((rowPlayer) => {
       const cells = new Map(
         colTeamPlayers.map((colPlayer) => [
-          colPlayer.gamertag,
+          colPlayer.xuid,
           {
             kills: killCounts.get(rowPlayer.xuid)?.get(colPlayer.xuid) ?? 0,
             deaths: killCounts.get(colPlayer.xuid)?.get(rowPlayer.xuid) ?? 0,
