@@ -1,5 +1,5 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
-import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
@@ -89,7 +89,7 @@ export class DiscordSeriesStatsPresenter {
       return;
     }
 
-    this.store.setAnalyticsLoading(matchIds, module);
+    this.updateAnalytics(matchIds, module, ComponentLoaderStatus.LOADING);
     void this.loadAnalyticsAsync(module, matchIds);
   }
 
@@ -99,13 +99,47 @@ export class DiscordSeriesStatsPresenter {
       if (this.isDisposed) {
         return;
       }
-      this.store.setAnalyticsLoaded(matchIds, module, results);
+      this.updateAnalytics(matchIds, module, ComponentLoaderStatus.LOADED, results);
     } catch {
       if (this.isDisposed) {
         return;
       }
-      this.store.setAnalyticsError(matchIds, module);
+      this.updateAnalytics(matchIds, module, ComponentLoaderStatus.ERROR);
     }
+  }
+
+  private updateAnalytics(
+    matchIds: readonly string[],
+    module: AnalyticsModule,
+    requestedStatus: ComponentLoaderStatus,
+    results?: Record<string, MatchAnalytics | null>,
+  ): void {
+    const analyticsByMatchId = new Map(this.store.getSnapshot().analyticsByMatchId);
+    for (const matchId of matchIds) {
+      const current = analyticsByMatchId.get(matchId);
+      const analytics = results?.[matchId];
+      const status =
+        requestedStatus === ComponentLoaderStatus.LOADED && analytics == null
+          ? ComponentLoaderStatus.ERROR
+          : requestedStatus;
+      switch (module) {
+        case "killMatrix": {
+          analyticsByMatchId.set(matchId, { ...current, killMatrix: { status, data: analytics?.killMatrix ?? null } });
+          break;
+        }
+        case "scoreProgression": {
+          analyticsByMatchId.set(matchId, {
+            ...current,
+            scoreProgression: { status, data: analytics?.scoreProgression ?? null },
+          });
+          break;
+        }
+        default: {
+          throw new UnreachableError(module);
+        }
+      }
+    }
+    this.store.update({ analyticsByMatchId });
   }
 
   static present(snapshot: DiscordSeriesStatsSnapshot): DiscordSeriesStatsViewModel {
