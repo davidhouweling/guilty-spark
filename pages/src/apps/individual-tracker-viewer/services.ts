@@ -9,7 +9,12 @@ import {
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
-import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
+import {
+  installMatchAnalyticsService,
+  installMatchDetailsService,
+  installSeriesMatchesService,
+} from "../../services/stats/install";
+import type { MatchDetailsService } from "../../services/stats/detail-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { getMode } from "../../services/mode";
@@ -22,6 +27,7 @@ export interface Services {
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
+  readonly matchDetailsService: MatchDetailsService;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
@@ -36,12 +42,14 @@ export async function installServices(apiHost: string): Promise<Services> {
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
+    matchDetailsService,
   ] = await Promise.all([
     installAuthService(apiHost),
     installIndividualTrackerService(apiHost, haloClient),
     installIndividualTrackerViewService(apiHost),
     installMatchAnalyticsService(apiHost),
     installSeriesMatchesService(apiHost),
+    installMatchDetailsService(apiHost),
   ]);
   return {
     authService,
@@ -51,5 +59,6 @@ export async function installServices(apiHost: string): Promise<Services> {
     medalMetadataResolver,
     matchAnalyticsService,
     seriesMatchesService,
+    matchDetailsService,
   };
 }
