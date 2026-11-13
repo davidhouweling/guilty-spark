@@ -45,7 +45,10 @@ async function resolveOwnerClient(request: Request, services: Services): Promise
   }
 }
 
-async function resolveHaloProxyClient(request: Request, services: Services): Promise<ResolveHaloProxyClientResult> {
+export async function resolveHaloProxyClient(
+  request: Request,
+  services: Services,
+): Promise<ResolveHaloProxyClientResult> {
   const sessionWithMetadata = await services.authService.validateSessionWithAuthMetadata(request);
   if (sessionWithMetadata !== null) {
     const { session } = sessionWithMetadata;
