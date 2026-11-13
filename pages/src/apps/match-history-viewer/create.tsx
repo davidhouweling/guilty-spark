@@ -28,6 +28,7 @@ export function MatchHistoryViewerApp({ apiHost, gamertag }: MatchHistoryViewerA
         ? null
         : createMatchHistoryViewerPage({
             individualTrackerService: services.individualTrackerService,
+            condensedMatchHistoryService: services.condensedMatchHistoryService,
             individualTrackerSettingsService: services.individualTrackerSettingsService,
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
