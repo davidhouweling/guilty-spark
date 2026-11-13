@@ -10,7 +10,7 @@ import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/ma
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
-import { aFakeMatchStatsWith } from "../../../controllers/stats/fakes/data";
+import { aFakeMatchDetailsServiceWith } from "../../../services/stats/fakes/match-details.fake";
 import { IndividualTrackerViewerPresenter } from "../../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../../individual-tracker/viewer/viewer-store";
 import { MatchHistoryViewerPresenter } from "../match-history-viewer-presenter";
@@ -33,10 +33,12 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
   individualTrackerService: ReturnType<typeof aFakeIndividualTrackerServiceWith>;
   matchAnalyticsService: ReturnType<typeof aFakeMatchAnalyticsServiceWith>;
   seriesMatchesService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
+  matchDetailsService: ReturnType<typeof aFakeMatchDetailsServiceWith>;
 } {
   const individualTrackerService = aFakeIndividualTrackerServiceWith();
   const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+  const matchDetailsService = aFakeMatchDetailsServiceWith();
   const viewerStore = new IndividualTrackerViewerStore();
   const haloClient = aFakeHaloClientWith();
 
@@ -45,11 +47,19 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
     individualTrackerSettingsService: aFakeIndividualTrackerSettingsServiceWith(settings),
     matchAnalyticsService,
     seriesMatchesService,
+    matchDetailsService,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     viewerStore,
   });
 
-  return { presenter, viewerStore, individualTrackerService, matchAnalyticsService, seriesMatchesService };
+  return {
+    presenter,
+    viewerStore,
+    individualTrackerService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    matchDetailsService,
+  };
 }
 
 describe("MatchHistoryViewerPresenter", () => {
@@ -87,35 +97,23 @@ describe("MatchHistoryViewerPresenter", () => {
   });
 
   it("loads selected analytics for an expanded match", async () => {
-    const { presenter, viewerStore, individualTrackerService, matchAnalyticsService, seriesMatchesService } =
-      aPresenterSetup();
+    const {
+      presenter,
+      viewerStore,
+      individualTrackerService,
+      matchAnalyticsService,
+      seriesMatchesService,
+      matchDetailsService,
+    } = aPresenterSetup();
     const matchId = "match-1";
-    const rawMatch = aFakeMatchStatsWith({ MatchId: matchId });
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
     vi.spyOn(individualTrackerService, "getMatchHistory").mockResolvedValue({
       matches: [aFakeMatchHistoryEntryWith({ matchId })],
       suggestedGroupings: [],
     });
-    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-      playerXuidToGametag: {},
-      matches: [
-        {
-          matchId,
-          gameTypeAndMap: "Slayer: Aquarius",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Aquarius",
-          gameMapThumbnailUrl: "data:,",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          rawMatch,
-        },
-      ],
-    });
+    const detailSpy = vi.spyOn(matchDetailsService, "getMatchDetails");
+    const legacySpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
     const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
 
     presenter.search("Fake Spartan");
@@ -133,6 +131,8 @@ describe("MatchHistoryViewerPresenter", () => {
     await vi.waitFor(() => {
       expect(viewerStore.getSnapshot().entryStates.get(`match:${matchId}`)?.state.status).toBe("loaded");
     });
+    expect(detailSpy).toHaveBeenCalledExactlyOnceWith([matchId], undefined);
+    expect(legacySpy).not.toHaveBeenCalled();
 
     presenter.loadAnalytics(item, "killMatrix");
     await vi.waitFor(() => {

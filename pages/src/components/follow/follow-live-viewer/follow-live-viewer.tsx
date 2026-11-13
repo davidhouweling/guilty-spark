@@ -12,6 +12,7 @@ import type {
   TrackerViewConnectionStatus,
 } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
+import type { MatchDetailsService } from "../../../services/stats/detail-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { FollowTrackerTabs } from "../follow-tracker-tabs/follow-tracker-tabs";
 import type { FollowTrackerTab } from "../types";
@@ -28,6 +29,7 @@ export interface FollowLiveViewerProps {
   readonly connectionStatusOverride: TrackerViewConnectionStatus | undefined;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly matchDetailsService: MatchDetailsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly onSelectTracker: (trackerId: string) => void;
@@ -45,6 +47,7 @@ export function FollowLiveViewer({
   connectionStatusOverride,
   individualTrackerViewService,
   matchAnalyticsService,
+  matchDetailsService,
   seriesMatchesService,
   medalMetadataResolver,
   onSelectTracker,
@@ -55,10 +58,17 @@ export function FollowLiveViewer({
       createIndividualTrackerViewerPage({
         individualTrackerViewService,
         matchAnalyticsService,
+        matchDetailsService,
         seriesMatchesService,
         medalMetadataResolver,
       }),
-    [individualTrackerViewService, matchAnalyticsService, medalMetadataResolver, seriesMatchesService],
+    [
+      individualTrackerViewService,
+      matchAnalyticsService,
+      matchDetailsService,
+      medalMetadataResolver,
+      seriesMatchesService,
+    ],
   );
 
   const loadedState =

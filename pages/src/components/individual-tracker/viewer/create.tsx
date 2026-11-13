@@ -21,7 +21,7 @@ export interface CreateIndividualTrackerViewerPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService?: MatchDetailsService | undefined;
+  readonly matchDetailsService: MatchDetailsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly individualTrackerService?: IndividualTrackerService;
 }
