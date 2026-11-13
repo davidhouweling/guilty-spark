@@ -17,7 +17,7 @@ import type {
 } from "../../services/individual-tracker/condensed-match-history-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../services/stats/detail-types";
 import { EntryDetailController } from "../individual-tracker/viewer/entry-detail-controller";
 import type { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { ViewerTimelineItem } from "../individual-tracker/viewer/types";
@@ -33,6 +33,7 @@ interface Config {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly matchDetailsService?: MatchDetailsService | undefined;
+  readonly seriesDetailService?: SeriesDetailService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly viewerStore: IndividualTrackerViewerStore;
 }
@@ -55,6 +56,7 @@ export class MatchHistoryViewerPresenter {
       store: config.viewerStore,
       seriesMatchesService: config.seriesMatchesService,
       matchDetailsService: config.matchDetailsService,
+      seriesDetailService: config.seriesDetailService,
       matchAnalyticsService: config.matchAnalyticsService,
       medalMetadataResolver: config.medalMetadataResolver,
     });

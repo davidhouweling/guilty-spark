@@ -1,11 +1,12 @@
 import { getMode } from "../mode";
 import type { DiscordSeriesStatsService } from "./discord-series-types";
 import type { MatchAnalyticsService } from "./match-analytics-types";
-import type { MatchDetailsService } from "./detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "./detail-types";
 import type { SeriesMatchesService } from "./series-matches-types";
 import { RealDiscordSeriesStatsService } from "./discord-series";
 import { RealMatchAnalyticsService } from "./match-analytics";
 import { RealMatchDetailsService } from "./match-details";
+import { RealSeriesDetailService } from "./series-detail";
 import { RealSeriesMatchesService } from "./series-matches";
 
 export async function installDiscordSeriesStatsService(apiHost: string): Promise<DiscordSeriesStatsService> {
@@ -42,4 +43,13 @@ export async function installMatchDetailsService(apiHost: string): Promise<Match
   }
 
   return new RealMatchDetailsService({ apiHost });
+}
+
+export async function installSeriesDetailService(apiHost: string): Promise<SeriesDetailService> {
+  if (getMode() === "FAKE") {
+    const { aFakeSeriesDetailServiceWith } = await import("./fakes/series-detail.fake");
+    return aFakeSeriesDetailServiceWith();
+  }
+
+  return new RealSeriesDetailService({ apiHost });
 }

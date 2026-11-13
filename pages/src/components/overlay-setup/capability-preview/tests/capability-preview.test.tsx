@@ -13,6 +13,7 @@ import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/indi
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/fakes/match-details.fake";
+import { aFakeSeriesDetailServiceWith } from "../../../../services/stats/fakes/series-detail.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
@@ -88,6 +89,7 @@ function createPageComponents(directory = aDirectoryWith()): {
       matchAnalyticsService,
       seriesMatchesService,
       matchDetailsService: previewMatchDetailsService,
+      seriesDetailService: aFakeSeriesDetailServiceWith(),
       medalMetadataResolver,
     }),
     getSeriesMatches,

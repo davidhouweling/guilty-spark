@@ -6,6 +6,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { RealSeriesDetailService } from "../series-detail";
+import { aFakeSeriesDetailServiceWith } from "../fakes/series-detail.fake";
 
 describe("RealSeriesDetailService.getSeriesDetail", () => {
   let fetchSpy: MockInstance<typeof globalThis.fetch>;
@@ -64,13 +65,59 @@ describe("RealSeriesDetailService.getSeriesDetail", () => {
     });
   });
 
-  it("uses the shared batch limit and rejects an oversized selection before fetching", async () => {
-    await expect(
-      service.getSeriesDetail(
-        "series",
-        Array.from({ length: 31 }, (_, index) => `match-${index.toString()}`),
-      ),
-    ).rejects.toThrow();
-    expect(fetchSpy).not.toHaveBeenCalled();
+  it.each([" tracker-1 ", "  "])(
+    "posts the entire large selection with normalized tracker hint %j",
+    async (trackerId) => {
+      const matchIds = Array.from({ length: 31 }, (_, index) => `match-${index.toString()}`);
+      const detail = await aFakeSeriesDetailServiceWith().getSeriesDetail("guild:queue/1", matchIds);
+      fetchSpy.mockResolvedValueOnce(seriesDetailContract.toResponse(detail));
+
+      await expect(service.getSeriesDetail("guild:queue/1", matchIds, trackerId)).resolves.toEqual(detail);
+      expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+        `https://api.example.com/api/stats/series-details/guild%3Aqueue%2F1${trackerId.trim() === "" ? "" : "?trackerId=tracker-1"}`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ matchIds }),
+        },
+      );
+    },
+  );
+
+  it("keeps a 30-match selection on the GET path", async () => {
+    const matchIds = Array.from({ length: 30 }, (_, index) => `match-${index.toString()}`);
+    const detail = await aFakeSeriesDetailServiceWith().getSeriesDetail("series", matchIds);
+    fetchSpy.mockResolvedValueOnce(seriesDetailContract.toResponse(detail));
+
+    await expect(service.getSeriesDetail("series", matchIds)).resolves.toEqual(detail);
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+      `https://api.example.com/api/stats/series-details/series?${new URLSearchParams({ matchIds: matchIds.join(",") }).toString()}`,
+      { credentials: "include" },
+    );
+  });
+
+  it.each([{ matchIds: [] }, { matchIds: [" "] }])(
+    "rejects invalid selection $matchIds before fetching",
+    async ({ matchIds }) => {
+      await expect(service.getSeriesDetail("series", matchIds)).rejects.toThrow();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("FakeSeriesDetailService", () => {
+  it("preserves more than 30 selected matches without fetching", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const matchIds = Array.from({ length: 61 }, (_, index) => `match-${index.toString()}`);
+    try {
+      const response = await aFakeSeriesDetailServiceWith().getSeriesDetail("series", matchIds);
+
+      expect(response.matches.matchIds).toEqual(matchIds);
+      expect(response.matches.results.map((result) => result.matchId)).toEqual(matchIds);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });

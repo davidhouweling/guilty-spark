@@ -28,6 +28,7 @@ export function OverlaySetupApp({ apiHost }: OverlaySetupAppProps): ReactElement
             individualTrackerViewService: services.individualTrackerViewService,
             seriesMatchesService: services.seriesMatchesService,
             matchDetailsService: services.matchDetailsService,
+            seriesDetailService: services.seriesDetailService,
             matchAnalyticsService: services.matchAnalyticsService,
             medalMetadataResolver: services.medalMetadataResolver,
             apiHost,
