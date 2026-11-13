@@ -35,12 +35,12 @@
 }
 
 .input::placeholder {
-  color: var(color-mix(in srgb, var(--halo-gray) 70%, transparent));
+  color: color-mix(in srgb, var(--halo-gray) 70%, transparent);
   font-style: italic;
 }
 
 .hint {
-  color: var(color-mix(in srgb, var(--halo-gray) 70%, transparent));
+  color: color-mix(in srgb, var(--halo-gray) 70%, transparent);
   font-size: var(--text-xs);
   font-style: italic;
   margin: 0;
