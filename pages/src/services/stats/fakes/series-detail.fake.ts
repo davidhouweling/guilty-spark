@@ -1,5 +1,5 @@
-import { seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
-import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import { seriesDetailContract, seriesDetailRequestSchema } from "@guilty-spark/shared/contracts/stats/detail";
+import type { SeriesDetailResponse, SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -17,7 +17,13 @@ export class FakeSeriesDetailService implements SeriesDetailService {
     this.response = response;
   }
 
-  async getSeriesDetail(seriesId: string, matchIds: readonly string[]): Promise<SeriesDetailResponse> {
+  async getSeriesDetail(
+    seriesId: string,
+    matchIds: readonly string[],
+    _trackerId?: string,
+    teamMappingMode?: SeriesTeamMappingMode,
+  ): Promise<SeriesDetailResponse> {
+    const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode });
     if (this.response != null) {
       return await Promise.resolve(this.response);
     }
@@ -27,8 +33,8 @@ export class FakeSeriesDetailService implements SeriesDetailService {
         aFakeSeriesDetailResponseWith({
           seriesId,
           matches: {
-            matchIds: [...matchIds],
-            results: matchIds.map((matchId) => {
+            matchIds: request.matchIds,
+            results: request.matchIds.map((matchId) => {
               const detail = aFakeMatchDetailWith({ matchId });
               return { status: "resolved", matchId, detail };
             }),

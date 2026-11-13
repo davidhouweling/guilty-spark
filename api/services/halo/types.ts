@@ -1,6 +1,10 @@
 import type { HaloInfiniteClient, MatchStats, UserInfo as HaloUserInfo } from "halo-infinite-api";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
-import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type {
+  MatchDetailResponse,
+  SeriesDetailResponse,
+  SeriesTeamMappingMode,
+} from "@guilty-spark/shared/contracts/stats/detail";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
 
 type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
@@ -35,6 +39,7 @@ export interface SeriesDetailAggregationOptions {
 
 export interface SeriesDetailOptions extends SeriesDetailAggregationOptions {
   isManualSeries?: boolean | undefined;
+  teamMappingMode?: SeriesTeamMappingMode | undefined;
   context?: SeriesDetailResponse["context"];
 }
 

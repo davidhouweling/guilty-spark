@@ -19,6 +19,8 @@ import {
   seriesDetailContract,
   seriesDetailParamsSchema,
   seriesDetailRequestSchema,
+  seriesDetailQuerySchema,
+  seriesTeamMappingModeSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
 
 describe("series detail parameters", () => {
@@ -169,6 +171,18 @@ describe("bounded match detail batches", () => {
 });
 
 describe("selected series details", () => {
+  it("validates optional mapping modes consistently for GET and POST", () => {
+    expect.assertions(9);
+    for (const mode of ["exact-roster", "substitution-aware"]) {
+      expect(seriesTeamMappingModeSchema.safeParse(mode).success).toBe(true);
+      expect(seriesDetailQuerySchema.parse({ matchIds: "one", teamMappingMode: mode }).teamMappingMode).toBe(mode);
+      expect(seriesDetailRequestSchema.parse({ matchIds: ["one"], teamMappingMode: mode }).teamMappingMode).toBe(mode);
+    }
+    expect(seriesDetailQuerySchema.safeParse({ matchIds: "one", teamMappingMode: "" }).success).toBe(false);
+    expect(seriesDetailRequestSchema.safeParse({ matchIds: ["one"], teamMappingMode: "other" }).success).toBe(false);
+    expect(seriesDetailRequestSchema.parse({ matchIds: ["one"] }).teamMappingMode).toBeUndefined();
+  });
+
   it("accepts more than 30 ordered IDs without relaxing match batch or identity validation", () => {
     const matchIds = Array.from({ length: 31 }, (_, index) => `match-${String(index)}`);
     const results = matchIds.map((matchId) => ({ status: "unavailable", matchId, reason: "not-found" }));
