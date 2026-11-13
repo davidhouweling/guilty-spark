@@ -24,6 +24,7 @@ import {
   buildTeamRosterSignature,
   analyzeMatchGroupings,
 } from "@guilty-spark/shared/halo/match-enrichment";
+import { buildMatchResultString, buildTeams } from "@guilty-spark/shared/halo/match-history";
 import { getReadableDuration } from "@guilty-spark/shared/halo/duration";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type {
@@ -35,8 +36,6 @@ import type {
 } from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
 import {
-  buildMatchResultString,
-  buildTeams,
   formatDisplayDateTime,
   getCsrLabel,
   getMapThumbnailUrl,

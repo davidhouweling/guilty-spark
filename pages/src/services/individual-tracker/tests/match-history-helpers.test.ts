@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MapAsset, MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
+import { buildMatchResultString, buildTeams } from "@guilty-spark/shared/halo/match-history";
 import {
-  buildMatchResultString,
-  buildTeams,
   formatDisplayDateTime,
   getCsrLabel,
   getMapThumbnailUrl,
