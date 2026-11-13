@@ -1,9 +1,11 @@
 import type { CondensedMatchHistoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { prepareCondensedMatchHistory } from "../prepare-condensed-match-history";
 import type {
   CondensedMatchHistoryRequest,
   CondensedMatchHistoryService,
   PreparedMatchHistoryPage,
+  PreparedMatchHistoryEntry,
 } from "../condensed-match-history-types";
 
 export function aFakeCondensedMatchHistoryEntryWith(
@@ -46,6 +48,16 @@ export function aFakeCondensedMatchHistoryEntryWith(
     },
     ...overrides,
   };
+}
+
+export function aFakePreparedMatchHistoryEntryWith(
+  overrides: Partial<CondensedMatchHistoryEntry> = {},
+): PreparedMatchHistoryEntry {
+  const page = prepareCondensedMatchHistory({
+    matches: [aFakeCondensedMatchHistoryEntryWith(overrides)],
+    suggestedGroupings: [],
+  });
+  return Preconditions.checkExists(page.matches[0], "Expected prepared match history entry");
 }
 
 interface FakeCondensedMatchHistoryServiceOptions {
