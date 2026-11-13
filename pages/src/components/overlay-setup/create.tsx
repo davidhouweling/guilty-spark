@@ -10,6 +10,7 @@ import type { OverlayPreviewService } from "../../services/individual-tracker/ov
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { MatchDetailsService } from "../../services/stats/detail-types";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { createOverlayUrlsSection } from "../overlay-urls/create";
 import { createStatsHighlightsSection } from "../stats-highlights/create";
@@ -38,6 +39,7 @@ export interface CreateOverlaySetupPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly matchDetailsService: MatchDetailsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly apiHost: string;
 }
@@ -347,12 +349,17 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
           individualTrackerViewService: config.individualTrackerViewService,
           matchAnalyticsService: previewMatchAnalyticsService,
           seriesMatchesService: previewSeriesMatchesService,
+          matchDetailsService: {
+            getMatchDetails: async (matchIds): ReturnType<MatchDetailsService["getMatchDetails"]> =>
+              config.matchDetailsService.getMatchDetails(matchIds),
+          },
           medalMetadataResolver: config.medalMetadataResolver,
         }),
       [
         config.individualTrackerViewService,
         previewMatchAnalyticsService,
         previewSeriesMatchesService,
+        config.matchDetailsService,
         config.medalMetadataResolver,
       ],
     );
