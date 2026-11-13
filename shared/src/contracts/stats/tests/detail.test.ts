@@ -17,7 +17,16 @@ import {
   matchDetailContract,
   matchDetailQuerySchema,
   seriesDetailContract,
+  seriesDetailParamsSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
+
+describe("series detail parameters", () => {
+  it("requires a nonempty series identifier", () => {
+    expect(seriesDetailParamsSchema.parse({ seriesId: "selected" })).toEqual({ seriesId: "selected" });
+    expect(seriesDetailParamsSchema.safeParse({ seriesId: "" }).success).toBe(false);
+    expect(seriesDetailParamsSchema.safeParse({}).success).toBe(false);
+  });
+});
 
 describe("match details", () => {
   it("round trips numerical duration, chronological metadata and optional planned-map index", async () => {

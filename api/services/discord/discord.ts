@@ -466,6 +466,27 @@ export class DiscordService {
     }
   }
 
+  async getSeriesStatsDetailLookup(
+    guildId: string,
+    queueNumber: number,
+  ): Promise<DiscordSeriesLookupResult | DiscordSeriesStatsForbidden> {
+    const lookup = await this.getSeriesStatsLookup(guildId, queueNumber);
+    if (lookup.status === "forbidden") {
+      return lookup;
+    }
+
+    const manualMatchIds = await this.getManualSeriesMatchIds(guildId, queueNumber);
+    if (manualMatchIds != null) {
+      return { status: "lookup-resolved", guildId, queueNumber, matchIds: manualMatchIds, isManualSeries: true };
+    }
+
+    if (lookup.status !== "resolved") {
+      return lookup;
+    }
+
+    return { status: "lookup-resolved", guildId, queueNumber, matchIds: lookup.matchIds, isManualSeries: false };
+  }
+
   async getSeriesStats({
     guildId,
     queueNumber,

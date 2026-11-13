@@ -1,4 +1,3 @@
-import type { DiscordSeriesStats } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import type { DiscordSeriesStatsSnapshot } from "./types";
 
@@ -7,6 +6,7 @@ export class DiscordSeriesStatsStore {
     loaderStatus: ComponentLoaderStatus.PENDING,
     response: null,
     errorMessage: null,
+    analyticsByMatchId: new Map(),
   };
 
   private readonly listeners = new Set<() => void>();
@@ -23,29 +23,34 @@ export class DiscordSeriesStatsStore {
   }
 
   setLoading(): void {
-    this.snapshot = {
+    this.update({
       loaderStatus: ComponentLoaderStatus.LOADING,
       response: null,
       errorMessage: null,
-    };
-    this.emit();
+      analyticsByMatchId: new Map(),
+    });
   }
 
-  setLoaded(response: DiscordSeriesStats): void {
-    this.snapshot = {
+  setLoaded(response: NonNullable<DiscordSeriesStatsSnapshot["response"]>): void {
+    this.update({
       loaderStatus: ComponentLoaderStatus.LOADED,
       response,
       errorMessage: null,
-    };
-    this.emit();
+      analyticsByMatchId: new Map(),
+    });
   }
 
   setError(message: string): void {
-    this.snapshot = {
+    this.update({
       loaderStatus: ComponentLoaderStatus.ERROR,
       response: null,
       errorMessage: message,
-    };
+      analyticsByMatchId: new Map(),
+    });
+  }
+
+  update(patch: Partial<DiscordSeriesStatsSnapshot>): void {
+    this.snapshot = { ...this.snapshot, ...patch };
     this.emit();
   }
 

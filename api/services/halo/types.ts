@@ -1,5 +1,42 @@
-import type { UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
+import type { HaloInfiniteClient, MatchStats, UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
+import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
+import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
+
+type MedalMetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
+
+export interface PreparedMatchDetails {
+  batch: MatchDetailResponse;
+  /** Backend-only inputs and working data; serialize batch, never this preparation result. */
+  rawMatches: MatchStats[];
+  rosterOptions: MatchDetailRosterOptions;
+}
+
+export interface MatchDetailRosterOptions {
+  identitiesByPlayerId?: ReadonlyMap<string, Pick<Player, "gamertag" | "discordUserId">> | undefined;
+  matchTeamIdToSeriesTeamId?: ReadonlyMap<number, number | null> | undefined;
+  medalMetadataById?: Record<number, MedalMetadataFile["medals"][number] | null | undefined> | undefined;
+  medalDifficulties?: MedalMetadataFile["difficulties"] | undefined;
+}
+
+export interface MatchDetailOptions extends MatchDetailRosterOptions {
+  mapName: string | null;
+  modeName: string | null;
+  mapThumbnailUrl: string | null;
+  plannedMapIndex?: number | undefined;
+}
+
+export interface SeriesDetailAggregationOptions {
+  identitiesByPlayerId?: ReadonlyMap<string, Pick<Player, "gamertag" | "discordUserId">> | undefined;
+  teamNamesBySeriesTeamId?: ReadonlyMap<number, string> | undefined;
+  medalMetadataById?: MatchDetailRosterOptions["medalMetadataById"];
+  medalDifficulties?: MatchDetailRosterOptions["medalDifficulties"];
+}
+
+export interface SeriesDetailOptions extends SeriesDetailAggregationOptions {
+  isManualSeries?: boolean | undefined;
+  context?: SeriesDetailResponse["context"];
+}
 
 export type UserInfo = Pick<HaloUserInfo, "xuid" | "gamertag">;
 export type CachedUserInfo = UserInfo & { fetchedAt: number };

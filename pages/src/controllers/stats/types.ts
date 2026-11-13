@@ -11,6 +11,11 @@ export interface MatchStatsData {
   teamMedals: MedalEntry[];
 }
 
+export interface SeriesStatsData {
+  readonly teamData: MatchStatsData[];
+  readonly playerData: MatchStatsData[];
+}
+
 export interface MatchStatsPlayerData {
   name: string;
   values: MatchStatsValues[];
@@ -18,6 +23,7 @@ export interface MatchStatsPlayerData {
 }
 
 export interface MatchStatsValues {
+  key?: string | undefined;
   name: string;
   value: number;
   bestInTeam: boolean;

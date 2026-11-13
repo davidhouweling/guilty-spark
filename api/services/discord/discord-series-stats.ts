@@ -160,12 +160,18 @@ function getTeamPlayersFromMatch(match: MatchStats, teamId: number): MatchStats[
   });
 }
 
-async function getSubtitle(guildId: string, discordService: DiscordService, logService: LogService): Promise<string> {
+export async function getDiscordGuildDisplayInfo(
+  guildId: string,
+  discordService: DiscordService,
+  logService: LogService,
+): Promise<{ subtitle: string; guildIconUrl: string | null }> {
   let subtitle = `Guild ${guildId}`;
+  let guildIconUrl: string | null = null;
   try {
     const guild = await discordService.getGuild(guildId);
     const guildName = guild.name.trim();
     subtitle = guildName === "" ? `Guild ${guildId}` : guildName;
+    guildIconUrl = discordService.getGuildIconUrl(guild.id, guild.icon);
   } catch (error) {
     logService.warn(
       error,
@@ -175,7 +181,7 @@ async function getSubtitle(guildId: string, discordService: DiscordService, logS
       ]),
     );
   }
-  return subtitle;
+  return { subtitle, guildIconUrl };
 }
 
 export async function buildDiscordSeriesRenderDataFromMatches({
@@ -267,7 +273,7 @@ export async function buildDiscordSeriesRenderDataFromMatches({
     }),
   }));
 
-  const subtitle = await getSubtitle(guildId, discordService, logService);
+  const { subtitle } = await getDiscordGuildDisplayInfo(guildId, discordService, logService);
 
   return {
     title: `Queue #${queueNumber.toString()} Series Stats`,

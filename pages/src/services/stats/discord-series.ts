@@ -1,5 +1,7 @@
 import { discordSeriesStatsContract } from "@guilty-spark/shared/contracts/stats/discord-series";
+import { seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
 import type {
+  DiscordSeriesStatsDetailResult,
   DiscordSeriesStatsLookupResult,
   DiscordSeriesStatsResult,
   DiscordSeriesStatsService,
@@ -37,6 +39,21 @@ async function parseDiscordSeriesStatsResponse(response: Response): Promise<Disc
   };
 }
 
+async function parseDiscordSeriesStatsDetailResponse(response: Response): Promise<DiscordSeriesStatsDetailResult> {
+  const retryAfterSeconds = parseRetryAfterHeader(response.headers.get("Retry-After"));
+  if (response.status === 200) {
+    const data = await seriesDetailContract.fromResponse(response);
+    return { status: response.status, data, retryAfterSeconds };
+  }
+
+  const data = await discordSeriesStatsContract.fromResponse(response);
+  if (data.status === "resolved") {
+    throw new Error("Unexpected resolved stats response from Discord series detail endpoint");
+  }
+
+  return { status: response.status, data, retryAfterSeconds };
+}
+
 function parseDiscordSeriesStatsLookupResponse(response: Response): DiscordSeriesStatsLookupResult {
   return {
     status: response.status,
@@ -63,6 +80,12 @@ export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService 
     const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}`);
 
     return parseDiscordSeriesStatsResponse(response);
+  }
+
+  async getDetail(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsDetailResult> {
+    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/detail`);
+
+    return parseDiscordSeriesStatsDetailResponse(response);
   }
 
   async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
