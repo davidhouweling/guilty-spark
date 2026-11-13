@@ -18,6 +18,7 @@ import {
   matchDetailQuerySchema,
   seriesDetailContract,
   seriesDetailParamsSchema,
+  seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
 
 describe("series detail parameters", () => {
@@ -164,6 +165,32 @@ describe("bounded match detail batches", () => {
         results: matchIds.map((matchId) => ({ status: "unavailable", matchId, reason: "forbidden" })),
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("selected series details", () => {
+  it("accepts more than 30 ordered IDs without relaxing match batch or identity validation", () => {
+    const matchIds = Array.from({ length: 31 }, (_, index) => `match-${String(index)}`);
+    const results = matchIds.map((matchId) => ({ status: "unavailable", matchId, reason: "not-found" }));
+    const response = { ...aFakeSeriesDetailResponseWith(), matches: { matchIds, results } };
+    expect(seriesDetailRequestSchema.parse({ matchIds: [" one ", ...matchIds] }).matchIds[0]).toBe("one");
+    expect(seriesDetailContract.safeParse(response).success).toBe(true);
+    expect(matchDetailContract.safeParse(response.matches).success).toBe(false);
+    expect(
+      seriesDetailContract.safeParse({ ...response, matches: { matchIds, results: results.toReversed() } }).success,
+    ).toBe(false);
+    const detail = aFakeMatchDetailWith({ matchId: "other" });
+    expect(
+      seriesDetailContract.safeParse({
+        ...response,
+        matches: {
+          matchIds,
+          results: [{ status: "resolved", matchId: matchIds[0], detail }, ...results.slice(1)],
+        },
+      }).success,
+    ).toBe(false);
+    expect(seriesDetailRequestSchema.safeParse({ matchIds: [] }).success).toBe(false);
+    expect(seriesDetailRequestSchema.safeParse({ matchIds: [" ", "a".repeat(129)] }).success).toBe(false);
   });
 });
 

@@ -6,7 +6,9 @@ import { trackerMatchOutcomeSchema } from "../individual-tracker/view";
 import { medalSchema, playerSchema, statSchema, teamMappingSchema, teamSchema } from "./detail-primitives";
 
 const matchIdSchema = z.string().trim().min(1).max(128);
-const matchIdsSchema = z.array(matchIdSchema).min(1).max(30);
+export const MATCH_DETAIL_BATCH_LIMIT = 30;
+const seriesMatchIdsSchema = z.array(matchIdSchema).min(1);
+const matchIdsSchema = seriesMatchIdsSchema.max(MATCH_DETAIL_BATCH_LIMIT);
 const countSchema = z.number().int().nonnegative();
 const totalsSchema = z.object({
   stats: z.array(statSchema),
@@ -80,22 +82,28 @@ export const matchDetailQuerySchema = z.object({
 });
 export type MatchDetailQuery = z.infer<typeof matchDetailQuerySchema>;
 
+export const seriesDetailRequestSchema = z.object({
+  matchIds: seriesMatchIdsSchema,
+});
+
 export const seriesDetailParamsSchema = z.object({
   seriesId: z.string().min(1),
 });
 
 // One result per requested ID, including failures and duplicates, in request order.
-export const matchDetailBatchSchema = z
-  .object({
-    matchIds: matchIdsSchema,
-    results: z.array(matchDetailResultSchema).min(1).max(30),
-  })
-  .refine(
-    (batch) =>
-      batch.matchIds.length === batch.results.length &&
-      batch.matchIds.every((matchId, index) => matchId === batch.results[index]?.matchId),
-    { message: "Results must cover requested IDs in order" },
+function resultsCoverRequestedIds(batch: { matchIds: string[]; results: MatchDetailResult[] }): boolean {
+  return (
+    batch.matchIds.length === batch.results.length &&
+    batch.matchIds.every((matchId, index) => matchId === batch.results[index]?.matchId)
   );
+}
+
+export const seriesMatchDetailBatchSchema = z
+  .object({ matchIds: seriesMatchIdsSchema, results: z.array(matchDetailResultSchema).min(1) })
+  .refine(resultsCoverRequestedIds, { message: "Results must cover requested IDs in order" });
+export const matchDetailBatchSchema = z
+  .object({ matchIds: matchIdsSchema, results: z.array(matchDetailResultSchema).min(1).max(MATCH_DETAIL_BATCH_LIMIT) })
+  .refine(resultsCoverRequestedIds, { message: "Results must cover requested IDs in order" });
 export const matchDetailContract = defineContract(matchDetailBatchSchema);
 export type MatchDetailResponse = z.infer<typeof matchDetailBatchSchema>;
 
@@ -141,7 +149,7 @@ export type SeriesAggregation = z.infer<typeof seriesAggregationSchema>;
 
 export const seriesDetailSchema = z.object({
   seriesId: z.string().min(1),
-  matches: matchDetailBatchSchema,
+  matches: seriesMatchDetailBatchSchema,
   aggregation: seriesAggregationSchema,
   context: z
     .object({
