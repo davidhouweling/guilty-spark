@@ -1,6 +1,8 @@
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import { getPlayerXuid, unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
+import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import {
   buildPresentAtBeginningTeamRosters,
   resolveMatchTeamIdToSeriesTeamId,
@@ -15,29 +17,18 @@ import type { MatchAnalyticsService } from "../../../services/stats/match-analyt
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { MatchDetailsService } from "../../../services/stats/detail-types";
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
-import { StatsController } from "../../../controllers/stats/stats-controller";
-import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
-import type { KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import { buildSeriesViewModel } from "../../series-stats/build-series-view-model";
 import type { BuildSeriesViewModelArgs } from "../../series-stats/build-series-view-model";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
-import { formatScoreProgression } from "../../stats/score-progression/score-progression-formatter";
 import type { IndividualTrackerViewerStore, MatchEntryLoadedState, SeriesEntryLoadedState } from "./viewer-store";
 import type { ViewerSeriesTab, ViewerTimelineItem } from "./types";
 
-export interface MatchStatsLoadedState {
-  readonly stats: MatchStats;
-  readonly playerMap: Map<string, string>;
-  readonly medalMetadata: MedalMetadata;
-  readonly gameMapThumbnailUrl: string;
-}
-
 interface MatchAnalyticsSource {
-  readonly matchSource: MatchStatsLoadedState;
+  readonly matchSource: MatchDetail;
   analytics: MatchAnalytics | null;
   readonly requestedModules: Set<AnalyticsModule>;
   readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
@@ -57,7 +48,6 @@ interface SeriesAnalyticsSource {
 export interface EntryDetailControllerConfig {
   readonly store: IndividualTrackerViewerStore;
   readonly seriesMatchesService: SeriesMatchesService;
-  // Staged dependency only; detail loading stays legacy until the create-boundary mapping migrates.
   readonly matchDetailsService?: MatchDetailsService | undefined;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
@@ -239,82 +229,45 @@ export class EntryDetailController {
     return module === "killMatrix" && requestedModules.has("scoreProgression");
   }
 
-  private async fetchMatchSource(matchId: string): Promise<MatchStatsLoadedState> {
-    const seriesMatches = await this.config.seriesMatchesService.getSeriesMatches([matchId], this.config.trackerId);
-
-    if (seriesMatches.matches.length === 0) {
+  private async fetchMatchSource(matchId: string): Promise<MatchDetail> {
+    const response = await this.config.matchDetailsService?.getMatchDetails([matchId], this.config.trackerId);
+    const result = response?.results.find((candidate) => candidate.matchId === matchId);
+    if (result?.status !== "resolved") {
       throw new Error("Failed to load match source");
     }
-
-    const [matchSummary] = seriesMatches.matches;
-    if (!isMatchStats(matchSummary.rawMatch)) {
-      throw new Error("Failed to load match source");
-    }
-
-    const stats = matchSummary.rawMatch;
-    const playerMap = new Map(Object.entries(seriesMatches.playerXuidToGametag));
-    const xuids = stats.Players.filter((p) => p.PlayerType === 1).map((p) => getPlayerXuid(p));
-    for (const xuid of xuids) {
-      if (!playerMap.has(xuid)) {
-        playerMap.set(xuid, xuid);
-      }
-    }
-
-    const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatch(stats);
-
-    return { stats, playerMap, medalMetadata, gameMapThumbnailUrl: matchSummary.gameMapThumbnailUrl };
+    return result.detail;
   }
 
   private toMatchEntryLoadedState(
-    loadedState: MatchStatsLoadedState,
+    detail: MatchDetail,
     analytics: MatchAnalytics | null,
     killMatrixStatus: ComponentLoaderStatus,
     scoreProgressionStatus: ComponentLoaderStatus,
     teamColors: readonly TeamColor[],
   ): MatchEntryLoadedState {
-    const { stats, playerMap, medalMetadata, gameMapThumbnailUrl } = loadedState;
-    const controller = new StatsController();
-    controller.loadMatch(stats, playerMap, medalMetadata);
-    if (analytics != null) {
-      controller.loadAnalytics(analytics, playerMap);
+    const controller = new StatsDetailController();
+    const data = controller.mapMatchDetailToStats(detail);
+    const matchTeamColors: TeamColor[] = [];
+    for (const [index, team] of [...detail.teams].sort((a, b) => a.matchTeamId - b.matchTeamId).entries()) {
+      matchTeamColors[team.matchTeamId] = teamColors[index] ?? getTeamColorOrDefault(undefined, index);
     }
 
-    const killMatrixRows = analytics != null ? controller.getKillMatrix() : null;
-    const players = controller.getPlayers();
-    const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
-    const matchStats = controller.getMatchStats();
-    const resolvedPlayers = matchStats
-      .flatMap((teamData) => teamData.players.map((p) => playersByGamertag.get(p.name)))
-      .filter((p): p is KillMatrixPlayer => p != null);
-    const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
-    const crossTeam =
-      killMatrixRows != null ? KillMatrixFormatter.buildCrossTeam(killMatrixRows, orderedPlayers) : null;
-
     return {
-      matchId: stats.MatchId,
-      gameVariantCategory: stats.MatchInfo.GameVariantCategory,
-      gameMapThumbnailUrl,
-      duration: stats.MatchInfo.Duration,
-      startTime: stats.MatchInfo.StartTime,
-      endTime: stats.MatchInfo.EndTime,
-      data: matchStats,
-      killMatrixPivotData:
-        killMatrixRows != null
-          ? KillMatrixFormatter.pivot(killMatrixRows, orderedPlayers)
-          : EMPTY_KILL_MATRIX_PIVOT_DATA,
-      transposedKillMatrixPivotData:
-        killMatrixRows != null
-          ? KillMatrixFormatter.transpose(killMatrixRows, orderedPlayers)
-          : EMPTY_KILL_MATRIX_PIVOT_DATA,
-      crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
-      swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
+      matchId: detail.matchId,
+      gameVariantCategory: detail.mode.gameVariantCategory,
+      gameMapThumbnailUrl: detail.map.thumbnailUrl ?? "data:,",
+      duration: getDurationInIsoString(Math.floor(detail.durationSeconds)),
+      startTime: detail.startTime,
+      endTime: detail.endTime,
+      data,
+      ...controller.mapMatchDetailToAnalytics(detail, {
+        killMatrix: analytics?.killMatrix ?? null,
+        scoreProgression: analytics?.scoreProgression ?? null,
+        teamColors: matchTeamColors,
+        teamSize: data[0]?.players.length ?? null,
+      }),
       killMatrixStatus,
       scoreProgressionStatus,
-      scoreProgressionViewData: formatScoreProgression(
-        analytics?.scoreProgression ?? null,
-        teamColors,
-        matchStats[0]?.players.length ?? null,
-      ),
     };
   }
 
