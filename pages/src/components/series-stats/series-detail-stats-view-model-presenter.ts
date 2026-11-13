@@ -13,7 +13,6 @@ import type { StatsDetailController } from "../../controllers/stats/stats-detail
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
-import { formatScoreProgression } from "../stats/score-progression/score-progression-formatter";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import type { TeamColor } from "../team-colors/team-colors";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
@@ -123,62 +122,14 @@ export class SeriesDetailStatsViewModelPresenter {
       startTime: detail.startTime,
       endTime: detail.endTime,
       teamColors,
-      ...this.presentMatchAnalytics(detail, analyticsState, data[0]?.players.length ?? null, teamColors),
-    };
-  }
-
-  private presentMatchAnalytics(
-    detail: MatchDetail,
-    analyticsState: SeriesMatchAnalyticsState | undefined,
-    teamSize: number | null,
-    teamColors: readonly TeamColor[],
-  ): Pick<
-    SeriesMatchDetail,
-    | "killMatrixPivotData"
-    | "transposedKillMatrixPivotData"
-    | "crossTeamKillMatrixData"
-    | "swappedCrossTeamKillMatrixData"
-    | "killMatrixStatus"
-    | "scoreProgressionStatus"
-    | "scoreProgressionViewData"
-  > {
-    const killMatrixState = analyticsState?.killMatrix;
-    const scoreProgressionState = analyticsState?.scoreProgression;
-    const players = this.getMatchKillMatrixPlayers(detail);
-    const playersByXuid = new Map<string, { gamertag: string; teamId: number | null }>();
-    for (const player of detail.players) {
-      if (player.xuid != null) {
-        playersByXuid.set(player.xuid, {
-          gamertag: player.gamertag ?? "*Unknown*",
-          teamId: player.lastMatchTeamId,
-        });
-      }
-    }
-    const rows =
-      killMatrixState?.data == null
-        ? null
-        : this.killMatrixFormatter.present({
-            analytics: this.createKillMatrixAnalytics(killMatrixState.data),
-            playersByXuid,
-          });
-    const crossTeam = rows == null ? null : KillMatrixFormatter.buildCrossTeam(rows, players);
-
-    return {
-      killMatrixPivotData: rows == null ? EMPTY_KILL_MATRIX_PIVOT_DATA : KillMatrixFormatter.pivot(rows, players),
-      transposedKillMatrixPivotData:
-        rows == null ? EMPTY_KILL_MATRIX_PIVOT_DATA : KillMatrixFormatter.transpose(rows, players),
-      crossTeamKillMatrixData: crossTeam?.crossTeamData ?? null,
-      swappedCrossTeamKillMatrixData: crossTeam?.swappedCrossTeamData ?? null,
-      killMatrixStatus: killMatrixState?.status ?? ComponentLoaderStatus.PENDING,
-      scoreProgressionStatus: scoreProgressionState?.status ?? ComponentLoaderStatus.PENDING,
-      scoreProgressionViewData:
-        scoreProgressionState?.data == null
-          ? null
-          : formatScoreProgression(
-              scoreProgressionState.data,
-              this.presentScoreProgressionTeamColors(detail, teamColors),
-              teamSize,
-            ),
+      ...this.statsDetailController.mapMatchDetailToAnalytics(detail, {
+        killMatrix: analyticsState?.killMatrix?.data ?? null,
+        scoreProgression: analyticsState?.scoreProgression?.data ?? null,
+        teamColors,
+        teamSize: data[0]?.players.length ?? null,
+      }),
+      killMatrixStatus: analyticsState?.killMatrix?.status ?? ComponentLoaderStatus.PENDING,
+      scoreProgressionStatus: analyticsState?.scoreProgression?.status ?? ComponentLoaderStatus.PENDING,
     };
   }
 
@@ -283,12 +234,6 @@ export class SeriesDetailStatsViewModelPresenter {
       teamColors[team.matchTeamId] = this.presentTeamColor(index);
     }
     return teamColors;
-  }
-
-  private presentScoreProgressionTeamColors(detail: MatchDetail, teamColors: readonly TeamColor[]): TeamColor[] {
-    return [...detail.teams]
-      .sort((left, right) => left.matchTeamId - right.matchTeamId)
-      .map((team, index) => teamColors[team.matchTeamId] ?? this.presentTeamColor(index));
   }
 
   private presentTeamColor(teamIndex: number): TeamColor {
@@ -419,20 +364,6 @@ export class SeriesDetailStatsViewModelPresenter {
       killMatrixStatus: this.getSeriesKillMatrixStatus(matchIds, analyticsByMatchId),
       scoreProgressionStatus: ComponentLoaderStatus.PENDING,
     };
-  }
-
-  private getMatchKillMatrixPlayers(detail: MatchDetail): KillMatrixPlayer[] {
-    return detail.players.flatMap((player) =>
-      player.xuid == null
-        ? []
-        : [
-            {
-              xuid: player.xuid,
-              gamertag: player.gamertag ?? "*Unknown*",
-              teamId: player.lastMatchTeamId,
-            },
-          ],
-    );
   }
 
   private getSeriesKillMatrixPlayers(aggregation: ResolvedAggregation): KillMatrixPlayer[] {
