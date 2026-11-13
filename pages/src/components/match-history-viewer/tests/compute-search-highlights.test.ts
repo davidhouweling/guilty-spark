@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlaylistCsrContainer } from "halo-infinite-api";
-import { aFakeCoreStatsWith, aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
-import { aFakeMatchHistoryEntryWith } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { aFakePreparedMatchHistoryEntryWith as aFakeMatchHistoryEntryWith } from "../../../services/individual-tracker/fakes/condensed-match-history.fake";
 import { computeSearchStatsHighlights } from "../compute-search-highlights";
-
-const TRACKED_XUID = "1234567890";
 
 describe("computeSearchStatsHighlights", () => {
   it("computes win/loss and kda highlights from the loaded entries only", () => {
@@ -12,38 +9,27 @@ describe("computeSearchStatsHighlights", () => {
       aFakeMatchHistoryEntryWith({
         matchId: "m-1",
         outcome: "Win",
-        rawMatchStats: aFakeMatchStatsWith({
-          MatchId: "m-1",
-          Players: [
-            aFakePlayerWith({
-              PlayerId: `xuid(${TRACKED_XUID})`,
-              PlayerTeamStats: [{ TeamId: 0, Stats: { CoreStats: aFakeCoreStatsWith({ Kills: 10, Deaths: 5 }) } }],
-            }),
-          ],
-        }),
       }),
       aFakeMatchHistoryEntryWith({
         matchId: "m-2",
         outcome: "Loss",
-        rawMatchStats: aFakeMatchStatsWith({
-          MatchId: "m-2",
-          Players: [
-            aFakePlayerWith({
-              PlayerId: `xuid(${TRACKED_XUID})`,
-              PlayerTeamStats: [{ TeamId: 0, Stats: { CoreStats: aFakeCoreStatsWith({ Kills: 6, Deaths: 9 }) } }],
-            }),
-          ],
-        }),
+        highlightContribution: {
+          kills: 6,
+          deaths: 9,
+          assists: 4,
+          damageDealt: 4200,
+          damageTaken: 3900,
+          headshotKills: 5,
+          shotsFired: 100,
+          shotsHit: 50,
+          totalLifeSeconds: 240,
+          totalSpawns: 8,
+          totalLifeSpawns: 8,
+        },
       }),
     ];
 
-    const items = computeSearchStatsHighlights(
-      entries,
-      TRACKED_XUID,
-      ["matches-win-loss", "kills"],
-      undefined,
-      undefined,
-    );
+    const items = computeSearchStatsHighlights(entries, ["matches-win-loss", "kills"], undefined, undefined);
 
     expect(items).toEqual([
       { label: "Won:Loss", value: "1:1" },
@@ -71,7 +57,7 @@ describe("computeSearchStatsHighlights", () => {
       AllTimeMax: { ...fakeCsr, Value: 0, Tier: "" },
     };
 
-    const items = computeSearchStatsHighlights([], TRACKED_XUID, ["current-rank"], csrContainer, {
+    const items = computeSearchStatsHighlights([], ["current-rank"], csrContainer, {
       esra: null,
       lastRankedGamePlayed: null,
     });
