@@ -13,6 +13,7 @@ import {
 } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import { aFakeCtfMatchAnalyticsWith } from "../../../services/stats/fakes/match-analytics.fake";
 import type { SeriesMatchAnalyticsById } from "../types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
@@ -287,6 +288,55 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       { name: "Alpha", players: ["Alpha Player"], teamColorHex: "#FE3939" },
       { name: "Bravo", players: ["Beta"], teamColorHex: "#3B9DFF" },
     ]);
+  });
+
+  it("applies team color overrides by stable team slot without changing scores, names or kill matrix labels", () => {
+    const latest = aFakeMatchDetailWith({
+      matchId: "latest",
+      teams: [
+        aFakeTeamWith({ matchTeamId: 21, seriesTeamId: 3, outcome: "Win", name: "Side B", playerIds: ["b"] }),
+        aFakeTeamWith({ matchTeamId: 11, seriesTeamId: 2, outcome: "Loss", name: "Side A", playerIds: ["a"] }),
+      ],
+      players: [rosterPlayer("b", 21, 3), rosterPlayer("a", 11, 2)],
+      teamCount: 2,
+    });
+    const aggregation: ResolvedAggregation = {
+      status: "resolved",
+      gamesPlayed: 1,
+      completedGameCount: 1,
+      teams: [
+        aFakeSeriesTeamWith({ seriesTeamId: 3, name: "Bravo", gamesWon: 1 }),
+        aFakeSeriesTeamWith({ seriesTeamId: 2, name: "Alpha", gamesWon: 0 }),
+      ],
+      players: [aFakeSeriesPlayerWith({ playerId: "b", gamertag: "Beta" })],
+    };
+    const response = responseWith([latest], aggregation);
+    const analyticsByMatchId: SeriesMatchAnalyticsById = new Map([
+      [
+        "latest",
+        { killMatrix: { status: ComponentLoaderStatus.LOADED, data: aFakeCtfMatchAnalyticsWith().killMatrix } },
+      ],
+    ]);
+    const presenter = createPresenter();
+
+    const defaults = presenter.present(response, analyticsByMatchId);
+    const custom = presenter.present(response, analyticsByMatchId, {
+      teamColors: [getTeamColorOrDefault("jade", 0)],
+    });
+
+    expect(custom.matchDetails[0]?.teamColors[11]?.hex).toBe("#8AFFBE");
+    expect(custom.matchDetails[0]?.teamColors[21]?.hex).toBe("#3B9DFF");
+    expect(custom.matchSummaries[0]?.winningTeamColorHex).toBe("#3B9DFF");
+    expect(custom.seriesStats?.teamColors[2]?.hex).toBe("#8AFFBE");
+    expect(custom.seriesStats?.teamColors[3]?.hex).toBe("#3B9DFF");
+    expect(custom.teams.map(({ teamColorHex }) => teamColorHex)).toEqual(["#8AFFBE", "#3B9DFF"]);
+    expect(custom.seriesScore).toBe(defaults.seriesScore);
+    expect(custom.matchSummaries[0]?.gameScore).toBe(defaults.matchSummaries[0]?.gameScore);
+    expect(custom.teams.map(({ name, players }) => ({ name, players }))).toEqual(
+      defaults.teams.map(({ name, players }) => ({ name, players })),
+    );
+    expect(custom.seriesStats?.killMatrixPivotData).toEqual(defaults.seriesStats?.killMatrixPivotData);
+    expect(custom.matchDetails[0]?.killMatrixPivotData).toEqual(defaults.matchDetails[0]?.killMatrixPivotData);
   });
 
   it("includes bots in team cards with the existing display label", () => {
