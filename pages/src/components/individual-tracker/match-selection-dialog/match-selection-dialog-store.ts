@@ -1,8 +1,8 @@
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
-import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { PreparedMatchHistoryEntry } from "../../../services/individual-tracker/condensed-match-history-types";
 
 export interface MatchSelectionDialogSnapshot {
-  readonly matches: readonly TrackerMatchHistoryEntry[] | null;
+  readonly matches: readonly PreparedMatchHistoryEntry[] | null;
   readonly selectedMatchIds: ReadonlySet<string>;
   readonly groupings: readonly (readonly string[])[];
   readonly seriesGroups: readonly IndividualTrackerSeriesGroup[];
@@ -42,7 +42,7 @@ export class MatchSelectionDialogStore {
     return this.snapshot;
   }
 
-  public setMatches(matches: readonly TrackerMatchHistoryEntry[]): void {
+  public setMatches(matches: readonly PreparedMatchHistoryEntry[]): void {
     this.update({ matches });
   }
 
