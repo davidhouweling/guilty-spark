@@ -136,17 +136,29 @@ export function summarizeSeriesOutcome(outcomes: readonly NormalizedMatchOutcome
   return "Unknown";
 }
 
-export function buildMatchScore(matchStats: MatchStats, locale?: string): string {
-  const scoreString = matchStats.Teams.map((team) => team.Stats.CoreStats.Score.toLocaleString(locale)).join(":");
+export function formatMatchScore(
+  scores: readonly number[],
+  roundsWon: readonly number[] | null,
+  locale?: string,
+): string {
+  const scoreString = scores.map((score) => score.toLocaleString(locale)).join(":");
 
-  if (matchStats.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball) {
-    const roundsString = matchStats.Teams.map((team) => team.Stats.CoreStats.RoundsWon.toLocaleString(locale)).join(
-      ":",
-    );
+  if (roundsWon != null) {
+    const roundsString = roundsWon.map((rounds) => rounds.toLocaleString(locale)).join(":");
     return `${roundsString} (${scoreString})`;
   }
 
   return scoreString;
+}
+
+export function buildMatchScore(matchStats: MatchStats, locale?: string): string {
+  return formatMatchScore(
+    matchStats.Teams.map((team) => team.Stats.CoreStats.Score),
+    matchStats.MatchInfo.GameVariantCategory === GameVariantCategory.MultiplayerOddball
+      ? matchStats.Teams.map((team) => team.Stats.CoreStats.RoundsWon)
+      : null,
+    locale,
+  );
 }
 
 export function computeTrackedPlayerSummaryStats(
