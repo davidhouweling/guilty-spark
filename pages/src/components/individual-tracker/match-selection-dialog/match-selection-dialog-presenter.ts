@@ -1,5 +1,9 @@
 import { analyzeMatchGroupings } from "@guilty-spark/shared/halo/match-enrichment";
-import type { IndividualTrackerService, TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type {
+  CondensedMatchHistoryService,
+  PreparedMatchHistoryEntry,
+} from "../../../services/individual-tracker/condensed-match-history-types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { alignSeriesGroupsToGroupings } from "../series-group-metadata";
 import { applyAddToAdjacentGroup, applyBreakFromGroup } from "../grouping-utils";
@@ -9,6 +13,7 @@ import type { MatchSelectionDialogSnapshot, MatchSelectionDialogStore } from "./
 interface Config {
   readonly store: MatchSelectionDialogStore;
   readonly service: IndividualTrackerService;
+  readonly historyService: CondensedMatchHistoryService;
   readonly trackerId: string;
   readonly xuid: string;
   readonly initialSelectedMatchIds: readonly string[];
@@ -56,9 +61,9 @@ export class MatchSelectionDialogPresenter {
   }
 
   private async loadMatchesAsync(): Promise<void> {
-    const { store, service, xuid, initialSelectedMatchIds, searchStartTime } = this.config;
+    const { store, historyService, xuid, initialSelectedMatchIds, searchStartTime } = this.config;
     try {
-      const allLoadedMatches: TrackerMatchHistoryEntry[] = [];
+      const allLoadedMatches: PreparedMatchHistoryEntry[] = [];
       const maxPages = 4;
       const targetMatchIds = new Set(initialSelectedMatchIds);
       const parsedSearchStartTime = searchStartTime != null ? new Date(searchStartTime).getTime() : NaN;
@@ -67,7 +72,11 @@ export class MatchSelectionDialogPresenter {
       // Load pages until we've found all initial matches AND covered the searchStartTime boundary, or we reach max pages/end of history
       for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
         const offset = pageIndex * MatchSelectionDialogPresenter.PAGE_SIZE;
-        const response = await service.getMatchHistory(xuid, offset, MatchSelectionDialogPresenter.PAGE_SIZE);
+        const response = await historyService.getMatchHistory({
+          xuid,
+          start: offset,
+          count: MatchSelectionDialogPresenter.PAGE_SIZE,
+        });
 
         if (this.isDisposed) {
           return;
@@ -85,7 +94,7 @@ export class MatchSelectionDialogPresenter {
           response.matches.length === 0 ||
           response.matches.length < MatchSelectionDialogPresenter.PAGE_SIZE ||
           response.matches.some((match) => {
-            const isoTime = match.startTimeIso != null ? new Date(match.startTimeIso).getTime() : NaN;
+            const isoTime = new Date(match.startTimeIso).getTime();
             const matchTimeMs = Number.isFinite(isoTime) ? isoTime : new Date(match.startTime).getTime();
             return Number.isFinite(matchTimeMs) && matchTimeMs < searchStartTimeMs;
           });
@@ -138,9 +147,13 @@ export class MatchSelectionDialogPresenter {
   }
 
   private async loadMoreAsync(start: number): Promise<void> {
-    const { store, service, xuid } = this.config;
+    const { store, historyService, xuid } = this.config;
     try {
-      const response = await service.getMatchHistory(xuid, start, MatchSelectionDialogPresenter.PAGE_SIZE);
+      const response = await historyService.getMatchHistory({
+        xuid,
+        start,
+        count: MatchSelectionDialogPresenter.PAGE_SIZE,
+      });
       if (this.isDisposed) {
         return;
       }
@@ -296,7 +309,7 @@ export class MatchSelectionDialogPresenter {
 
   private mergeSuggestedGroupings(
     currentGroupings: readonly (readonly string[])[],
-    allMatches: readonly TrackerMatchHistoryEntry[],
+    allMatches: readonly PreparedMatchHistoryEntry[],
     previousMatchCount: number,
   ): readonly (readonly string[])[] {
     const lookbackStart = Math.max(0, previousMatchCount - MatchSelectionDialogPresenter.PAGE_SIZE);
@@ -333,6 +346,8 @@ export class MatchSelectionDialogPresenter {
       const overlappingIndexesSet = new Set(overlappingGroupIndexes);
       const groupsWithoutOverlaps = nextGroupings.filter((_, index) => !overlappingIndexesSet.has(index));
       const mergedGroup = timelineOrderedMatchIds.filter((matchId) => mergedMatchIds.has(matchId));
+      const loadedMatchIds = new Set(timelineOrderedMatchIds);
+      mergedGroup.push(...Array.from(mergedMatchIds).filter((matchId) => !loadedMatchIds.has(matchId)));
       nextGroupings.length = 0;
       nextGroupings.push(...groupsWithoutOverlaps, mergedGroup);
     }
@@ -340,29 +355,19 @@ export class MatchSelectionDialogPresenter {
     return this.sortGroupingsByTimeline(nextGroupings, allMatches);
   }
 
-  private computeSuggestedGroupings(allMatches: readonly TrackerMatchHistoryEntry[]): readonly (readonly string[])[] {
+  private computeSuggestedGroupings(allMatches: readonly PreparedMatchHistoryEntry[]): readonly (readonly string[])[] {
     return analyzeMatchGroupings(
       allMatches.map((match) => ({
         matchId: match.matchId,
         isMatchmaking: match.isMatchmaking,
-        teamRosterSignature: this.getTeamRosterSignature(match),
+        teamRosterSignature: match.teamRosterSignature,
       })),
     );
   }
 
-  private getTeamRosterSignature(match: TrackerMatchHistoryEntry): string | null {
-    if (match.isMatchmaking || match.teams.length === 0) {
-      return null;
-    }
-
-    const sortedTeams = match.teams.map((team) => [...team].sort().join(",")).sort();
-
-    return sortedTeams.join("|");
-  }
-
   private sortGroupingsByTimeline(
     groupings: readonly (readonly string[])[],
-    allMatches: readonly TrackerMatchHistoryEntry[],
+    allMatches: readonly PreparedMatchHistoryEntry[],
   ): readonly (readonly string[])[] {
     const matchIndex = new Map<string, number>();
     for (const [index, match] of allMatches.entries()) {

@@ -2,7 +2,7 @@ import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { normalizeOutcomeString } from "@guilty-spark/shared/halo/match-enrichment";
 import { Heading } from "../heading/heading";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
+import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { Checkbox } from "../checkbox/checkbox";
 import { TeamIcon } from "../icons/team-icon";
@@ -10,7 +10,7 @@ import { OutcomeBadge } from "../outcome-badge/outcome-badge";
 import styles from "./match-card.module.css";
 
 export interface MatchCardProps {
-  readonly entry: TrackerMatchHistoryEntry;
+  readonly entry: MatchHistoryDisplayEntry;
   readonly isSelected?: boolean;
   readonly isGroupStart?: boolean;
   readonly isGroupEnd?: boolean;
@@ -26,7 +26,7 @@ export interface MatchCardProps {
   readonly onBreakFromGroup?: () => void;
 }
 
-function getCategoryLabel(category: TrackerMatchHistoryEntry["category"]): string {
+function getCategoryLabel(category: MatchHistoryDisplayEntry["category"]): string {
   switch (category) {
     case "matchmaking": {
       return "Matchmaking";

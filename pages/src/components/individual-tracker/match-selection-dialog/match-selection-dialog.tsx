@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
-import type { TrackerMatchHistoryEntry } from "../../../services/individual-tracker/types";
+import type { PreparedMatchHistoryEntry } from "../../../services/individual-tracker/condensed-match-history-types";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
@@ -15,7 +15,7 @@ export interface MatchSelectionDialogProps {
   readonly selectedCount: number;
   readonly isSyncing: boolean;
   readonly errorMessage: string | null;
-  readonly visibleMatches: readonly TrackerMatchHistoryEntry[] | null;
+  readonly visibleMatches: readonly PreparedMatchHistoryEntry[] | null;
   readonly groupings: readonly (readonly string[])[];
   readonly seriesGroups: readonly IndividualTrackerSeriesGroup[];
   readonly selectedMatchIds: ReadonlySet<string>;

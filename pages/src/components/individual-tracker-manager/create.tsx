@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AuthService } from "../../services/auth/types";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
+import type { CondensedMatchHistoryService } from "../../services/individual-tracker/condensed-match-history-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import { IndividualTrackerPresenter } from "./individual-tracker-presenter";
 import { IndividualTrackerStore } from "./individual-tracker-store";
@@ -10,6 +11,7 @@ import { createLiveTrackersSection } from "./live-trackers/create";
 export interface CreateIndividualTrackerManagerPageConfig {
   readonly authService: AuthService;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
 }
 
@@ -57,6 +59,7 @@ export function createIndividualTrackerManagerPage(
       () =>
         createLiveTrackersSection({
           individualTrackerService: config.individualTrackerService,
+          condensedMatchHistoryService: config.condensedMatchHistoryService,
           individualTrackerViewService: config.individualTrackerViewService,
           navigateTo: (url): void => {
             window.location.assign(url);

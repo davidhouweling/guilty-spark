@@ -66,6 +66,26 @@ export interface TrackerMatchHistoryEntry {
   readonly mapThumbnailUrl: string;
 }
 
+export type MatchHistoryDisplayEntry = Pick<
+  TrackerMatchHistoryEntry,
+  | "matchId"
+  | "startTime"
+  | "endTime"
+  | "startTimeIso"
+  | "endTimeIso"
+  | "mapAssetId"
+  | "mapVersionId"
+  | "gameVariantCategory"
+  | "duration"
+  | "mapName"
+  | "modeName"
+  | "outcome"
+  | "resultString"
+  | "category"
+  | "teams"
+  | "mapThumbnailUrl"
+> & { readonly matchmakingPlaylist?: string | null | undefined };
+
 export interface TrackerMatchHistoryResponse {
   readonly matches: readonly TrackerMatchHistoryEntry[];
   readonly suggestedGroupings: readonly (readonly string[])[];
@@ -82,7 +102,7 @@ export interface TrackerSyncMatchesRequest {
   readonly selectedMatchIds: readonly string[];
   readonly seriesGroups?: readonly TrackerSyncSeriesGroup[];
   readonly matchGroupings?: readonly (readonly string[])[];
-  readonly matches?: readonly TrackerMatchHistoryEntry[];
+  readonly matches?: readonly MatchHistoryDisplayEntry[];
 }
 
 export interface ManualSeriesTeamForm {
