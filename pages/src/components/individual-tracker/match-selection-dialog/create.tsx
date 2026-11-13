@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type { CondensedMatchHistoryService } from "../../../services/individual-tracker/condensed-match-history-types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { MatchSelectionDialogPresenter } from "./match-selection-dialog-presenter";
 import { MatchSelectionDialogStore } from "./match-selection-dialog-store";
@@ -7,6 +8,7 @@ import { MatchSelectionDialog } from "./match-selection-dialog";
 
 export interface CreateMatchSelectionDialogSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
 }
 
 export interface MatchSelectionDialogSectionProps {
@@ -44,7 +46,7 @@ function MatchSelectionDialogSectionInternal({
   const onSyncedRef = useRef(onSynced);
   onSyncedRef.current = onSynced;
 
-  const { individualTrackerService } = config;
+  const { individualTrackerService, condensedMatchHistoryService } = config;
 
   const store = useMemo(() => new MatchSelectionDialogStore(), []);
 
@@ -53,6 +55,7 @@ function MatchSelectionDialogSectionInternal({
       new MatchSelectionDialogPresenter({
         store,
         service: individualTrackerService,
+        historyService: condensedMatchHistoryService,
         trackerId,
         xuid,
         initialSelectedMatchIds,
@@ -67,6 +70,7 @@ function MatchSelectionDialogSectionInternal({
     [
       store,
       individualTrackerService,
+      condensedMatchHistoryService,
       trackerId,
       xuid,
       initialSelectedMatchIds,

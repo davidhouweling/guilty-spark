@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
+import type { CondensedMatchHistoryService } from "../../../services/individual-tracker/condensed-match-history-types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { createAddTrackerDialogSection } from "../../individual-tracker/add-tracker-dialog/create";
 import { createMatchSelectionDialogSection } from "../../individual-tracker/match-selection-dialog/create";
@@ -12,12 +13,14 @@ import { LiveTrackersSectionView } from "./live-trackers";
 interface LiveTrackersSectionInternalProps {
   readonly controller: LiveTrackersSectionController;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
 }
 
 function LiveTrackersSectionInternal({
   controller,
   individualTrackerService,
+  condensedMatchHistoryService,
   individualTrackerViewService,
 }: LiveTrackersSectionInternalProps): React.ReactElement {
   const AddTrackerDialogSection = useMemo(
@@ -31,8 +34,9 @@ function LiveTrackersSectionInternal({
     () =>
       createMatchSelectionDialogSection({
         individualTrackerService,
+        condensedMatchHistoryService,
       }),
-    [individualTrackerService],
+    [individualTrackerService, condensedMatchHistoryService],
   );
   const ManualSeriesDialogSection = useMemo(
     () =>
@@ -123,6 +127,7 @@ function LiveTrackersSectionInternal({
 
 interface CreateLiveTrackersSectionConfig {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly navigateTo?: ((url: string) => void) | undefined;
   readonly confirmDelete?: ((message: string) => boolean) | undefined;
@@ -147,6 +152,7 @@ export function createLiveTrackersSection(config: CreateLiveTrackersSectionConfi
     <LiveTrackersSectionInternal
       controller={presenter}
       individualTrackerService={config.individualTrackerService}
+      condensedMatchHistoryService={config.condensedMatchHistoryService}
       individualTrackerViewService={config.individualTrackerViewService}
     />
   );
