@@ -6,6 +6,7 @@ import {
   aFakeTrackerSearchResultWith,
 } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
+import { aFakeCondensedMatchHistoryServiceWith } from "../../../services/individual-tracker/fakes/condensed-match-history.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
@@ -44,6 +45,7 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
 
   const presenter = new MatchHistoryViewerPresenter({
     individualTrackerService,
+    condensedMatchHistoryService: aFakeCondensedMatchHistoryServiceWith(),
     individualTrackerSettingsService: aFakeIndividualTrackerSettingsServiceWith(settings),
     matchAnalyticsService,
     seriesMatchesService,

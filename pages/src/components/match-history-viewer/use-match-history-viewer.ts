@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
+import type { CondensedMatchHistoryService } from "../../services/individual-tracker/condensed-match-history-types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
@@ -14,6 +15,7 @@ import { MatchHistoryViewerPresenter } from "./match-history-viewer-presenter";
 
 interface UseMatchHistoryViewerOpts {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
@@ -32,6 +34,7 @@ export interface MatchHistoryViewerHookResult {
 
 export function useMatchHistoryViewer({
   individualTrackerService,
+  condensedMatchHistoryService,
   individualTrackerSettingsService,
   matchAnalyticsService,
   seriesMatchesService,
@@ -45,6 +48,7 @@ export function useMatchHistoryViewer({
     () =>
       new MatchHistoryViewerPresenter({
         individualTrackerService,
+        condensedMatchHistoryService,
         individualTrackerSettingsService,
         matchAnalyticsService,
         seriesMatchesService,
@@ -54,6 +58,7 @@ export function useMatchHistoryViewer({
       }),
     [
       individualTrackerService,
+      condensedMatchHistoryService,
       individualTrackerSettingsService,
       matchAnalyticsService,
       seriesMatchesService,
