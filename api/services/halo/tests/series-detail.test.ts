@@ -63,6 +63,18 @@ describe("aFakeSeriesDetailMatchWith", () => {
 });
 
 describe("series detail identity validation", () => {
+  it("rejects a resolved match missing from raw inputs beyond the first batch", () => {
+    const matches = Array.from({ length: 31 }, (_, index) => aFakeSeriesDetailMatchWith(index, index !== 0));
+    expect(() =>
+      mapSeriesDetail(
+        "series",
+        matches.map((match) => match.MatchId),
+        matches.map(resolved),
+        matches.slice(0, 30),
+      ),
+    ).toThrow("Raw matches must cover exactly the distinct resolved match IDs");
+  });
+
   it.each(["teams", "players"])("rejects duplicate %s identities that omit a raw identity", (field) => {
     const match = aFakeSeriesDetailMatchWith(1);
     const result = resolved(match);

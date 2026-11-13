@@ -80,6 +80,118 @@ describe("/api/stats/series-details/:seriesId", () => {
     )) as Response;
   }
 
+  async function post(body: string, query = ""): Promise<Response> {
+    return (await router.fetch(
+      new Request(`http://localhost/api/stats/series-details/selected${query}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      }),
+      env,
+    )) as Response;
+  }
+
+  it("aggregates the entire series once across batches using the chronological anchor and distinct IDs", async () => {
+    const matchIds = Array.from({ length: 31 }, (_, index) => `match-${String(30 - index)}`);
+    matchIds.push("match-30");
+    getMatchDetailsSpy.mockImplementation(async ([id]) => {
+      const index = Number(Preconditions.checkExists(id).replace("match-", ""));
+      const match = aFakeSeriesDetailMatchWith(index, index !== 0);
+      if (index === 0) {
+        match.MatchInfo.MapVariant.AssetId = "map-1";
+      }
+      return Promise.resolve([match]);
+    });
+    getPlayerXuidsToGametagsSpy
+      .mockResolvedValueOnce(new Map())
+      .mockResolvedValueOnce(new Map([["0100000000000000", "Known Spartan"]]));
+    const response = await post(JSON.stringify({ matchIds }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    const series = await seriesDetailContract.fromResponse(response);
+    expect(series.matches.matchIds).toEqual(matchIds);
+    expect(series.matches.results[0]).toEqual(series.matches.results[31]);
+    expect(getMatchDetailsSpy).toHaveBeenCalledTimes(31);
+    expect(
+      getPlayerXuidsToGametagsSpy.mock.calls.map(([matches]) => (Array.isArray(matches) ? matches.length : 1)),
+    ).toEqual([30, 1]);
+    expect(detailAt(series, 0).teams.map((team) => [team.matchTeamId, team.seriesTeamId])).toEqual([
+      [7, 3],
+      [3, 7],
+    ]);
+    expect(series.aggregation).toMatchObject({
+      status: "resolved",
+      gamesPlayed: 31,
+      completedGameCount: 30,
+    });
+    if (series.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregate");
+    }
+    expect(series.aggregation.players.find((player) => player.playerId === "0100000000000000")).toMatchObject({
+      gamertag: "Known Spartan",
+      gamesPlayed: 31,
+    });
+  });
+
+  it("preserves unavailable and duplicate results across batches and declines incomplete totals", async () => {
+    const matchIds = Array.from({ length: 30 }, (_, index) => `match-${String(index)}`);
+    matchIds.push("missing", "match-0", "missing");
+    getMatchDetailsSpy.mockImplementation(async ([id]) => {
+      if (id === "missing") {
+        return Promise.resolve([]);
+      }
+      const index = Number(Preconditions.checkExists(id).replace("match-", ""));
+      return Promise.resolve([aFakeSeriesDetailMatchWith(index, index !== 0)]);
+    });
+    const series = await seriesDetailContract.fromResponse(await post(JSON.stringify({ matchIds })));
+    expect(series.matches.matchIds).toEqual(matchIds);
+    expect(series.matches.results[30]).toEqual({ status: "unavailable", matchId: "missing", reason: "not-found" });
+    expect(series.matches.results[31]).toEqual(series.matches.results[0]);
+    expect(series.matches.results[32]).toEqual(series.matches.results[30]);
+    expect(series.aggregation).toEqual({ status: "unavailable", reason: "incomplete-matches" });
+    expect(getMatchDetailsSpy).toHaveBeenCalledTimes(31);
+  });
+
+  it.each(["not json", "{}", '{"matchIds":[]}', '{"matchIds":[""]}', `{"matchIds":["${"a".repeat(129)}"]}`])(
+    "rejects invalid POST bodies before credential or Halo lookup",
+    async (body) => {
+      const response = await post(body, "?trackerId=tracker");
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: "Invalid series details request" });
+      expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+      expect(getIndividualTrackerSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses the existing tracker owner hint for POST without returning credentials", async () => {
+    getIndividualTrackerSpy.mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker", UserId: "owner", IsLive: 1 }),
+    );
+    getClientForUserSpy.mockResolvedValue(userClient);
+    const response = await post('{"matchIds":["one"]}', "?trackerId=%20tracker%20");
+    expect(getIndividualTrackerSpy).toHaveBeenCalledWith("tracker");
+    expect(withUserClientSpy).toHaveBeenCalledWith(userClient);
+    expect(ownerGetMatchDetailsSpy).toHaveBeenCalledWith(["one"]);
+    expect(JSON.stringify(await seriesDetailContract.fromResponse(response))).not.toMatch(
+      /accessToken|refreshToken|userClient/,
+    );
+  });
+
+  it("returns an error when a later batch has an unexpected failure", async () => {
+    getMatchDetailsSpy.mockImplementation(async ([id]) => {
+      if (id === "match-30") {
+        return Promise.reject(new Error("unexpected"));
+      }
+      const index = Number(Preconditions.checkExists(id).replace("match-", ""));
+      return Promise.resolve([aFakeSeriesDetailMatchWith(index, index !== 0)]);
+    });
+    const response = await post(
+      JSON.stringify({ matchIds: Array.from({ length: 31 }, (_, index) => `match-${String(index)}`) }),
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Failed to resolve series details" });
+  });
+
   it("preserves request order and per-game sides with chronological stable totals and no raw data", async () => {
     const response = await request("?matchIds=match-1,match-0,match-1");
     expect(response.status).toBe(200);
