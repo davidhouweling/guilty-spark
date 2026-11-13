@@ -9,6 +9,7 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { MatchDetailsService } from "../../services/stats/detail-types";
 import { IndividualTrackerViewer } from "../individual-tracker/viewer/individual-tracker-viewer";
 import { GamertagSearchBox } from "./gamertag-search-box";
 import styles from "./match-history-viewer.module.css";
@@ -19,6 +20,7 @@ export interface CreateMatchHistoryViewerPageConfig {
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
+  readonly matchDetailsService?: MatchDetailsService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
 
