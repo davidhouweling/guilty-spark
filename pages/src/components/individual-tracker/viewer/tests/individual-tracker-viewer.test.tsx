@@ -3,16 +3,18 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { TrackerViewConnectionStatus } from "../../../../services/individual-tracker/view-types";
-import type { SeriesStatsViewModel } from "../../../series-stats/types";
 import { buildViewerRenderModel } from "../viewer-render-model";
-import type { IndividualTrackerViewerRenderModel, ViewerEntryState } from "../types";
+import type { IndividualTrackerViewerRenderModel, ViewerEntryState, ViewerTimelineItem } from "../types";
 import { IndividualTrackerViewer } from "../individual-tracker-viewer";
+import { aFakeViewerSeriesDetailWith } from "../fakes/series-detail.fake";
 
 vi.mock("react-time-ago", () => ({
   default: ({ date }: { date: Date }): React.ReactNode => <span>{date.toISOString()}</span>,
@@ -29,7 +31,8 @@ vi.mock("../../../icons/rank-icon", () => ({
 }));
 
 function aModel(view: ReturnType<typeof aFakeTrackerViewStateWith>): IndividualTrackerViewerRenderModel {
-  return buildViewerRenderModel({ view });
+  const { teamColorId, enemyColorId } = getStreamerViewTeamColorIds(view.streamerSettings);
+  return buildViewerRenderModel({ view, preferredTeamColorId: teamColorId, preferredEnemyColorId: enemyColorId });
 }
 
 function renderViewer(
@@ -203,44 +206,50 @@ describe("IndividualTrackerViewer", () => {
   });
 
   it("does not render a duplicate overview when series stats are loaded", () => {
-    const view = aFakeTrackerViewStateWith({
-      matches: [
-        aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Shared Overview Map" }),
-        aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Second Match Map" }),
-      ],
-      series: [
-        aFakeTrackerSeriesGroupWith({
-          id: "series-loaded",
-          matchIds: ["m-1", "m-2"],
-          title: "Loaded Series",
-          score: "1:0",
-        }),
-      ],
-    });
-    const seriesStatsViewModel: SeriesStatsViewModel = {
-      title: "Loaded Series",
-      subtitle: "Best of 3",
-      seriesScore: "1:0",
-      matchSummaries: [
-        {
-          matchId: "m-1",
-          gameMapThumbnailUrl: "data:,",
-          gameModeIconUrl: "data:,",
-          gameModeAlt: "Slayer",
-          gameScore: "50:42",
-          gameSubScore: null,
-          gameMap: "Shared Overview Map",
-          winningTeamColorHex: null,
-        },
-      ],
-      teams: [],
-      seriesStats: null,
-      matchDetails: [],
+    const view = {
+      ...aFakeTrackerViewStateWith({
+        matches: [
+          aFakeTrackerMatchSummaryWith({ matchId: "m-1", mapName: "Shared Overview Map" }),
+          aFakeTrackerMatchSummaryWith({ matchId: "m-2", mapName: "Second Match Map" }),
+        ],
+        series: [
+          {
+            ...aFakeTrackerSeriesGroupWith({
+              id: "series-loaded",
+              matchIds: ["m-1", "m-2"],
+              title: "Loaded Series",
+              score: "1:0",
+              plannedMaps: [
+                { mode: "Slayer", map: "Live Fire" },
+                { mode: "Slayer", map: "Aquarius" },
+                { mode: "Oddball", map: "Upcoming Recharge" },
+              ],
+            }),
+            teams: [
+              {
+                id: 0,
+                name: "Configured Alpha",
+                players: [
+                  {
+                    discordId: null,
+                    discordName: "Configured Player",
+                    gamertag: "Configured Gamer",
+                    xboxId: "1234567890",
+                  },
+                ],
+              },
+              { id: 1, name: "Configured Beta", players: [] },
+            ],
+          },
+        ],
+      }),
+      streamerSettings: { styleFlags: { playerTeamColor: "jade", playerEnemyColor: "lavender" } },
     };
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
     const entryStates = new Map<string, ViewerEntryState>([
       [
         "series:series-loaded",
-        { kind: "series", state: { status: "loaded", seriesId: "series-loaded", viewModel: seriesStatsViewModel } },
+        { kind: "series", state: { status: "loaded", seriesId: "series-loaded", data, analyticsByMatchId: new Map() } },
       ],
     ]);
 
@@ -249,6 +258,71 @@ describe("IndividualTrackerViewer", () => {
     expect(screen.getAllByRole("list", { name: "Series score tiles" })).toHaveLength(1);
     expect(screen.getAllByText("Shared Overview Map")).toHaveLength(1);
     expect(screen.getByText("Matches")).toBeInTheDocument();
+    expect(screen.getByLabelText("Series Loaded Series")).toBeInTheDocument();
+    expect(screen.getByText("Oddball: Upcoming Recharge")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Configured Alpha" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Configured Beta" })).toBeInTheDocument();
+    expect(screen.getByText("Configured Player")).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "Accumulated team statistics" });
+    expect(table.querySelector("tbody tr")?.getAttribute("style")).toContain("#8AFFBE");
+  });
+
+  it.each([
+    {
+      reason: "incomplete-matches",
+      warning: "Series totals are unavailable because some match details could not be resolved.",
+    },
+    {
+      reason: "ambiguous-team-mapping",
+      warning: "Series totals are unavailable because team identities could not be matched reliably.",
+    },
+  ] satisfies readonly {
+    reason: "incomplete-matches" | "ambiguous-team-mapping";
+    warning: string;
+  }[])("renders $reason without totals and forwards only the selected match timeline", async ({ reason, warning }) => {
+    const user = userEvent.setup();
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"], {
+      aggregation: { status: "unavailable", reason },
+    });
+    data.matches.results[1] = { status: "unavailable", matchId: "m-2", reason: "forbidden" };
+    const view = aFakeTrackerViewStateWith({
+      matches: ["m-1", "m-2"].map((matchId) => aFakeTrackerMatchSummaryWith({ matchId })),
+      series: [aFakeTrackerSeriesGroupWith({ id: "series-1", matchIds: ["m-1", "m-2"] })],
+    });
+    const onLoadAnalytics = vi.fn<(item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string) => void>();
+    render(
+      <IndividualTrackerViewer
+        renderModel={aModel(view)}
+        connectionStatus="connected"
+        expandedEntryKeys={new Set(["series:series-1"])}
+        entryStates={
+          new Map([
+            [
+              "series:series-1",
+              {
+                kind: "series",
+                state: { status: "loaded", seriesId: "series-1", data, analyticsByMatchId: new Map() },
+              },
+            ],
+          ])
+        }
+        canManage={false}
+        refreshPending={false}
+        onToggleEntry={() => undefined}
+        onBackToManage={() => undefined}
+        onRefresh={() => undefined}
+        onLoadAnalytics={onLoadAnalytics}
+      />,
+    );
+    expect(screen.queryByRole("table", { name: "Accumulated team statistics" })).not.toBeInTheDocument();
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    expect(screen.getByText("Failed to load detailed stats for match m-2.")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Timeline" }));
+    expect(onLoadAnalytics).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "series" }),
+      "scoreProgression",
+      "m-1",
+    );
   });
 
   it("scrolls only newly expanded non-latest entries into view", () => {

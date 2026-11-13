@@ -10,8 +10,6 @@ import type { MatchAnalyticsService } from "../../../services/stats/match-analyt
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
-import type { SeriesStatsViewModel } from "../../series-stats/types";
-import type { SeriesOverviewTeam } from "../../series-overview/types";
 import type {
   IndividualTrackerViewService,
   TrackerViewConnection,
@@ -20,6 +18,7 @@ import type {
 import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { EntryDetailController } from "./entry-detail-controller";
 import { buildViewerRenderModel } from "./viewer-render-model";
+import { presentViewerSeriesOverview } from "./viewer-series-overview";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } from "./viewer-store";
 import type {
   IndividualTrackerViewerRenderModel,
@@ -40,19 +39,6 @@ interface Config {
   readonly trackerId: string;
 }
 
-function toSeriesOverviewTeams(viewModel: SeriesStatsViewModel): readonly SeriesOverviewTeam[] {
-  return viewModel.teams.map((team, teamIndex) => ({
-    id: `loaded:${teamIndex.toString()}:${team.name}`,
-    name: team.name,
-    teamColorHex: team.teamColorHex,
-    players: team.players.map((player, playerIndex) => ({
-      id: `${teamIndex.toString()}:${playerIndex.toString()}:${player}`,
-      discordName: player,
-      gamertag: null,
-    })),
-  }));
-}
-
 function applyLoadedSeriesDetails(
   renderModel: IndividualTrackerViewerRenderModel,
   entryStates: ReadonlyMap<string, ViewerEntryState>,
@@ -67,34 +53,11 @@ function applyLoadedSeriesDetails(
       return item;
     }
 
-    const { viewModel } = entryState.state;
-    const summariesById = new Map(viewModel.matchSummaries.map((summary) => [summary.matchId, summary]));
-    const teams =
-      item.series.teams.length === 0 && viewModel.teams.length > 0
-        ? toSeriesOverviewTeams(viewModel)
-        : item.series.seriesOverview.teams;
-
     return {
       ...item,
       series: {
         ...item.series,
-        seriesOverview: {
-          ...item.series.seriesOverview,
-          teams,
-          matches: item.series.seriesOverview.matches.map((match) => {
-            const summary = summariesById.get(match.id);
-            if (summary == null) {
-              return match;
-            }
-            return {
-              ...match,
-              mapBackgroundUrl:
-                summary.gameMapThumbnailUrl !== "data:," ? summary.gameMapThumbnailUrl : match.mapBackgroundUrl,
-              score: summary.gameScore,
-              subScore: summary.gameSubScore,
-            };
-          }),
-        },
+        seriesOverview: presentViewerSeriesOverview(item.series, entryState.state.data, renderModel.teamColors),
       },
     };
   });
@@ -206,8 +169,8 @@ export class IndividualTrackerViewerPresenter {
     this.entryDetailController.toggleEntry(item);
   }
 
-  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
-    this.entryDetailController.loadAnalytics(item, module);
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string): void {
+    this.entryDetailController.loadAnalytics(item, module, matchId);
   }
 
   public start(): void {

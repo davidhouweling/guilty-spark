@@ -66,8 +66,8 @@ export class MatchHistoryViewerPresenter {
     this.entryDetailController.toggleEntry(item);
   }
 
-  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
-    this.entryDetailController.loadAnalytics(item, module);
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string): void {
+    this.entryDetailController.loadAnalytics(item, module, matchId);
   }
 
   public search(gamertag: string): void {
