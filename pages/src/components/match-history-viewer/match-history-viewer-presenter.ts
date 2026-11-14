@@ -15,6 +15,7 @@ import type {
   TrackerSearchResult,
 } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
+import type { CondensedMatchHistoryService } from "../../services/individual-tracker/condensed-match-history-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import type { MatchDetailsService } from "../../services/stats/detail-types";
@@ -28,6 +29,7 @@ const MATCH_PAGE_SIZE = 25;
 
 interface Config {
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;

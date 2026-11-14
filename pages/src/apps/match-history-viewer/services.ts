@@ -8,6 +8,8 @@ import {
   installIndividualTrackerSettingsService,
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
+import type { CondensedMatchHistoryService } from "../../services/individual-tracker/condensed-match-history-types";
+import { installCondensedMatchHistoryService } from "../../services/individual-tracker/install-condensed-match-history";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import {
   installMatchAnalyticsService,
@@ -21,6 +23,7 @@ import type { SeriesMatchesService } from "../../services/stats/series-matches-t
 export interface Services {
   readonly authService: AuthService;
   readonly individualTrackerService: IndividualTrackerService;
+  readonly condensedMatchHistoryService: CondensedMatchHistoryService;
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
   readonly haloClient: HaloInfiniteClient;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
@@ -35,6 +38,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   const [
     authService,
     individualTrackerService,
+    condensedMatchHistoryService,
     individualTrackerSettingsService,
     matchAnalyticsService,
     seriesMatchesService,
@@ -42,6 +46,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   ] = await Promise.all([
     installAuthService(apiHost),
     installIndividualTrackerService(apiHost, haloClient),
+    installCondensedMatchHistoryService(apiHost),
     installIndividualTrackerSettingsService(apiHost),
     installMatchAnalyticsService(apiHost),
     installSeriesMatchesService(apiHost),
@@ -50,6 +55,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   return {
     authService,
     individualTrackerService,
+    condensedMatchHistoryService,
     individualTrackerSettingsService,
     haloClient,
     medalMetadataResolver,
