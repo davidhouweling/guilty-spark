@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import { HaloAuthenticationClient, HaloInfiniteClient } from "halo-infinite-api";
 import type * as HaloInfiniteApi from "halo-infinite-api";
 import { UserTokenProvider } from "../user-token-provider";
 import { aFakeAuthServiceWith } from "../../auth/fakes/auth.fake";
@@ -28,7 +28,6 @@ vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
   return {
     ...actual,
-    StaticXstsTicketTokenSpartanTokenProvider: vi.fn(),
     HaloInfiniteClient: vi.fn(),
   };
 });
@@ -65,12 +64,8 @@ describe("UserTokenProvider", () => {
 
     expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
     expect(fetchForUser).toHaveBeenCalledWith("user-123");
-    expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("owner-xsts-token");
     expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledWith(
-      expect.any(StaticXstsTicketTokenSpartanTokenProvider),
-      fetchFn,
-    );
+    expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledWith(expect.any(HaloAuthenticationClient), fetchFn);
     expect(client).not.toBeNull();
   });
 
