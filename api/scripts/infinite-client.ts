@@ -1,22 +1,11 @@
-import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeFile } from "node:fs/promises";
-import { aFakeEnvWith } from "../base/fakes/env.fake";
-import { createFileBackedKVNamespace } from "../base/fakes/namespace-to-file";
-import { createHaloInfiniteClientProxy } from "../services/halo/halo-infinite-client-proxy";
+import { createScriptServices } from "./script-services";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const fakeNamespace = await createFileBackedKVNamespace(path.join(__dirname, "app-data.json"));
-
-const env = aFakeEnvWith({
-  APP_DATA: fakeNamespace,
-  PROXY_WORKER_URL: process.env.PROXY_WORKER_URL,
-  PROXY_WORKER_TOKEN: process.env.PROXY_WORKER_TOKEN,
-});
-
-const client = createHaloInfiniteClientProxy({ env });
+const { haloInfiniteClient: client } = await createScriptServices();
 
 const user = await client.getUser("soundmanD");
 await writeFile(path.join(__dirname, "user.json"), JSON.stringify(user, null, 2));

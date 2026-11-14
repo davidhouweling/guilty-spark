@@ -77,8 +77,6 @@ export function aFakeEnvWith(env: Partial<Env> = {}): Env {
     XBOX_PASSWORD: "XBOX_PASSWORD",
     APP_DATA: fakeNamespace(),
     DB: fakeDb(),
-    PROXY_WORKER_URL: "https://api.guilty-spark.app",
-    PROXY_WORKER_TOKEN: "worker-token",
     SENTRY_AUTH_TOKEN: "sentry-auth-token",
     MICROSOFT_CLIENT_ID: "test-client-id",
     MICROSOFT_CLIENT_SECRET: "test-client-secret",

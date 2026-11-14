@@ -44,7 +44,6 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
                 fetch: createResilientFetch({
                   env,
                   logService,
-                  proxyUrl: env.PROXY_WORKER_URL,
                   kvKeyNamespace: userFilmCacheNamespace,
                 }),
               });

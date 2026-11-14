@@ -2,8 +2,7 @@ import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import { createResilientFetch } from "../resilient-fetch";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
-import { aFakeCircuitBreakerStateWith, aFakeErrorWindowWith, aFakeResponseWith } from "../fakes/resilient-fetch.fake";
-import { KV_KEYS, CIRCUIT_BREAKER_CONFIG } from "../types";
+import { aFakeResponseWith } from "../fakes/resilient-fetch.fake";
 import type { LogService } from "../../log/types";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 
@@ -15,13 +14,11 @@ describe("createResilientFetch", () => {
   let kvPutSpy: MockInstance;
   let logServiceErrorSpy: MockInstance<typeof logService.error>;
   let logServiceWarnSpy: MockInstance<typeof logService.warn>;
-  let logServiceInfoSpy: MockInstance<typeof logService.info>;
   let logServiceDebugSpy: MockInstance<typeof logService.debug>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     env = aFakeEnvWith({
-      PROXY_WORKER_URL: "https://haloquery.com/proxy",
       MODE: "production",
     });
     logService = aFakeLogServiceWith();
@@ -31,7 +28,6 @@ describe("createResilientFetch", () => {
     kvPutSpy = vi.spyOn(env.APP_DATA, "put");
     logServiceErrorSpy = vi.spyOn(logService, "error");
     logServiceWarnSpy = vi.spyOn(logService, "warn");
-    logServiceInfoSpy = vi.spyOn(logService, "info");
     logServiceDebugSpy = vi.spyOn(logService, "debug");
   });
 
@@ -40,15 +36,14 @@ describe("createResilientFetch", () => {
     vi.useRealTimers();
   });
 
-  describe("direct requests (no proxy)", () => {
-    it("makes direct request when proxy is disabled and no circuit breaker", async () => {
+  describe("direct requests", () => {
+    it("makes a direct request", async () => {
       kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -60,21 +55,38 @@ describe("createResilientFetch", () => {
       );
     });
 
-    it("makes direct request in production when master toggle is false and no circuit breaker", async () => {
-      kvGetSpy.mockResolvedValue(null);
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
+    it("returns a 526 response without reading legacy proxy state or retrying", async () => {
+      kvGetSpy.mockImplementation(async (key) => {
+        if (key === "halo:proxy:enabled") {
+          return await Promise.resolve("true");
+        }
+        if (key === "halo:proxy:circuit_breaker") {
+          return await Promise.resolve({ activatedAt: Date.now(), expiresAt: Date.now() + 60_000, reason: "legacy" });
+        }
+        if (String(key).startsWith("halo:proxy:errors")) {
+          return await Promise.resolve({ windowStart: 0, errors: [] });
+        }
+        return await Promise.resolve(null);
+      });
+      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 526 }));
 
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
+      const url = "https://halostats.svc.halowaypoint.com/test";
+      const response = await resilientFetch(url);
 
+      expect(response.status).toBe(526);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(kvGetSpy).toHaveBeenCalledWith(KV_KEYS.PROXY_ENABLED);
-      expect(kvGetSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
+      expect(fetchSpy).toHaveBeenCalledWith(
+        url,
+        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
+      );
+      expect(kvGetSpy.mock.calls.some(([key]) => String(key).startsWith("halo:proxy:"))).toBe(false);
+      expect(kvPutSpy).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it("serves a cached Halo Waypoint response from KV before hitting network", async () => {
@@ -92,7 +104,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -114,7 +125,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -125,196 +135,45 @@ describe("createResilientFetch", () => {
         expect.objectContaining({ expirationTtl: expect.any(Number) as number }),
       );
     });
-  });
 
-  describe("master toggle", () => {
-    it("uses proxy when master toggle is enabled and circuit breaker is active", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
+    it("uses the supplied namespace for the response cache", async () => {
+      const url = "https://halostats.svc.halowaypoint.com/test";
+      kvGetSpy.mockResolvedValue(null);
+      fetchSpy.mockResolvedValue(
+        aFakeResponseWith({
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
 
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
+        kvKeyNamespace: "halo:film",
       });
 
-      await resilientFetch("https://halostats.svc.halowaypoint.com/hi/players/test");
+      await resilientFetch(url);
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/hi/players/test",
-        expect.anything(),
-      );
-      expect(logServiceInfoSpy).toHaveBeenCalledWith(expect.stringContaining("Proxying request via URL rewrite"));
-    });
-
-    it("does not use proxy when master toggle is enabled but circuit breaker is inactive", async () => {
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(null);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://halostats.svc.halowaypoint.com/test",
-        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
-      );
-    });
-
-    it("does not use proxy when master toggle is disabled even if circuit breaker is active", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve(null);
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://halostats.svc.halowaypoint.com/test",
-        expect.objectContaining({ signal: expect.any(AbortSignal) as AbortSignal }),
-      );
-    });
-  });
-
-  describe("circuit breaker", () => {
-    it("uses proxy when master toggle is on and circuit breaker is active", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/test",
-        expect.anything(),
-      );
-    });
-
-    it("activates circuit breaker after 3 errors in 15 minutes", async () => {
-      const errorWindow = aFakeErrorWindowWith({ errorCount: 2 });
-      kvGetSpy.mockImplementation(async (key: string) => {
-        if (key.startsWith(KV_KEYS.ERROR_WINDOW)) {
-          return Promise.resolve(errorWindow);
-        }
-        return Promise.resolve(null);
-      });
-
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      // Flush all pending debounced KV writes.
-      await vi.runAllTimersAsync();
-
-      const errorWindowCalls = kvPutSpy.mock.calls.filter((call) => String(call[0]).startsWith(KV_KEYS.ERROR_WINDOW));
-      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === KV_KEYS.CIRCUIT_BREAKER);
-
-      // Should have tracked the error and activated circuit breaker
-      expect(errorWindowCalls).toEqual(
-        expect.arrayContaining([
-          [
-            expect.stringContaining(KV_KEYS.ERROR_WINDOW),
-            expect.any(String),
-            expect.objectContaining({
-              expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS,
-            }),
-          ],
-        ]),
-      );
-
-      // Circuit breaker should be activated
-      expect(circuitBreakerCalls).toEqual(
-        expect.arrayContaining([
-          [
-            KV_KEYS.CIRCUIT_BREAKER,
-            expect.any(String),
-            expect.objectContaining({
-              expirationTtl: expect.any(Number) as number,
-            }),
-          ],
-        ]),
-      );
-
-      expect(logServiceWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Circuit breaker activated"),
-        expect.any(Map),
-      );
+      expect(kvGetSpy).toHaveBeenCalledWith(`halo:film:responses:${url}`, "json");
+      expect(kvPutSpy).toHaveBeenCalledWith(`halo:film:responses:${url}`, expect.any(String), expect.any(Object));
+      expect(kvGetSpy).not.toHaveBeenCalledWith(`halo:responses:${url}`, "json");
     });
   });
 
   describe("HTTP 429 retry logic", () => {
     it("retries 429 with retry-after header (seconds format)", async () => {
       kvGetSpy.mockResolvedValue(null);
+      const rateLimitResponse = aFakeResponseWith({
+        status: 429,
+        body: { error: "rate limited" },
+        headers: { "retry-after": "2" },
+      });
 
-      fetchSpy
-        .mockResolvedValueOnce(
-          aFakeResponseWith({
-            status: 429,
-            headers: { "retry-after": "2" },
-          }),
-        )
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
+      fetchSpy.mockResolvedValueOnce(rateLimitResponse).mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
 
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -323,6 +182,7 @@ describe("createResilientFetch", () => {
       await promise;
 
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(rateLimitResponse.bodyUsed).toBe(true);
       expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit 429"));
       expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 2000ms (attempt 1/3)"));
     });
@@ -343,7 +203,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -365,7 +224,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -398,7 +256,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -440,7 +297,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -476,7 +332,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "https://haloquery.com/proxy",
       });
 
       const promise = resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -486,271 +341,6 @@ describe("createResilientFetch", () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("retrying in 1000ms (attempt 1/3)"));
-    });
-  });
-
-  describe("rate limit error handling", () => {
-    it("retries via proxy on 526 error", async () => {
-      kvGetSpy.mockResolvedValue(null);
-
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(logServiceWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Rate limit error 526"));
-      expect(logServiceInfoSpy).toHaveBeenCalledWith(expect.stringContaining("Retrying via proxy"));
-    });
-
-    it("does not retry via proxy when proxy is disabled", async () => {
-      kvGetSpy.mockResolvedValue(null);
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 526 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "",
-      });
-
-      const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(response.status).toBe(526);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe("URL transformation", () => {
-    it("transforms URL correctly for HaloQuery proxy", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/hi/players/xuid(123)/matches?count=25");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://haloquery.com/proxy/halostats.svc.halowaypoint.com/hi/players/xuid(123)/matches?count=25",
-        expect.anything(),
-      );
-    });
-
-    it("handles different subdomains correctly", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://economy.svc.halowaypoint.com/hi/store");
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "https://haloquery.com/proxy/economy.svc.halowaypoint.com/hi/store",
-        expect.anything(),
-      );
-    });
-  });
-
-  describe("header preservation", () => {
-    it("preserves all headers except host and content-length", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      const headers = new Headers({
-        "x-343-authorization-spartan": "spartan-token",
-        authorization: "Bearer token",
-        "user-agent": "test-agent",
-        host: "should-be-removed.com",
-        "content-length": "123",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test", { headers });
-
-      const [, callInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
-      const sentHeaders = new Headers(callInit.headers);
-
-      expect(sentHeaders.get("x-343-authorization-spartan")).toBe("spartan-token");
-      expect(sentHeaders.get("authorization")).toBe("Bearer token");
-      expect(sentHeaders.get("user-agent")).toBe("test-agent");
-      expect(sentHeaders.has("host")).toBe(false);
-      expect(sentHeaders.has("content-length")).toBe(false);
-    });
-  });
-
-  describe("error tracking", () => {
-    it("tracks errors with timestamp and URL", async () => {
-      kvGetSpy.mockResolvedValue(null);
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      // Advance timers to trigger the debounced KV write
-      await vi.advanceTimersByTimeAsync(1000);
-
-      expect(kvPutSpy).toHaveBeenCalledWith(
-        expect.stringContaining(KV_KEYS.ERROR_WINDOW),
-        expect.stringMatching(/timestamp.*statusCode.*url/),
-        expect.any(Object),
-      );
-    });
-
-    it("filters out old errors from error window", async () => {
-      const oldTimestamp = Date.now() - 20 * 60 * 1000; // 20 minutes ago
-      const errorWindow = aFakeErrorWindowWith({
-        errorCount: 1,
-        statusCode: 526,
-      });
-      if (errorWindow.errors[0]) {
-        errorWindow.errors[0].timestamp = oldTimestamp;
-      }
-
-      kvGetSpy.mockImplementation(async (key: string) => {
-        if (key.startsWith(KV_KEYS.ERROR_WINDOW)) {
-          return Promise.resolve(errorWindow);
-        }
-        return Promise.resolve(null);
-      });
-
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      // Should not activate circuit breaker since old error should be filtered
-      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === KV_KEYS.CIRCUIT_BREAKER);
-      expect(circuitBreakerCalls).toHaveLength(0);
-    });
-  });
-
-  describe("kvKeyNamespace", () => {
-    it("reads circuit-breaker state from namespaced key when kvKeyNamespace is provided", async () => {
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-        kvKeyNamespace: "halo:film",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(kvGetSpy).toHaveBeenCalledWith("halo:film:circuit_breaker", "json");
-      expect(kvGetSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, "json");
-    });
-
-    it("writes circuit-breaker and error-window state to namespaced keys when kvKeyNamespace is provided", async () => {
-      const errorWindow = aFakeErrorWindowWith({ errorCount: 2 });
-      kvGetSpy.mockImplementation(async (key: string) => {
-        if (key.startsWith("halo:film:errors")) {
-          return Promise.resolve(errorWindow);
-        }
-        return Promise.resolve(null);
-      });
-
-      fetchSpy
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 526 }))
-        .mockResolvedValueOnce(aFakeResponseWith({ status: 200 }));
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-        kvKeyNamespace: "halo:film",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-      await vi.runAllTimersAsync();
-
-      const errorWindowCalls = kvPutSpy.mock.calls.filter((call) => String(call[0]).startsWith("halo:film:errors"));
-      const circuitBreakerCalls = kvPutSpy.mock.calls.filter((call) => call[0] === "halo:film:circuit_breaker");
-
-      expect(errorWindowCalls).toEqual(
-        expect.arrayContaining([
-          [
-            expect.stringContaining("halo:film:errors"),
-            expect.any(String),
-            expect.objectContaining({ expirationTtl: CIRCUIT_BREAKER_CONFIG.ERROR_TRACKING_TTL_SECONDS }),
-          ],
-        ]),
-      );
-      expect(circuitBreakerCalls).toEqual(
-        expect.arrayContaining([
-          [
-            "halo:film:circuit_breaker",
-            expect.any(String),
-            expect.objectContaining({ expirationTtl: expect.any(Number) as number }),
-          ],
-        ]),
-      );
-      expect(kvPutSpy).not.toHaveBeenCalledWith(KV_KEYS.CIRCUIT_BREAKER, expect.anything(), expect.anything());
     });
   });
 
@@ -770,7 +360,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -807,7 +396,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -828,41 +416,6 @@ describe("createResilientFetch", () => {
       }
     });
 
-    it("logs cache status with (via proxy) suffix for proxied requests", async () => {
-      const circuitBreaker = aFakeCircuitBreakerStateWith();
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(circuitBreaker);
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockResolvedValue(
-        aFakeResponseWith({
-          status: 200,
-          headers: {
-            "cf-cache-status": "HIT",
-            age: "45",
-          },
-        }),
-      );
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-      });
-
-      await resilientFetch("https://halostats.svc.halowaypoint.com/test");
-
-      expect(logServiceDebugSpy).toHaveBeenCalledWith(
-        "Cache HIT for https://halostats.svc.halowaypoint.com/test (via proxy)",
-        expect.any(Map),
-      );
-    });
-
     it("does not log when cf-cache-status header is missing", async () => {
       kvGetSpy.mockResolvedValue(null);
       fetchSpy.mockResolvedValue(
@@ -875,7 +428,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -897,7 +449,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://evilhalowaypoint.com/test");
@@ -919,7 +470,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://profile.svc.halowaypoint.com/users?xuids=1,2,3");
@@ -941,7 +491,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://profile.svc.halowaypoint.com/users/gt(Player)");
@@ -970,7 +519,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const response = await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -997,7 +545,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await expect(resilientFetch("https://halostats.svc.halowaypoint.com/test")).resolves.toBeDefined();
@@ -1015,7 +562,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -1039,7 +585,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -1064,7 +609,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/hi/matches/abc-123/stats");
@@ -1088,7 +632,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch("https://halostats.svc.halowaypoint.com/test");
@@ -1111,7 +654,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const request = new Request("https://halostats.svc.halowaypoint.com/test", { method: "POST" });
@@ -1136,7 +678,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const request = new Request("https://halostats.svc.halowaypoint.com/test", { method: "POST" });
@@ -1166,7 +707,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const [first, second] = await Promise.all([resilientFetch(url), resilientFetch(url)]);
@@ -1193,7 +733,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const [first, second, third] = await Promise.all([
@@ -1215,7 +754,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const [first, second] = await Promise.all([resilientFetch(url), resilientFetch(url)]);
@@ -1234,7 +772,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await resilientFetch(url);
@@ -1252,7 +789,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       await Promise.all([
@@ -1273,7 +809,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
       });
 
       const results = await Promise.allSettled([resilientFetch(url), resilientFetch(url)]);
@@ -1302,7 +837,6 @@ describe("createResilientFetch", () => {
       const resilientFetch = createResilientFetch({
         env,
         logService,
-        proxyUrl: "",
         requestTimeoutMs: 5,
       });
 
@@ -1316,31 +850,6 @@ describe("createResilientFetch", () => {
           ["url", "https://halostats.svc.halowaypoint.com/test"],
           ["timeoutMs", "5"],
         ]),
-      );
-    });
-
-    it("rejects when a proxied request does not respond within the timeout", async () => {
-      kvGetSpy.mockImplementation(async (key) => {
-        if (key === KV_KEYS.PROXY_ENABLED) {
-          return Promise.resolve("true");
-        }
-        if (key === KV_KEYS.CIRCUIT_BREAKER) {
-          return Promise.resolve(aFakeCircuitBreakerStateWith());
-        }
-        return Promise.resolve(null);
-      });
-      fetchSpy.mockImplementation(aNeverRespondingFetch());
-
-      const resilientFetch = createResilientFetch({
-        env,
-        logService,
-        proxyUrl: "https://haloquery.com/proxy",
-        requestTimeoutMs: 5,
-      });
-
-      await expect(resilientFetch("https://halostats.svc.halowaypoint.com/test")).rejects.toHaveProperty(
-        "name",
-        "TimeoutError",
       );
     });
   });
