@@ -15,6 +15,7 @@ import { AggregatorClient } from "./log/aggregator-client";
 import { ConsoleLogClient } from "./log/console-log-client";
 import { SentryLogClient } from "./log/sentry-log-client";
 import { createResilientFetch } from "./halo/resilient-fetch";
+import { HaloRequestExecutor } from "./halo/request-executor";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
 import { AnalyticsService } from "./analytics/analytics";
@@ -59,14 +60,10 @@ export function installServices({ env }: InstallServicesOpts): Services {
   });
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, logService, authenticate });
-  const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-  const haloInfiniteClient = new HaloInfiniteClient(
-    spartanTokenProvider,
-    createResilientFetch({
-      env,
-      logService,
-    }),
-  );
+  const requestExecutor = new HaloRequestExecutor();
+  const haloFetch = createResilientFetch({ env, logService, requestExecutor });
+  const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService, fetch: haloFetch });
+  const haloInfiniteClient = new HaloInfiniteClient(spartanTokenProvider, haloFetch);
 
   const haloService = new HaloService({
     env,
@@ -81,7 +78,7 @@ export function installServices({ env }: InstallServicesOpts): Services {
     xboxService,
     logService,
     fetchForUser: (userId): typeof globalThis.fetch =>
-      createResilientFetch({ env, logService, kvKeyNamespace: `halo:user:${userId}` }),
+      createResilientFetch({ env, logService, requestExecutor, kvKeyNamespace: `halo:user:${userId}` }),
   });
   const haloFilmService = new HaloFilmService({
     env,

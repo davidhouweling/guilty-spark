@@ -13,12 +13,13 @@ interface SpartanToken {
 interface CustomSpartanTokenProviderOpts {
   env: Env;
   xboxService: XboxService;
+  fetch?: typeof globalThis.fetch | undefined;
 }
 
 export class CustomSpartanTokenProvider extends HaloAuthenticationClient implements SpartanTokenProvider {
   public static readonly TOKEN_NAME = "spartanToken";
 
-  constructor({ env, xboxService }: CustomSpartanTokenProviderOpts) {
+  constructor({ env, xboxService, fetch: fetchFn }: CustomSpartanTokenProviderOpts) {
     super(
       {
         fetchToken: async () => {
@@ -36,7 +37,7 @@ export class CustomSpartanTokenProvider extends HaloAuthenticationClient impleme
           }),
         clearToken: async () => env.APP_DATA.delete(CustomSpartanTokenProvider.TOKEN_NAME),
       },
-      createTimeoutFetch(async (input, init) => fetch(input, init)),
+      fetchFn ?? createTimeoutFetch(async (input, init) => fetch(input, init)),
     );
   }
 }
