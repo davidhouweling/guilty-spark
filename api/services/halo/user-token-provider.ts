@@ -1,8 +1,8 @@
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
-import type { SpartanTokenProvider } from "halo-infinite-api";
+import type { HaloInfiniteClient, SpartanTokenProvider } from "halo-infinite-api";
 import type { AuthService } from "../auth/auth";
 import type { LogService } from "../log/types";
 import type { XboxService } from "../xbox/xbox";
+import { createUserClient } from "./user-client";
 
 export interface UserTokenProviderOpts {
   authService: AuthService;
@@ -53,6 +53,10 @@ export class UserTokenProvider {
     return context?.client ?? null;
   }
 
+  public createContextFromXstsToken(userId: string, xstsToken: string): UserTokenContext {
+    return createUserClient(userId, xstsToken, this.fetchForUser?.(userId));
+  }
+
   async getContextForUser(userId: string): Promise<UserTokenContext | null> {
     const cached = this.cachedContextsByUserId.get(userId);
     if (cached != null) {
@@ -87,8 +91,7 @@ export class UserTokenProvider {
       }
 
       const xstsTokenInfo = await this.xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
-      const spartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken);
-      const client = new HaloInfiniteClient(spartanTokenProvider, this.fetchForUser?.(userId));
+      const { client, spartanTokenProvider } = this.createContextFromXstsToken(userId, xstsTokenInfo.XSTSToken);
       const expiresAtMs = xstsTokenInfo.expiresOn.getTime();
       this.cachedContextsByUserId.set(userId, {
         client,

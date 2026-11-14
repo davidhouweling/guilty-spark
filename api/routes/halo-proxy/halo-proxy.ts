@@ -1,4 +1,4 @@
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import type { HaloInfiniteClient } from "halo-infinite-api";
 import { z } from "zod";
 import {
   buildHaloProxyCacheControl,
@@ -53,7 +53,10 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
       sessionWithMetadata.authMetadata,
     );
     if (cachedXstsToken != null) {
-      const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(cachedXstsToken.XSTSToken));
+      const { client } = services.userTokenProvider.createContextFromXstsToken(
+        session.userId,
+        cachedXstsToken.XSTSToken,
+      );
       return { ok: true, resolved: { client } };
     }
 
@@ -84,7 +87,7 @@ async function resolveHaloProxyClient(request: Request, services: Services): Pro
       sessionWithMetadata.authMetadata,
       xstsTokenInfo,
     );
-    const client = new HaloInfiniteClient(new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken));
+    const { client } = services.userTokenProvider.createContextFromXstsToken(session.userId, xstsTokenInfo.XSTSToken);
     return { ok: true, resolved: { client } };
   }
 
