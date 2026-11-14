@@ -1,9 +1,22 @@
 import { HaloAuthenticationClient, HaloInfiniteClient } from "halo-infinite-api";
+import { inMemoryTokenPersister } from "halo-infinite-api/token-persisters";
 import type { DateTime } from "luxon";
 import type { UserTokenContext } from "./user-token-provider";
 
-export function createUserClient(xstsToken: string, fetchFn: typeof fetch = fetch): UserTokenContext {
-  let token: { token: string; expiresAt: DateTime } | null = null;
+interface CachedSpartanToken {
+  token: string;
+  expiresAt: DateTime;
+}
+
+async function getCredentialKey(userId: string, xstsToken: string): Promise<string> {
+  const input = new TextEncoder().encode(JSON.stringify([userId, xstsToken]));
+  const hash = await crypto.subtle.digest("SHA-256", input);
+  const fingerprint = Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `halo.authToken:${fingerprint}`;
+}
+
+export function createUserClient(userId: string, xstsToken: string, fetchFn: typeof fetch = fetch): UserTokenContext {
+  const credentialKey = getCredentialKey(userId, xstsToken);
   const spartanTokenProvider = new HaloAuthenticationClient(
     {
       fetchToken: (): string => xstsToken,
@@ -13,14 +26,13 @@ export function createUserClient(xstsToken: string, fetchFn: typeof fetch = fetc
       },
     },
     {
-      loadToken: async (): Promise<{ token: string; expiresAt: DateTime } | null> => await Promise.resolve(token),
+      loadToken: async (): Promise<CachedSpartanToken | null> =>
+        inMemoryTokenPersister.load<CachedSpartanToken>(await credentialKey),
       saveToken: async (newToken): Promise<void> => {
-        token = newToken;
-        await Promise.resolve();
+        await inMemoryTokenPersister.save(await credentialKey, newToken);
       },
       clearToken: async (): Promise<void> => {
-        token = null;
-        await Promise.resolve();
+        await inMemoryTokenPersister.clear(await credentialKey);
       },
     },
     fetchFn,

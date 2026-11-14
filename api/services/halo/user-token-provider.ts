@@ -54,7 +54,7 @@ export class UserTokenProvider {
   }
 
   public createContextFromXstsToken(userId: string, xstsToken: string): UserTokenContext {
-    return createUserClient(xstsToken, this.fetchForUser?.(userId));
+    return createUserClient(userId, xstsToken, this.fetchForUser?.(userId));
   }
 
   async getContextForUser(userId: string): Promise<UserTokenContext | null> {
