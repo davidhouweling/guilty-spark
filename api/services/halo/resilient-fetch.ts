@@ -1,5 +1,6 @@
 import type { LogService } from "../log/types";
 import { DEFAULT_FETCH_TIMEOUT_MS, withTimeoutSignal } from "./fetch-timeout";
+import type { HaloRequestExecutor } from "./request-executor";
 import {
   getKvCacheSkipReason,
   IMMUTABLE_RESPONSE_TTL_SECONDS,
@@ -11,6 +12,7 @@ interface ResilientFetchOptions {
   logService: LogService;
   kvKeyNamespace?: string;
   requestTimeoutMs?: number | undefined;
+  requestExecutor?: HaloRequestExecutor | undefined;
 }
 
 interface KvCachedResponse {
@@ -129,6 +131,7 @@ export function createResilientFetch({
   logService,
   kvKeyNamespace,
   requestTimeoutMs = DEFAULT_FETCH_TIMEOUT_MS,
+  requestExecutor,
 }: ResilientFetchOptions): typeof fetch {
   const responseCacheKeyPrefix = kvKeyNamespace != null ? `${kvKeyNamespace}:responses` : "halo:responses";
 
@@ -298,8 +301,15 @@ export function createResilientFetch({
       return response;
     }
 
+    async function fetchWithinLane(): Promise<Response> {
+      if (requestExecutor == null) {
+        return await fetchWithRetry();
+      }
+      return await requestExecutor.execute(async () => toResponse(await bufferResponse(fetchWithRetry())));
+    }
+
     try {
-      const response = await fetchWithRetry();
+      const response = await fetchWithinLane();
       await maybeCacheResponseInKv(url, cacheInit, response);
       return response;
     } catch (error) {
