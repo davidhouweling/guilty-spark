@@ -65,7 +65,7 @@ export async function createScriptServices(): Promise<ScriptServices> {
   });
   const haloFilmService = new HaloFilmService({
     env,
-    spartanTokenProvider,
+    client: haloInfiniteClient,
   });
   return { haloInfiniteClient, haloService, haloFilmService, databaseService, logService };
 }

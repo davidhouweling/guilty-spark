@@ -9,5 +9,6 @@ export function aFakeUserTokenProviderWith(opts: Partial<UserTokenProviderOpts> 
     authService: opts.authService ?? aFakeAuthServiceWith(),
     xboxService: opts.xboxService ?? aFakeXboxServiceWith(),
     logService: opts.logService ?? aFakeLogServiceWith(),
+    fetchForUser: opts.fetchForUser,
   });
 }

@@ -53,12 +53,24 @@ describe("UserTokenProvider", () => {
       expiresOn: new Date("2030-01-01T00:00:00.000Z"),
     } satisfies TokenInfo);
 
-    const provider = new UserTokenProvider({ authService, xboxService, logService: aFakeLogServiceWith() });
+    const fetchFn = vi.fn<typeof globalThis.fetch>();
+    const fetchForUser = vi.fn<(userId: string) => typeof globalThis.fetch>().mockReturnValue(fetchFn);
+    const provider = new UserTokenProvider({
+      authService,
+      xboxService,
+      logService: aFakeLogServiceWith(),
+      fetchForUser,
+    });
     const client = await provider.getClientForUser("user-123");
 
     expect(exchangeSpy).toHaveBeenCalledWith("owner-access-token");
+    expect(fetchForUser).toHaveBeenCalledWith("user-123");
     expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("owner-xsts-token");
     expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(HaloInfiniteClient)).toHaveBeenCalledWith(
+      expect.any(StaticXstsTicketTokenSpartanTokenProvider),
+      fetchFn,
+    );
     expect(client).not.toBeNull();
   });
 
