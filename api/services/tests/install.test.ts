@@ -8,12 +8,12 @@ describe("installServices", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses the authenticated Halo API in development even when a proxy URL is configured", async () => {
+  it("uses the authenticated Halo API in development", async () => {
     vi.spyOn(CustomSpartanTokenProvider.prototype, "getSpartanToken").mockResolvedValue("bot-spartan-token");
     const user = { xuid: "123", gamertag: "example" };
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(user)));
     const services = installServices({
-      env: aFakeEnvWith({ MODE: "development", PROXY_WORKER_URL: "https://proxy.example.com" }),
+      env: aFakeEnvWith({ MODE: "development" }),
     });
 
     await expect(services.haloInfiniteClient.getUser("example")).resolves.toEqual(user);

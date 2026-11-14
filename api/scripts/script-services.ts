@@ -54,10 +54,7 @@ export async function createScriptServices(): Promise<ScriptServices> {
   const xboxService = new XboxService({ env, logService, authenticate });
   const databaseService = aFakeDatabaseServiceWith();
   const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-  const haloInfiniteClient = new HaloInfiniteClient(
-    spartanTokenProvider,
-    createResilientFetch({ env, logService, proxyUrl: env.PROXY_WORKER_URL }),
-  );
+  const haloInfiniteClient = new HaloInfiniteClient(spartanTokenProvider, createResilientFetch({ env, logService }));
   const haloService = new HaloService({
     env,
     logService,

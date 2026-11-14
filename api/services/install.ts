@@ -65,7 +65,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     createResilientFetch({
       env,
       logService,
-      proxyUrl: env.PROXY_WORKER_URL,
     }),
   );
 
@@ -84,7 +83,6 @@ export function installServices({ env }: InstallServicesOpts): Services {
     fetch: createResilientFetch({
       env,
       logService,
-      proxyUrl: env.PROXY_WORKER_URL,
       kvKeyNamespace: "halo:film",
     }),
   });
