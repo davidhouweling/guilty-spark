@@ -1,7 +1,7 @@
 import type { MockInstance } from "vitest";
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
 import type * as HaloInfiniteApi from "halo-infinite-api";
-import { HaloInfiniteClient, StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import { HaloInfiniteClient } from "halo-infinite-api";
 import { installFakeServicesWith } from "../services/fakes/services";
 import { createApiRouter } from "../base/router";
 import { Server } from "../server";
@@ -10,13 +10,13 @@ import { aFakeCacheStorage } from "../base/fakes/cache.fake";
 import { aFakeHaloInfiniteClient } from "../services/halo/fakes/infinite-client.fake";
 import { aFakeLinkedIdentitiesRow } from "../services/database/fakes/database.fake";
 import type { TokenInfo } from "../services/xbox/types";
+import type { UserTokenProvider } from "../services/halo/user-token-provider";
 
 vi.mock("halo-infinite-api", async (importOriginal) => {
   const actual = await importOriginal<typeof HaloInfiniteApi>();
   return {
     ...actual,
     AutoTokenProvider: vi.fn(),
-    StaticXstsTicketTokenSpartanTokenProvider: vi.fn(),
     HaloInfiniteClient: vi.fn(),
   };
 });
@@ -105,7 +105,6 @@ describe("Server", () => {
     });
 
     it("falls back to the bot account client when there is no session", async () => {
-      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
       const req = new Request("http://localhost/proxy/halo-infinite/getUser?arg=%22discord_user_01%22", {
         method: "GET",
       });
@@ -122,8 +121,6 @@ describe("Server", () => {
         },
         gamertag: "gamertag01",
       });
-
-      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).not.toHaveBeenCalled();
     });
 
     it("sets a Cache-Control header derived from the operation TTL", async () => {
@@ -136,7 +133,6 @@ describe("Server", () => {
     });
 
     it("returns 200 for the multi-user GET operation with the array argument round-tripped through the query", async () => {
-      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
       const arg = encodeURIComponent(JSON.stringify(["0000000000001"]));
       const req = new Request(`http://localhost/proxy/halo-infinite/getUsers?arg=${arg}`, {
         method: "GET",
@@ -159,7 +155,7 @@ describe("Server", () => {
     it("derives the user spartan token from a valid session", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
       let exchangeMicrosoftAccessTokenForXstsTokenSpy!: MockInstance;
-      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
+      let createContextSpy!: MockInstance<UserTokenProvider["createContextFromXstsToken"]>;
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -167,6 +163,7 @@ describe("Server", () => {
 
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
+        createContextSpy = vi.spyOn(services.userTokenProvider, "createContextFromXstsToken");
         vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
           session: {
             sessionId: "session-123",
@@ -213,8 +210,8 @@ describe("Server", () => {
       });
 
       expect(exchangeMicrosoftAccessTokenForXstsTokenSpy).toHaveBeenCalledWith("access-token");
-      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("valid-xsts-token");
+      expect(createContextSpy).toHaveBeenCalledOnce();
+      expect(createContextSpy).toHaveBeenCalledWith("user-123", "valid-xsts-token");
       expect(res.headers.get("Access-Control-Allow-Origin")).toBe(env.PAGES_URL);
       expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
     });
@@ -222,7 +219,7 @@ describe("Server", () => {
     it("refreshes an expired session without rotating the cookie", async () => {
       const fakeClient = aFakeHaloInfiniteClient();
       let exchangeMicrosoftAccessTokenForXstsTokenSpy!: MockInstance;
-      vi.mocked(StaticXstsTicketTokenSpartanTokenProvider).mockClear();
+      let createContextSpy!: MockInstance<UserTokenProvider["createContextFromXstsToken"]>;
       vi.mocked(HaloInfiniteClient).mockClear();
       vi.mocked(HaloInfiniteClient).mockImplementation(function () {
         return fakeClient;
@@ -230,6 +227,7 @@ describe("Server", () => {
 
       const localInstallServices = vi.fn<typeof installFakeServicesWith>(() => {
         const services = installFakeServicesWith({ env });
+        createContextSpy = vi.spyOn(services.userTokenProvider, "createContextFromXstsToken");
         vi.spyOn(services.authService, "validateSessionWithAuthMetadata").mockResolvedValue({
           session: {
             sessionId: "session-123",
@@ -274,8 +272,8 @@ describe("Server", () => {
       expect(res.headers.get("Set-Cookie")).toBeNull();
 
       expect(exchangeMicrosoftAccessTokenForXstsTokenSpy).toHaveBeenCalledWith("fresh-access-token");
-      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(StaticXstsTicketTokenSpartanTokenProvider)).toHaveBeenCalledWith("fresh-xsts-token");
+      expect(createContextSpy).toHaveBeenCalledOnce();
+      expect(createContextSpy).toHaveBeenCalledWith("user-123", "fresh-xsts-token");
     });
 
     it("returns 401 and clears the cookie when an expired session cannot be refreshed", async () => {
