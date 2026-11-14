@@ -97,6 +97,99 @@ describe("user Halo clients", () => {
     expect(kvPut).not.toHaveBeenCalled();
   });
 
+  it("reuses a credential's token across providers without sharing clients or transports", async () => {
+    const firstFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        Response.json({ SpartanToken: "reused", ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" } }),
+      );
+    const secondFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ xuid: "123", notificationsReadDate: "" }));
+    const firstProvider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => firstFetch,
+    });
+    const secondProvider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => secondFetch,
+    });
+    const first = firstProvider.createContextFromXstsToken("reuse-user", "reuse-xsts");
+    const second = secondProvider.createContextFromXstsToken("reuse-user", "reuse-xsts");
+
+    expect(first.client).not.toBe(second.client);
+    expect(first.spartanTokenProvider).not.toBe(second.spartanTokenProvider);
+    expect(await first.spartanTokenProvider.getSpartanToken()).toBe("reused");
+    expect(await second.client.getCurrentUser()).toEqual({ xuid: "123", notificationsReadDate: "" });
+    expect(firstFetch).toHaveBeenCalledOnce();
+    expect(secondFetch).toHaveBeenCalledOnce();
+    expect(new Headers(secondFetch.mock.calls[0]?.[1]?.headers).get("x-343-authorization-spartan")).toBe("reused");
+  });
+
+  it("does not share in-flight mint requests between fresh contexts", async () => {
+    let release: (() => void) | undefined;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(async () => {
+      await pending;
+      return Response.json({ SpartanToken: "concurrent", ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" } });
+    });
+    const provider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => fetchFn,
+    });
+    const first = provider.createContextFromXstsToken("concurrent-user", "concurrent-xsts");
+    const second = provider.createContextFromXstsToken("concurrent-user", "concurrent-xsts");
+    const requests = [first.spartanTokenProvider.getSpartanToken(), second.spartanTokenProvider.getSpartanToken()];
+
+    try {
+      await vi.waitFor(() => {
+        expect(fetchFn).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      release?.();
+    }
+    await expect(Promise.all(requests)).resolves.toEqual(["concurrent", "concurrent"]);
+  });
+
+  it("does not reuse expired tokens or share tokens between users with the same XSTS", async () => {
+    const fetchFn = vi.fn<typeof fetch>();
+    fetchFn
+      .mockResolvedValueOnce(
+        Response.json({ SpartanToken: "expired", ExpiresUtc: { ISO8601Date: "2000-01-01T00:00:00Z" } }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ SpartanToken: "renewed", ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" } }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ SpartanToken: "other", ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" } }),
+      );
+    const provider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => fetchFn,
+    });
+
+    expect(
+      await provider.createContextFromXstsToken("expiry-user", "shared-xsts").spartanTokenProvider.getSpartanToken(),
+    ).toBe("expired");
+    expect(
+      await provider.createContextFromXstsToken("expiry-user", "shared-xsts").spartanTokenProvider.getSpartanToken(),
+    ).toBe("renewed");
+    expect(
+      await provider.createContextFromXstsToken("other-user", "shared-xsts").spartanTokenProvider.getSpartanToken(),
+    ).toBe("other");
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
   it("isolates contexts for the same user and clears only the selected context", async () => {
     let mints = 0;
     const fetchFn = vi.fn<typeof fetch>().mockImplementation(async () => {
@@ -121,6 +214,8 @@ describe("user Halo clients", () => {
     expect(await second.getSpartanToken()).toBe("spartan-2");
     await first.clearSpartanToken();
     expect(await second.getSpartanToken()).toBe("spartan-2");
+    const secondFresh = provider.createContextFromXstsToken("user", "xsts-second").spartanTokenProvider;
+    expect(await secondFresh.getSpartanToken()).toBe("spartan-2");
     expect(await first.getSpartanToken()).toBe("spartan-3");
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
