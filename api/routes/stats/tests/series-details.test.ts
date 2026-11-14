@@ -152,6 +152,33 @@ describe("/api/stats/series-details/:seriesId", () => {
     expect(getMatchDetailsSpy).toHaveBeenCalledTimes(31);
   });
 
+  it("maps substituted swapped rosters across a 30-match boundary over the whole series", async () => {
+    const matchIds = Array.from({ length: 31 }, (_, index) => `match-${String(index)}`);
+    matchIds.push("match-0");
+    getMatchDetailsSpy.mockImplementation(async ([id]) => {
+      const index = Number(Preconditions.checkExists(id).replace("match-", ""));
+      return Promise.resolve([aFakeSeriesDetailMatchWith(index, index === 30, index === 30)]);
+    });
+    const series = await seriesDetailContract.fromResponse(
+      await post(JSON.stringify({ matchIds, teamMappingMode: "substitution-aware" })),
+    );
+    expect(series.matches.matchIds).toEqual(matchIds);
+    expect(series.matches.results[0]).toEqual(series.matches.results[31]);
+    expect(getMatchDetailsSpy).toHaveBeenCalledTimes(31);
+    expect(detailAt(series, 30).teams.map((team) => [team.matchTeamId, team.seriesTeamId])).toEqual([
+      [7, 3],
+      [3, 7],
+    ]);
+    expect(series.aggregation).toMatchObject({ status: "resolved", gamesPlayed: 31, completedGameCount: 31 });
+    if (series.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregate");
+    }
+    expect(series.aggregation.players.find((player) => player.playerId === "0900000000000000")).toMatchObject({
+      gamesPlayed: 1,
+      teamStats: [{ seriesTeamId: 7, gamesPlayed: 1 }],
+    });
+  });
+
   it.each(["not json", "{}", '{"matchIds":[]}', '{"matchIds":[""]}', `{"matchIds":["${"a".repeat(129)}"]}`])(
     "rejects invalid POST bodies before credential or Halo lookup",
     async (body) => {
@@ -168,7 +195,10 @@ describe("/api/stats/series-details/:seriesId", () => {
       aFakeIndividualTrackersRow({ TrackerId: "tracker", UserId: "owner", IsLive: 1 }),
     );
     getClientForUserSpy.mockResolvedValue(userClient);
-    const response = await post('{"matchIds":["one"]}', "?trackerId=%20tracker%20");
+    const response = await post(
+      '{"matchIds":["one"],"teamMappingMode":"substitution-aware"}',
+      "?trackerId=%20tracker%20",
+    );
     expect(getIndividualTrackerSpy).toHaveBeenCalledWith("tracker");
     expect(withUserClientSpy).toHaveBeenCalledWith(userClient);
     expect(ownerGetMatchDetailsSpy).toHaveBeenCalledWith(["one"]);
@@ -337,6 +367,46 @@ describe("/api/stats/series-details/:seriesId", () => {
     },
   );
 
+  it("applies the same explicit and default mapping modes for GET and POST", async () => {
+    getMatchDetailsSpy.mockImplementation(async ([id]) =>
+      Promise.resolve([aFakeSeriesDetailMatchWith(id === "match-0" ? 0 : 1, id !== "match-0", id !== "match-0")]),
+    );
+    const matchIds = ["match-1", "match-0", "match-1"];
+    const getDefault = await seriesDetailContract.fromResponse(await request("?matchIds=match-1,match-0,match-1"));
+    const postDefault = await seriesDetailContract.fromResponse(await post(JSON.stringify({ matchIds })));
+    expect(getDefault).toEqual(postDefault);
+    expect(getDefault.aggregation).toEqual({ status: "unavailable", reason: "ambiguous-team-mapping" });
+    const getExact = await seriesDetailContract.fromResponse(
+      await request("?matchIds=match-1,match-0,match-1&teamMappingMode=exact-roster"),
+    );
+    const postExact = await seriesDetailContract.fromResponse(
+      await post(JSON.stringify({ matchIds, teamMappingMode: "exact-roster" })),
+    );
+    expect(getExact).toEqual(getDefault);
+    expect(postExact).toEqual(getDefault);
+    const getExplicit = await seriesDetailContract.fromResponse(
+      await request("?matchIds=match-1,match-0,match-1&teamMappingMode=substitution-aware"),
+    );
+    const postExplicit = await seriesDetailContract.fromResponse(
+      await post(JSON.stringify({ matchIds, teamMappingMode: "substitution-aware" })),
+    );
+    expect(getExplicit).toEqual(postExplicit);
+    expect(getExplicit.matches.results[0]).toEqual(getExplicit.matches.results[2]);
+    expect(detailAt(getExplicit, 0).teams.map((team) => team.seriesTeamId)).toEqual([3, 7]);
+    expect(getExplicit.aggregation).toMatchObject({ status: "resolved", gamesPlayed: 2 });
+  });
+
+  it("rejects invalid mapping modes before tracker lookup or match fetch", async () => {
+    const getResponse = await request("?matchIds=one&trackerId=tracker&teamMappingMode=invalid");
+    const postResponse = await post('{"matchIds":["one"],"teamMappingMode":"invalid"}', "?trackerId=tracker");
+    expect(getResponse.status).toBe(400);
+    expect(await getResponse.json()).toEqual({ error: "Invalid query parameters" });
+    expect(postResponse.status).toBe(400);
+    expect(await postResponse.json()).toEqual({ error: "Invalid series details request" });
+    expect(getIndividualTrackerSpy).not.toHaveBeenCalled();
+    expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+  });
+
   it.each([
     "",
     "?matchIds=",
@@ -357,7 +427,7 @@ describe("/api/stats/series-details/:seriesId", () => {
       aFakeIndividualTrackersRow({ TrackerId: "tracker", UserId: "owner", IsLive: 1 }),
     );
     getClientForUserSpy.mockResolvedValue(userClient);
-    const response = await request("?matchIds=one&trackerId=%20tracker%20");
+    const response = await request("?matchIds=one&trackerId=%20tracker%20&teamMappingMode=substitution-aware");
     expect(response.status).toBe(200);
     expect(getIndividualTrackerSpy).toHaveBeenCalledWith("tracker");
     expect(getClientForUserSpy).toHaveBeenCalledWith("owner");

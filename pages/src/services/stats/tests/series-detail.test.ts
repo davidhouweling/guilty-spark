@@ -1,4 +1,5 @@
 import { seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import type { SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -97,6 +98,43 @@ describe("RealSeriesDetailService.getSeriesDetail", () => {
     );
   });
 
+  describe.each([1, 31])("with %i selected matches", (matchCount) => {
+    it.each<SeriesTeamMappingMode>(["exact-roster", "substitution-aware"])(
+      "sends explicit %s mode without changing the selected matches or credentials",
+      async (teamMappingMode) => {
+        const matchIds = Array.from({ length: matchCount }, (_, index) => `match-${index.toString()}`);
+        const detail = await aFakeSeriesDetailServiceWith().getSeriesDetail("series", matchIds);
+        fetchSpy.mockResolvedValueOnce(seriesDetailContract.toResponse(detail));
+
+        await expect(service.getSeriesDetail("series", matchIds, " tracker-1 ", teamMappingMode)).resolves.toEqual(
+          detail,
+        );
+        const query = new URLSearchParams(
+          matchCount === 1
+            ? { matchIds: matchIds.join(","), trackerId: "tracker-1", teamMappingMode }
+            : { trackerId: "tracker-1" },
+        );
+        expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+          `https://api.example.com/api/stats/series-details/series?${query.toString()}`,
+          matchCount === 1
+            ? { credentials: "include" }
+            : {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ matchIds, teamMappingMode }),
+              },
+        );
+      },
+    );
+  });
+
+  it("rejects an invalid mapping mode before fetching", async () => {
+    // @ts-expect-error Untyped callers can supply invalid mapping modes.
+    await expect(service.getSeriesDetail("series", ["match-1"], undefined, "invalid")).rejects.toThrow();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it.each([{ matchIds: [] }, { matchIds: [" "] }])(
     "rejects invalid selection $matchIds before fetching",
     async ({ matchIds }) => {
@@ -107,6 +145,23 @@ describe("RealSeriesDetailService.getSeriesDetail", () => {
 });
 
 describe("FakeSeriesDetailService", () => {
+  it.each<SeriesTeamMappingMode>(["exact-roster", "substitution-aware"])(
+    "accepts explicit %s mode without changing fixture identity",
+    async (teamMappingMode) => {
+      const response = aFakeSeriesDetailResponseWith();
+      const service = aFakeSeriesDetailServiceWith({ response });
+
+      await expect(service.getSeriesDetail("series", ["match-1"], undefined, teamMappingMode)).resolves.toBe(response);
+    },
+  );
+
+  it("rejects an invalid mapping mode even with a configured response", async () => {
+    const service = aFakeSeriesDetailServiceWith({ response: aFakeSeriesDetailResponseWith() });
+
+    // @ts-expect-error Untyped callers can supply invalid mapping modes.
+    await expect(service.getSeriesDetail("series", ["match-1"], undefined, "invalid")).rejects.toThrow();
+  });
+
   it("preserves more than 30 selected matches without fetching", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const matchIds = Array.from({ length: 61 }, (_, index) => `match-${index.toString()}`);
