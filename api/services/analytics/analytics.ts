@@ -418,28 +418,21 @@ export class AnalyticsService {
     matchIds: string[],
     modules: AnalyticsModule[],
   ): Promise<Record<string, MatchAnalytics | null>> {
-    const includesScoreProgression = modules.includes("scoreProgression");
     const cachedKillMatrices = await this.getCachedKillMatrices(matchIds);
-    const needsFilmAccess =
-      includesScoreProgression || matchIds.some((matchId) => cachedKillMatrices.get(matchId) == null);
-    if (needsFilmAccess) {
-      try {
-        await this.haloFilmService.warmAuthCache();
-      } catch (error) {
-        this.logService.warn(error, new Map([["context", "warmAuthCache pre-warm"]]));
-      }
-    }
-
-    const settled = await Promise.allSettled(
-      matchIds.map(async (matchId) =>
-        this.getMatchAnalytics(matchId, modules, cachedKillMatrices.get(matchId) ?? null),
-      ),
-    );
-
     const results: Record<string, MatchAnalytics | null> = {};
-    for (const [index, matchId] of matchIds.entries()) {
-      const outcome = Preconditions.checkExists(settled[index]);
-      results[matchId] = outcome.status === "fulfilled" ? outcome.value : null;
+    for (const matchId of matchIds) {
+      try {
+        results[matchId] = await this.getMatchAnalytics(matchId, modules, cachedKillMatrices.get(matchId) ?? null);
+      } catch (error) {
+        this.logService.warn(
+          toError(error),
+          new Map([
+            ["matchId", matchId],
+            ["context", "load match analytics"],
+          ]),
+        );
+        results[matchId] = null;
+      }
     }
     return results;
   }

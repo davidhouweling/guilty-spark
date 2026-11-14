@@ -12,7 +12,7 @@
     "./live-tracker/fakes/*": "./src/live-tracker/fakes/*.ts"
   },
   "dependencies": {
-    "halo-infinite-api": "^14.3.1",
+    "halo-infinite-api": "^14.4.0",
     "zod": "^4.6.7"
   }
 }

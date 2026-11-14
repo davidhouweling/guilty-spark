@@ -76,15 +76,16 @@ export function installServices({ env }: InstallServicesOpts): Services {
     infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: new PlayerMatchesRateLimiter({ logService, maxCallsPerSecond: 2 }),
   });
-  const userTokenProvider = new UserTokenProvider({ authService, xboxService, logService });
+  const userTokenProvider = new UserTokenProvider({
+    authService,
+    xboxService,
+    logService,
+    fetchForUser: (userId): typeof globalThis.fetch =>
+      createResilientFetch({ env, logService, kvKeyNamespace: `halo:user:${userId}` }),
+  });
   const haloFilmService = new HaloFilmService({
     env,
-    spartanTokenProvider,
-    fetch: createResilientFetch({
-      env,
-      logService,
-      kvKeyNamespace: "halo:film",
-    }),
+    client: haloInfiniteClient,
   });
   const analyticsService = new AnalyticsService({ databaseService, haloService, haloFilmService, logService });
   const liveTrackerService = new LiveTrackerService({ env, logService, discordService });

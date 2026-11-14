@@ -1,5 +1,7 @@
+import { deflateSync } from "node:zlib";
 import type { AutoRouterType } from "itty-router";
 import { StaticXstsTicketTokenSpartanTokenProvider } from "halo-infinite-api";
+import { mock } from "vitest-mock-extended";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LogService } from "../../../services/log/types";
@@ -12,6 +14,7 @@ import { aFakeMatchAnalyticsWith } from "../../../services/analytics/fakes/analy
 import { aFakeIndividualTrackersRow } from "../../../services/database/fakes/database.fake";
 import { installFakeServicesWith } from "../../../services/fakes/services";
 import { statsRoutesRegisterHandler } from "../stats";
+import { aFakeHaloInfiniteClient } from "../../../services/halo/fakes/infinite-client.fake";
 
 describe("/api/stats/match-analytics (batch)", () => {
   let env: Env;
@@ -24,6 +27,7 @@ describe("/api/stats/match-analytics (batch)", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("returns results keyed by matchId with no-store cache header", async () => {
@@ -269,6 +273,67 @@ describe("/api/stats/match-analytics (batch)", () => {
     const body = await response.json();
     expect(body).toEqual({ results: { "match-1": analytics } });
     expect(getContextForUserSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the same owner's SDK client for match statistics and film downloads", async () => {
+    vi.stubGlobal("caches", { default: mock<Cache>() });
+    const botClient = aFakeHaloInfiniteClient();
+    const services = installFakeServicesWith({ env, haloInfiniteClient: botClient });
+    const userClient = aFakeHaloInfiniteClient();
+    const userGetMatchStatsSpy = vi.spyOn(userClient, "getMatchStats");
+    const botGetMatchStatsSpy = vi.spyOn(services.haloInfiniteClient, "getMatchStats");
+    const botSpectateMatchSpy = botClient.spectateMatch.mockRejectedValue(new Error("Unexpected bot film request"));
+    const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+    const compressedChunk = Uint8Array.from(deflateSync(new Uint8Array(0)));
+    vi.spyOn(services.databaseService, "getIndividualTracker").mockResolvedValue(
+      aFakeIndividualTrackersRow({ TrackerId: "tracker-1", UserId: "owner-user-1", IsLive: 1 }),
+    );
+    vi.spyOn(services.authService, "validateSession").mockResolvedValue(
+      aFakeAuthSessionWith({ userId: "owner-user-1" }),
+    );
+    vi.spyOn(services.userTokenProvider, "getContextForUser").mockResolvedValue({
+      client: userClient,
+      spartanTokenProvider: new StaticXstsTicketTokenSpartanTokenProvider("owner-xsts-token"),
+    });
+    const userSpectateMatchSpy = userClient.spectateMatch.mockResolvedValue({
+      AssetId: "film-asset",
+      FilmStatusBond: 0,
+      BlobStoragePathPrefix: "https://blob.example/",
+      CustomData: {
+        MatchId: matchId,
+        FilmMajorVersion: 42,
+        FilmLength: 1000,
+        HasGameEnded: true,
+        ManifestRefreshSeconds: 0,
+        Chunks: [
+          {
+            Index: 7,
+            ChunkType: 3,
+            ChunkStartTimeOffsetMilliseconds: 0,
+            DurationMilliseconds: 1000,
+            ChunkSize: compressedChunk.byteLength,
+            FileRelativePath: "/filmChunk7",
+          },
+        ],
+      },
+    });
+    const userGetFilmChunkSpy = userClient.getFilmChunk.mockResolvedValue(compressedChunk.buffer);
+    statsRoutesRegisterHandler(router, () => services);
+
+    const response = (await router.fetch(
+      new Request(`http://localhost/api/stats/match-analytics?matchIds=${matchId}&trackerId=tracker-1`),
+      env,
+    )) as Response;
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      results: { [matchId]: { requestedModules: ["killMatrix"], killMatrix: {}, scoreProgression: null } },
+    });
+    expect(userGetMatchStatsSpy).toHaveBeenCalledWith(matchId, expect.any(Object));
+    expect(userSpectateMatchSpy).toHaveBeenCalledWith(matchId);
+    expect(userGetFilmChunkSpy).toHaveBeenCalledWith("https://blob.example/", 7);
+    expect(botGetMatchStatsSpy).not.toHaveBeenCalled();
+    expect(botSpectateMatchSpy).not.toHaveBeenCalled();
   });
 
   it("attempts user credential resolution when tracker is live", async () => {

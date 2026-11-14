@@ -1,4 +1,4 @@
-import type { HaloInfiniteClient, MatchStats, UserInfo as HaloUserInfo, SpartanTokenProvider } from "halo-infinite-api";
+import type { HaloInfiniteClient, MatchStats, UserInfo as HaloUserInfo } from "halo-infinite-api";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import { EndUserError, EndUserErrorType } from "../../base/end-user-error";
@@ -137,21 +137,6 @@ export interface PlayerEsraData {
   lastRankedGamePlayed: string | null;
 }
 
-export interface FilmMetadataChunk {
-  ChunkType: number;
-  Index: number;
-  FileRelativePath: string;
-  ChunkSize: number;
-  DurationMilliseconds: number;
-}
-
-export interface FilmMetadataCustomData {
-  MatchId: string;
-  FilmMajorVersion: number;
-  FilmLength: number;
-  Chunks: FilmMetadataChunk[];
-}
-
 export interface ReplicationChunk {
   index: number;
   startMs: number;
@@ -170,12 +155,6 @@ export interface SkippedReplicationChunk {
 export interface ReplicationChunkLoad {
   chunks: ReplicationChunk[];
   skippedChunks: SkippedReplicationChunk[];
-}
-
-export interface FilmMetadataResponse {
-  AssetId: string;
-  BlobStoragePathPrefix: string;
-  CustomData: FilmMetadataCustomData;
 }
 
 export interface ParsedHighlightEvent {
@@ -304,7 +283,5 @@ export interface CtfProgression {
 
 export interface HaloFilmServiceOpts {
   env: Env;
-  spartanTokenProvider: SpartanTokenProvider;
-  fetch?: typeof globalThis.fetch;
-  kvKeyNamespace?: string;
+  client: HaloInfiniteClient;
 }

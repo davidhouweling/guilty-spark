@@ -8,6 +8,7 @@ export interface UserTokenProviderOpts {
   authService: AuthService;
   xboxService: XboxService;
   logService: LogService;
+  fetchForUser?: ((userId: string) => typeof globalThis.fetch) | undefined;
 }
 
 interface CachedUserTokenContext {
@@ -27,13 +28,15 @@ export class UserTokenProvider {
   private readonly authService: AuthService;
   private readonly xboxService: XboxService;
   private readonly logService: LogService;
+  private readonly fetchForUser: UserTokenProviderOpts["fetchForUser"];
   private readonly cachedContextsByUserId = new Map<string, CachedUserTokenContext>();
   private readonly inFlightContextByUserId = new Map<string, Promise<UserTokenContext | null>>();
 
-  constructor({ authService, xboxService, logService }: UserTokenProviderOpts) {
+  constructor({ authService, xboxService, logService, fetchForUser }: UserTokenProviderOpts) {
     this.authService = authService;
     this.xboxService = xboxService;
     this.logService = logService;
+    this.fetchForUser = fetchForUser;
   }
 
   public clearCachedContext(userId: string): void {
@@ -85,7 +88,7 @@ export class UserTokenProvider {
 
       const xstsTokenInfo = await this.xboxService.exchangeMicrosoftAccessTokenForXstsToken(accessToken);
       const spartanTokenProvider = new StaticXstsTicketTokenSpartanTokenProvider(xstsTokenInfo.XSTSToken);
-      const client = new HaloInfiniteClient(spartanTokenProvider);
+      const client = new HaloInfiniteClient(spartanTokenProvider, this.fetchForUser?.(userId));
       const expiresAtMs = xstsTokenInfo.expiresOn.getTime();
       this.cachedContextsByUserId.set(userId, {
         client,

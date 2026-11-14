@@ -5,7 +5,6 @@ import {
 } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
 import { AnalyticsService } from "../../services/analytics/analytics";
 import { HaloFilmService } from "../../services/halo/halo-film";
-import { createResilientFetch } from "../../services/halo/resilient-fetch";
 import type { RoutesRegisterHandler } from "../base/types";
 import { normalizeTrackerId } from "./normalize-tracker-id";
 
@@ -34,18 +33,11 @@ export const batchMatchAnalyticsRoute: RoutesRegisterHandler = (router, installS
           if (session?.userId === tracker.UserId) {
             const userTokenContext = await userTokenProvider.getContextForUser(tracker.UserId);
             if (userTokenContext != null) {
-              const { client: userClient, spartanTokenProvider: userSpartanTokenProvider } = userTokenContext;
+              const { client: userClient } = userTokenContext;
               const userHaloService = haloService.withUserClient(userClient);
-              const userFilmCacheNamespace = `halo:film:${tracker.UserId}`;
               const userFilmService = new HaloFilmService({
                 env,
-                spartanTokenProvider: userSpartanTokenProvider,
-                kvKeyNamespace: userFilmCacheNamespace,
-                fetch: createResilientFetch({
-                  env,
-                  logService,
-                  kvKeyNamespace: userFilmCacheNamespace,
-                }),
+                client: userClient,
               });
               resolvedAnalyticsService = new AnalyticsService({
                 databaseService,

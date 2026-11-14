@@ -1,15 +1,15 @@
 import { deflateSync } from "node:zlib";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import type { MockInstance } from "vitest";
+import type { HaloInfiniteClient } from "halo-infinite-api";
+import type { MockProxy } from "vitest-mock-extended";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { getMatchStats } from "../fakes/data";
 import { aFakeStrongholdsMatchStatsWith } from "../modes/strongholds/fakes/strongholds-match-stats.fake";
-import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
 import { HaloFilmService } from "../halo-film";
 import type { ParsedHighlightEvent } from "../types";
-import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
+import { aFakeHaloInfiniteClient } from "../fakes/infinite-client.fake";
 import { aFakeCtfMatchStatsWith } from "../statborg/fakes/ctf-match-stats.fake";
 import {
   buildChunkBytes,
@@ -125,15 +125,80 @@ function aFakeCacheBackedEnvWith(): Env {
   return aFakeEnvWith({ APP_DATA: kvNamespace });
 }
 
+type FilmMetadata = Awaited<ReturnType<HaloInfiniteClient["spectateMatch"]>>;
+
+interface FilmMetadataInput {
+  AssetId: string;
+  BlobStoragePathPrefix: string;
+  CustomData: {
+    MatchId: string;
+    FilmMajorVersion: number;
+    FilmLength: number;
+    Chunks: {
+      Index: number;
+      ChunkType: number;
+      DurationMilliseconds: number;
+      ChunkSize: number;
+    }[];
+  };
+}
+
+function aFilmChunkFileRelativePath(index: number): FilmMetadata["CustomData"]["Chunks"][number]["FileRelativePath"] {
+  // The SDK's path template is numeric, matching the chunk index.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+  return `/filmChunk${index}`;
+}
+
+function aFilmMetadataWith(input: FilmMetadataInput): FilmMetadata {
+  return {
+    AssetId: input.AssetId,
+    BlobStoragePathPrefix: input.BlobStoragePathPrefix,
+    FilmStatusBond: 0,
+    CustomData: {
+      MatchId: input.CustomData.MatchId,
+      FilmMajorVersion: input.CustomData.FilmMajorVersion,
+      FilmLength: input.CustomData.FilmLength,
+      HasGameEnded: true,
+      ManifestRefreshSeconds: 0,
+      Chunks: input.CustomData.Chunks.map((chunk) => ({
+        ...chunk,
+        ChunkStartTimeOffsetMilliseconds: 0,
+        FileRelativePath: aFilmChunkFileRelativePath(chunk.Index),
+      })),
+    },
+  };
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+function configureFilmClientWith(
+  client: MockProxy<HaloInfiniteClient>,
+  metadata: FilmMetadata,
+  chunkBytesByIndex: ReadonlyMap<number, Uint8Array>,
+): void {
+  client.spectateMatch.mockResolvedValue(metadata);
+  client.getFilmChunk.mockImplementation(async (prefix, index) => {
+    const bytes = chunkBytesByIndex.get(index);
+    if (bytes == null) {
+      throw new Error(`Chunk download failed with 404 for ${prefix}filmChunk${index.toString()}`);
+    }
+    await Promise.resolve();
+    return toArrayBuffer(bytes);
+  });
+}
+
+function aServiceWithFakeClient(env: Env): HaloFilmService {
+  return new HaloFilmService({ env, client: aFakeHaloInfiniteClient() });
+}
+
 describe("HaloFilmService", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     installInMemoryDefaultCache();
-    // Fail fast so cockatiel does not start background retry loops in tests that do not mock auth.
-    // Tests that need real auth override this with a per-instance spy.
-    vi.spyOn(CustomSpartanTokenProvider.prototype, "getSpartanToken").mockRejectedValue(
-      new Error("getSpartanToken not mocked for this test"),
-    );
   });
 
   afterEach(() => {
@@ -142,16 +207,11 @@ describe("HaloFilmService", () => {
 
   it("uses metadata and chunk cache keys before network fetch", async () => {
     const env = aFakeCacheBackedEnvWith();
-    const xboxService = aFakeXboxServiceWith({ env });
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-    const getSpartanTokenSpy = vi
-      .spyOn(spartanTokenProvider, "getSpartanToken")
-      .mockResolvedValue("test-spartan-token");
-    await env.APP_DATA.put("film:clearance", "test-clearance-token");
-    const service = new HaloFilmService({ env, spartanTokenProvider });
+    const client = aFakeHaloInfiniteClient();
+    const service = new HaloFilmService({ env, client });
 
     const compressedChunk = deflateSync(Uint8Array.of(0x01, 0x02, 0x03));
-    const metadata = {
+    const metadata = aFilmMetadataWith({
       AssetId: "asset-id",
       BlobStoragePathPrefix: "https://blob.example/",
       CustomData: {
@@ -164,33 +224,28 @@ describe("HaloFilmService", () => {
             ChunkType: 3,
             DurationMilliseconds: 500,
             ChunkSize: compressedChunk.byteLength,
-            FileRelativePath: "/chunk.bin",
           },
         ],
       },
-    };
+    });
 
     await defaultCache().put(metadataCacheRequestFor("match-123"), Response.json(metadata));
     await defaultCache().put(chunkCacheRequestFor("match-123", 9), new Response(compressedChunk));
 
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
     const events = await service.getHighlightEventsForMatch("match-123");
 
     expect(events).toEqual([]);
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(getSpartanTokenSpy).not.toHaveBeenCalled();
+    expect(client.spectateMatch.mock.calls).toEqual([]);
+    expect(client.getFilmChunk.mock.calls).toEqual([]);
   });
 
-  it("fetches and caches metadata and chunk bytes on cache miss", async () => {
+  it("delegates cache misses to the SDK and caches metadata and chunk bytes", async () => {
     const env = aFakeCacheBackedEnvWith();
-    const xboxService = aFakeXboxServiceWith({ env });
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-    await env.APP_DATA.put("film:clearance", "test-clearance-token");
-    const service = new HaloFilmService({ env, spartanTokenProvider });
+    const client = aFakeHaloInfiniteClient();
+    const service = new HaloFilmService({ env, client });
 
     const compressedChunk = deflateSync(Uint8Array.of(0x04, 0x05, 0x06));
-    const metadata = {
+    const metadata = aFilmMetadataWith({
       AssetId: "asset-id",
       BlobStoragePathPrefix: "https://blob.example/",
       CustomData: {
@@ -203,43 +258,29 @@ describe("HaloFilmService", () => {
             ChunkType: 3,
             DurationMilliseconds: 600,
             ChunkSize: compressedChunk.byteLength,
-            FileRelativePath: "/chunk-7.bin",
           },
         ],
       },
-    };
-
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-        await Promise.resolve();
-        const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        if (requestUrl.includes("/spectate")) {
-          return new Response(JSON.stringify(metadata), { status: 200 });
-        }
-
-        return new Response(compressedChunk, { status: 200 });
-      });
+    });
+    configureFilmClientWith(client, metadata, new Map([[7, compressedChunk]]));
 
     const firstRead = await service.getHighlightEventsForMatch("match-456");
     const secondRead = await service.getHighlightEventsForMatch("match-456");
 
     expect(firstRead).toEqual([]);
     expect(secondRead).toEqual([]);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(client.spectateMatch.mock.calls).toEqual([["match-456"]]);
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", 7]]);
     expect(await defaultCache().match(metadataCacheRequestFor("match-456"))).toBeDefined();
     expect(await defaultCache().match(chunkCacheRequestFor("match-456", 7))).toBeDefined();
   });
 
   it("treats cached metadata without highlight chunk as cache miss", async () => {
     const env = aFakeCacheBackedEnvWith();
-    const xboxService = aFakeXboxServiceWith({ env });
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-    await env.APP_DATA.put("film:clearance", "test-clearance-token");
-    const service = new HaloFilmService({ env, spartanTokenProvider });
+    const client = aFakeHaloInfiniteClient();
+    const service = new HaloFilmService({ env, client });
 
-    const malformedCachedMetadata = {
+    const malformedCachedMetadata = aFilmMetadataWith({
       AssetId: "asset-id",
       BlobStoragePathPrefix: "https://blob.example/",
       CustomData: {
@@ -252,15 +293,14 @@ describe("HaloFilmService", () => {
             ChunkType: 2,
             DurationMilliseconds: 600,
             ChunkSize: 3,
-            FileRelativePath: "/wrong-chunk.bin",
           },
         ],
       },
-    };
+    });
     await defaultCache().put(metadataCacheRequestFor("match-789"), Response.json(malformedCachedMetadata));
 
     const compressedChunk = deflateSync(Uint8Array.of(0x07, 0x08, 0x09));
-    const fetchedMetadata = {
+    const fetchedMetadata = aFilmMetadataWith({
       AssetId: "asset-id",
       BlobStoragePathPrefix: "https://blob.example/",
       CustomData: {
@@ -273,207 +313,47 @@ describe("HaloFilmService", () => {
             ChunkType: 3,
             DurationMilliseconds: 600,
             ChunkSize: compressedChunk.byteLength,
-            FileRelativePath: "/chunk-7.bin",
           },
         ],
       },
-    };
-
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-        await Promise.resolve();
-        const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        if (requestUrl.includes("/spectate")) {
-          return new Response(JSON.stringify(fetchedMetadata), { status: 200 });
-        }
-
-        return new Response(compressedChunk, { status: 200 });
-      });
+    });
+    configureFilmClientWith(client, fetchedMetadata, new Map([[7, compressedChunk]]));
 
     const events = await service.getHighlightEventsForMatch("match-789");
 
     expect(events).toEqual([]);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(client.spectateMatch.mock.calls).toEqual([["match-789"]]);
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", 7]]);
     expect(await defaultCache().match(chunkCacheRequestFor("match-789", 7))).toBeDefined();
   });
 
-  describe("clearance token caching", () => {
-    function mockFetch(
-      clearanceToken: string,
-      metadata: unknown,
-      compressedChunk: Uint8Array,
-    ): MockInstance<typeof globalThis.fetch> {
-      return vi
-        .spyOn(globalThis, "fetch")
-        .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-          await Promise.resolve();
-          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-          if (url.includes("/users/me")) {
-            return new Response(JSON.stringify({ xuid: "1234567890" }), { status: 200 });
-          }
-          if (url.includes("flight-configurations")) {
-            return new Response(JSON.stringify({ FlightConfigurationId: clearanceToken }), { status: 200 });
-          }
-          if (url.includes("/spectate")) {
-            return new Response(JSON.stringify(metadata), { status: 200 });
-          }
-          return new Response(compressedChunk, { status: 200 });
-        });
-    }
-
-    it("fetches and caches clearance token on first call", async () => {
-      const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
-
-      const compressedChunk = deflateSync(Uint8Array.of(0x01));
-      const metadata = {
-        AssetId: "asset-id",
-        BlobStoragePathPrefix: "https://blob.example/",
-        CustomData: {
-          MatchId: "clearance-test-1",
-          FilmMajorVersion: 42,
-          FilmLength: 100,
-          Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
-        },
-      };
-      mockFetch("clearance-abc", metadata, compressedChunk);
-
-      await service.getHighlightEventsForMatch("clearance-test-1");
-
-      expect(await env.APP_DATA.get("film:clearance")).toBe("clearance-abc");
+  it("shares one SDK metadata request for concurrent cold-cache reads", async () => {
+    const env = aFakeCacheBackedEnvWith();
+    const client = aFakeHaloInfiniteClient();
+    const metadata = aFilmMetadataWith({
+      AssetId: "asset-id",
+      BlobStoragePathPrefix: "https://blob.example/",
+      CustomData: {
+        MatchId: "match-dedup",
+        FilmMajorVersion: 42,
+        FilmLength: 600,
+        Chunks: [{ Index: 7, ChunkType: 3, DurationMilliseconds: 600, ChunkSize: 3 }],
+      },
     });
+    configureFilmClientWith(client, metadata, new Map([[7, deflateSync(Uint8Array.of(1, 2, 3))]]));
+    const service = new HaloFilmService({ env, client });
 
-    it("reuses cached clearance token and skips settings endpoints on second call", async () => {
-      const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+    await Promise.all([
+      service.getHighlightEventsForMatch("match-dedup"),
+      service.getHighlightEventsForMatch("match-dedup"),
+    ]);
 
-      const compressedChunk = deflateSync(Uint8Array.of(0x01));
-      const metadata = {
-        AssetId: "asset-id",
-        BlobStoragePathPrefix: "https://blob.example/",
-        CustomData: {
-          MatchId: "clearance-test-2",
-          FilmMajorVersion: 42,
-          FilmLength: 100,
-          Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
-        },
-      };
-      const fetchSpy = mockFetch("clearance-xyz", metadata, compressedChunk);
-
-      await service.getHighlightEventsForMatch("clearance-test-2");
-      const callsAfterFirst = fetchSpy.mock.calls.map((args) => {
-        const [input] = args;
-        return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      });
-      const settingsCallCount = callsAfterFirst.filter((url) => url.includes("flight-configurations")).length;
-      expect(settingsCallCount).toBe(1);
-
-      fetchSpy.mockClear();
-
-      const metadata2 = {
-        ...metadata,
-        CustomData: { ...metadata.CustomData, MatchId: "clearance-test-2b" },
-      };
-      fetchSpy.mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-        await Promise.resolve();
-        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        if (url.includes("/spectate")) {
-          return new Response(JSON.stringify(metadata2), { status: 200 });
-        }
-        return new Response(compressedChunk, { status: 200 });
-      });
-
-      await service.getHighlightEventsForMatch("clearance-test-2b");
-
-      const secondCallUrls = fetchSpy.mock.calls.map((args) => {
-        const [input] = args;
-        return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      });
-      expect(secondCallUrls.some((url) => url.includes("/users/me"))).toBe(false);
-      expect(secondCallUrls.some((url) => url.includes("flight-configurations"))).toBe(false);
-    });
-
-    describe("namespaced clearance token caching", () => {
-      it("reads clearance token from the namespaced key when kvKeyNamespace is provided", async () => {
-        const env = aFakeCacheBackedEnvWith();
-        const xboxService = aFakeXboxServiceWith({ env });
-        const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-        vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-        await env.APP_DATA.put("halo:film:user-123:clearance", "test-clearance-token");
-        const service = new HaloFilmService({
-          env,
-          spartanTokenProvider,
-          kvKeyNamespace: "halo:film:user-123",
-        });
-
-        const compressedChunk = deflateSync(Uint8Array.of(0x01));
-        const metadata = {
-          AssetId: "asset-id",
-          BlobStoragePathPrefix: "https://blob.example/",
-          CustomData: {
-            MatchId: "namespaced-clearance-test-1",
-            FilmMajorVersion: 42,
-            FilmLength: 100,
-            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
-          },
-        };
-        const fetchSpy = mockFetch("unused-clearance", metadata, compressedChunk);
-
-        await service.getHighlightEventsForMatch("namespaced-clearance-test-1");
-
-        const fetchedUrls = fetchSpy.mock.calls.map((args) => {
-          const [input] = args;
-          return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        });
-        expect(fetchedUrls.some((url) => url.includes("/users/me"))).toBe(false);
-        expect(fetchedUrls.some((url) => url.includes("flight-configurations"))).toBe(false);
-        expect(await env.APP_DATA.get("halo:film:user-123:clearance")).toBe("test-clearance-token");
-      });
-
-      it("stores clearance token in the namespaced key when kvKeyNamespace is provided", async () => {
-        const env = aFakeCacheBackedEnvWith();
-        const xboxService = aFakeXboxServiceWith({ env });
-        const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-        vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-        const service = new HaloFilmService({
-          env,
-          spartanTokenProvider,
-          kvKeyNamespace: "halo:film:user-456",
-        });
-
-        const compressedChunk = deflateSync(Uint8Array.of(0x02));
-        const metadata = {
-          AssetId: "asset-id",
-          BlobStoragePathPrefix: "https://blob.example/",
-          CustomData: {
-            MatchId: "namespaced-clearance-test-2",
-            FilmMajorVersion: 42,
-            FilmLength: 100,
-            Chunks: [{ Index: 1, ChunkType: 3, DurationMilliseconds: 100, ChunkSize: 1, FileRelativePath: "/c.bin" }],
-          },
-        };
-        mockFetch("clearance-namespaced", metadata, compressedChunk);
-
-        await service.getHighlightEventsForMatch("namespaced-clearance-test-2");
-
-        expect(await env.APP_DATA.get("halo:film:user-456:clearance")).toBe("clearance-namespaced");
-        expect(await env.APP_DATA.get("film:clearance")).toBeNull();
-      });
-    });
+    expect(client.spectateMatch.mock.calls).toEqual([["match-dedup"]]);
   });
 
   it("builds kill matrix analytics with pairing quality and perfect counts", async () => {
     const env = aFakeCacheBackedEnvWith();
-    const xboxService = aFakeXboxServiceWith({ env });
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-    const service = new HaloFilmService({ env, spartanTokenProvider });
+    const service = aServiceWithFakeClient(env);
 
     const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
     const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -567,9 +447,7 @@ describe("HaloFilmService", () => {
   describe("kill-death pairing edge cases", () => {
     it("pairs kills and deaths at exactly the boundary (2ms delta)", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -605,9 +483,7 @@ describe("HaloFilmService", () => {
 
     it("does not pair kills and deaths exceeding 2ms delta", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -643,9 +519,7 @@ describe("HaloFilmService", () => {
 
     it("handles multiple deaths at same timestamp with greedy pairing", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -692,9 +566,7 @@ describe("HaloFilmService", () => {
 
     it("pairs kill before death (negative delta)", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -731,9 +603,7 @@ describe("HaloFilmService", () => {
   describe("perfect medal detection", () => {
     it("detects perfect medal by name ID", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -778,9 +648,7 @@ describe("HaloFilmService", () => {
 
     it("detects multiple perfects for same killer", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -835,9 +703,7 @@ describe("HaloFilmService", () => {
 
     it("distinguishes perfect medal from perfection medal", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -883,9 +749,7 @@ describe("HaloFilmService", () => {
   describe("perfect medal per-pair attribution", () => {
     it("attributes perfect medal at same timestamp as kill to that pair", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -930,9 +794,7 @@ describe("HaloFilmService", () => {
 
     it("attributes perfect medal within 5ms of kill timestamp to that pair", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -977,9 +839,7 @@ describe("HaloFilmService", () => {
 
     it("does not attribute perfect medal more than 5ms from kill timestamp", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -1024,9 +884,7 @@ describe("HaloFilmService", () => {
 
     it("consumes each perfect medal once across multiple kills by the same player", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -1092,9 +950,7 @@ describe("HaloFilmService", () => {
 
     it("consumes the closest perfect medal when multiple medals are within the window for the same kill", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -1176,9 +1032,7 @@ describe("HaloFilmService", () => {
 
     it("does not attribute a perfect medal from a different player to the kill pair", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -1225,9 +1079,7 @@ describe("HaloFilmService", () => {
   describe("error handling", () => {
     it("returns empty analytics when no events match any kills", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
@@ -1249,9 +1101,7 @@ describe("HaloFilmService", () => {
 
     it("handles match with no events", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
@@ -1266,9 +1116,7 @@ describe("HaloFilmService", () => {
   describe("weapon aggregation", () => {
     it("aggregates kills with different weapons per pair", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
@@ -1303,13 +1151,7 @@ describe("HaloFilmService", () => {
 
     it("populates entry weapons from type-2 chunk fire events when film metadata is available", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const getSpartanTokenSpy = vi
-        .spyOn(spartanTokenProvider, "getSpartanToken")
-        .mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       // API response order: Players[0] → playerIndex 0, matching playerIndex 0 fire event
@@ -1325,14 +1167,12 @@ describe("HaloFilmService", () => {
           MatchId: matchId,
           FilmMajorVersion: 42,
           FilmLength: 10000,
-          Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15, FileRelativePath: "/chunk-0.bin" },
-          ],
+          Chunks: [{ Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15 }],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1372,18 +1212,11 @@ describe("HaloFilmService", () => {
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
-      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
     });
 
     it("decompresses zlib-compressed type-2 chunks before scanning fire events", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const getSpartanTokenSpy = vi
-        .spyOn(spartanTokenProvider, "getSpartanToken")
-        .mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -1397,14 +1230,12 @@ describe("HaloFilmService", () => {
           MatchId: matchId,
           FilmMajorVersion: 42,
           FilmLength: 10000,
-          Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15, FileRelativePath: "/chunk-0.bin" },
-          ],
+          Chunks: [{ Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 15 }],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1445,16 +1276,11 @@ describe("HaloFilmService", () => {
       const analytics = await service.buildKillMatrixAnalytics(match);
       expect(analytics.entries).toHaveLength(1);
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "48C19D2D42C9679F", name: "MA40 AR", count: 1 }]);
-      expect(getSpartanTokenSpy).not.toHaveBeenCalled();
     });
 
     it("aggregates weapon counts across multiple kills and returns weapons sorted by count descending", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -1472,14 +1298,12 @@ describe("HaloFilmService", () => {
           //   event 1 (bytePos 0)  → ts 0ms      (BR75)
           //   event 2 (bytePos 15) → ts 3333ms   (MA40 AR)
           //   event 3 (bytePos 30) → ts 6667ms   (BR75)
-          Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 45, FileRelativePath: "/chunk-0.bin" },
-          ],
+          Chunks: [{ Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 45 }],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1572,11 +1396,7 @@ describe("HaloFilmService", () => {
 
     it("falls back to Formula A weapon snapshot when no fire event matches the kill", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -1590,14 +1410,12 @@ describe("HaloFilmService", () => {
           MatchId: matchId,
           FilmMajorVersion: 42,
           FilmLength: 10000,
-          Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
-          ],
+          Chunks: [{ Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0 }],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1645,11 +1463,7 @@ describe("HaloFilmService", () => {
 
     it("propagates Formula A weapon state from a prior chunk when the kill chunk has no Formula A events", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -1685,14 +1499,14 @@ describe("HaloFilmService", () => {
           FilmMajorVersion: 42,
           FilmLength: 15000,
           Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
-            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0 },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0 },
           ],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1727,11 +1541,7 @@ describe("HaloFilmService", () => {
 
     it("attributes weapons from valid chunks when a later chunk fails to decompress", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
@@ -1762,14 +1572,14 @@ describe("HaloFilmService", () => {
           FilmMajorVersion: 42,
           FilmLength: 10000,
           Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
-            { Index: 1, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0 },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 5000, ChunkSize: 0 },
           ],
         },
       };
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
-        new Response(JSON.stringify(filmMetadata), {
+        new Response(JSON.stringify(aFilmMetadataWith(filmMetadata)), {
           headers: { "Cache-Control": "max-age=604800", "Content-Type": "application/json" },
         }),
       );
@@ -1802,22 +1612,15 @@ describe("HaloFilmService", () => {
       expect(analytics.entries[0]?.weapons).toEqual([{ weaponId: "2B1824D542C9679F", name: "BR75", count: 1 }]);
     });
 
-    it("resolves auth context only once when multiple type-2 chunks are fetched in parallel", async () => {
+    it("downloads type-2 chunks with maximum concurrency one", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const getSpartanTokenSpy = vi
-        .spyOn(spartanTokenProvider, "getSpartanToken")
-        .mockResolvedValue("fake-spartan-token");
-      await env.APP_DATA.put("film:clearance", "fake-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const client = aFakeHaloInfiniteClient();
+      const service = new HaloFilmService({ env, client });
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
-      const killerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
-      const victimXuid = unwrapXuid(Preconditions.checkExists(match.Players[1]).PlayerId);
 
       const matchId = match.MatchId;
       const compressedEmpty = deflateSync(new Uint8Array(0));
-      const filmMetadata = {
+      const filmMetadata = aFilmMetadataWith({
         AssetId: "asset-id",
         BlobStoragePathPrefix: "https://blob.example/",
         CustomData: {
@@ -1825,11 +1628,11 @@ describe("HaloFilmService", () => {
           FilmMajorVersion: 42,
           FilmLength: 20000,
           Chunks: [
-            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-0.bin" },
-            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0, FileRelativePath: "/chunk-1.bin" },
+            { Index: 0, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0 },
+            { Index: 1, ChunkType: 2, DurationMilliseconds: 10000, ChunkSize: 0 },
           ],
         },
-      };
+      });
       await defaultCache().put(
         metadataCacheRequestFor(matchId),
         new Response(JSON.stringify(filmMetadata), {
@@ -1837,46 +1640,30 @@ describe("HaloFilmService", () => {
         }),
       );
 
-      vi.spyOn(globalThis, "fetch").mockImplementation(async (): Promise<Response> => {
+      let activeDownloads = 0;
+      let maxActiveDownloads = 0;
+      client.getFilmChunk.mockImplementation(async () => {
+        activeDownloads += 1;
+        maxActiveDownloads = Math.max(maxActiveDownloads, activeDownloads);
         await Promise.resolve();
-        return new Response(compressedEmpty, { status: 200 });
+        activeDownloads -= 1;
+        return toArrayBuffer(compressedEmpty);
       });
 
-      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
-        {
-          xuid: killerXuid,
-          gamertag: "killer",
-          typeHint: 50,
-          isMedal: false,
-          eventType: "kill",
-          timeMs: 4000,
-          medalValue: 0,
-          teamId: null,
-        },
-        {
-          xuid: victimXuid,
-          gamertag: "victim",
-          typeHint: 20,
-          isMedal: false,
-          eventType: "death",
-          timeMs: 4000,
-          medalValue: 0,
-          teamId: null,
-        },
-      ]);
+      vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([]);
 
       await service.buildKillMatrixAnalytics(match);
 
-      expect(getSpartanTokenSpy).toHaveBeenCalledTimes(1);
+      expect(maxActiveDownloads).toBe(1);
+      expect(client.getFilmChunk.mock.calls).toHaveLength(2);
+      expect(client.spectateMatch.mock.calls).toEqual([]);
     });
   });
 
   describe("buildKillRaceProgression", () => {
     it("accumulates running scores per team in kill timestamp order", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const team1PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[3]).PlayerId);
@@ -1926,9 +1713,7 @@ describe("HaloFilmService", () => {
 
     it("collects deathTimeline from death events belonging to known teams", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
       const team1PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[3]).PlayerId);
@@ -1973,9 +1758,7 @@ describe("HaloFilmService", () => {
 
     it("skips kill events whose xuid is not mapped to any team in matchStats", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
       const team0PlayerXuid = unwrapXuid(Preconditions.checkExists(match.Players[0]).PlayerId);
 
@@ -2011,9 +1794,7 @@ describe("HaloFilmService", () => {
 
     it("returns empty events when no kill events are present", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer"));
 
       vi.spyOn(service, "getHighlightEventsForMatch").mockResolvedValue([
@@ -2057,9 +1838,7 @@ describe("HaloFilmService", () => {
   describe("buildKothProgression", () => {
     it("derives hill capture timestamps from score events matching each team's capture count", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const team0Xuid = "0100000000000000";
       const team1Xuid = "0400000000000000";
@@ -2096,9 +1875,7 @@ describe("HaloFilmService", () => {
   describe("buildOddballProgression", () => {
     it("reconstructs a single timed-out round with scores reconciled to the API totals", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const baseMatch = Preconditions.checkExists(getMatchStats("e20900f9-4c6c-4003-a175-00000000koth"));
       const match = {
         ...baseMatch,
@@ -2137,9 +1914,7 @@ describe("HaloFilmService", () => {
   describe("buildStrongholdsProgression", () => {
     it("reconstructs a hand-computed two-team scenario reconciled to the API totals", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const service = aServiceWithFakeClient(env);
       const match = aFakeStrongholdsMatchStatsWith(
         new Map([
           [0, { score: 54, ticks: 54, captures: 2, secures: 0 }],
@@ -2174,10 +1949,8 @@ describe("HaloFilmService", () => {
   describe("highlight events KV cache", () => {
     it("returns KV-cached events without hitting the network", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const client = aFakeHaloInfiniteClient();
+      const service = new HaloFilmService({ env, client });
 
       const cachedEvents: ParsedHighlightEvent[] = [
         {
@@ -2193,23 +1966,20 @@ describe("HaloFilmService", () => {
       ];
       await env.APP_DATA.put("halo:film:match:kv-match-1", JSON.stringify(cachedEvents));
 
-      const fetchSpy = vi.spyOn(globalThis, "fetch");
       const events = await service.getHighlightEventsForMatch("kv-match-1");
 
       expect(events).toEqual(cachedEvents);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(client.spectateMatch.mock.calls).toEqual([]);
+      expect(client.getFilmChunk.mock.calls).toEqual([]);
     });
 
     it("stores parsed events in KV after fetching from Halo Waypoint", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-      await env.APP_DATA.put("film:clearance", "test-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const client = aFakeHaloInfiniteClient();
+      const service = new HaloFilmService({ env, client });
 
       const compressedChunk = deflateSync(Uint8Array.of(0x01, 0x02));
-      const metadata = {
+      const metadata = aFilmMetadataWith({
         AssetId: "asset-id",
         BlobStoragePathPrefix: "https://blob.example/",
         CustomData: {
@@ -2222,40 +1992,28 @@ describe("HaloFilmService", () => {
               ChunkType: 3,
               DurationMilliseconds: 100,
               ChunkSize: compressedChunk.byteLength,
-              FileRelativePath: "/chunk.bin",
             },
           ],
         },
-      };
-
-      vi.spyOn(globalThis, "fetch").mockImplementation(
-        async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-          await Promise.resolve();
-          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-          if (url.includes("/spectate")) {
-            return new Response(JSON.stringify(metadata), { status: 200 });
-          }
-          return new Response(compressedChunk, { status: 200 });
-        },
-      );
+      });
+      configureFilmClientWith(client, metadata, new Map([[1, compressedChunk]]));
 
       await service.getHighlightEventsForMatch("kv-miss-match");
 
       const stored = await env.APP_DATA.get("halo:film:match:kv-miss-match", "json");
       expect(stored).not.toBeNull();
       expect(Array.isArray(stored)).toBe(true);
+      expect(client.spectateMatch.mock.calls).toEqual([["kv-miss-match"]]);
+      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", 1]]);
     });
 
     it("serves second request from KV without additional network calls", async () => {
       const env = aFakeCacheBackedEnvWith();
-      const xboxService = aFakeXboxServiceWith({ env });
-      const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-      vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-      await env.APP_DATA.put("film:clearance", "test-clearance-token");
-      const service = new HaloFilmService({ env, spartanTokenProvider });
+      const client = aFakeHaloInfiniteClient();
+      const service = new HaloFilmService({ env, client });
 
       const compressedChunk = deflateSync(Uint8Array.of(0x01));
-      const metadata = {
+      const metadata = aFilmMetadataWith({
         AssetId: "asset-id",
         BlobStoragePathPrefix: "https://blob.example/",
         CustomData: {
@@ -2268,32 +2026,23 @@ describe("HaloFilmService", () => {
               ChunkType: 3,
               DurationMilliseconds: 100,
               ChunkSize: compressedChunk.byteLength,
-              FileRelativePath: "/chunk.bin",
             },
           ],
         },
-      };
-
-      const fetchSpy = vi
-        .spyOn(globalThis, "fetch")
-        .mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-          await Promise.resolve();
-          const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-          if (url.includes("/spectate")) {
-            return new Response(JSON.stringify(metadata), { status: 200 });
-          }
-          return new Response(compressedChunk, { status: 200 });
-        });
+      });
+      configureFilmClientWith(client, metadata, new Map([[2, compressedChunk]]));
 
       const firstResult = await service.getHighlightEventsForMatch("kv-second-req");
-      const callsAfterFirst = fetchSpy.mock.calls.length;
-      fetchSpy.mockClear();
+      expect(client.spectateMatch.mock.calls).toEqual([["kv-second-req"]]);
+      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", 2]]);
+      client.spectateMatch.mockClear();
+      client.getFilmChunk.mockClear();
 
       const secondResult = await service.getHighlightEventsForMatch("kv-second-req");
 
       expect(secondResult).toEqual(firstResult);
-      expect(fetchSpy).not.toHaveBeenCalled();
-      expect(callsAfterFirst).toBeGreaterThan(0);
+      expect(client.spectateMatch.mock.calls).toEqual([]);
+      expect(client.getFilmChunk.mock.calls).toEqual([]);
     });
   });
 });
@@ -2308,8 +2057,8 @@ describe("HaloFilmService replication chunks", () => {
     vi.restoreAllMocks();
   });
 
-  function aChunkMetadata(chunks: { Index: number; ChunkType: number; DurationMilliseconds: number }[]): unknown {
-    return {
+  function aChunkMetadata(chunks: { Index: number; ChunkType: number; DurationMilliseconds: number }[]): FilmMetadata {
+    return aFilmMetadataWith({
       AssetId: "asset-id",
       BlobStoragePathPrefix: "https://blob.example/",
       CustomData: {
@@ -2319,31 +2068,20 @@ describe("HaloFilmService replication chunks", () => {
         Chunks: chunks.map((chunk) => ({
           ...chunk,
           ChunkSize: 1,
-          FileRelativePath: `/chunk-${String(chunk.Index)}.bin`,
         })),
       },
-    };
+    });
   }
 
   async function aServiceWithFilm(
-    metadata: unknown,
+    metadata: FilmMetadata,
     chunkBytesByIndex: Map<number, Uint8Array>,
     env = aFakeCacheBackedEnvWith(),
+    client = aFakeHaloInfiniteClient(),
   ): Promise<HaloFilmService> {
-    const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService: aFakeXboxServiceWith({ env }) });
-    vi.spyOn(spartanTokenProvider, "getSpartanToken").mockResolvedValue("test-spartan-token");
-    await env.APP_DATA.put("film:clearance", "test-clearance-token");
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
-      await Promise.resolve();
-      const requestUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      if (requestUrl.includes("/spectate")) {
-        return new Response(JSON.stringify(metadata), { status: 200 });
-      }
-      const index = Number(/chunk-(\d+)\.bin/u.exec(requestUrl)?.[1]);
-      const bytes = chunkBytesByIndex.get(index);
-      return bytes == null ? new Response(null, { status: 404 }) : new Response(bytes, { status: 200 });
-    });
-    return new HaloFilmService({ env, spartanTokenProvider });
+    configureFilmClientWith(client, metadata, chunkBytesByIndex);
+    await Promise.resolve();
+    return new HaloFilmService({ env, client });
   }
 
   const identityFrames = [
@@ -2742,6 +2480,27 @@ describe("HaloFilmService replication chunks", () => {
     await expect(service.buildPlayerPositions(matchStats)).rejects.toThrow("has a malformed replication chunk: 2");
   });
 
+  it("does not download later chunks after the first complete-chunk failure", async () => {
+    const client = aFakeHaloInfiniteClient();
+    const metadata = aChunkMetadata([
+      { Index: 1, ChunkType: 2, DurationMilliseconds: 20_000 },
+      { Index: 2, ChunkType: 2, DurationMilliseconds: 20_000 },
+    ]);
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([
+        [1, Uint8Array.of(9, 9, 9)],
+        [2, deflateSync(buildReplicationChunkBytes(identityFrames))],
+      ]),
+      aFakeCacheBackedEnvWith(),
+      client,
+    );
+
+    await expect(service.getCompleteReplicationChunks("match-ctf")).rejects.toThrow("malformed replication chunk: 1");
+
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", 1]]);
+  });
+
   it("fetches the film metadata once when the chunk and highlight loads both start cold", async () => {
     const metadata = aChunkMetadata([
       { Index: 0, ChunkType: 1, DurationMilliseconds: 1000 },
@@ -2755,24 +2514,24 @@ describe("HaloFilmService replication chunks", () => {
         { slot: 513, startMs: 1000, endMs: 30_000 },
       ],
     });
+    const client = aFakeHaloInfiniteClient();
     const service = await aServiceWithFilm(
       metadata,
       new Map([
         ...film.map((chunk): [number, Uint8Array] => [chunk.index, deflateSync(chunk.data)]),
         [3, deflateSync(Uint8Array.of(1, 2))],
       ]),
+      aFakeCacheBackedEnvWith(),
+      client,
     );
     const matchStats = aFakeCtfMatchStatsWith();
     matchStats.MatchId = "match-ctf";
 
     await service.buildPlayerPositions(matchStats);
 
-    const fetchSpy = vi.mocked(globalThis.fetch);
-    const requestUrls = fetchSpy.mock.calls.map(([input]) =>
-      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url,
-    );
-    expect(requestUrls.filter((url) => url.includes("/spectate"))).toHaveLength(1);
-    expect(requestUrls.filter((url) => url.includes("chunk-3.bin"))).toHaveLength(1);
+    expect(client.spectateMatch.mock.calls).toEqual([["match-ctf"]]);
+    expect(client.getFilmChunk.mock.calls).toHaveLength(3);
+    expect(client.getFilmChunk.mock.calls).toContainEqual(["https://blob.example/", 3]);
   });
 
   it("refuses to build player positions when a chunk inflates to nothing", async () => {
