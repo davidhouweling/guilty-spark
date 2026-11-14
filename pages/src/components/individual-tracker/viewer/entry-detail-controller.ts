@@ -1,29 +1,16 @@
-import type { MatchStats } from "halo-infinite-api";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
-import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
-import {
-  buildPresentAtBeginningTeamRosters,
-  resolveMatchTeamIdToSeriesTeamId,
-  resolveSeriesTeamMapping,
-} from "@guilty-spark/shared/halo/series-team-identity";
-import type { SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
+import type { MatchDetail, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
-import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
-import { buildSeriesViewModel } from "../../series-stats/build-series-view-model";
-import type { BuildSeriesViewModelArgs } from "../../series-stats/build-series-view-model";
-import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesMatchAnalyticsById, SeriesMatchAnalyticsState } from "../../series-stats/types";
 import type { IndividualTrackerViewerStore, MatchEntryLoadedState, SeriesEntryLoadedState } from "./viewer-store";
 import type { ViewerSeriesTab, ViewerTimelineItem } from "./types";
 
@@ -35,14 +22,8 @@ interface MatchAnalyticsSource {
 }
 
 interface SeriesAnalyticsSource {
-  readonly series: ViewerSeriesTab;
-  readonly matches: SeriesMatchesResponse["matches"];
-  readonly rawMatches: readonly MatchStats[];
-  readonly medalMetadata: MedalMetadata;
-  readonly playerMap: Map<string, string>;
-  readonly analyticsByMatchId: Map<string, MatchAnalytics>;
-  readonly requestedModules: Set<AnalyticsModule>;
-  readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
+  readonly data: SeriesDetailResponse;
+  analyticsByMatchId: SeriesMatchAnalyticsById;
 }
 
 export interface EntryDetailControllerConfig {
@@ -55,70 +36,7 @@ export interface EntryDetailControllerConfig {
   readonly trackerId?: string;
 }
 
-const SERIES_MATCHES_BATCH_SIZE = 30;
-
-function reverseTwoSideScore(score: string): string {
-  const sides = score.split(":");
-  const [firstSide, secondSide] = sides;
-  if (sides.length !== 2) {
-    return score;
-  }
-
-  return `${secondSide}:${firstSide}`;
-}
-
-function shouldReverseSeriesScores(
-  series: ViewerSeriesTab,
-  rawMatches: readonly MatchStats[],
-  matchId: string,
-): boolean {
-  const match = rawMatches.find((rawMatch) => rawMatch.MatchId === matchId);
-  if (series.teams.length !== 2 || match?.Teams.length !== 2) {
-    return false;
-  }
-
-  const anchorMatchId = series.matches[0]?.matchId;
-  const anchorMatch = rawMatches.find((candidate) => candidate.MatchId === anchorMatchId);
-  if (anchorMatch == null) {
-    return false;
-  }
-
-  const anchorRosters = buildPresentAtBeginningTeamRosters(anchorMatch);
-  const matchRosters = buildPresentAtBeginningTeamRosters(match);
-  if (matchRosters == null) {
-    return false;
-  }
-
-  const isCanonical = resolveMatchTeamIdToSeriesTeamId(anchorRosters, match) != null;
-  const scoreRosters = isCanonical
-    ? anchorRosters
-    : match.Teams.flatMap((team) => matchRosters.filter((roster) => roster.matchTeamId === team.TeamId));
-  if (scoreRosters?.length !== 2) {
-    return false;
-  }
-
-  const configuredRosters: SeriesTeamRoster[] = series.teams.map((team) => {
-    const xuids = new Set(team.players.flatMap((player) => (player.xboxId != null ? [unwrapXuid(player.xboxId)] : [])));
-    return {
-      seriesTeamId: team.id,
-      xuids,
-      unidentifiedPlayerCount: team.players.length - xuids.size,
-    };
-  });
-  if (configuredRosters.some((roster) => roster.xuids.size === 0)) {
-    return false;
-  }
-
-  const normalizedScoreRosters = scoreRosters.map((roster) => ({
-    ...roster,
-    xuids: new Set(Array.from(roster.xuids, unwrapXuid)),
-  }));
-  const resolution = resolveSeriesTeamMapping(configuredRosters, normalizedScoreRosters);
-  const [firstConfiguredTeam] = series.teams;
-  const firstTeamResolution = resolution?.find((entry) => entry.seriesTeamId === firstConfiguredTeam.id);
-
-  return firstTeamResolution?.matchTeamId === normalizedScoreRosters[1]?.matchTeamId;
-}
+const SERIES_ANALYTICS_BATCH_SIZE = 30;
 
 // Shared by the live tracker viewer and the search-based match history page — both render the
 // same timeline/entry-expand UI and only differ in how the top-level TrackerViewState is sourced.
@@ -130,25 +48,6 @@ export class EntryDetailController {
 
   public constructor(config: EntryDetailControllerConfig) {
     this.config = config;
-  }
-
-  private buildSeriesViewModel(
-    args: BuildSeriesViewModelArgs & { readonly series: ViewerSeriesTab },
-  ): SeriesStatsViewModel {
-    const viewModel = buildSeriesViewModel(args);
-    return {
-      ...viewModel,
-      matchSummaries: viewModel.matchSummaries.map((summary) => {
-        if (!shouldReverseSeriesScores(args.series, args.rawMatches, summary.matchId)) {
-          return summary;
-        }
-        return {
-          ...summary,
-          gameScore: reverseTwoSideScore(summary.gameScore),
-          gameSubScore: summary.gameSubScore == null ? null : reverseTwoSideScore(summary.gameSubScore),
-        };
-      }),
-    };
   }
 
   private static entryKey(item: ViewerTimelineItem): string {
@@ -169,6 +68,9 @@ export class EntryDetailController {
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
+    if (this.isDisposed) {
+      return;
+    }
     const key = EntryDetailController.entryKey(item);
     const snapshot = this.config.store.getSnapshot();
     const isExpanded = snapshot.expandedEntryKeys.has(key);
@@ -195,7 +97,7 @@ export class EntryDetailController {
     void this.fetchSeriesEntry(key, item.series);
   }
 
-  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule): void {
+  public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string): void {
     const key = EntryDetailController.entryKey(item);
     if (item.type === "match") {
       const source = this.matchAnalyticsSources.get(key);
@@ -209,12 +111,29 @@ export class EntryDetailController {
     }
 
     const source = this.seriesAnalyticsSources.get(key);
-    if (source == null || this.isModuleSatisfied(source.requestedModules, module)) {
+    if (source == null || (module === "scoreProgression" && matchId == null)) {
       return;
     }
 
-    source.requestedModules.add(module);
-    void this.fetchSeriesAnalyticsAsync(key, module, source);
+    const matchIds = [
+      ...new Set(
+        source.data.matches.results
+          .filter((result) => result.status === "resolved" && (matchId == null || result.matchId === matchId))
+          .map((result) => result.matchId),
+      ),
+    ].filter((id) => {
+      const state = source.analyticsByMatchId.get(id);
+      if (module === "killMatrix" && state?.scoreProgression?.status === ComponentLoaderStatus.LOADING) {
+        return false;
+      }
+      const status = state?.[module]?.status;
+      return status !== ComponentLoaderStatus.LOADING && status !== ComponentLoaderStatus.LOADED;
+    });
+    if (matchIds.length === 0) {
+      return;
+    }
+    this.updateSeriesAnalytics(key, source, matchIds, module, ComponentLoaderStatus.LOADING);
+    void this.fetchSeriesAnalyticsAsync(key, module, source, matchIds);
   }
 
   /**
@@ -329,7 +248,11 @@ export class EntryDetailController {
         return;
       }
 
-      source.analytics = this.mergeAnalytics(source.analytics, results[matchId] ?? null);
+      const analytics = results[matchId];
+      if (analytics == null) {
+        throw new Error("Failed to load match analytics");
+      }
+      source.analytics = this.mergeAnalytics(source.analytics, analytics);
       this.syncRequestedModules(source.requestedModules, source.analytics);
       source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
       this.markModulesLoaded(source.moduleStatuses, source.analytics);
@@ -346,8 +269,10 @@ export class EntryDetailController {
         return;
       }
 
-      source.requestedModules.delete(module);
-      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
+      if (source.moduleStatuses.get(module) !== ComponentLoaderStatus.LOADED) {
+        source.requestedModules.delete(module);
+        source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
+      }
       const loadedState = this.toMatchEntryLoadedState(
         source.matchSource,
         source.analytics,
@@ -362,67 +287,22 @@ export class EntryDetailController {
   private async fetchSeriesEntry(key: string, series: ViewerSeriesTab): Promise<void> {
     this.config.store.setEntryLoading(key, "series");
     try {
-      const requestedMatchIds = series.matches.map((match) => match.matchId);
-      const uniqueMatchIds = [...new Set(requestedMatchIds)];
-      const seriesDataChunks: SeriesMatchesResponse[] = [];
-
-      const seriesAnchorMatchId = series.matches[0]?.matchId;
-      for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
-        if (this.shouldAbort()) {
-          return;
-        }
-        const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
-        const batchSeriesData = await this.config.seriesMatchesService.getSeriesMatches(
-          batchMatchIds,
-          this.config.trackerId,
-          seriesAnchorMatchId,
-        );
-        if (this.shouldAbort()) {
-          return;
-        }
-        seriesDataChunks.push(batchSeriesData);
+      const data = await this.config.seriesDetailService?.getSeriesDetail(
+        series.id,
+        series.matches.map((match) => match.matchId),
+        this.config.trackerId,
+        "substitution-aware",
+      );
+      if (this.shouldAbort()) {
+        return;
       }
-
-      const mergedMatchesById = new Map(seriesDataChunks.flatMap((chunk) => chunk.matches).map((m) => [m.matchId, m]));
-      const mergedSeriesData: SeriesMatchesResponse = {
-        playerXuidToGametag: Object.assign({}, ...seriesDataChunks.map((chunk) => chunk.playerXuidToGametag)),
-        matches: requestedMatchIds
-          .map((matchId) => mergedMatchesById.get(matchId))
-          .filter((match): match is SeriesMatchesResponse["matches"][number] => match != null),
-      };
-
-      const playerMap = new Map(Object.entries(mergedSeriesData.playerXuidToGametag));
-      const rawMatches = mergedSeriesData.matches
-        .map((m) => m.rawMatch)
-        .filter((m): m is MatchStats => isMatchStats(m));
-      const { matches } = mergedSeriesData;
-      const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
-
-      const teamColors = this.resolveTeamColors();
-      const viewModel = this.buildSeriesViewModel({
-        series,
-        matches,
-        rawMatches,
-        medalMetadata,
-        playerMap,
-        teamColors,
-        analyticsByMatchId: new Map(),
-        killMatrixStatus: ComponentLoaderStatus.PENDING,
-        scoreProgressionStatus: ComponentLoaderStatus.PENDING,
-      });
-
-      const state: SeriesEntryLoadedState = { seriesId: series.id, viewModel };
+      if (data == null) {
+        throw new Error("Failed to load series");
+      }
+      const source: SeriesAnalyticsSource = { data, analyticsByMatchId: new Map() };
+      this.seriesAnalyticsSources.set(key, source);
+      const state: SeriesEntryLoadedState = { seriesId: series.id, ...source };
       this.config.store.setSeriesEntryLoaded(key, state);
-      this.seriesAnalyticsSources.set(key, {
-        series,
-        matches,
-        rawMatches,
-        medalMetadata,
-        playerMap,
-        analyticsByMatchId: new Map(),
-        requestedModules: new Set(),
-        moduleStatuses: new Map(),
-      });
     } catch (error) {
       if (this.isDisposed) {
         return;
@@ -435,82 +315,62 @@ export class EntryDetailController {
     key: string,
     module: AnalyticsModule,
     source: SeriesAnalyticsSource,
+    matchIds: readonly string[],
   ): Promise<void> {
-    source.moduleStatuses.set(module, ComponentLoaderStatus.LOADING);
-    const loadingViewModel = this.buildSeriesViewModel({
-      ...source,
-      teamColors: this.resolveTeamColors(),
-      killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
-      scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
-    });
-    this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadingViewModel });
-
-    const requestedMatchIds = source.series.matches.map((match) => match.matchId);
-    const uniqueMatchIds = [...new Set(requestedMatchIds)];
-    if (uniqueMatchIds.length === 0) {
-      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
-      const loadedViewModel = this.buildSeriesViewModel({
-        ...source,
-        teamColors: this.resolveTeamColors(),
-        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
-        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
-      });
-      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
-      return;
-    }
-
-    try {
-      for (let index = 0; index < uniqueMatchIds.length; index += SERIES_MATCHES_BATCH_SIZE) {
-        if (this.shouldAbort()) {
-          return;
-        }
-
-        const batchMatchIds = uniqueMatchIds.slice(index, index + SERIES_MATCHES_BATCH_SIZE);
+    for (let index = 0; index < matchIds.length; index += SERIES_ANALYTICS_BATCH_SIZE) {
+      if (this.shouldAbort() || this.seriesAnalyticsSources.get(key) !== source) {
+        return;
+      }
+      const batchMatchIds = matchIds.slice(index, index + SERIES_ANALYTICS_BATCH_SIZE);
+      try {
         const batch = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
           batchMatchIds,
           [module],
           this.config.trackerId,
         );
 
-        if (this.shouldAbort()) {
+        if (this.shouldAbort() || this.seriesAnalyticsSources.get(key) !== source) {
           return;
         }
-
-        for (const [matchId, analytics] of Object.entries(batch)) {
-          if (analytics != null) {
-            const mergedAnalytics = this.mergeAnalytics(source.analyticsByMatchId.get(matchId) ?? null, analytics);
-            if (mergedAnalytics != null) {
-              source.analyticsByMatchId.set(matchId, mergedAnalytics);
-              this.syncRequestedModules(source.requestedModules, mergedAnalytics);
-              this.markModulesLoaded(source.moduleStatuses, mergedAnalytics);
-            }
-          }
+        this.updateSeriesAnalytics(key, source, batchMatchIds, module, ComponentLoaderStatus.LOADED, batch);
+      } catch {
+        if (this.shouldAbort() || this.seriesAnalyticsSources.get(key) !== source) {
+          return;
         }
-      }
-
-      source.moduleStatuses.set(module, ComponentLoaderStatus.LOADED);
-      const loadedViewModel = this.buildSeriesViewModel({
-        ...source,
-        teamColors: this.resolveTeamColors(),
-        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
-        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
-      });
-      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: loadedViewModel });
-    } catch {
-      if (this.shouldAbort()) {
+        this.updateSeriesAnalytics(key, source, matchIds.slice(index), module, ComponentLoaderStatus.ERROR);
         return;
       }
-
-      source.requestedModules.delete(module);
-      source.moduleStatuses.set(module, ComponentLoaderStatus.ERROR);
-      const erroredViewModel = this.buildSeriesViewModel({
-        ...source,
-        teamColors: this.resolveTeamColors(),
-        killMatrixStatus: source.moduleStatuses.get("killMatrix") ?? ComponentLoaderStatus.PENDING,
-        scoreProgressionStatus: source.moduleStatuses.get("scoreProgression") ?? ComponentLoaderStatus.PENDING,
-      });
-      this.config.store.setSeriesEntryLoaded(key, { seriesId: source.series.id, viewModel: erroredViewModel });
     }
+  }
+
+  private updateSeriesAnalytics(
+    key: string,
+    source: SeriesAnalyticsSource,
+    matchIds: readonly string[],
+    module: AnalyticsModule,
+    status: ComponentLoaderStatus,
+    results: Readonly<Record<string, MatchAnalytics | null>> = {},
+  ): void {
+    const next = new Map(source.analyticsByMatchId);
+    for (const matchId of matchIds) {
+      const current = next.get(matchId);
+      const analytics = results[matchId];
+      if (current?.[module]?.status === ComponentLoaderStatus.LOADED && analytics == null) {
+        continue;
+      }
+      const moduleStatus =
+        status === ComponentLoaderStatus.LOADED && analytics == null ? ComponentLoaderStatus.ERROR : status;
+      let state: SeriesMatchAnalyticsState =
+        module === "killMatrix"
+          ? { ...current, killMatrix: { status: moduleStatus, data: analytics?.killMatrix ?? null } }
+          : { ...current, scoreProgression: { status: moduleStatus, data: analytics?.scoreProgression ?? null } };
+      if (analytics?.requestedModules.includes("killMatrix") === true && module !== "killMatrix") {
+        state = { ...state, killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix } };
+      }
+      next.set(matchId, state);
+    }
+    source.analyticsByMatchId = next;
+    this.config.store.setSeriesEntryLoaded(key, { seriesId: source.data.seriesId, ...source });
   }
 
   private syncRequestedModules(requestedModules: Set<AnalyticsModule>, analytics: MatchAnalytics | null): void {

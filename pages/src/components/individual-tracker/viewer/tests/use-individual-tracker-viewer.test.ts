@@ -2,9 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import { aFakeMatchStatsWith, aFakePlayerWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeIndividualTrackerServiceWith } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
@@ -20,10 +19,12 @@ import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/fakes/match-details.fake";
+import { aFakeSeriesDetailServiceWith } from "../../../../services/stats/fakes/series-detail.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
 import * as reconnectPolicy from "../../../../services/base/reconnect-policy";
 import { useIndividualTrackerViewer } from "../use-individual-tracker-viewer";
+import { aFakeViewerSeriesDetailWith, aFakeViewerSeriesMatchWith } from "../fakes/series-detail.fake";
 
 interface ViewerTestDependencies {
   readonly matchAnalyticsService: MatchAnalyticsService;
@@ -236,7 +237,7 @@ describe("useIndividualTrackerViewer", () => {
       }
     });
 
-    resolveAnalytics?.({ [matchId]: null });
+    resolveAnalytics?.({ [matchId]: aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], killMatrix: {} }) });
 
     await waitFor(() => {
       const state = result.current.snapshot.entryStates.get(`match:${matchId}`);
@@ -866,18 +867,33 @@ describe("useIndividualTrackerViewer", () => {
     "aligns overview scores without changing detail scores when substitution is %s",
     async (substituted) => {
       const matchId = "m-1";
-      const rawMatch = aFakeMatchStatsWith({ MatchId: matchId });
+      const detail = aFakeViewerSeriesMatchWith({ matchId });
       const secondMatchId = "m-2";
-      const secondRawMatch = aFakeMatchStatsWith({
-        MatchId: secondMatchId,
-        Players: rawMatch.Players.map((player) =>
-          aFakePlayerWith({
-            ...player,
-            PlayerId: substituted && player.PlayerId === "xuid(4444444444)" ? "xuid(5555555555)" : player.PlayerId,
-            LastTeamId: 1 - player.LastTeamId,
-            PlayerTeamStats: player.PlayerTeamStats.map((stats) => ({ ...stats, TeamId: 1 - stats.TeamId })),
-          }),
-        ),
+      const secondDetail = aFakeViewerSeriesMatchWith({
+        matchId: secondMatchId,
+        players: detail.players.map((player) => ({
+          ...player,
+          playerId: substituted && player.playerId === "xuid(4444444444)" ? "xuid(5555555555)" : player.playerId,
+          lastMatchTeamId: 1 - (player.lastMatchTeamId ?? 0),
+          teamStats: player.teamStats.map((stats) => ({ ...stats, matchTeamId: 1 - stats.matchTeamId })),
+        })),
+        teams: detail.teams.map((team) => ({ ...team, seriesTeamId: 1 - team.matchTeamId })),
+        score: {
+          primary: {
+            metric: "score",
+            teams: [
+              { matchTeamId: 0, seriesTeamId: 1, value: 40 },
+              { matchTeamId: 1, seriesTeamId: 0, value: 50 },
+            ],
+          },
+          secondary: {
+            metric: "score",
+            teams: [
+              { matchTeamId: 0, seriesTeamId: 1, value: 60 },
+              { matchTeamId: 1, seriesTeamId: 0, value: 80 },
+            ],
+          },
+        },
       });
       const series = {
         ...aFakeTrackerSeriesGroupWith({ id: "series-1", matchIds: [matchId, secondMatchId] }),
@@ -917,22 +933,17 @@ describe("useIndividualTrackerViewer", () => {
         resolveSeriesAnalytics = resolve;
       });
       vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async () => seriesAnalyticsPromise);
-      vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-        playerXuidToGametag: {},
-        matches: [rawMatch, secondRawMatch].map((match) => ({
-          matchId: match.MatchId,
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "https://cdn.test/map.jpg",
-          duration: "10m 00s",
-          gameScore: substituted && match.MatchId === secondMatchId ? "40:50" : "50:40",
-          gameSubScore: substituted && match.MatchId === secondMatchId ? "60:80" : "80:60",
-          startTime: match.MatchInfo.StartTime,
-          endTime: match.MatchInfo.EndTime,
-          rawMatch: match,
-        })),
+      const seriesDetailService = aFakeSeriesDetailServiceWith({
+        response: aFakeViewerSeriesDetailWith([matchId, secondMatchId], {
+          matches: {
+            matchIds: [matchId, secondMatchId],
+            results: [detail, secondDetail].map((match) => ({
+              status: "resolved",
+              matchId: match.matchId,
+              detail: { ...match, map: { ...match.map, thumbnailUrl: "https://cdn.test/map.jpg" } },
+            })),
+          },
+        }),
       });
 
       const { result } = renderHook(() =>
@@ -940,6 +951,7 @@ describe("useIndividualTrackerViewer", () => {
           individualTrackerViewService,
           matchAnalyticsService,
           seriesMatchesService,
+          seriesDetailService,
           medalMetadataResolver,
           trackerId: "tracker-1",
         }),
@@ -979,33 +991,45 @@ describe("useIndividualTrackerViewer", () => {
       if (state?.kind !== "series" || state.state.status !== "loaded") {
         throw new Error("Expected loaded series details");
       }
-      expect(state.state.viewModel.matchDetails[0]?.score).toBe("50:40 (80:60)");
-      expect(state.state.viewModel.matchDetails[0]?.data?.map((team) => team.teamId)).toEqual([0, 1]);
+      expect(state.state.data.matches.results[0]).toMatchObject({ status: "resolved", detail: { matchId } });
 
       act(() => {
         result.current.onLoadAnalytics(loadedSeries, "killMatrix");
       });
       expect(result.current.snapshot.entryStates.get("series:series-1")).toMatchObject({
         state: {
-          viewModel: {
-            seriesStats: { killMatrixStatus: ComponentLoaderStatus.LOADING },
-            matchSummaries: [{ gameScore: "40:50" }, { gameScore: "40:50" }],
-            matchDetails: [{ score: "50:40 (80:60)" }, { score: substituted ? "40:50 (60:80)" : "50:40 (80:60)" }],
-          },
+          analyticsByMatchId: new Map(
+            [matchId, secondMatchId].map((id) => [
+              id,
+              {
+                killMatrix: { status: ComponentLoaderStatus.LOADING, data: null },
+              },
+            ]),
+          ),
         },
       });
       await act(async () => {
-        resolveSeriesAnalytics?.({});
+        resolveSeriesAnalytics?.(
+          Object.fromEntries(
+            [matchId, secondMatchId].map((id) => [
+              id,
+              aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], killMatrix: {} }),
+            ]),
+          ),
+        );
         await seriesAnalyticsPromise;
       });
       await waitFor(() => {
         expect(result.current.snapshot.entryStates.get("series:series-1")).toMatchObject({
           state: {
-            viewModel: {
-              seriesStats: { killMatrixStatus: ComponentLoaderStatus.LOADED },
-              matchSummaries: [{ gameScore: "40:50" }, { gameScore: "40:50" }],
-              matchDetails: [{ score: "50:40 (80:60)" }, { score: substituted ? "40:50 (60:80)" : "50:40 (80:60)" }],
-            },
+            analyticsByMatchId: new Map(
+              [matchId, secondMatchId].map((id) => [
+                id,
+                {
+                  killMatrix: { status: ComponentLoaderStatus.LOADED, data: {} },
+                },
+              ]),
+            ),
           },
         });
       });
@@ -1024,31 +1048,15 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
-      Promise.resolve({
-        playerXuidToGametag: {},
-        matches: ids.map((matchId) => ({
-          matchId,
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "data:",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          rawMatch: {},
-        })),
-      }),
-    );
+    const seriesDetailService = aFakeSeriesDetailServiceWith({ response: aFakeViewerSeriesDetailWith(matchIds) });
+    const getSeriesDetailSpy = vi.spyOn(seriesDetailService, "getSeriesDetail");
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1068,17 +1076,17 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
+      expect(getSeriesDetailSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenCalledWith(matchIds, "tracker-1", matchIds[0]);
+    expect(getSeriesDetailSpy).toHaveBeenCalledWith("series-1", matchIds, "tracker-1", "substitution-aware");
 
     const state = result.current.snapshot.entryStates.get("series:series-1");
     expect(state?.kind).toBe("series");
-    if (state?.kind === "series" && state.state.status === "loaded") {
-      expect(state.state.viewModel.seriesStats?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
-      expect(state.state.viewModel.matchDetails[0]?.killMatrixStatus).toBe(ComponentLoaderStatus.LOADED);
+    if (state?.kind !== "series" || state.state.status !== "loaded") {
+      throw new Error("Expected loaded series");
     }
+    expect(state.state.analyticsByMatchId.size).toBe(0);
   });
 
   it("keeps series cross-team kill matrix empty when analytics contain no kill-matrix rows", async () => {
@@ -1093,25 +1101,13 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-      playerXuidToGametag: {},
-      matches: matchIds.map((matchId) => ({
-        matchId,
-        gameTypeAndMap: "Slayer: Live Fire",
-        gameVariantCategory: 0,
-        gameType: "Slayer",
-        gameMap: "Live Fire",
-        gameMapThumbnailUrl: "data:",
-        duration: "10m 00s",
-        gameScore: "50:45",
-        gameSubScore: null,
-        startTime: "2026-01-01T00:00:00.000Z",
-        endTime: "2026-01-01T00:10:00.000Z",
-        rawMatch: {},
-      })),
-    });
+    const seriesDetailService = aFakeSeriesDetailServiceWith({ response: aFakeViewerSeriesDetailWith(matchIds) });
     vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(async (ids) =>
-      Promise.resolve(Object.fromEntries(ids.map((id) => [id, null]))),
+      Promise.resolve(
+        Object.fromEntries(
+          ids.map((id) => [id, aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], killMatrix: {} })]),
+        ),
+      ),
     );
 
     const { result } = renderHook(() =>
@@ -1119,6 +1115,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1140,10 +1137,26 @@ describe("useIndividualTrackerViewer", () => {
     await waitFor(() => {
       const state = result.current.snapshot.entryStates.get("series:series-1");
       expect(state?.kind).toBe("series");
-      if (state?.kind === "series" && state.state.status === "loaded") {
-        expect(state.state.viewModel.seriesStats?.crossTeamKillMatrixData).toBeNull();
-        expect(state.state.viewModel.seriesStats?.swappedCrossTeamKillMatrixData).toBeNull();
+      if (state?.kind !== "series" || state.state.status !== "loaded") {
+        throw new Error("Expected loaded series");
       }
+      expect(state.state.analyticsByMatchId.size).toBe(0);
+    });
+    if (seriesItem?.type !== "series") {
+      throw new Error("Expected series");
+    }
+    act(() => {
+      result.current.onLoadAnalytics(seriesItem, "killMatrix");
+    });
+    await waitFor(() => {
+      const state = result.current.snapshot.entryStates.get("series:series-1");
+      if (state?.kind !== "series" || state.state.status !== "loaded") {
+        throw new Error("Expected loaded series");
+      }
+      expect(state.state.analyticsByMatchId.get("m-1")?.killMatrix).toEqual({
+        status: ComponentLoaderStatus.LOADED,
+        data: {},
+      });
     });
   });
 
@@ -1157,32 +1170,18 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const getSeriesMatchesSpy = vi
-      .spyOn(seriesMatchesService, "getSeriesMatches")
+    const seriesDetailService = aFakeSeriesDetailServiceWith({ response: aFakeViewerSeriesDetailWith(["m-1", "m-2"]) });
+    const getSeriesDetailSpy = vi
+      .spyOn(seriesDetailService, "getSeriesDetail")
       .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce({
-        playerXuidToGametag: {},
-        matches: ["m-1", "m-2"].map((matchId) => ({
-          matchId,
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "data:",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          rawMatch: {},
-        })),
-      });
+      .mockResolvedValueOnce(aFakeViewerSeriesDetailWith(["m-1", "m-2"]));
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1215,11 +1214,11 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(2);
+      expect(getSeriesDetailSpy).toHaveBeenCalledTimes(2);
     });
   });
 
-  it("chunks very large series requests to stay within the API matchId limit", async () => {
+  it("requests one backend aggregation for very large series", async () => {
     const matchIds = Array.from({ length: 61 }, (_, index) => `m-${(index + 1).toString()}`);
     const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
@@ -1231,31 +1230,15 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const getSeriesMatchesSpy = vi.spyOn(seriesMatchesService, "getSeriesMatches").mockImplementation(async (ids) =>
-      Promise.resolve({
-        playerXuidToGametag: {},
-        matches: ids.map((matchId) => ({
-          matchId,
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "data:",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          rawMatch: {},
-        })),
-      }),
-    );
+    const seriesDetailService = aFakeSeriesDetailServiceWith({ response: aFakeViewerSeriesDetailWith(matchIds) });
+    const getSeriesDetailSpy = vi.spyOn(seriesDetailService, "getSeriesDetail");
 
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1275,12 +1258,10 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(3);
+      expect(getSeriesDetailSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(1, matchIds.slice(0, 30), "tracker-1", matchIds[0]);
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(2, matchIds.slice(30, 60), "tracker-1", matchIds[0]);
-    expect(getSeriesMatchesSpy).toHaveBeenNthCalledWith(3, matchIds.slice(60, 61), "tracker-1", matchIds[0]);
+    expect(getSeriesDetailSpy).toHaveBeenCalledWith("series-1", matchIds, "tracker-1", "substitution-aware");
   });
 
   it("uses the latest chronological match for series team cards", async () => {
@@ -1295,63 +1276,29 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const matchA = aFakeMatchStatsWith({
-      MatchId: "m-1",
-      MatchInfo: {
-        ...aFakeMatchStatsWith().MatchInfo,
-        StartTime: "2026-01-01T00:00:00.000Z",
-        EndTime: "2026-01-01T00:10:00.000Z",
-      },
-      Teams: [
-        { ...aFakeMatchStatsWith().Teams[0], TeamId: 0 },
-        { ...aFakeMatchStatsWith().Teams[1], TeamId: 1 },
-      ],
+    const matchA = aFakeViewerSeriesMatchWith({
+      matchId: "m-1",
+      startTime: "2026-01-01T00:00:00.000Z",
+      endTime: "2026-01-01T00:10:00.000Z",
     });
-    const matchB = aFakeMatchStatsWith({
-      MatchId: "m-2",
-      MatchInfo: {
-        ...aFakeMatchStatsWith().MatchInfo,
-        StartTime: "2026-01-01T00:20:00.000Z",
-        EndTime: "2026-01-01T00:30:00.000Z",
-      },
-      Teams: [
-        { ...aFakeMatchStatsWith().Teams[0], TeamId: 4 },
-        { ...aFakeMatchStatsWith().Teams[1], TeamId: 5 },
-      ],
+    const matchB = aFakeViewerSeriesMatchWith({
+      matchId: "m-2",
+      startTime: "2026-01-01T00:20:00.000Z",
+      endTime: "2026-01-01T00:30:00.000Z",
+      teams: matchA.teams.map((team) => ({ ...team, matchTeamId: team.matchTeamId + 4, name: null })),
     });
 
-    vi.spyOn(seriesMatchesService, "getSeriesMatches").mockResolvedValue({
-      playerXuidToGametag: {},
-      matches: [
-        {
-          matchId: "m-1",
-          gameTypeAndMap: "Slayer: Live Fire",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Live Fire",
-          gameMapThumbnailUrl: "data:",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:00:00.000Z",
-          endTime: "2026-01-01T00:10:00.000Z",
-          rawMatch: matchA,
+    const seriesDetailService = aFakeSeriesDetailServiceWith({
+      response: aFakeViewerSeriesDetailWith(matchIds, {
+        matches: {
+          matchIds,
+          results: [matchB, matchA].map((detail) => ({
+            status: "resolved",
+            matchId: detail.matchId,
+            detail,
+          })),
         },
-        {
-          matchId: "m-2",
-          gameTypeAndMap: "Slayer: Aquarius",
-          gameVariantCategory: 0,
-          gameType: "Slayer",
-          gameMap: "Aquarius",
-          gameMapThumbnailUrl: "data:",
-          duration: "10m 00s",
-          gameScore: "50:45",
-          gameSubScore: null,
-          startTime: "2026-01-01T00:20:00.000Z",
-          endTime: "2026-01-01T00:30:00.000Z",
-          rawMatch: matchB,
-        },
-      ],
+      }),
     });
 
     const { result } = renderHook(() =>
@@ -1359,6 +1306,7 @@ describe("useIndividualTrackerViewer", () => {
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1381,12 +1329,13 @@ describe("useIndividualTrackerViewer", () => {
       const state = result.current.snapshot.entryStates.get("series:series-1");
       expect(state?.kind).toBe("series");
       if (state?.kind === "series" && state.state.status === "loaded") {
-        expect(state.state.viewModel.teams[0]?.name).toBe("Rampart");
+        const loadedSeries = result.current.model.renderModel?.timeline.find((item) => item.type === "series");
+        expect(loadedSeries?.type === "series" && loadedSeries.series.seriesOverview.teams[0]?.name).toBe("Rampart");
       }
     });
   });
 
-  it("stops requesting additional series batches after dispose", async () => {
+  it("ignores whole-series detail completion after dispose", async () => {
     const matchIds = Array.from({ length: 61 }, (_, index) => `m-${(index + 1).toString()}`);
     const matches = matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId }));
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
@@ -1398,20 +1347,19 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    let resolveFirstBatch: ((value: SeriesMatchesResponse) => void) | undefined;
-    const firstBatchPromise = new Promise<SeriesMatchesResponse>((resolve) => {
+    let resolveFirstBatch: ((value: SeriesDetailResponse) => void) | undefined;
+    const firstBatchPromise = new Promise<SeriesDetailResponse>((resolve) => {
       resolveFirstBatch = resolve;
     });
-    const getSeriesMatchesSpy = vi
-      .spyOn(seriesMatchesService, "getSeriesMatches")
-      .mockImplementationOnce(async () => firstBatchPromise)
-      .mockImplementation(async () => Promise.reject(new Error("Subsequent batch should not run after dispose")));
+    const seriesDetailService = aFakeSeriesDetailServiceWith();
+    const getSeriesDetailSpy = vi.spyOn(seriesDetailService, "getSeriesDetail").mockReturnValue(firstBatchPromise);
 
     const { result, unmount } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
+        seriesDetailService,
         medalMetadataResolver,
         trackerId: "tracker-1",
       }),
@@ -1431,32 +1379,18 @@ describe("useIndividualTrackerViewer", () => {
     });
 
     await waitFor(() => {
-      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
+      expect(getSeriesDetailSpy).toHaveBeenCalledTimes(1);
     });
 
+    const pending = result.current.snapshot;
     unmount();
 
     expect(resolveFirstBatch).toBeDefined();
-    resolveFirstBatch?.({
-      playerXuidToGametag: {},
-      matches: matchIds.slice(0, 30).map((matchId) => ({
-        matchId,
-        gameTypeAndMap: "Slayer: Live Fire",
-        gameVariantCategory: 0,
-        gameType: "Slayer",
-        gameMap: "Live Fire",
-        gameMapThumbnailUrl: "data:",
-        duration: "10m 00s",
-        gameScore: "50:45",
-        gameSubScore: null,
-        startTime: "2026-01-01T00:00:00.000Z",
-        endTime: "2026-01-01T00:10:00.000Z",
-        rawMatch: {},
-      })),
-    });
+    resolveFirstBatch?.(aFakeViewerSeriesDetailWith(matchIds));
+    await firstBatchPromise;
 
     await waitFor(() => {
-      expect(getSeriesMatchesSpy).toHaveBeenCalledTimes(1);
+      expect(result.current.snapshot).toBe(pending);
     });
   });
 });

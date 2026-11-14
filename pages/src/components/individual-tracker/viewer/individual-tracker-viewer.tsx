@@ -1,4 +1,4 @@
-import React, { createRef, useCallback, useEffect, useRef, useState } from "react";
+import React, { createRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import classNames from "classnames";
@@ -17,7 +17,7 @@ import { LoadingState } from "../../loading-state/loading-state";
 import { OutcomeBadge } from "../../outcome-badge/outcome-badge";
 import { MatchStats } from "../../stats/match-stats";
 import { StatsHeader } from "../../stats/stats-header";
-import { SeriesStatsView } from "../../series-stats/series-stats";
+import { createSeriesStatsContent } from "../../series-stats/create";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import { SeriesOverview } from "../../series-overview/series-overview";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
@@ -52,7 +52,8 @@ interface IndividualTrackerViewerProps {
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
   readonly onBackToManage: () => void;
   readonly onRefresh: () => void;
-  readonly onLoadAnalytics?: ((item: ViewerTimelineItem, module: AnalyticsModule) => void) | undefined;
+  readonly onLoadAnalytics?:
+    ((item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string) => void) | undefined;
   readonly onLoadMore?: () => void;
 }
 
@@ -231,6 +232,7 @@ export function IndividualTrackerViewer({
   onLoadAnalytics,
   onLoadMore,
 }: IndividualTrackerViewerProps): React.ReactElement {
+  const SeriesStatsContent = useMemo(() => createSeriesStatsContent(), []);
   const latestEntryRef = useRef<HTMLDivElement | null>(null);
   const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const entryBodyRefs = useRef(new Map<string, React.RefObject<HTMLDivElement | null>>());
@@ -647,13 +649,16 @@ export function IndividualTrackerViewer({
                             ) : state.kind === "series" && state.state.status === "error" ? (
                               <Alert variant="error">{state.state.message}</Alert>
                             ) : state.kind === "series" && state.state.status === "loaded" ? (
-                              <SeriesStatsView
-                                {...state.state.viewModel}
+                              <SeriesStatsContent
+                                data={state.state.data}
+                                analyticsByMatchId={state.state.analyticsByMatchId}
+                                teamColors={renderModel.teamColors}
+                                showSeriesTitle={true}
                                 showSeriesOverview={false}
                                 noGutter={true}
                                 wide={true}
-                                onAnalyticsTabSelected={(module): void => {
-                                  onLoadAnalytics?.(item, module);
+                                onAnalyticsTabSelected={(module, matchId): void => {
+                                  onLoadAnalytics?.(item, module, matchId);
                                 }}
                               />
                             ) : (

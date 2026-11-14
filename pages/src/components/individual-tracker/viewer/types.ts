@@ -3,13 +3,14 @@ import type { TrackerStatus } from "@guilty-spark/shared/contracts/individual-tr
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { NormalizedMatchOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
-import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../../series-stats/types";
 import type { SeriesOverviewProps } from "../../series-overview/types";
 
 export interface ViewerMatchTab {
@@ -159,9 +160,19 @@ export type SeriesDetailsState =
     }
   | { readonly status: "error"; readonly message: string };
 
+export type ViewerSeriesDetailsState =
+  | { readonly status: "loading" }
+  | {
+      readonly status: "loaded";
+      readonly seriesId: string;
+      readonly data: SeriesDetailResponse;
+      readonly analyticsByMatchId: SeriesMatchAnalyticsById;
+    }
+  | { readonly status: "error"; readonly message: string };
+
 export type ViewerEntryState =
   | { readonly kind: "match"; readonly state: MatchDetailsState }
-  | { readonly kind: "series"; readonly state: SeriesDetailsState };
+  | { readonly kind: "series"; readonly state: ViewerSeriesDetailsState };
 
 export interface IndividualTrackerViewerViewModel {
   readonly renderModel: IndividualTrackerViewerRenderModel | null;
