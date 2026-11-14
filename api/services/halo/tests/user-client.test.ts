@@ -220,6 +220,43 @@ describe("user Halo clients", () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
+  it("replaces the stored credential on rotation while preserving other users and existing clients", async () => {
+    let mints = 0;
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(async () => {
+      mints += 1;
+      return await Promise.resolve(
+        Response.json({
+          SpartanToken: `rotation-${mints.toString()}`,
+          ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" },
+        }),
+      );
+    });
+    const provider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => fetchFn,
+    });
+    const original = provider.createContextFromXstsToken("rotation-user", "first").spartanTokenProvider;
+    const rotated = provider.createContextFromXstsToken("rotation-user", "second").spartanTokenProvider;
+    expect(await original.getSpartanToken()).toBe("rotation-1");
+    expect(await rotated.getSpartanToken()).toBe("rotation-2");
+    expect(
+      await provider.createContextFromXstsToken("rotation-other", "other").spartanTokenProvider.getSpartanToken(),
+    ).toBe("rotation-3");
+    expect(
+      await provider.createContextFromXstsToken("rotation-user", "first").spartanTokenProvider.getSpartanToken(),
+    ).toBe("rotation-4");
+    expect(
+      await provider.createContextFromXstsToken("rotation-user", "second").spartanTokenProvider.getSpartanToken(),
+    ).toBe("rotation-5");
+    expect(
+      await provider.createContextFromXstsToken("rotation-other", "other").spartanTokenProvider.getSpartanToken(),
+    ).toBe("rotation-3");
+    expect(await original.getSpartanToken()).toBe("rotation-1");
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+  });
+
   it("preserves SDK unauthorized retries and the static XSTS invalidation warning", async () => {
     const fetchFn = vi.fn<typeof fetch>();
     fetchFn
