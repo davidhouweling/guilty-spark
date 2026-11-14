@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type * as HaloInfiniteApi from "halo-infinite-api";
-import { HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { AssetKind, HaloInfiniteClient, MatchType } from "halo-infinite-api";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { condensedMatchHistoryPageContract } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
 import { aFakeMatchStatsWith, aFakePlayerWith } from "@guilty-spark/shared/halo/fakes/data";
 import { createApiRouter } from "../../../base/router";
@@ -128,6 +129,76 @@ describe("GET arbitrary player match history", () => {
     const response = await fetchHistory();
     expect(response.status).toBe(500);
     expect(error).toHaveBeenCalled();
+  });
+
+  it("awaits every history, detail, name and versioned asset response before starting the next", async () => {
+    const calls: string[] = [];
+    const releases: (() => void)[] = [];
+    let active = 0;
+    let maximum = 0;
+    async function respond<T>(label: string, value: T): Promise<T> {
+      calls.push(label);
+      active += 1;
+      maximum = Math.max(maximum, active);
+      const deferred = Promise.withResolvers<undefined>();
+      releases.push(() => {
+        deferred.resolve(undefined);
+      });
+      await deferred.promise;
+      active -= 1;
+      return value;
+    }
+    const first = aFakeMatchStatsWith({ MatchId: "first" });
+    const last = aFakeMatchStatsWith({ MatchId: "last" });
+    last.MatchInfo.MapVariant.VersionId = "new-map";
+    const matches = [first, aFakeMatchStatsWith({ MatchId: "missing" }), last].map((detail) =>
+      aFakePlayerMatchHistoryWith({
+        MatchId: detail.MatchId,
+        MatchInfo: { ...detail.MatchInfo, Playlist: first.MatchInfo.MapVariant },
+      }),
+    );
+    vi.spyOn(client, "getPlayerMatches").mockImplementation(async () => respond("history", matches));
+    vi.spyOn(client, "getMatchStats").mockImplementation(async (id) => {
+      const detail = await respond(`detail:${id}`, id === "last" ? last : first);
+      if (id === "missing") {
+        throw new Error("unavailable");
+      }
+      return detail;
+    });
+    vi.spyOn(services.haloService, "getUsersByXuids").mockImplementation(async () => respond("names", []));
+    vi.spyOn(client, "getSpecificAssetVersion").mockImplementation(async (kind, _id, version) =>
+      respond(`asset:${String(kind)}:${version}`, getAssetVersion()),
+    );
+    const expected = [
+      "history",
+      "detail:first",
+      "detail:missing",
+      "detail:last",
+      "names",
+      `asset:${String(AssetKind.Map)}:${first.MatchInfo.MapVariant.VersionId}`,
+      `asset:${String(AssetKind.UgcGameVariant)}:${first.MatchInfo.UgcGameVariant.VersionId}`,
+      `asset:${String(AssetKind.Playlist)}:${first.MatchInfo.MapVariant.VersionId}`,
+      `asset:${String(AssetKind.Map)}:new-map`,
+    ];
+    const responsePromise = fetchHistory();
+    const checkpoints: { calls: string[]; active: number }[] = [];
+    for (let index = 0; index < expected.length; index += 1) {
+      await vi.waitFor(() => {
+        if (calls.length <= index) {
+          throw new Error("Waiting for next request");
+        }
+      });
+      checkpoints.push({ calls: [...calls], active });
+      Preconditions.checkExists(releases[index])();
+    }
+    const page = await condensedMatchHistoryPageContract.fromResponse(await responsePromise);
+    expect(checkpoints).toEqual(expected.map((_, index) => ({ calls: expected.slice(0, index + 1), active: 1 })));
+    expect(maximum).toBe(1);
+    expect(active).toBe(0);
+    expect(calls).toEqual(expected);
+    expect(page.matches.map((match) => match.matchId)).toEqual(["first", "missing", "last"]);
+    expect(page.matches[1]).toMatchObject({ teams: [], score: null, trackedPlayerSummary: null });
+    expect(client.getSpecificAssetVersion).toHaveBeenCalledTimes(4);
   });
 
   it("fails when history or required metadata cannot be fetched", async () => {

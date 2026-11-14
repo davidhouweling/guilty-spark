@@ -10,7 +10,6 @@ import type { HaloService } from "./halo";
 import { mapMatchDetail } from "./match-detail";
 import type { MatchDetailRosterOptions, PreparedMatchDetails } from "./types";
 
-const CONCURRENCY = 5;
 type UnavailableMatch = Extract<MatchDetailResult, { status: "unavailable" }>;
 
 async function loadMatch(
@@ -48,20 +47,15 @@ async function loadMatches(
   logService: LogService,
 ): Promise<(MatchStats | UnavailableMatch)[]> {
   const loadedMatches: (MatchStats | UnavailableMatch)[] = [];
-  for (let offset = 0; offset < matchIds.length; offset += CONCURRENCY) {
-    const matches = await Promise.all(
-      matchIds.slice(offset, offset + CONCURRENCY).map(async (matchId) => loadMatch(haloService, matchId, logService)),
-    );
-    loadedMatches.push(...matches);
+  for (const matchId of matchIds) {
+    loadedMatches.push(await loadMatch(haloService, matchId, logService));
   }
   return loadedMatches;
 }
 
 async function loadRosterOptions(haloService: HaloService, matches: MatchStats[]): Promise<MatchDetailRosterOptions> {
-  const [gamertags, metadata] = await Promise.all([
-    haloService.getPlayerXuidsToGametags(matches, { propagateFailures: true }),
-    haloService.getMedalsMetadata(),
-  ]);
+  const gamertags = await haloService.getPlayerXuidsToGametags(matches, { propagateFailures: true });
+  const metadata = await haloService.getMedalsMetadata();
   const identitiesByPlayerId = new Map<string, Pick<Player, "gamertag" | "discordUserId">>();
   for (const player of matches.flatMap((match) => match.Players)) {
     const gamertag = player.PlayerType === 1 ? gamertags.get(getPlayerXuid(player)) : undefined;
@@ -92,17 +86,15 @@ async function mapDetails(
     if (!mapNames.has(mapKey)) {
       mapNames.set(mapKey, haloService.getMapName(info.MapVariant.AssetId, info.MapVariant.VersionId));
     }
+    const gameMap = await Preconditions.checkExists(mapNames.get(mapKey));
     if (!modeNames.has(modeKey)) {
       modeNames.set(modeKey, haloService.getGameType(info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId));
     }
+    const gameType = await Preconditions.checkExists(modeNames.get(modeKey));
     if (!thumbnails.has(mapKey)) {
       thumbnails.set(mapKey, haloService.getMapThumbnailUrlStrict(info.MapVariant.AssetId, info.MapVariant.VersionId));
     }
-    const [gameMap, gameType, thumbnail] = await Promise.all([
-      Preconditions.checkExists(mapNames.get(mapKey)),
-      Preconditions.checkExists(modeNames.get(modeKey)),
-      Preconditions.checkExists(thumbnails.get(mapKey)),
-    ]);
+    const thumbnail = await Preconditions.checkExists(thumbnails.get(mapKey));
     results.set(match.MatchId, {
       status: "resolved",
       matchId: match.MatchId,
@@ -114,8 +106,8 @@ async function mapDetails(
       }),
     });
   }
-  for (let offset = 0; offset < matches.length; offset += CONCURRENCY) {
-    await Promise.all(matches.slice(offset, offset + CONCURRENCY).map(mapDetail));
+  for (const match of matches) {
+    await mapDetail(match);
   }
   return results;
 }
@@ -123,6 +115,7 @@ async function mapDetails(
 /**
  * Prepares bounded public results alongside backend-only raw matches.
  * Raw HTTP failures become unavailable results; enrichment failures propagate.
+ * Upstream loads and enrichment run sequentially, awaiting each response before starting the next.
  * Map names, mode names and thumbnails reuse independent asset-version promises within this request.
  */
 export async function prepareMatchDetails(
