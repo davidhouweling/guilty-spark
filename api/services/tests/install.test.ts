@@ -1,8 +1,31 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { aFakeEnvWith } from "../../base/fakes/env.fake";
 import { installServices } from "../install";
+import { CustomSpartanTokenProvider } from "../halo/custom-spartan-token-provider";
 
 describe("installServices", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses the authenticated Halo API in development even when a proxy URL is configured", async () => {
+    vi.spyOn(CustomSpartanTokenProvider.prototype, "getSpartanToken").mockResolvedValue("bot-spartan-token");
+    const user = { xuid: "123", gamertag: "example" };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(user)));
+    const services = installServices({
+      env: aFakeEnvWith({ MODE: "development", PROXY_WORKER_URL: "https://proxy.example.com" }),
+    });
+
+    await expect(services.haloInfiniteClient.getUser("example")).resolves.toEqual(user);
+
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+      "https://profile.svc.halowaypoint.com:443/users/gt(example)",
+      expect.objectContaining({ method: "get" }),
+    );
+    const init = fetchSpy.mock.calls[0]?.[1];
+    expect(new Headers(init?.headers).get("x-343-authorization-spartan")).toBe("bot-spartan-token");
+  });
+
   it("passes configured Microsoft tenant and scopes into the auth service", async () => {
     const services = installServices({
       env: aFakeEnvWith({

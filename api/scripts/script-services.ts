@@ -1,6 +1,6 @@
 /**
  * Shared bootstrap for the analysis scripts in this folder: installs the Workers cache shim
- * and wires the Halo service graph against the file-backed KV namespace.
+ * and wires the normal Halo client against file-backed KV and Xbox credentials.
  */
 import "dotenv/config";
 import path from "node:path";
@@ -19,6 +19,7 @@ if (typeof caches === "undefined") {
 
 import { fileURLToPath } from "node:url";
 import { authenticate } from "@xboxreplay/xboxlive-auth";
+import { HaloInfiniteClient } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { getTeamIdsByXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { ParsedHighlightEvent } from "../services/halo/types";
@@ -27,13 +28,14 @@ import { aFakeDatabaseServiceWith } from "../services/database/fakes/database.fa
 import { aFakeLogServiceWith } from "../services/log/fakes/log.fake";
 import { aFakePlayerMatchesRateLimiterWith } from "../services/halo/fakes/player-matches-rate-limiter.fake";
 import { createFileBackedKVNamespace } from "../base/fakes/namespace-to-file";
-import { createHaloInfiniteClientProxy } from "../services/halo/halo-infinite-client-proxy";
+import { createResilientFetch } from "../services/halo/resilient-fetch";
 import { HaloService } from "../services/halo/halo";
 import { XboxService } from "../services/xbox/xbox";
 import { CustomSpartanTokenProvider } from "../services/halo/custom-spartan-token-provider";
 import { HaloFilmService } from "../services/halo/halo-film";
 
 export interface ScriptServices {
+  haloInfiniteClient: HaloInfiniteClient;
   haloService: HaloService;
   haloFilmService: HaloFilmService;
   databaseService: ReturnType<typeof aFakeDatabaseServiceWith>;
@@ -51,19 +53,24 @@ export async function createScriptServices(): Promise<ScriptServices> {
   const logService = aFakeLogServiceWith();
   const xboxService = new XboxService({ env, logService, authenticate });
   const databaseService = aFakeDatabaseServiceWith();
+  const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
+  const haloInfiniteClient = new HaloInfiniteClient(
+    spartanTokenProvider,
+    createResilientFetch({ env, logService, proxyUrl: env.PROXY_WORKER_URL }),
+  );
   const haloService = new HaloService({
     env,
     logService,
     databaseService,
     xboxService,
-    infiniteClient: createHaloInfiniteClientProxy({ env }),
+    infiniteClient: haloInfiniteClient,
     playerMatchesRateLimiter: aFakePlayerMatchesRateLimiterWith(),
   });
   const haloFilmService = new HaloFilmService({
     env,
-    spartanTokenProvider: new CustomSpartanTokenProvider({ env, xboxService }),
+    spartanTokenProvider,
   });
-  return { haloService, haloFilmService, databaseService, logService };
+  return { haloInfiniteClient, haloService, haloFilmService, databaseService, logService };
 }
 
 export function enrichEventsWithTeamIds(

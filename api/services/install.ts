@@ -14,7 +14,6 @@ import type { LogService } from "./log/types";
 import { AggregatorClient } from "./log/aggregator-client";
 import { ConsoleLogClient } from "./log/console-log-client";
 import { SentryLogClient } from "./log/sentry-log-client";
-import { createHaloInfiniteClientProxy } from "./halo/halo-infinite-client-proxy";
 import { createResilientFetch } from "./halo/resilient-fetch";
 import { PlayerMatchesRateLimiter } from "./halo/player-matches-rate-limiter";
 import { UserTokenProvider } from "./halo/user-token-provider";
@@ -43,15 +42,6 @@ interface InstallServicesOpts {
   env: Env;
 }
 
-function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function installServices({ env }: InstallServicesOpts): Services {
   const sentryMode = env.MODE === "development" ? "development" : "production";
   const logService = new AggregatorClient([new SentryLogClient(sentryMode), new ConsoleLogClient()]);
@@ -70,20 +60,14 @@ export function installServices({ env }: InstallServicesOpts): Services {
   const discordService = new DiscordService({ env, logService, fetch, verifyKey });
   const xboxService = new XboxService({ env, logService, authenticate });
   const spartanTokenProvider = new CustomSpartanTokenProvider({ env, xboxService });
-  const useProxy: boolean = env.MODE === "development" && isValidUrl(env.PROXY_WORKER_URL);
-
-  // For development with JSON-RPC proxy, use the existing proxy implementation
-  // Otherwise, use direct client with resilient fetch wrapper
-  const haloInfiniteClient: HaloInfiniteClient = useProxy
-    ? createHaloInfiniteClientProxy({ env })
-    : new HaloInfiniteClient(
-        spartanTokenProvider,
-        createResilientFetch({
-          env,
-          logService,
-          proxyUrl: env.PROXY_WORKER_URL,
-        }),
-      );
+  const haloInfiniteClient = new HaloInfiniteClient(
+    spartanTokenProvider,
+    createResilientFetch({
+      env,
+      logService,
+      proxyUrl: env.PROXY_WORKER_URL,
+    }),
+  );
 
   const haloService = new HaloService({
     env,
