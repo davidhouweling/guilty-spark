@@ -6,7 +6,7 @@ import { getTeamColorOrDefault } from "../../../components/team-colors/team-colo
 import type { TeamColor } from "../../../components/team-colors/team-colors";
 import { StatsDetailController } from "../stats-detail-controller";
 
-describe("StatsDetailController match analytics", () => {
+describe("StatsDetailController.mapMatchDetailToAnalytics", () => {
   it("distinguishes unavailable and empty matrices and preserves XUIDs for identical human labels", () => {
     const detail = aFakeMatchDetailWith({
       players: [
