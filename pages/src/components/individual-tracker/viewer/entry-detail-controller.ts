@@ -15,7 +15,7 @@ import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tra
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -49,6 +49,7 @@ export interface EntryDetailControllerConfig {
   readonly store: IndividualTrackerViewerStore;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly matchDetailsService?: MatchDetailsService | undefined;
+  readonly seriesDetailService?: SeriesDetailService | undefined;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId?: string;

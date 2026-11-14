@@ -3,7 +3,7 @@ import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { MatchDetailsService } from "../../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 import { FollowLiveViewerPresenter } from "./follow-live-viewer-presenter";
@@ -14,6 +14,7 @@ export interface FollowLiveViewerDependencies {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly matchDetailsService: MatchDetailsService;
+  readonly seriesDetailService: SeriesDetailService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
@@ -27,6 +28,7 @@ export function createFollowLiveViewer({
   individualTrackerViewService,
   matchAnalyticsService,
   matchDetailsService,
+  seriesDetailService,
   seriesMatchesService,
   medalMetadataResolver,
 }: FollowLiveViewerDependencies) {
@@ -53,6 +55,7 @@ export function createFollowLiveViewer({
         individualTrackerViewService={individualTrackerViewService}
         matchAnalyticsService={matchAnalyticsService}
         matchDetailsService={matchDetailsService}
+        seriesDetailService={seriesDetailService}
         seriesMatchesService={seriesMatchesService}
         medalMetadataResolver={medalMetadataResolver}
       />

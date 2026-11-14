@@ -9,9 +9,10 @@ import type { IndividualTrackerViewService } from "../../services/individual-tra
 import {
   installMatchAnalyticsService,
   installMatchDetailsService,
+  installSeriesDetailService,
   installSeriesMatchesService,
 } from "../../services/stats/install";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../services/stats/detail-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { getMode } from "../../services/mode";
@@ -21,6 +22,7 @@ export interface Services {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly matchDetailsService: MatchDetailsService;
+  readonly seriesDetailService: SeriesDetailService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
@@ -55,6 +57,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       matchDetailsService: aFakeMatchDetailsServiceWith(),
+      seriesDetailService: await installSeriesDetailService(apiHost),
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
@@ -66,12 +69,14 @@ export async function installServices(apiHost: string): Promise<Services> {
     matchAnalyticsService,
     seriesMatchesService,
     matchDetailsService,
+    seriesDetailService,
   ] = await Promise.all([
     installFollowLiveService(apiHost),
     installIndividualTrackerViewService(apiHost),
     installMatchAnalyticsService(apiHost),
     installSeriesMatchesService(apiHost),
     installMatchDetailsService(apiHost),
+    installSeriesDetailService(apiHost),
   ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost });
   return {
@@ -80,6 +85,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     matchAnalyticsService,
     seriesMatchesService,
     matchDetailsService,
+    seriesDetailService,
     haloClient,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };

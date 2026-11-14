@@ -19,9 +19,10 @@ import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-re
 import {
   installMatchAnalyticsService,
   installMatchDetailsService,
+  installSeriesDetailService,
   installSeriesMatchesService,
 } from "../../services/stats/install";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../services/stats/detail-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { getMode } from "../../services/mode";
@@ -36,6 +37,7 @@ export interface Services {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly matchDetailsService: MatchDetailsService;
+  readonly seriesDetailService: SeriesDetailService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
@@ -66,6 +68,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       matchDetailsService: await installMatchDetailsService(apiHost),
+      seriesDetailService: await installSeriesDetailService(apiHost),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
@@ -78,6 +81,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     individualTrackerViewService,
     matchAnalyticsService,
     matchDetailsService,
+    seriesDetailService,
     seriesMatchesService,
   ] = await Promise.all([
     installAuthService(apiHost),
@@ -86,6 +90,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     installIndividualTrackerViewService(apiHost),
     installMatchAnalyticsService(apiHost),
     installMatchDetailsService(apiHost),
+    installSeriesDetailService(apiHost),
     installSeriesMatchesService(apiHost),
   ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
@@ -104,6 +109,7 @@ export async function installServices(apiHost: string): Promise<Services> {
     individualTrackerViewService,
     matchAnalyticsService,
     matchDetailsService,
+    seriesDetailService,
     seriesMatchesService,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };

@@ -12,6 +12,7 @@ import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metad
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/fakes/match-details.fake";
+import { aFakeSeriesDetailServiceWith } from "../../../../services/stats/fakes/series-detail.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
 import { createFollowLiveViewer } from "../create";
 
@@ -67,6 +68,7 @@ function createFollowLiveViewerWith(
     individualTrackerViewService,
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     matchDetailsService: aFakeMatchDetailsServiceWith(),
+    seriesDetailService: aFakeSeriesDetailServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   });

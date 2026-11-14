@@ -8,7 +8,7 @@ import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
 import type { SeriesOverviewTeam } from "../../series-overview/types";
@@ -34,6 +34,7 @@ interface Config {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly matchDetailsService?: MatchDetailsService | undefined;
+  readonly seriesDetailService?: SeriesDetailService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
@@ -122,6 +123,7 @@ export class IndividualTrackerViewerPresenter {
       store: config.store,
       seriesMatchesService: config.seriesMatchesService,
       matchDetailsService: config.matchDetailsService,
+      seriesDetailService: config.seriesDetailService,
       matchAnalyticsService: config.matchAnalyticsService,
       medalMetadataResolver: config.medalMetadataResolver,
       trackerId: config.trackerId,

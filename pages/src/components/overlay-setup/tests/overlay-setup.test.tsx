@@ -13,6 +13,7 @@ import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individ
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
 import { aFakeMatchDetailsServiceWith } from "../../../services/stats/fakes/match-details.fake";
+import { aFakeSeriesDetailServiceWith } from "../../../services/stats/fakes/series-detail.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import { createOverlaySetupPage } from "../create";
@@ -35,6 +36,7 @@ function previewDependencies(): Pick<
   | "seriesMatchesService"
   | "matchAnalyticsService"
   | "matchDetailsService"
+  | "seriesDetailService"
   | "medalMetadataResolver"
 > {
   const haloClient = aFakeHaloClientWith();
@@ -47,6 +49,7 @@ function previewDependencies(): Pick<
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     matchDetailsService: aFakeMatchDetailsServiceWith(),
+    seriesDetailService: aFakeSeriesDetailServiceWith(),
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };
 }

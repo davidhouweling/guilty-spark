@@ -7,7 +7,7 @@ import type { IndividualTrackerService } from "../../../services/individual-trac
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/detail-types";
+import type { MatchDetailsService, SeriesDetailService } from "../../../services/stats/detail-types";
 import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
 import type { IndividualTrackerViewerSnapshot } from "./viewer-store";
 import { IndividualTrackerViewerStore } from "./viewer-store";
@@ -19,6 +19,7 @@ interface UseIndividualTrackerViewerOpts {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly matchDetailsService?: MatchDetailsService | undefined;
+  readonly seriesDetailService?: SeriesDetailService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
@@ -40,6 +41,7 @@ export function useIndividualTrackerViewer({
   matchAnalyticsService,
   seriesMatchesService,
   matchDetailsService,
+  seriesDetailService,
   medalMetadataResolver,
   trackerId,
   streamerSettings,
@@ -55,6 +57,7 @@ export function useIndividualTrackerViewer({
         matchAnalyticsService,
         seriesMatchesService,
         matchDetailsService,
+        seriesDetailService,
         medalMetadataResolver,
         store,
         trackerId,
@@ -65,6 +68,7 @@ export function useIndividualTrackerViewer({
       matchAnalyticsService,
       seriesMatchesService,
       matchDetailsService,
+      seriesDetailService,
       medalMetadataResolver,
       store,
       trackerId,
