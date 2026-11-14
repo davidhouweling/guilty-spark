@@ -19,26 +19,22 @@ async function loadDetails(
   logService: LogService,
 ): Promise<Map<string, MatchStats>> {
   const details = new Map<string, MatchStats>();
-  for (let offset = 0; offset < matches.length; offset += 5) {
-    await Promise.all(
-      matches.slice(offset, offset + 5).map(async (match) => {
-        try {
-          const detail = await client.getMatchStats(match.MatchId);
-          if (detail.MatchId !== match.MatchId) {
-            throw new Error("Unexpected match identity");
-          }
-          details.set(match.MatchId, detail);
-        } catch (error) {
-          logService.warn(
-            error,
-            new Map([
-              ["context", "Match history detail unavailable"],
-              ["matchId", match.MatchId],
-            ]),
-          );
-        }
-      }),
-    );
+  for (const match of matches) {
+    try {
+      const detail = await client.getMatchStats(match.MatchId);
+      if (detail.MatchId !== match.MatchId) {
+        throw new Error("Unexpected match identity");
+      }
+      details.set(match.MatchId, detail);
+    } catch (error) {
+      logService.warn(
+        error,
+        new Map([
+          ["context", "Match history detail unavailable"],
+          ["matchId", match.MatchId],
+        ]),
+      );
+    }
   }
   if (matches.length > 0 && details.size === 0) {
     throw new Error("All match history details unavailable");
@@ -103,11 +99,9 @@ function createMetadataLoader(client: HaloInfiniteClient, logService: LogService
         return null;
       }
     };
-    const [map, mode, matchmakingPlaylist] = await Promise.all([
-      getAsset(AssetKind.Map, info.MapVariant.AssetId, info.MapVariant.VersionId),
-      getAsset(AssetKind.UgcGameVariant, info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId),
-      playlistName(),
-    ]);
+    const map = await getAsset(AssetKind.Map, info.MapVariant.AssetId, info.MapVariant.VersionId);
+    const mode = await getAsset(AssetKind.UgcGameVariant, info.UgcGameVariant.AssetId, info.UgcGameVariant.VersionId);
+    const matchmakingPlaylist = await playlistName();
     const image =
       map.Files.FileRelativePaths.find((file) => file.includes("thumbnail")) ??
       map.Files.FileRelativePaths.find((file) => file.includes("hero"));
@@ -150,12 +144,8 @@ export async function prepareMatchHistoryPage(
   const gamertags = await loadGamertags(haloService, details, logService);
   const loadMetadata = createMetadataLoader(client, logService);
   const inputs: MatchHistoryMappingInput[] = [];
-  for (let offset = 0; offset < matches.length; offset += 5) {
-    inputs.push(
-      ...(await Promise.all(
-        matches.slice(offset, offset + 5).map(async (match) => loadMetadata(match, details.get(match.MatchId) ?? null)),
-      )),
-    );
+  for (const match of matches) {
+    inputs.push(await loadMetadata(match, details.get(match.MatchId) ?? null));
   }
   return mapCondensedMatchHistoryPage(inputs, xuid, gamertags);
 }
