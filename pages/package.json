@@ -26,7 +26,7 @@
     "@astrojs/sitemap": "^3.7.4",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^9.3.1",
-    "astro": "^7.4.5",
+    "astro": "^7.4.7",
     "classnames": "^2.5.1",
     "date-fns": "^4.4.0",
     "halo-infinite-api": "^14.4.0",
