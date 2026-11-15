@@ -313,8 +313,13 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
           config.seriesMatchesService.getSeriesMatches(matchIds, undefined, anchorMatchId),
         getMatchDetails: async (matchIds): ReturnType<SeriesMatchesService["getMatchDetails"]> =>
           config.seriesMatchesService.getMatchDetails(matchIds),
-        getSeriesDetail: async (seriesId, matchIds): ReturnType<SeriesMatchesService["getSeriesDetail"]> =>
-          config.seriesMatchesService.getSeriesDetail(seriesId, matchIds),
+        getSeriesDetail: async (
+          seriesId,
+          matchIds,
+          _trackerId,
+          teamMappingMode,
+        ): ReturnType<SeriesMatchesService["getSeriesDetail"]> =>
+          config.seriesMatchesService.getSeriesDetail(seriesId, matchIds, undefined, teamMappingMode),
       }),
       [config.seriesMatchesService],
     );

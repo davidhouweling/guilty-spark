@@ -51,7 +51,8 @@ function createPageComponents(directory = aDirectoryWith()): {
       return getSeriesMatches(matchIds, undefined, anchorMatchId);
     },
     getMatchDetails: async (matchIds) => baseSeriesMatchesService.getMatchDetails(matchIds),
-    getSeriesDetail: async (seriesId, matchIds) => baseSeriesMatchesService.getSeriesDetail(seriesId, matchIds),
+    getSeriesDetail: async (seriesId, matchIds, _trackerId, teamMappingMode) =>
+      baseSeriesMatchesService.getSeriesDetail(seriesId, matchIds, undefined, teamMappingMode),
   };
   const baseMatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const matchAnalyticsService: MatchAnalyticsService = {
