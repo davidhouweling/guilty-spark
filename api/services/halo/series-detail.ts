@@ -59,8 +59,8 @@ function hasCompleteMapping(match: MatchStats, mapping: ReadonlyMap<number, numb
   );
 }
 
-function resolveMappings(matches: MatchStats[], isManualSeries: boolean): ManualSeriesTeamMappings | null {
-  if (isManualSeries) {
+function resolveMappings(matches: MatchStats[], options: SeriesDetailOptions): ManualSeriesTeamMappings | null {
+  if (options.isManualSeries === true || options.teamMappingMode === "substitution-aware") {
     const mappings = resolveManualSeriesTeamMappings(matches);
     return mappings != null &&
       matches.every((match) => hasCompleteMapping(match, mappings.matchTeamIdToSeriesTeamId.get(match.MatchId)))
@@ -123,7 +123,7 @@ export function mapSeriesDetail(
   const matches = [...rawMatches].sort((left, right) =>
     compareAsc(left.MatchInfo.StartTime, right.MatchInfo.StartTime),
   );
-  const mappings = resolveMappings(matches, options.isManualSeries === true);
+  const mappings = resolveMappings(matches, options);
   const mappedResults = batch.results.map((result) =>
     result.status === "unavailable"
       ? result

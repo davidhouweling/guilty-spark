@@ -1,7 +1,11 @@
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { MATCH_DETAIL_BATCH_LIMIT } from "@guilty-spark/shared/contracts/stats/detail";
-import type { MatchDetailResult, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type {
+  MatchDetailResult,
+  SeriesDetailResponse,
+  SeriesTeamMappingMode,
+} from "@guilty-spark/shared/contracts/stats/detail";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import type { LogService } from "../log/types";
 import type { HaloService } from "./halo";
@@ -14,6 +18,7 @@ export async function prepareSeriesDetails(
   seriesId: string,
   matchIds: string[],
   logService: LogService,
+  teamMappingMode?: SeriesTeamMappingMode,
 ): Promise<SeriesDetailResponse> {
   const uniqueIds = [...new Set(matchIds)];
   const rawMatches: MatchStats[] = [];
@@ -42,5 +47,9 @@ export async function prepareSeriesDetails(
     }
   }
   const results = matchIds.map((matchId) => Preconditions.checkExists(resultsById.get(matchId)));
-  return mapSeriesDetail(seriesId, matchIds, results, rawMatches, { ...rosterOptions, identitiesByPlayerId });
+  return mapSeriesDetail(seriesId, matchIds, results, rawMatches, {
+    ...rosterOptions,
+    identitiesByPlayerId,
+    teamMappingMode,
+  });
 }

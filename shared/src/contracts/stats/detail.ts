@@ -82,8 +82,16 @@ export const matchDetailQuerySchema = z.object({
 });
 export type MatchDetailQuery = z.infer<typeof matchDetailQuerySchema>;
 
+export const seriesTeamMappingModeSchema = z.enum(["exact-roster", "substitution-aware"]);
+export type SeriesTeamMappingMode = z.infer<typeof seriesTeamMappingModeSchema>;
+
+export const seriesDetailQuerySchema = matchDetailQuerySchema.extend({
+  teamMappingMode: seriesTeamMappingModeSchema.optional(),
+});
+
 export const seriesDetailRequestSchema = z.object({
   matchIds: seriesMatchIdsSchema,
+  teamMappingMode: seriesTeamMappingModeSchema.optional(),
 });
 
 export const seriesDetailParamsSchema = z.object({

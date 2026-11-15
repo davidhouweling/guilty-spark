@@ -1,9 +1,9 @@
 import { parseJsonBody, parsePathParams, parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import {
-  matchDetailQuerySchema,
   seriesDetailContract,
   seriesDetailParamsSchema,
+  seriesDetailQuerySchema,
   seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
 import { prepareMatchDetails } from "../../services/halo/prepare-match-details";
@@ -23,7 +23,7 @@ export const seriesDetailsRoute: RoutesRegisterHandler = (router, installService
         return params.response;
       }
       const url = new URL(request.url);
-      const query = parseQueryParams(url, matchDetailQuerySchema, "Invalid query parameters");
+      const query = parseQueryParams(url, seriesDetailQuerySchema, "Invalid query parameters");
       if (!query.success) {
         return query.response;
       }
@@ -37,7 +37,10 @@ export const seriesDetailsRoute: RoutesRegisterHandler = (router, installService
         query.data.matchIds,
         logService,
       );
-      const detail = mapSeriesDetail(params.data.seriesId, batch.matchIds, batch.results, rawMatches, rosterOptions);
+      const detail = mapSeriesDetail(params.data.seriesId, batch.matchIds, batch.results, rawMatches, {
+        ...rosterOptions,
+        teamMappingMode: query.data.teamMappingMode,
+      });
       return seriesDetailContract.toResponse(detail, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve series details route"]]));
@@ -63,7 +66,13 @@ export const seriesDetailsRoute: RoutesRegisterHandler = (router, installService
         normalizeTrackerId(url.searchParams.get("trackerId")),
         "Failed to resolve user credentials for series details tracker",
       );
-      const detail = await prepareSeriesDetails(haloService, params.data.seriesId, body.data.matchIds, logService);
+      const detail = await prepareSeriesDetails(
+        haloService,
+        params.data.seriesId,
+        body.data.matchIds,
+        logService,
+        body.data.teamMappingMode,
+      );
       return seriesDetailContract.toResponse(detail, { noStore: true });
     } catch (error) {
       logService.error(error, new Map([["context", "Failed to resolve series details route"]]));

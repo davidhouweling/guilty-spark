@@ -172,6 +172,39 @@ describe("mapSeriesDetail", () => {
     expect(aggregate(response).players.find((player) => player.playerId === "0200000000000000")?.gamesPlayed).toBe(1);
   });
 
+  it("supports substitutions and side switches only in the explicitly selected mapping mode", () => {
+    const matches = [aFakeSeriesDetailMatchWith(0), aFakeSeriesDetailMatchWith(1, true, true)];
+    expect(assemble(matches, { teamMappingMode: "exact-roster" }).aggregation).toEqual({
+      status: "unavailable",
+      reason: "ambiguous-team-mapping",
+    });
+    const response = assemble(matches, { teamMappingMode: "substitution-aware" });
+    expect(detailAt(response, 1).teams.map((team) => team.seriesTeamId)).toEqual([3, 7]);
+    expect(aggregate(response).players.find((player) => player.playerId === "0900000000000000")).toMatchObject({
+      gamesPlayed: 1,
+      teamStats: [{ seriesTeamId: 7, gamesPlayed: 1 }],
+    });
+  });
+
+  it("declines crossed or conflicting substitution-aware mappings", () => {
+    expect.assertions(4);
+    const anchor = aFakeSeriesDetailMatchWith(0);
+    const crossed = aFakeSeriesDetailMatchWith(1);
+    crossed.Players[0] = { ...Preconditions.checkExists(crossed.Players[0]), PlayerId: "0400000000000000" };
+    crossed.Players[2] = { ...Preconditions.checkExists(crossed.Players[2]), PlayerId: "0100000000000000" };
+    const substitution = aFakeSeriesDetailMatchWith(1, false, true);
+    const conflicting = aFakeSeriesDetailMatchWith(2);
+    conflicting.Players[3] = { ...Preconditions.checkExists(conflicting.Players[3]), PlayerId: "0900000000000000" };
+    for (const matches of [
+      [anchor, crossed],
+      [anchor, substitution, conflicting],
+    ]) {
+      const response = assemble(matches, { teamMappingMode: "substitution-aware" });
+      expect(response.aggregation).toEqual({ status: "unavailable", reason: "ambiguous-team-mapping" });
+      expect(detailAt(response, 0).teams.map((team) => team.seriesTeamId)).toEqual([null, null]);
+    }
+  });
+
   it("preserves duplicates in the response without duplicating aggregate counts", () => {
     const match = aFakeSeriesDetailMatchWith(0);
     const response = mapSeriesDetail(
