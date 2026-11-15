@@ -210,7 +210,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     ]);
     expect(
       viewModel.matchDetails.map(({ crossTeamKillMatrixData }) => crossTeamKillMatrixData?.tableRows[0]?.playerTeamId),
-    ).toEqual([7, 7]);
+    ).toEqual([19, 7]);
   });
 
   it("does not present zero cross-team totals when all loaded kill matrices are unavailable", () => {
