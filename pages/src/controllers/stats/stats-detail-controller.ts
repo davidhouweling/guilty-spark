@@ -135,17 +135,21 @@ export class StatsDetailController {
   }
 
   private getMatchKillMatrixPlayers(detail: MatchDetail): KillMatrixPlayer[] {
-    return detail.players.flatMap((player) =>
-      player.xuid == null
-        ? []
-        : [
-            {
-              xuid: player.xuid,
-              gamertag: player.gamertag ?? "*Unknown*",
-              teamId: player.lastMatchTeamId,
-            },
-          ],
-    );
+    const playersById = new Map(detail.players.map((player) => [player.playerId, player]));
+    const playerIds = [...detail.teams.flatMap((team) => team.playerIds), ...playersById.keys()];
+    const playersByXuid = new Map<string, KillMatrixPlayer>();
+    for (const playerId of playerIds) {
+      const player = playersById.get(playerId);
+      if (player?.xuid == null || playersByXuid.has(player.xuid)) {
+        continue;
+      }
+      playersByXuid.set(player.xuid, {
+        xuid: player.xuid,
+        gamertag: player.gamertag ?? "*Unknown*",
+        teamId: player.lastMatchTeamId,
+      });
+    }
+    return [...playersByXuid.values()];
   }
 
   private getScoreProgressionTeamColors(detail: MatchDetail, teamColors: readonly TeamColor[]): TeamColor[] {
