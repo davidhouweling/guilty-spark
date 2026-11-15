@@ -1,4 +1,5 @@
 import { GameVariantCategory } from "halo-infinite-api";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type {
   CondensedMatchHistoryEntry,
   CondensedMatchHistoryPage,
@@ -22,6 +23,7 @@ import type {
   GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
+  PreparedMatchHistoryEntry,
   PreparedMatchHistoryPage,
   StartSeriesRequest,
   StartSeriesResponse,
@@ -188,6 +190,16 @@ export function aFakeCondensedMatchHistoryEntryWith(
     },
     ...overrides,
   };
+}
+
+export function aFakePreparedMatchHistoryEntryWith(
+  overrides: Partial<CondensedMatchHistoryEntry> = {},
+): PreparedMatchHistoryEntry {
+  const page = prepareCondensedMatchHistory({
+    matches: [aFakeCondensedMatchHistoryEntryWith(overrides)],
+    suggestedGroupings: [],
+  });
+  return Preconditions.checkExists(page.matches[0], "Expected prepared match history entry");
 }
 
 interface FakeIndividualTrackerServiceOptions {

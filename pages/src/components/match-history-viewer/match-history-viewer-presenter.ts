@@ -11,7 +11,7 @@ import {
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   IndividualTrackerService,
-  TrackerMatchHistoryEntry,
+  PreparedMatchHistoryEntry,
   TrackerSearchResult,
 } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
@@ -39,7 +39,7 @@ export class MatchHistoryViewerPresenter {
   private readonly entryDetailController: EntryDetailController;
   private isDisposed = false;
   private modeVersion = 0;
-  private entries: readonly TrackerMatchHistoryEntry[] = [];
+  private entries: readonly PreparedMatchHistoryEntry[] = [];
   private xuid: string | null = null;
   private searchResult: TrackerSearchResult | null = null;
   private esra: SearchEsra | null = null;
@@ -160,12 +160,18 @@ export class MatchHistoryViewerPresenter {
   }
 
   private async loadPage(start: number, modeVersion: number, isInitialPage: boolean): Promise<void> {
-    if (this.xuid == null) {
+    if (this.xuid == null || this.searchResult == null) {
       return;
     }
 
     try {
-      const response = await this.config.individualTrackerService.getMatchHistory(this.xuid, start, MATCH_PAGE_SIZE);
+      const response = await this.config.individualTrackerService.getCondensedMatchHistory({
+        xuid: this.xuid,
+        gamertag: this.searchResult.gamertag,
+        start,
+        count: MATCH_PAGE_SIZE,
+        category: "all",
+      });
       if (this.isStale(modeVersion)) {
         return;
       }
@@ -197,7 +203,7 @@ export class MatchHistoryViewerPresenter {
     }
 
     const { xuid, searchResult } = this;
-    const { matches, series } = buildSearchTimelineData(this.entries, xuid);
+    const { matches, series } = buildSearchTimelineData(this.entries);
     const settingsWithDefaults = withStreamerViewSettingsDefaults(this.settings);
     const storedSlots = settingsWithDefaults.visibleSections?.statsHighlightSlots;
     const statsHighlightSlots =
@@ -206,7 +212,6 @@ export class MatchHistoryViewerPresenter {
         : DEFAULT_INDIVIDUAL_STATS_HIGHLIGHTS_STAT_SLOTS.slice(0, INDIVIDUAL_STATS_HIGHLIGHTS_DEFAULT_SLOT_COUNT);
     const statsHighlights = computeSearchStatsHighlights(
       this.entries,
-      xuid,
       statsHighlightSlots,
       searchResult.rawCsrContainer,
       this.esra,
