@@ -2,7 +2,7 @@ import React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { getDefaultSeriesGroupTitle } from "@guilty-spark/shared/individual-tracker/series-grouping";
 import { Heading } from "../heading/heading";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
+import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { getDefaultSeriesGroupSubtitle } from "../individual-tracker/series-group-metadata";
 import { Alert } from "../alert/alert";
@@ -14,7 +14,7 @@ import type { MatchHistoryModel } from "./match-history-presenter";
 import styles from "./match-history.module.css";
 
 export interface MatchHistoryProps {
-  readonly entries: readonly TrackerMatchHistoryEntry[] | null;
+  readonly entries: readonly MatchHistoryDisplayEntry[] | null;
   readonly loadingCount?: number;
   readonly showGroupings?: boolean;
   readonly allowManualGrouping?: boolean;
@@ -55,7 +55,7 @@ export function MatchHistory({
   onSeriesGroupSubtitleChange,
   model,
 }: MatchHistoryProps): React.JSX.Element {
-  const isGroupableGame = (entry: TrackerMatchHistoryEntry): boolean =>
+  const isGroupableGame = (entry: MatchHistoryDisplayEntry): boolean =>
     entry.category === "custom" || entry.category === "local";
 
   const showSeriesInfo = showGroupings && (groupings?.length ?? 0) > 0;

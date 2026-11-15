@@ -3,15 +3,22 @@ import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { TrackerMatchHistoryResponse } from "../../../../services/individual-tracker/types";
-import { FakeIndividualTrackerService } from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
+import type {
+  PreparedMatchHistoryEntry,
+  PreparedMatchHistoryPage,
+} from "../../../../services/individual-tracker/types";
+import {
+  aFakeCondensedMatchHistoryEntryWith,
+  aFakeIndividualTrackerServiceWith,
+} from "../../../../services/individual-tracker/fakes/individual-tracker.fake";
+import { prepareCondensedMatchHistory } from "../../../../services/individual-tracker/prepare-condensed-match-history";
 import { createMatchSelectionDialogSection } from "../create";
 
 afterEach(() => {
   cleanup();
 });
 
-function aResponse(overrides: Partial<TrackerMatchHistoryResponse> = {}): TrackerMatchHistoryResponse {
+function aResponse(overrides: Partial<PreparedMatchHistoryPage> = {}): PreparedMatchHistoryPage {
   return {
     matches: [],
     suggestedGroupings: [],
@@ -19,11 +26,10 @@ function aResponse(overrides: Partial<TrackerMatchHistoryResponse> = {}): Tracke
   };
 }
 
-function aMatch(
-  matchId: string,
-  category: "custom" | "matchmaking" = "custom",
-): TrackerMatchHistoryResponse["matches"][number] {
+function aMatch(matchId: string, category: "custom" | "matchmaking" = "custom"): PreparedMatchHistoryEntry {
   return {
+    ...prepareCondensedMatchHistory({ matches: [aFakeCondensedMatchHistoryEntryWith()], suggestedGroupings: [] })
+      .matches[0],
     matchId,
     startTime: "Jan 1, 2026, 12:00:00 AM",
     endTime: "Jan 1, 2026, 12:10:00 AM",
@@ -46,8 +52,8 @@ function aMatch(
 
 describe("MatchSelectionDialogSection", () => {
   it("shows a single loading state while initial matches are being fetched", () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockImplementation(
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockImplementation(
       async () =>
         new Promise(() => {
           /* keep pending */
@@ -76,9 +82,9 @@ describe("MatchSelectionDialogSection", () => {
     expect(screen.queryByText("Establishing Connection...")).not.toBeInTheDocument();
   });
 
-  it("shows error alert and hides match list when getMatchHistory fails", async () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockRejectedValue(new Error("Network error"));
+  it("shows error alert and hides match list when condensed history fails", async () => {
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockRejectedValue(new Error("Network error"));
     const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
@@ -105,8 +111,10 @@ describe("MatchSelectionDialogSection", () => {
   });
 
   it("loads and displays matches when opened", async () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1"), aMatch("m2")] }));
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockResolvedValue(
+      aResponse({ matches: [aMatch("m1"), aMatch("m2")] }),
+    );
     const MatchSelectionDialogSection = createMatchSelectionDialogSection({
       individualTrackerService: service,
     });
@@ -131,11 +139,12 @@ describe("MatchSelectionDialogSection", () => {
   });
 
   it("hides short matches by default and reveals them when the filter is disabled", async () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockResolvedValue(
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockResolvedValue(
       aResponse({
         matches: [
           {
+            ...aMatch("match-short"),
             matchId: "match-short",
             startTime: "Jan 1, 2026, 12:00:00 AM",
             endTime: "Jan 1, 2026, 12:01:30 AM",
@@ -157,6 +166,7 @@ describe("MatchSelectionDialogSection", () => {
             mapThumbnailUrl: "data:,",
           },
           {
+            ...aMatch("match-long"),
             matchId: "match-long",
             startTime: "Jan 1, 2026, 12:02:00 AM",
             endTime: "Jan 1, 2026, 12:12:00 AM",
@@ -209,8 +219,8 @@ describe("MatchSelectionDialogSection", () => {
   });
 
   it("calls syncMatchesToTracker only when footer sync button is clicked", async () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
     const MatchSelectionDialogSection = createMatchSelectionDialogSection({
@@ -249,8 +259,8 @@ describe("MatchSelectionDialogSection", () => {
   });
 
   it("treats escape close as cancel and does not sync", async () => {
-    const service = new FakeIndividualTrackerService();
-    vi.spyOn(service, "getMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
+    const service = aFakeIndividualTrackerServiceWith();
+    vi.spyOn(service, "getCondensedMatchHistory").mockResolvedValue(aResponse({ matches: [aMatch("m1")] }));
     const syncSpy = vi.spyOn(service, "syncMatchesToTracker").mockResolvedValue(undefined);
     const onSynced = vi.fn();
     const onClose = vi.fn();

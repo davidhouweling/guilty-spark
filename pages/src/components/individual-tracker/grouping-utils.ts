@@ -1,6 +1,4 @@
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
-
-function createEntryIndexMap(entries: readonly TrackerMatchHistoryEntry[]): Map<string, number> {
+function createEntryIndexMap(entries: readonly { readonly matchId: string }[]): Map<string, number> {
   const entryIndexMap = new Map<string, number>();
   for (const [index, entry] of entries.entries()) {
     entryIndexMap.set(entry.matchId, index);
@@ -29,7 +27,7 @@ function sortGroupsByTimeline(
 
 export function applyBreakFromGroup(
   groupings: readonly (readonly string[])[],
-  entries: readonly TrackerMatchHistoryEntry[],
+  entries: readonly { readonly matchId: string }[],
   matchId: string,
 ): readonly (readonly string[])[] {
   const entryIndexMap = createEntryIndexMap(entries);
@@ -61,7 +59,7 @@ export function applyBreakFromGroup(
 
 export function applyAddToAdjacentGroup(
   groupings: readonly (readonly string[])[],
-  entries: readonly TrackerMatchHistoryEntry[],
+  entries: readonly { readonly matchId: string }[],
   matchId: string,
   direction: "above" | "below",
 ): readonly (readonly string[])[] {
