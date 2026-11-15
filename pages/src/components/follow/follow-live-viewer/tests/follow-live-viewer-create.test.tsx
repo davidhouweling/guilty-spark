@@ -11,8 +11,7 @@ import { aFakeFollowLiveServiceWith } from "../../../../services/follow/fakes/fo
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/match-details/fakes/match-details.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import { createFollowLiveViewer } from "../create";
 
 let mockViewerInstanceCount = 0;
@@ -66,7 +65,6 @@ function createFollowLiveViewerWith(
     followLiveService,
     individualTrackerViewService,
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-    matchDetailsService: aFakeMatchDetailsServiceWith(),
     seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   });

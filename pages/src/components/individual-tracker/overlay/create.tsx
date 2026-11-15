@@ -7,7 +7,7 @@ import { LoadingState } from "../../loading-state/loading-state";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { useIndividualTrackerViewer } from "../viewer/use-individual-tracker-viewer";
 import { IndividualTrackerOverlay } from "./individual-tracker-overlay";
 import { IndividualTrackerOverlayPresenter } from "./individual-tracker-overlay-presenter";

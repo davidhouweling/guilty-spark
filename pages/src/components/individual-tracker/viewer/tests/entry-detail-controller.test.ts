@@ -5,9 +5,8 @@ import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeTrackerViewStateWith } from "../../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/match-details/fakes/match-details.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { EntryDetailController } from "../entry-detail-controller";
 import { IndividualTrackerViewerStore } from "../viewer-store";
@@ -18,7 +17,7 @@ function setup(): {
   store: IndividualTrackerViewerStore;
   item: Extract<ViewerTimelineItem, { type: "match" }>;
   controller: EntryDetailController;
-  matchDetailsService: ReturnType<typeof aFakeMatchDetailsServiceWith>;
+  matchDetailsService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
   matchAnalyticsService: ReturnType<typeof aFakeMatchAnalyticsServiceWith>;
   key: string;
 } {
@@ -28,13 +27,12 @@ function setup(): {
     IndividualTrackerViewerPresenter.present(store.getSnapshot()).renderModel?.timeline[0],
     "Expected timeline entry",
   );
-  const matchDetailsService = aFakeMatchDetailsServiceWith();
+  const matchDetailsService = aFakeSeriesMatchesServiceWith();
   const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const controller = new EntryDetailController({
     store,
-    matchDetailsService,
     matchAnalyticsService,
-    seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+    seriesMatchesService: matchDetailsService,
     medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     trackerId: "tracker-one",
   });

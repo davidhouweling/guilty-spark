@@ -1,9 +1,21 @@
 import { matchDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
 import { aFakeMatchDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { installMatchDetailsService } from "../install";
+import { installSeriesMatchesService } from "../install";
+import { aFakeSeriesMatchesServiceWith } from "../fakes/series-matches.fake";
 
-describe("installMatchDetailsService", () => {
+describe("installSeriesMatchesService", () => {
+  it("preserves legacy fake overrides alongside complete prepared selections", async () => {
+    const service = aFakeSeriesMatchesServiceWith({ playerXuidToGametag: { player: "Name" } });
+    await expect(service.getSeriesMatches(["missing"])).resolves.toEqual({
+      playerXuidToGametag: { player: "Name" },
+      matches: [],
+    });
+    const response = await service.getSeriesDetail("series", ["second", "first", "second"]);
+    expect(response.matches.matchIds).toEqual(["second", "first", "second"]);
+    expect(response.matches.results.map((result) => result.matchId)).toEqual(["second", "first", "second"]);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -12,7 +24,7 @@ describe("installMatchDetailsService", () => {
   it.each(["fake", "test"])("installs an offline condensed client in %s mode", async (mode) => {
     vi.stubEnv("MODE", mode);
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const service = await installMatchDetailsService("https://api.example.com");
+    const service = await installSeriesMatchesService("https://api.example.com");
 
     const response = await service.getMatchDetails(["match-1"]);
 
@@ -32,7 +44,7 @@ describe("installMatchDetailsService", () => {
       results: [{ status: "unavailable", matchId: "missing", reason: "not-found" }],
     });
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(matchDetailContract.toResponse(response));
-    const service = await installMatchDetailsService("https://api.example.com");
+    const service = await installSeriesMatchesService("https://api.example.com");
 
     await expect(service.getMatchDetails(["missing"], "tracker-1")).resolves.toEqual(response);
     expect(fetchSpy).toHaveBeenCalledWith(

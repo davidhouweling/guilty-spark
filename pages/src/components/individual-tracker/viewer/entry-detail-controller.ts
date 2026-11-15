@@ -14,8 +14,7 @@ import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/match-details/types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -48,7 +47,6 @@ interface SeriesAnalyticsSource {
 export interface EntryDetailControllerConfig {
   readonly store: IndividualTrackerViewerStore;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService?: MatchDetailsService | undefined;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId?: string;
@@ -230,8 +228,8 @@ export class EntryDetailController {
   }
 
   private async fetchMatchSource(matchId: string): Promise<MatchDetail> {
-    const response = await this.config.matchDetailsService?.getMatchDetails([matchId], this.config.trackerId);
-    const result = response?.results.find((candidate) => candidate.matchId === matchId);
+    const response = await this.config.seriesMatchesService.getMatchDetails([matchId], this.config.trackerId);
+    const result = response.results.find((candidate) => candidate.matchId === matchId);
     if (result?.status !== "resolved") {
       throw new Error("Failed to load match source");
     }

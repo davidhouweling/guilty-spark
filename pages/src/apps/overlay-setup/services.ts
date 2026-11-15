@@ -16,11 +16,10 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../services/individual-tracker/fakes/settings.fake";
 import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
-import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
-import { installMatchDetailsService } from "../../services/stats/match-details/install";
-import type { MatchDetailsService } from "../../services/stats/match-details/types";
+import { installMatchAnalyticsService } from "../../services/stats/install";
+import { installSeriesMatchesService } from "../../services/series-matches/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { getMode } from "../../services/mode";
 
 export interface Services {
@@ -32,7 +31,6 @@ export interface Services {
   readonly overlayPreviewService: OverlayPreviewService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly matchDetailsService: MatchDetailsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
 }
@@ -49,7 +47,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       import("../../services/auth/fakes/auth.fake"),
       import("../../services/individual-tracker/fakes/view.fake"),
       import("../../services/stats/fakes/match-analytics.fake"),
-      import("../../services/stats/fakes/series-matches.fake"),
+      import("../../services/series-matches/fakes/series-matches.fake"),
       import("../../services/fakes/halo-client.fake"),
     ]);
     const haloClient = aFakeHaloClientWith();
@@ -62,7 +60,6 @@ export async function installServices(apiHost: string): Promise<Services> {
       overlayPreviewService: await installOverlayPreviewService(apiHost),
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
-      matchDetailsService: await installMatchDetailsService(apiHost),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
@@ -74,7 +71,6 @@ export async function installServices(apiHost: string): Promise<Services> {
     overlayPreviewService,
     individualTrackerViewService,
     matchAnalyticsService,
-    matchDetailsService,
     seriesMatchesService,
   ] = await Promise.all([
     installAuthService(apiHost),
@@ -82,7 +78,6 @@ export async function installServices(apiHost: string): Promise<Services> {
     installOverlayPreviewService(apiHost),
     installIndividualTrackerViewService(apiHost),
     installMatchAnalyticsService(apiHost),
-    installMatchDetailsService(apiHost),
     installSeriesMatchesService(apiHost),
   ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost, credentials: "include" });
@@ -100,7 +95,6 @@ export async function installServices(apiHost: string): Promise<Services> {
     overlayPreviewService,
     individualTrackerViewService,
     matchAnalyticsService,
-    matchDetailsService,
     seriesMatchesService,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };

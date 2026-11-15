@@ -6,8 +6,7 @@ import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-met
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/match-details/types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
 import type { IndividualTrackerViewerSnapshot } from "./viewer-store";
 import { IndividualTrackerViewerStore } from "./viewer-store";
@@ -18,7 +17,6 @@ interface UseIndividualTrackerViewerOpts {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService?: MatchDetailsService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId: string;
   readonly streamerSettings?: StreamerViewSettings;
@@ -39,7 +37,6 @@ export function useIndividualTrackerViewer({
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
-  matchDetailsService,
   medalMetadataResolver,
   trackerId,
   streamerSettings,
@@ -54,7 +51,6 @@ export function useIndividualTrackerViewer({
         individualTrackerViewService,
         matchAnalyticsService,
         seriesMatchesService,
-        matchDetailsService,
         medalMetadataResolver,
         store,
         trackerId,
@@ -64,7 +60,6 @@ export function useIndividualTrackerViewer({
       individualTrackerViewService,
       matchAnalyticsService,
       seriesMatchesService,
-      matchDetailsService,
       medalMetadataResolver,
       store,
       trackerId,

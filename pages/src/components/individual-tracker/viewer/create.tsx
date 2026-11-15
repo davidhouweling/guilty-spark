@@ -12,8 +12,7 @@ import type {
   TrackerViewConnectionStatus,
 } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/match-details/types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { IndividualTrackerViewer } from "./individual-tracker-viewer";
 import { useIndividualTrackerViewer } from "./use-individual-tracker-viewer";
 
@@ -21,7 +20,6 @@ export interface CreateIndividualTrackerViewerPageConfig {
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService: MatchDetailsService;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly individualTrackerService?: IndividualTrackerService;
 }
@@ -55,7 +53,6 @@ function IndividualTrackerViewerPageInternal({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
     medalMetadataResolver,
   } = config;
   const canManage = individualTrackerService != null;
@@ -65,7 +62,6 @@ function IndividualTrackerViewerPageInternal({
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
     medalMetadataResolver,
     trackerId,
     streamerSettings,

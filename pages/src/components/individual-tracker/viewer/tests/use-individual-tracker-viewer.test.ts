@@ -18,10 +18,9 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
-import { aFakeMatchDetailsServiceWith } from "../../../../services/stats/match-details/fakes/match-details.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../../services/series-matches/types";
 import * as reconnectPolicy from "../../../../services/base/reconnect-policy";
 import { useIndividualTrackerViewer } from "../use-individual-tracker-viewer";
 
@@ -173,8 +172,7 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const matchDetailsService = aFakeMatchDetailsServiceWith();
-    const detailSpy = vi.spyOn(matchDetailsService, "getMatchDetails");
+    const detailSpy = vi.spyOn(seriesMatchesService, "getMatchDetails");
     const legacySpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
 
     let resolveAnalytics: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
@@ -188,7 +186,6 @@ describe("useIndividualTrackerViewer", () => {
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
-        matchDetailsService,
         matchAnalyticsService,
         seriesMatchesService,
         medalMetadataResolver,
@@ -257,7 +254,6 @@ describe("useIndividualTrackerViewer", () => {
       }),
     });
     const { matchAnalyticsService, seriesMatchesService, medalMetadataResolver } = aViewerTestDependenciesWith();
-    const matchDetailsService = aFakeMatchDetailsServiceWith();
 
     let resolveKillMatrix: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
     let resolveScoreProgression: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
@@ -276,7 +272,6 @@ describe("useIndividualTrackerViewer", () => {
     const { result } = renderHook(() =>
       useIndividualTrackerViewer({
         individualTrackerViewService,
-        matchDetailsService,
         matchAnalyticsService,
         seriesMatchesService,
         medalMetadataResolver,

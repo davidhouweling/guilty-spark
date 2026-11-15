@@ -5,15 +5,15 @@ import {
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
-import { RealSeriesDetailService } from "../series-detail";
+import { RealSeriesMatchesService } from "../series-matches";
 
-describe("RealSeriesDetailService.getSeriesDetail", () => {
+describe("RealSeriesMatchesService.getSeriesDetail", () => {
   let fetchSpy: MockInstance<typeof globalThis.fetch>;
-  let service: RealSeriesDetailService;
+  let service: RealSeriesMatchesService;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, "fetch");
-    service = new RealSeriesDetailService({ apiHost: "https://api.example.com" });
+    service = new RealSeriesMatchesService({ apiHost: "https://api.example.com" });
   });
 
   afterEach(() => {

@@ -7,10 +7,9 @@ import {
 } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
-import { aFakeMatchDetailsServiceWith } from "../../../services/stats/match-details/fakes/match-details.fake";
 import { IndividualTrackerViewerPresenter } from "../../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../../individual-tracker/viewer/viewer-store";
 import { MatchHistoryViewerPresenter } from "../match-history-viewer-presenter";
@@ -33,12 +32,12 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
   individualTrackerService: ReturnType<typeof aFakeIndividualTrackerServiceWith>;
   matchAnalyticsService: ReturnType<typeof aFakeMatchAnalyticsServiceWith>;
   seriesMatchesService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
-  matchDetailsService: ReturnType<typeof aFakeMatchDetailsServiceWith>;
+  matchDetailsService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
 } {
   const individualTrackerService = aFakeIndividualTrackerServiceWith();
   const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const seriesMatchesService = aFakeSeriesMatchesServiceWith();
-  const matchDetailsService = aFakeMatchDetailsServiceWith();
+  const matchDetailsService = seriesMatchesService;
   const viewerStore = new IndividualTrackerViewerStore();
   const haloClient = aFakeHaloClientWith();
 
@@ -47,7 +46,6 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
     individualTrackerSettingsService: aFakeIndividualTrackerSettingsServiceWith(settings),
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     viewerStore,
   });
