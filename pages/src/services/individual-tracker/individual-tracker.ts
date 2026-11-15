@@ -1,4 +1,5 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { condensedMatchHistoryPageContract } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
 import type {
   TrackerProfileResponse,
   UpdateTrackerProfileRequest,
@@ -44,11 +45,14 @@ import {
   RANKED_ARENA_PLAYLIST_ID,
 } from "./match-history-helpers";
 import { RealTrackerViewConnection } from "./view-connection";
+import { prepareCondensedMatchHistory } from "./prepare-condensed-match-history";
 import type {
+  CondensedMatchHistoryRequest,
   EditSeriesRequest,
   GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
+  PreparedMatchHistoryPage,
   StartSeriesRequest,
   StartSeriesResponse,
   TrackerListResponse,
@@ -334,6 +338,26 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
 
     const { esra } = await searchEsraContract.fromResponse(response);
     return esra;
+  }
+
+  public async getCondensedMatchHistory(request: CondensedMatchHistoryRequest): Promise<PreparedMatchHistoryPage> {
+    const query = new URLSearchParams({
+      start: request.start.toString(),
+      count: request.count.toString(),
+      category: request.category ?? "all",
+    });
+    if (request.gamertag != null) {
+      query.set("gamertag", request.gamertag);
+    }
+
+    const response = await fetch(
+      this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(request.xuid)}/matches?${query.toString()}`),
+      { credentials: "include" },
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch match history (${response.status.toString()})`);
+    }
+    return prepareCondensedMatchHistory(await condensedMatchHistoryPageContract.fromResponse(response));
   }
 
   public async getMatchHistory(

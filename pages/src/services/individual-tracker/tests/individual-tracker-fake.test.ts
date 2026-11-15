@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { aFakeIndividualTrackerServiceWith } from "../fakes/individual-tracker.fake";
+import {
+  aFakeCondensedMatchHistoryEntryWith,
+  aFakeIndividualTrackerServiceWith,
+} from "../fakes/individual-tracker.fake";
 
 describe("FakeIndividualTrackerService", () => {
   describe("generateMaps", () => {
@@ -49,6 +52,36 @@ describe("FakeIndividualTrackerService", () => {
 
       expect(maps).toHaveLength(3);
       expect(maps.every((map) => map.mode === "Slayer" || map.mode === "Capture the Flag")).toBe(true);
+    });
+
+    describe("getCondensedMatchHistory", () => {
+      it("filters and paginates typed rows while retaining only matching groupings", async () => {
+        const service = aFakeIndividualTrackerServiceWith({
+          condensedMatchHistory: {
+            matches: [
+              aFakeCondensedMatchHistoryEntryWith({ matchId: "matchmade", category: "matchmaking" }),
+              aFakeCondensedMatchHistoryEntryWith({ matchId: "a" }),
+              aFakeCondensedMatchHistoryEntryWith({ matchId: "b" }),
+              aFakeCondensedMatchHistoryEntryWith({ matchId: "c" }),
+            ],
+            suggestedGroupings: [["a", "b", "c"]],
+          },
+        });
+
+        const page = await service.getCondensedMatchHistory({
+          xuid: "123",
+          start: 1,
+          count: 2,
+          category: "custom",
+        });
+
+        expect(page.matches.map((match) => match.matchId)).toEqual(["b", "c"]);
+        expect(page.suggestedGroupings).toEqual([["b", "c"]]);
+        await expect(service.getCondensedMatchHistory({ xuid: "123", start: 4, count: 25 })).resolves.toEqual({
+          matches: [],
+          suggestedGroupings: [],
+        });
+      });
     });
   });
 });
