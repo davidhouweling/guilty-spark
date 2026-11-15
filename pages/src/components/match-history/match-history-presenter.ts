@@ -1,10 +1,10 @@
 import { HALO_TEAM_COLORS } from "../team-colors/team-colors";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
+import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import type { MatchHistorySnapshot, MatchHistoryStore } from "./match-history-store";
 
 interface GroupSegmentEntry {
-  readonly entry: TrackerMatchHistoryEntry;
+  readonly entry: MatchHistoryDisplayEntry;
 }
 
 export interface GroupSegmentBlock {
@@ -17,7 +17,7 @@ export interface GroupSegmentBlock {
 
 export interface SingleSegmentBlock {
   readonly type: "single";
-  readonly entry: TrackerMatchHistoryEntry;
+  readonly entry: MatchHistoryDisplayEntry;
 }
 
 export type SegmentBlock = GroupSegmentBlock | SingleSegmentBlock;
@@ -53,7 +53,7 @@ export class MatchHistoryPresenter {
 
   public static present(
     snapshot: MatchHistorySnapshot,
-    entries: readonly TrackerMatchHistoryEntry[] | null,
+    entries: readonly MatchHistoryDisplayEntry[] | null,
     groupings: readonly (readonly string[])[] | undefined,
     showGroupings: boolean,
     seriesGroups: readonly IndividualTrackerSeriesGroup[] | undefined,
@@ -63,7 +63,7 @@ export class MatchHistoryPresenter {
   }
 
   private static buildSegmentBlocks(
-    entries: readonly TrackerMatchHistoryEntry[] | null,
+    entries: readonly MatchHistoryDisplayEntry[] | null,
     groupings: readonly (readonly string[])[] | undefined,
     showGroupings: boolean,
     seriesGroups: readonly IndividualTrackerSeriesGroup[] | undefined,

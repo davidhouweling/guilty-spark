@@ -1,8 +1,8 @@
 import { differenceInSeconds, isValid, parseISO } from "date-fns";
 import { MINIMUM_COMPLETE_MATCH_DURATION_SECONDS } from "@guilty-spark/shared/halo/duration";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
+import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 
-function getMatchDurationSeconds(entry: TrackerMatchHistoryEntry): number | undefined {
+function getMatchDurationSeconds(entry: MatchHistoryDisplayEntry): number | undefined {
   const startRaw = entry.startTimeIso ?? entry.startTime;
   const endRaw = entry.endTimeIso ?? entry.endTime;
   const startTime = parseISO(startRaw);
@@ -13,7 +13,7 @@ function getMatchDurationSeconds(entry: TrackerMatchHistoryEntry): number | unde
   return differenceInSeconds(endTime, startTime);
 }
 
-export function shouldHideShortDurationMatch(entry: TrackerMatchHistoryEntry): boolean {
+export function shouldHideShortDurationMatch(entry: MatchHistoryDisplayEntry): boolean {
   const duration = getMatchDurationSeconds(entry);
   if (duration === undefined) {
     return false;

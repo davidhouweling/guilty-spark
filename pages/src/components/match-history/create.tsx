@@ -1,12 +1,12 @@
 import React, { useMemo, useSyncExternalStore } from "react";
-import type { TrackerMatchHistoryEntry } from "../../services/individual-tracker/types";
+import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { MatchHistoryPresenter } from "./match-history-presenter";
 import { MatchHistoryStore } from "./match-history-store";
 import { MatchHistory } from "./match-history";
 
 export interface MatchHistorySectionProps {
-  readonly entries: readonly TrackerMatchHistoryEntry[] | null;
+  readonly entries: readonly MatchHistoryDisplayEntry[] | null;
   readonly loadingCount?: number;
   readonly showGroupings?: boolean;
   readonly allowManualGrouping?: boolean;
