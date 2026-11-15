@@ -1,6 +1,6 @@
 import { matchDetailContract, matchDetailQuerySchema } from "@guilty-spark/shared/contracts/stats/detail";
-import { normalizeTrackerId } from "./normalize-tracker-id";
-import type { MatchDetailsService } from "./detail-types";
+import { normalizeTrackerId } from "../normalize-tracker-id";
+import type { MatchDetailsService } from "./types";
 
 interface RealMatchDetailsServiceOptions {
   readonly apiHost: string;

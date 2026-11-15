@@ -8,7 +8,7 @@ import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../../services/stats/detail-types";
+import type { MatchDetailsService } from "../../../services/stats/match-details/types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
 import type { SeriesOverviewTeam } from "../../series-overview/types";

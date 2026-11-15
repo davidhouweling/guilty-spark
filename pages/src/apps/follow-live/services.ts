@@ -7,6 +7,8 @@ import type { FollowLiveService } from "../../services/follow/follow-types";
 import { installIndividualTrackerViewService } from "../../services/individual-tracker/install";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
 import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
+import { installMatchDetailsService } from "../../services/stats/match-details/install";
+import type { MatchDetailsService } from "../../services/stats/match-details/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { getMode } from "../../services/mode";
@@ -15,6 +17,7 @@ export interface Services {
   readonly followLiveService: FollowLiveService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly matchDetailsService: MatchDetailsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly haloClient: HaloInfiniteClient;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
@@ -27,12 +30,14 @@ export async function installServices(apiHost: string): Promise<Services> {
       { aFakeIndividualTrackerViewServiceWith, aFakeTrackerViewStateWith },
       { aFakeCtfMatchAnalyticsWith, aFakeMatchAnalyticsServiceWith },
       { aFakeSeriesMatchesServiceWith },
+      { aFakeMatchDetailsServiceWith },
       { aFakeHaloClientWith },
     ] = await Promise.all([
       import("../../services/follow/fakes/follow.fake"),
       import("../../services/individual-tracker/fakes/view.fake"),
       import("../../services/stats/fakes/match-analytics.fake"),
       import("../../services/stats/fakes/series-matches.fake"),
+      import("../../services/stats/match-details/fakes/match-details.fake"),
       import("../../services/fakes/halo-client.fake"),
     ]);
     const haloClient = aFakeHaloClientWith();
@@ -46,24 +51,32 @@ export async function installServices(apiHost: string): Promise<Services> {
       individualTrackerViewService: aFakeIndividualTrackerViewServiceWith(),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith({ analytics: aFakeCtfMatchAnalyticsWith() }),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      matchDetailsService: aFakeMatchDetailsServiceWith(),
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     };
   }
 
-  const [followLiveService, individualTrackerViewService, matchAnalyticsService, seriesMatchesService] =
-    await Promise.all([
-      installFollowLiveService(apiHost),
-      installIndividualTrackerViewService(apiHost),
-      installMatchAnalyticsService(apiHost),
-      installSeriesMatchesService(apiHost),
-    ]);
+  const [
+    followLiveService,
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    matchDetailsService,
+  ] = await Promise.all([
+    installFollowLiveService(apiHost),
+    installIndividualTrackerViewService(apiHost),
+    installMatchAnalyticsService(apiHost),
+    installSeriesMatchesService(apiHost),
+    installMatchDetailsService(apiHost),
+  ]);
   const haloClient = createHaloInfiniteClientProxy({ proxyBaseUrl: apiHost });
   return {
     followLiveService,
     individualTrackerViewService,
     matchAnalyticsService,
     seriesMatchesService,
+    matchDetailsService,
     haloClient,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
   };

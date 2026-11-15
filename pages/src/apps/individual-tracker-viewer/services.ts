@@ -9,12 +9,9 @@ import {
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
-import {
-  installMatchAnalyticsService,
-  installMatchDetailsService,
-  installSeriesMatchesService,
-} from "../../services/stats/install";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
+import { installMatchDetailsService } from "../../services/stats/match-details/install";
+import type { MatchDetailsService } from "../../services/stats/match-details/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
 import { getMode } from "../../services/mode";

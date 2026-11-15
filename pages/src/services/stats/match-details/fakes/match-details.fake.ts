@@ -1,7 +1,7 @@
 import { matchDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
 import type { MatchDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import { aFakeMatchDetailWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
-import type { MatchDetailsService } from "../detail-types";
+import type { MatchDetailsService } from "../types";
 
 interface FakeMatchDetailsServiceOptions {
   readonly response?: MatchDetailResponse | undefined;

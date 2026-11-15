@@ -5,7 +5,7 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import type { MatchDetailsService } from "../../services/stats/match-details/types";
 import { IndividualTrackerViewerPresenter } from "../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { IndividualTrackerViewerSnapshot } from "../individual-tracker/viewer/viewer-store";
