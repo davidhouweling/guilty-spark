@@ -34,6 +34,10 @@ describe("installSeriesMatchesService", () => {
       matchId: "match-1",
       detail: { matchId: "match-1" },
     });
+    const matchIds = Array.from({ length: 31 }, (_, index) => `match-${index.toString()}`);
+    const series = await service.getSeriesDetail("series", matchIds);
+    expect(series.seriesId).toBe("series");
+    expect(series.matches.matchIds).toEqual(matchIds);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
