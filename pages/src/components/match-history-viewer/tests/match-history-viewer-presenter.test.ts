@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CondensedMatchHistoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import {
+  aFakeCondensedMatchHistoryEntryWith,
   aFakeIndividualTrackerServiceWith,
-  aFakeMatchHistoryEntryWith,
   aFakeTrackerSearchResultWith,
 } from "../../../services/individual-tracker/fakes/individual-tracker.fake";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/individual-tracker/fakes/settings.fake";
+import { prepareCondensedMatchHistory } from "../../../services/individual-tracker/prepare-condensed-match-history";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
@@ -16,12 +18,23 @@ import { MatchHistoryViewerPresenter } from "../match-history-viewer-presenter";
 
 const MATCH_PAGE_SIZE = 25;
 
+function aFakeMatchHistoryEntryWith(
+  overrides: Partial<CondensedMatchHistoryEntry> = {},
+): ReturnType<typeof prepareCondensedMatchHistory>["matches"][number] {
+  return prepareCondensedMatchHistory({
+    matches: [aFakeCondensedMatchHistoryEntryWith(overrides)],
+    suggestedGroupings: [],
+  }).matches[0];
+}
+
 function aFullPageOfEntries(prefix: string, count = MATCH_PAGE_SIZE): ReturnType<typeof aFakeMatchHistoryEntryWith>[] {
   return Array.from({ length: count }, (_, index) =>
     aFakeMatchHistoryEntryWith({
       matchId: `${prefix}-${index.toString()}`,
       startTimeIso: new Date(2026, 0, 1, 0, index).toISOString(),
-      rawMatchStats: null,
+      trackedPlayerSummary: null,
+      highlightContribution: null,
+      teamRosterSignature: null,
     }),
   );
 }
@@ -66,16 +79,24 @@ describe("MatchHistoryViewerPresenter", () => {
     const searchResult = aFakeTrackerSearchResultWith({ gamertag: "Master Chief", xuid: "xuid-1" });
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(searchResult);
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
-    const getMatchHistorySpy = vi
-      .spyOn(individualTrackerService, "getMatchHistory")
+    const getCondensedMatchHistorySpy = vi
+      .spyOn(individualTrackerService, "getCondensedMatchHistory")
       .mockResolvedValueOnce({ matches: [aFakeMatchHistoryEntryWith({ matchId: "m-1" })], suggestedGroupings: [] });
+    const legacyHistorySpy = vi.spyOn(individualTrackerService, "getMatchHistory");
 
     presenter.search("Master Chief");
     await vi.waitFor(() => {
       expect(viewerStore.getSnapshot().status).toBe(ComponentLoaderStatus.LOADED);
     });
 
-    expect(getMatchHistorySpy).toHaveBeenCalledWith("xuid-1", 0, MATCH_PAGE_SIZE);
+    expect(getCondensedMatchHistorySpy).toHaveBeenCalledWith({
+      xuid: "xuid-1",
+      gamertag: "Master Chief",
+      start: 0,
+      count: MATCH_PAGE_SIZE,
+      category: "all",
+    });
+    expect(legacyHistorySpy).not.toHaveBeenCalled();
     const { view } = viewerStore.getSnapshot();
     expect(view?.gamertag).toBe("Master Chief");
     expect(view?.matches).toHaveLength(1);
@@ -94,6 +115,16 @@ describe("MatchHistoryViewerPresenter", () => {
     expect(viewerStore.getSnapshot().errorMessage).toBe("No matching gamertag found.");
   });
 
+  it("reports an initial history error", async () => {
+    const { presenter, viewerStore, individualTrackerService } = aPresenterSetup();
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory").mockRejectedValue(new Error("History unavailable"));
+    presenter.search("Fake Spartan");
+    await vi.waitFor(() => {
+      expect(viewerStore.getSnapshot().status).toBe(ComponentLoaderStatus.ERROR);
+    });
+    expect(viewerStore.getSnapshot().errorMessage).toBe("History unavailable");
+  });
+
   it("loads selected analytics for an expanded match", async () => {
     const {
       presenter,
@@ -106,7 +137,7 @@ describe("MatchHistoryViewerPresenter", () => {
     const matchId = "match-1";
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
-    vi.spyOn(individualTrackerService, "getMatchHistory").mockResolvedValue({
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory").mockResolvedValue({
       matches: [aFakeMatchHistoryEntryWith({ matchId })],
       suggestedGroupings: [],
     });
@@ -142,8 +173,8 @@ describe("MatchHistoryViewerPresenter", () => {
     const { presenter, viewerStore, individualTrackerService } = aPresenterSetup();
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
-    const getMatchHistorySpy = vi
-      .spyOn(individualTrackerService, "getMatchHistory")
+    const getCondensedMatchHistorySpy = vi
+      .spyOn(individualTrackerService, "getCondensedMatchHistory")
       .mockResolvedValueOnce({ matches: aFullPageOfEntries("page1"), suggestedGroupings: [] })
       .mockResolvedValueOnce({ matches: aFullPageOfEntries("page2"), suggestedGroupings: [] });
 
@@ -160,7 +191,10 @@ describe("MatchHistoryViewerPresenter", () => {
       expect(viewerStore.getSnapshot().view?.matches).toHaveLength(MATCH_PAGE_SIZE * 2);
     });
 
-    expect(getMatchHistorySpy).toHaveBeenNthCalledWith(2, expect.any(String), MATCH_PAGE_SIZE, MATCH_PAGE_SIZE);
+    expect(getCondensedMatchHistorySpy).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ start: MATCH_PAGE_SIZE, count: MATCH_PAGE_SIZE }),
+    );
     expect(viewerStore.getSnapshot()).toMatchObject({ hasMore: true, loadingMore: false });
   });
 
@@ -168,7 +202,7 @@ describe("MatchHistoryViewerPresenter", () => {
     const { presenter, viewerStore, individualTrackerService } = aPresenterSetup();
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
-    vi.spyOn(individualTrackerService, "getMatchHistory").mockResolvedValueOnce({
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory").mockResolvedValueOnce({
       matches: [aFakeMatchHistoryEntryWith({ matchId: "m-1" })],
       suggestedGroupings: [],
     });
@@ -181,11 +215,43 @@ describe("MatchHistoryViewerPresenter", () => {
     expect(viewerStore.getSnapshot()).toMatchObject({ hasMore: false, loadingMore: false });
   });
 
+  it("counts overlapping page IDs once while advancing by the full fetched page length", async () => {
+    const { presenter, viewerStore, individualTrackerService } = aPresenterSetup({
+      visibleSections: { statsHighlightSlots: ["total-games", "kills"] },
+    });
+    const first = aFullPageOfEntries("first");
+    first[0] = aFakeMatchHistoryEntryWith({ matchId: "first-0", isMatchmaking: true });
+    const repeated = aFakeMatchHistoryEntryWith({ matchId: "first-0", isMatchmaking: true });
+    const more = aFullPageOfEntries("more", MATCH_PAGE_SIZE - 1);
+    more[0] = aFakeMatchHistoryEntryWith({ matchId: "more-0", isMatchmaking: true });
+    const history = vi
+      .spyOn(individualTrackerService, "getCondensedMatchHistory")
+      .mockResolvedValueOnce({ matches: first, suggestedGroupings: [] })
+      .mockResolvedValueOnce({ matches: [repeated, ...more], suggestedGroupings: [] })
+      .mockResolvedValueOnce({ matches: [], suggestedGroupings: [] });
+
+    presenter.search("Fake Spartan");
+    await vi.waitFor(() => {
+      expect(viewerStore.getSnapshot().view?.matches).toHaveLength(25);
+    });
+    expect(viewerStore.getSnapshot().view?.statsHighlights?.map((item) => item.value)).toEqual(["25", "10"]);
+    presenter.loadMore();
+    await vi.waitFor(() => {
+      expect(viewerStore.getSnapshot().view?.matches).toHaveLength(49);
+    });
+    expect(viewerStore.getSnapshot().view?.statsHighlights?.map((item) => item.value)).toEqual(["49", "20"]);
+    presenter.loadMore();
+    await vi.waitFor(() => {
+      expect(viewerStore.getSnapshot().hasMore).toBe(false);
+    });
+    expect(history).toHaveBeenNthCalledWith(3, expect.objectContaining({ start: 50, count: 25 }));
+  });
+
   it("sets loadMoreError and clears loadingMore when a subsequent page fails to load", async () => {
     const { presenter, viewerStore, individualTrackerService } = aPresenterSetup();
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
-    vi.spyOn(individualTrackerService, "getMatchHistory")
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory")
       .mockResolvedValueOnce({ matches: aFullPageOfEntries("page1"), suggestedGroupings: [] })
       .mockRejectedValueOnce(new Error("Network error"));
 
@@ -216,8 +282,8 @@ describe("MatchHistoryViewerPresenter", () => {
         resolve({ matches: aFullPageOfEntries("page2"), suggestedGroupings: [] });
       };
     });
-    const getMatchHistorySpy = vi
-      .spyOn(individualTrackerService, "getMatchHistory")
+    const getCondensedMatchHistorySpy = vi
+      .spyOn(individualTrackerService, "getCondensedMatchHistory")
       .mockResolvedValueOnce({ matches: aFullPageOfEntries("page1"), suggestedGroupings: [] })
       .mockReturnValueOnce(secondPagePromise);
 
@@ -237,7 +303,7 @@ describe("MatchHistoryViewerPresenter", () => {
       expect(viewerStore.getSnapshot().loadingMore).toBe(false);
     });
 
-    expect(getMatchHistorySpy).toHaveBeenCalledTimes(2);
+    expect(getCondensedMatchHistorySpy).toHaveBeenCalledTimes(2);
   });
 
   it("does not flash an empty loaded state when ESRA resolves before the first page of matches", async () => {
@@ -255,7 +321,7 @@ describe("MatchHistoryViewerPresenter", () => {
         resolve({ matches: [aFakeMatchHistoryEntryWith({ matchId: "m-1" })], suggestedGroupings: [] });
       };
     });
-    vi.spyOn(individualTrackerService, "getMatchHistory").mockReturnValueOnce(matchHistoryPromise);
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory").mockReturnValueOnce(matchHistoryPromise);
 
     presenter.search("Fake Spartan");
     await vi.waitFor(() => {
@@ -279,7 +345,10 @@ describe("MatchHistoryViewerPresenter", () => {
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(
       aFakeTrackerSearchResultWith({ gamertag: "Fake Spartan", xuid: "xuid-1" }),
     );
-    vi.spyOn(individualTrackerService, "getMatchHistory").mockResolvedValue({ matches: [], suggestedGroupings: [] });
+    vi.spyOn(individualTrackerService, "getCondensedMatchHistory").mockResolvedValue({
+      matches: [],
+      suggestedGroupings: [],
+    });
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({
       esra: 1450,
       lastRankedGamePlayed: "2026-01-01T00:00:00.000Z",
