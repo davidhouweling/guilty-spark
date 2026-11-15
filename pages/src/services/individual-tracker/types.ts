@@ -14,6 +14,28 @@ import type { LiveTrackerMap } from "@guilty-spark/shared/contracts/durable-obje
 import type { GenerateMapsRequest as GenerateMapsOptions } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type { SearchEsra } from "@guilty-spark/shared/contracts/individual-tracker/search-esra";
 import type { MatchStats, PlaylistCsrContainer } from "halo-infinite-api";
+import type { CondensedMatchHistoryEntry } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
+
+export interface PreparedMatchHistoryEntry extends CondensedMatchHistoryEntry {
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly duration: string;
+  readonly resultString: string;
+  readonly scoreDisplay: string | null;
+}
+
+export interface PreparedMatchHistoryPage {
+  readonly matches: readonly PreparedMatchHistoryEntry[];
+  readonly suggestedGroupings: readonly (readonly string[])[];
+}
+
+export interface CondensedMatchHistoryRequest {
+  readonly xuid: string;
+  readonly start: number;
+  readonly count: number;
+  readonly category?: "all" | "custom" | undefined;
+  readonly gamertag?: string | undefined;
+}
 
 export interface TrackerSearchResult {
   readonly gamertag: string;
@@ -161,6 +183,7 @@ export interface IndividualTrackerService {
     count: number,
     category?: "custom" | "all",
   ): Promise<TrackerMatchHistoryResponse>;
+  getCondensedMatchHistory(request: CondensedMatchHistoryRequest): Promise<PreparedMatchHistoryPage>;
   syncMatchesToTracker(request: TrackerSyncMatchesRequest): Promise<void>;
   generateMaps(request: GenerateMapsRequest): Promise<readonly LiveTrackerMap[]>;
   startSeries(request: StartSeriesRequest): Promise<StartSeriesResponse>;

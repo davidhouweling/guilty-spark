@@ -1,5 +1,9 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type {
+  CondensedMatchHistoryEntry,
+  CondensedMatchHistoryPage,
+} from "@guilty-spark/shared/contracts/individual-tracker/match-history";
+import type {
   TrackerProfile,
   TrackerProfileResponse,
   UpdateTrackerProfileRequest,
@@ -14,9 +18,11 @@ import type {
 import { MAP_GENERATOR_SLAYER_ONLY_PLAYLISTS } from "@guilty-spark/shared/contracts/individual-tracker/map-generation";
 import type {
   EditSeriesRequest,
+  CondensedMatchHistoryRequest,
   GenerateMapsRequest,
   IndividualTrackerConnection,
   IndividualTrackerService,
+  PreparedMatchHistoryPage,
   StartSeriesRequest,
   StartSeriesResponse,
   TrackerListResponse,
@@ -25,6 +31,7 @@ import type {
   TrackerSearchResult,
   TrackerStatusResponse,
 } from "../types";
+import { prepareCondensedMatchHistory } from "../prepare-condensed-match-history";
 
 const HCS_MODE_SEQUENCE = [
   "objective",
@@ -141,6 +148,48 @@ export function aFakeMatchHistoryEntryWith(
   };
 }
 
+export function aFakeCondensedMatchHistoryEntryWith(
+  overrides: Partial<CondensedMatchHistoryEntry> = {},
+): CondensedMatchHistoryEntry {
+  return {
+    matchId: "history-match-1",
+    startTimeIso: "2026-01-02T01:00:00.000Z",
+    endTimeIso: "2026-01-02T01:10:00.000Z",
+    durationIso: "PT10M",
+    mapAssetId: "map-asset-1",
+    mapVersionId: "map-version-1",
+    modeAssetId: "mode-asset-1",
+    modeVersionId: "mode-version-1",
+    gameVariantCategory: 6,
+    mapName: "Live Fire",
+    modeName: "Slayer",
+    mapThumbnailUrl: "data:,",
+    outcome: "Win",
+    isMatchmaking: false,
+    matchmakingPlaylist: null,
+    category: "custom",
+    teams: [["Player One"], ["Player Two"]],
+    teamRosterSignature: "roster-1",
+    teamCount: 2,
+    score: { scores: [50, 42], roundsWon: null },
+    trackedPlayerSummary: { kills: 10, deaths: 7, assists: 4, damageDealt: 4200, damageTaken: 3900 },
+    highlightContribution: {
+      kills: 10,
+      deaths: 7,
+      assists: 4,
+      damageDealt: 4200,
+      damageTaken: 3900,
+      headshotKills: 5,
+      shotsFired: 100,
+      shotsHit: 50,
+      totalLifeSeconds: 240,
+      totalSpawns: 8,
+      totalLifeSpawns: 8,
+    },
+    ...overrides,
+  };
+}
+
 interface FakeIndividualTrackerServiceOptions {
   readonly profile: TrackerProfile;
   readonly trackers: readonly Tracker[];
@@ -148,6 +197,7 @@ interface FakeIndividualTrackerServiceOptions {
   readonly matchHistory: TrackerMatchHistoryResponse;
   readonly searchResults: readonly TrackerSearchResult[];
   readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[];
+  readonly condensedMatchHistory: CondensedMatchHistoryPage;
   readonly searchEsra: SearchEsra;
 }
 
@@ -158,6 +208,7 @@ export interface FakeIndividualTrackerServiceFactoryOpts {
   readonly matchHistory?: TrackerMatchHistoryResponse;
   readonly searchResults?: readonly TrackerSearchResult[];
   readonly matchHistoryEntries?: readonly TrackerMatchHistoryEntry[];
+  readonly condensedMatchHistory?: CondensedMatchHistoryPage;
   readonly searchEsra?: SearchEsra;
 }
 
@@ -168,6 +219,7 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
   private readonly matchHistory: TrackerMatchHistoryResponse;
   private readonly searchResults: readonly TrackerSearchResult[] | null;
   private readonly matchHistoryEntries: readonly TrackerMatchHistoryEntry[] | null;
+  private readonly condensedMatchHistory: CondensedMatchHistoryPage;
   private readonly searchEsra: SearchEsra;
 
   public constructor(options?: Partial<FakeIndividualTrackerServiceOptions>) {
@@ -177,6 +229,10 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
     this.matchHistory = options?.matchHistory ?? { matches: [], suggestedGroupings: [] };
     this.searchResults = options?.searchResults ?? null;
     this.matchHistoryEntries = options?.matchHistoryEntries ?? null;
+    this.condensedMatchHistory = options?.condensedMatchHistory ?? {
+      matches: [aFakeCondensedMatchHistoryEntryWith()],
+      suggestedGroupings: [],
+    };
     this.searchEsra = options?.searchEsra ?? { esra: null, lastRankedGamePlayed: null };
   }
 
@@ -262,6 +318,18 @@ export class FakeIndividualTrackerService implements IndividualTrackerService {
       return { matches: [...this.matchHistoryEntries], suggestedGroupings: [] };
     }
     return this.matchHistory;
+  }
+
+  public async getCondensedMatchHistory(request: CondensedMatchHistoryRequest): Promise<PreparedMatchHistoryPage> {
+    await Promise.resolve();
+    const matches = this.condensedMatchHistory.matches
+      .filter((match) => request.category !== "custom" || match.category === "custom")
+      .slice(request.start, request.start + request.count);
+    const ids = new Set(matches.map((match) => match.matchId));
+    const suggestedGroupings = this.condensedMatchHistory.suggestedGroupings
+      .map((group) => group.filter((id) => ids.has(id)))
+      .filter((group) => group.length > 1);
+    return prepareCondensedMatchHistory({ matches, suggestedGroupings });
   }
 
   public async syncMatchesToTracker(): Promise<void> {
@@ -413,6 +481,7 @@ export function aFakeIndividualTrackerServiceWith(
     ...(opts.matchHistory !== undefined ? { matchHistory: opts.matchHistory } : {}),
     ...(opts.searchResults !== undefined ? { searchResults: opts.searchResults } : {}),
     ...(opts.matchHistoryEntries !== undefined ? { matchHistoryEntries: opts.matchHistoryEntries } : {}),
+    ...(opts.condensedMatchHistory !== undefined ? { condensedMatchHistory: opts.condensedMatchHistory } : {}),
     ...(opts.searchEsra !== undefined ? { searchEsra: opts.searchEsra } : {}),
   });
 }

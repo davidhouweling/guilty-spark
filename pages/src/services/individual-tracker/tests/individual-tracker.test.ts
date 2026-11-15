@@ -1,10 +1,12 @@
 import { MatchOutcome } from "halo-infinite-api";
+import { condensedMatchHistoryPageContract } from "@guilty-spark/shared/contracts/individual-tracker/match-history";
 import type { TrackerProfile } from "@guilty-spark/shared/contracts/individual-tracker/profile";
 import type { Tracker } from "@guilty-spark/shared/contracts/individual-tracker/tracker";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { HaloInfiniteClient, PlaylistCsr, PlaylistCsrContainer, ResultContainer } from "halo-infinite-api";
 import { aFakeMatchStatsWith } from "@guilty-spark/shared/halo/fakes/data";
+import { aFakeCondensedMatchHistoryEntryWith } from "../fakes/individual-tracker.fake";
 import { RealIndividualTrackerService } from "../individual-tracker";
 
 function jsonResponse(payload: object, status = 200): Response {
@@ -313,6 +315,133 @@ describe("RealIndividualTrackerService", () => {
 
       expect(result.matches).toHaveLength(1);
       expect(result.matches[0]?.rawMatchStats).toEqual(matchStats);
+    });
+
+    describe("getCondensedMatchHistory", () => {
+      it("requests a bounded custom page with credentials and an encoded owner selector", async () => {
+        const match = aFakeCondensedMatchHistoryEntryWith();
+        fetchSpy.mockResolvedValueOnce(
+          condensedMatchHistoryPageContract.toResponse({ matches: [match], suggestedGroupings: [["a", "b"]] }),
+        );
+
+        const page = await service.getCondensedMatchHistory({
+          xuid: "123",
+          start: 25,
+          count: 10,
+          category: "custom",
+          gamertag: "Player + One",
+        });
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "https://api.example.com/api/individual-tracker/search/123/matches?start=25&count=10&category=custom&gamertag=Player+%2B+One",
+          { credentials: "include" },
+        );
+        expect(page.suggestedGroupings).toEqual([["a", "b"]]);
+        expect(page.matches[0]).toMatchObject({
+          ...match,
+          duration: "10m",
+          scoreDisplay: "50:42",
+          resultString: "Win - 50:42",
+        });
+        expect(page.matches[0]).not.toHaveProperty("rawMatchStats");
+      });
+
+      it("defaults to all categories and preserves an empty page", async () => {
+        fetchSpy.mockResolvedValueOnce(
+          condensedMatchHistoryPageContract.toResponse({ matches: [], suggestedGroupings: [] }),
+        );
+        await expect(service.getCondensedMatchHistory({ xuid: "123", start: 0, count: 25 })).resolves.toEqual({
+          matches: [],
+          suggestedGroupings: [],
+        });
+        expect(fetchSpy).toHaveBeenCalledWith(
+          "https://api.example.com/api/individual-tracker/search/123/matches?start=0&count=25&category=all",
+          { credentials: "include" },
+        );
+      });
+
+      it.each([
+        { matches: [] },
+        {
+          matches: [{ ...aFakeCondensedMatchHistoryEntryWith(), score: { scores: ["50"], roundsWon: null } }],
+          suggestedGroupings: [],
+        },
+        {
+          matches: [{ ...aFakeCondensedMatchHistoryEntryWith(), highlightContribution: undefined }],
+          suggestedGroupings: [],
+        },
+      ])("rejects malformed or incomplete condensed responses", async (response) => {
+        fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(response)));
+        await expect(service.getCondensedMatchHistory({ xuid: "123", start: 0, count: 25 })).rejects.toThrow();
+      });
+
+      it("rejects an HTTP failure even if its body resembles a valid page", async () => {
+        fetchSpy.mockResolvedValueOnce(
+          condensedMatchHistoryPageContract.toResponse({ matches: [], suggestedGroupings: [] }, { status: 503 }),
+        );
+        await expect(service.getCondensedMatchHistory({ xuid: "123", start: 0, count: 25 })).rejects.toThrow(
+          "Failed to fetch match history (503)",
+        );
+      });
+
+      it("keeps unavailable details null and zero numeric contributions intact", async () => {
+        const missing = aFakeCondensedMatchHistoryEntryWith({
+          score: null,
+          teamCount: null,
+          teamRosterSignature: null,
+          trackedPlayerSummary: null,
+          highlightContribution: null,
+          teams: [],
+          outcome: "Unknown",
+        });
+        const zero = aFakeCondensedMatchHistoryEntryWith({
+          matchId: "zero",
+          score: { scores: [0, 0], roundsWon: [0, 0] },
+          trackedPlayerSummary: { kills: 0, deaths: 0, assists: 0, damageDealt: 0, damageTaken: 0 },
+        });
+        fetchSpy.mockResolvedValueOnce(
+          condensedMatchHistoryPageContract.toResponse({ matches: [missing, zero], suggestedGroupings: [] }),
+        );
+        const page = await service.getCondensedMatchHistory({ xuid: "123", start: 0, count: 25 });
+
+        expect(page.matches[0]).toMatchObject({ ...missing, scoreDisplay: null, resultString: "Unknown" });
+        expect(page.matches[1]).toMatchObject({
+          ...zero,
+          scoreDisplay: "0:0 (0:0)",
+          resultString: "Win - 0:0",
+        });
+      });
+
+      it("formats ISO times in the browser locale and timezone", async () => {
+        const { DateTimeFormat } = Intl;
+        vi.spyOn(Intl, "DateTimeFormat").mockImplementation(function (locales, options) {
+          return new DateTimeFormat(locales ?? "de-DE", { ...options, timeZone: "America/Los_Angeles" });
+        });
+        vi.spyOn(Number.prototype, "toLocaleString").mockImplementation(function (this: number, locales, options) {
+          return new Intl.NumberFormat(locales ?? "de-DE", options).format(this);
+        });
+        fetchSpy.mockResolvedValueOnce(
+          condensedMatchHistoryPageContract.toResponse({
+            matches: [
+              aFakeCondensedMatchHistoryEntryWith({
+                durationIso: "PT10M5S",
+                score: { scores: [1234, 1000], roundsWon: [2, 1] },
+              }),
+            ],
+            suggestedGroupings: [],
+          }),
+        );
+
+        const page = await service.getCondensedMatchHistory({ xuid: "123", start: 0, count: 25 });
+
+        expect(page.matches[0]).toMatchObject({
+          startTime: "1.1.2026, 5:00:00 PM",
+          endTime: "1.1.2026, 5:10:00 PM",
+          duration: "10m 5s",
+          scoreDisplay: "2:1 (1.234:1.000)",
+          resultString: "Win - 1.234:1.000",
+        });
+      });
     });
   });
 
