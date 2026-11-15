@@ -8,16 +8,13 @@ import {
   isIndividualStatsHighlightOption,
   withStreamerViewSettingsDefaults,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   IndividualTrackerService,
   PreparedMatchHistoryEntry,
   TrackerSearchResult,
 } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/series-matches/types";
-import { EntryDetailController } from "../individual-tracker/viewer/entry-detail-controller";
+import type { EntryDetailController } from "../../controllers/entry-detail/entry-detail-controller";
 import type { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { ViewerTimelineItem } from "../individual-tracker/viewer/types";
 import { buildSearchTimelineData } from "./build-search-timeline";
@@ -28,9 +25,7 @@ const MATCH_PAGE_SIZE = 25;
 interface Config {
   readonly individualTrackerService: IndividualTrackerService;
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
-  readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly seriesMatchesService: SeriesMatchesService;
-  readonly medalMetadataResolver: HaloMedalMetadataResolver;
+  readonly entryDetailController: EntryDetailController;
   readonly viewerStore: IndividualTrackerViewerStore;
 }
 
@@ -48,12 +43,7 @@ export class MatchHistoryViewerPresenter {
 
   public constructor(config: Config) {
     this.config = config;
-    this.entryDetailController = new EntryDetailController({
-      store: config.viewerStore,
-      seriesMatchesService: config.seriesMatchesService,
-      matchAnalyticsService: config.matchAnalyticsService,
-      medalMetadataResolver: config.medalMetadataResolver,
-    });
+    this.entryDetailController = config.entryDetailController;
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {

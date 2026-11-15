@@ -7,6 +7,8 @@ import type { IndividualTrackerService } from "../../../services/individual-trac
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
+import { EntryDetailController } from "../../../controllers/entry-detail/entry-detail-controller";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { IndividualTrackerViewerPresenter } from "./viewer-presenter";
 import type { IndividualTrackerViewerSnapshot } from "./viewer-store";
 import { IndividualTrackerViewerStore } from "./viewer-store";
@@ -37,34 +39,37 @@ export function useIndividualTrackerViewer({
   individualTrackerViewService,
   matchAnalyticsService,
   seriesMatchesService,
-  medalMetadataResolver,
   trackerId,
   streamerSettings,
   externalView,
 }: UseIndividualTrackerViewerOpts): IndividualTrackerViewerHookResult {
   const store = useMemo(() => new IndividualTrackerViewerStore(), []);
+  const statsDetailController = useMemo(() => new StatsDetailController(), []);
 
-  const presenter = useMemo(
-    () =>
-      new IndividualTrackerViewerPresenter({
-        individualTrackerService,
-        individualTrackerViewService,
-        matchAnalyticsService,
-        seriesMatchesService,
-        medalMetadataResolver,
-        store,
-        trackerId,
-      }),
-    [
+  const presenter = useMemo(() => {
+    const entryDetailController = new EntryDetailController({
+      store,
+      statsDetailController,
+      seriesMatchesService,
+      matchAnalyticsService,
+      trackerId,
+    });
+    return new IndividualTrackerViewerPresenter({
       individualTrackerService,
       individualTrackerViewService,
-      matchAnalyticsService,
-      seriesMatchesService,
-      medalMetadataResolver,
+      entryDetailController,
       store,
       trackerId,
-    ],
-  );
+    });
+  }, [
+    individualTrackerService,
+    individualTrackerViewService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    statsDetailController,
+    store,
+    trackerId,
+  ]);
 
   useEffect(() => {
     presenter.setStreamerSettings(streamerSettings);

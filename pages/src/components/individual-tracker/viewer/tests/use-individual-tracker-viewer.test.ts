@@ -43,6 +43,56 @@ function aViewerTestDependenciesWith(): ViewerTestDependencies {
 }
 
 describe("useIndividualTrackerViewer", () => {
+  it("creates fresh entry-detail state when the presenter is replaced or the viewer remounts", async () => {
+    const matchId = "match-1";
+    const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
+      view: aFakeTrackerViewStateWith({
+        matches: [aFakeTrackerMatchSummaryWith({ matchId })],
+        series: [],
+      }),
+    });
+    const dependencies = aViewerTestDependenciesWith();
+    const getDetails = vi.spyOn(dependencies.seriesMatchesService, "getMatchDetails");
+    const options = { ...dependencies, individualTrackerViewService, trackerId: "tracker-1" };
+    const mounted = renderHook(
+      ({ individualTrackerService }) => useIndividualTrackerViewer({ ...options, individualTrackerService }),
+      { initialProps: { individualTrackerService: aFakeIndividualTrackerServiceWith() } },
+    );
+    await waitFor(() => {
+      expect(mounted.result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+    mounted.rerender({ individualTrackerService: aFakeIndividualTrackerServiceWith() });
+    await waitFor(() => {
+      expect(individualTrackerViewService.lastConnection).not.toBeNull();
+    });
+    const item = mounted.result.current.model.renderModel?.timeline.find((entry) => entry.type === "match");
+    if (item == null) {
+      throw new Error("Expected match entry");
+    }
+    act(() => {
+      mounted.result.current.onToggleEntry(item);
+    });
+    await waitFor(() => {
+      expect(mounted.result.current.snapshot.entryStates.get(`match:${matchId}`)?.state.status).toBe("loaded");
+    });
+    mounted.unmount();
+
+    const remounted = renderHook(() => useIndividualTrackerViewer(options));
+    await waitFor(() => {
+      expect(remounted.result.current.snapshot.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+    expect(remounted.result.current.snapshot.entryStates.size).toBe(0);
+    act(() => {
+      remounted.result.current.onToggleEntry(item);
+    });
+    await waitFor(() => {
+      expect(remounted.result.current.snapshot.entryStates.get(`match:${matchId}`)?.state.status).toBe("loaded");
+    });
+    expect(getDetails).toHaveBeenCalledTimes(2);
+    expect(getDetails).toHaveBeenLastCalledWith([matchId], "tracker-1");
+    remounted.unmount();
+  });
+
   it("does not recreate presenter when streamer settings values are unchanged", async () => {
     const individualTrackerService = aFakeIndividualTrackerServiceWith();
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({

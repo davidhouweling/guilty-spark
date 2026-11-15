@@ -2,16 +2,19 @@ import { getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
 import type { MatchDetail, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
-import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
-import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/series-matches/types";
-import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
-import { ComponentLoaderStatus } from "../../component-loader/component-loader";
-import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../team-colors/team-colors";
-import type { TeamColor } from "../../team-colors/team-colors";
-import type { SeriesMatchAnalyticsById, SeriesMatchAnalyticsState } from "../../series-stats/types";
-import type { IndividualTrackerViewerStore, MatchEntryLoadedState, SeriesEntryLoadedState } from "./viewer-store";
-import type { ViewerSeriesTab, ViewerTimelineItem } from "./types";
+import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
+import type { StatsDetailController } from "../stats/stats-detail-controller";
+import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../components/team-colors/team-colors";
+import type { TeamColor } from "../../components/team-colors/team-colors";
+import type { SeriesMatchAnalyticsById, SeriesMatchAnalyticsState } from "../../components/series-stats/types";
+import type {
+  IndividualTrackerViewerStore,
+  MatchEntryLoadedState,
+  SeriesEntryLoadedState,
+} from "../../components/individual-tracker/viewer/viewer-store";
+import type { ViewerSeriesTab, ViewerTimelineItem } from "../../components/individual-tracker/viewer/types";
 
 interface MatchAnalyticsSource {
   readonly matchSource: MatchDetail;
@@ -28,15 +31,13 @@ interface SeriesAnalyticsSource {
 export interface EntryDetailControllerConfig {
   readonly store: IndividualTrackerViewerStore;
   readonly seriesMatchesService: SeriesMatchesService;
+  readonly statsDetailController: StatsDetailController;
   readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly trackerId?: string;
 }
 
 const SERIES_ANALYTICS_BATCH_SIZE = 30;
 
-// Shared by the live tracker viewer and the search-based match history page — both render the
-// same timeline/entry-expand UI and only differ in how the top-level TrackerViewState is sourced.
 export class EntryDetailController {
   private readonly config: EntryDetailControllerConfig;
   private readonly matchAnalyticsSources = new Map<string, MatchAnalyticsSource>();
@@ -162,7 +163,7 @@ export class EntryDetailController {
     scoreProgressionStatus: ComponentLoaderStatus,
     teamColors: readonly TeamColor[],
   ): MatchEntryLoadedState {
-    const controller = new StatsDetailController();
+    const controller = this.config.statsDetailController;
     const data = controller.mapMatchDetailToStats(detail);
     const matchTeamColors: TeamColor[] = [];
     for (const [index, team] of [...detail.teams].sort((a, b) => a.matchTeamId - b.matchTeamId).entries()) {
