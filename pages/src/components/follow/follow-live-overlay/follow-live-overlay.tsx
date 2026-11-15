@@ -10,7 +10,7 @@ import guiltySparkRampantIcon from "../../../assets/guilty-spark-rampant-icon.pn
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import styles from "./follow-live-overlay.module.css";
 
 export interface FollowLiveOverlayProps {

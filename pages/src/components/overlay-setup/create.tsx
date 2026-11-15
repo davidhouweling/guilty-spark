@@ -8,7 +8,7 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import { createOverlayUrlsSection } from "../overlay-urls/create";
@@ -311,6 +311,10 @@ export function createOverlaySetupPage(config: CreateOverlaySetupPageConfig): ()
           anchorMatchId,
         ): ReturnType<SeriesMatchesService["getSeriesMatches"]> =>
           config.seriesMatchesService.getSeriesMatches(matchIds, undefined, anchorMatchId),
+        getMatchDetails: async (matchIds): ReturnType<SeriesMatchesService["getMatchDetails"]> =>
+          config.seriesMatchesService.getMatchDetails(matchIds),
+        getSeriesDetail: async (seriesId, matchIds): ReturnType<SeriesMatchesService["getSeriesDetail"]> =>
+          config.seriesMatchesService.getSeriesDetail(seriesId, matchIds),
       }),
       [config.seriesMatchesService],
     );

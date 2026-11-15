@@ -11,13 +11,13 @@ import { aFakeIndividualTrackerServiceWith } from "../../../../services/individu
 import { aFakeOverlayPreviewServiceWith } from "../../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../../services/individual-tracker/fakes/view.fake";
 import type { IndividualTrackerService } from "../../../../services/individual-tracker/types";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import type { OverlayPreviewService } from "../../../../services/individual-tracker/overlay-preview-types";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../../services/series-matches/types";
 import { createFollowLiveOverlay } from "../../../follow/follow-live-overlay/create";
 import { createIndividualTrackerOverlayPage } from "../../../individual-tracker/overlay/create";
 import { createIndividualTrackerViewerPage } from "../../../individual-tracker/viewer/create";
@@ -37,17 +37,21 @@ function createPageComponents(directory = aDirectoryWith()): {
   readonly LiveOverlayPage: ReturnType<typeof createFollowLiveOverlay>;
   readonly ViewerPage: ReturnType<typeof createIndividualTrackerViewerPage>;
   readonly getSeriesMatches: MockInstance<SeriesMatchesService["getSeriesMatches"]>;
+  readonly getMatchDetails: MockInstance<SeriesMatchesService["getMatchDetails"]>;
   readonly getDirectory: MockInstance<ReturnType<typeof aFakeFollowLiveServiceWith>["getDirectory"]>;
   readonly followLiveService: ReturnType<typeof aFakeFollowLiveServiceWith>;
 } {
   const haloClient = aFakeHaloClientWith();
   const medalMetadataResolver = new HaloMedalMetadataResolver(haloClient);
   const baseSeriesMatchesService = aFakeSeriesMatchesServiceWith();
+  const getMatchDetails = vi.spyOn(baseSeriesMatchesService, "getMatchDetails");
   const getSeriesMatches = vi.spyOn(baseSeriesMatchesService, "getSeriesMatches");
   const seriesMatchesService: SeriesMatchesService = {
     getSeriesMatches: async (...[matchIds, , anchorMatchId]: Parameters<SeriesMatchesService["getSeriesMatches"]>) => {
       return getSeriesMatches(matchIds, undefined, anchorMatchId);
     },
+    getMatchDetails: async (matchIds) => baseSeriesMatchesService.getMatchDetails(matchIds),
+    getSeriesDetail: async (seriesId, matchIds) => baseSeriesMatchesService.getSeriesDetail(seriesId, matchIds),
   };
   const baseMatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const matchAnalyticsService: MatchAnalyticsService = {
@@ -82,6 +86,7 @@ function createPageComponents(directory = aDirectoryWith()): {
       medalMetadataResolver,
     }),
     getSeriesMatches,
+    getMatchDetails,
     getDirectory,
     followLiveService,
   };
@@ -323,7 +328,7 @@ describe("CapabilityPreview", () => {
     }
     await user.click(matchEntry);
     await waitFor(() => {
-      expect(pages.getSeriesMatches).toHaveBeenCalledWith(expect.any(Array), undefined, undefined);
+      expect(pages.getMatchDetails).toHaveBeenCalledWith(expect.any(Array));
     });
   });
 

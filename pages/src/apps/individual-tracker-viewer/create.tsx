@@ -31,7 +31,6 @@ export function IndividualTrackerViewerApp({ apiHost, trackerId }: IndividualTra
             individualTrackerViewService: services.individualTrackerViewService,
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
-            matchDetailsService: services.matchDetailsService,
             medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],

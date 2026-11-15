@@ -13,7 +13,7 @@ import {
   aFakeIndividualTrackerViewServiceWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import { createIndividualTrackerOverlayPage } from "../create";
 
 vi.mock("../individual-tracker-overlay", () => ({

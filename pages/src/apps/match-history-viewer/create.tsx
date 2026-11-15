@@ -31,7 +31,6 @@ export function MatchHistoryViewerApp({ apiHost, gamertag }: MatchHistoryViewerA
             individualTrackerSettingsService: services.individualTrackerSettingsService,
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
-            matchDetailsService: services.matchDetailsService,
             medalMetadataResolver: services.medalMetadataResolver,
           }),
     [services],

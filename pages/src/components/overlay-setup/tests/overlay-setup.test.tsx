@@ -11,7 +11,7 @@ import type { IndividualTrackerSettingsService } from "../../../services/individ
 import { aFakeOverlayPreviewServiceWith } from "../../../services/individual-tracker/fakes/overlay-preview.fake";
 import { aFakeIndividualTrackerViewServiceWith } from "../../../services/individual-tracker/fakes/view.fake";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../services/stats/fakes/series-matches.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import { createOverlaySetupPage } from "../create";

@@ -12,7 +12,7 @@ import type {
   TrackerViewConnectionStatus,
 } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { FollowTrackerTabs } from "../follow-tracker-tabs/follow-tracker-tabs";
 import type { FollowTrackerTab } from "../types";
 import styles from "./follow-live-viewer.module.css";

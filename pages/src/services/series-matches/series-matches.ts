@@ -1,6 +1,8 @@
 import { seriesMatchesContract } from "@guilty-spark/shared/contracts/stats/series-matches";
-import { normalizeTrackerId } from "./normalize-tracker-id";
-import type { SeriesMatchesService } from "./series-matches-types";
+import { matchDetailContract, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import { normalizeTrackerId } from "../stats/normalize-tracker-id";
+import type { SeriesMatchesService } from "./types";
+import { getDetailQuery } from "./get-detail-query";
 
 interface RealSeriesMatchesServiceOptions {
   readonly apiHost: string;
@@ -30,5 +32,28 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
       credentials: "include",
     });
     return seriesMatchesContract.fromResponse(response);
+  }
+
+  async getMatchDetails(
+    matchIds: readonly string[],
+    trackerId?: string,
+  ): ReturnType<SeriesMatchesService["getMatchDetails"]> {
+    const query = getDetailQuery(matchIds, trackerId);
+    return matchDetailContract.fromResponse(
+      await fetch(`${this.apiHost}/api/stats/match-details?${query}`, { credentials: "include" }),
+    );
+  }
+
+  async getSeriesDetail(
+    seriesId: string,
+    matchIds: readonly string[],
+    trackerId?: string,
+  ): ReturnType<SeriesMatchesService["getSeriesDetail"]> {
+    const query = getDetailQuery(matchIds, trackerId);
+    return seriesDetailContract.fromResponse(
+      await fetch(`${this.apiHost}/api/stats/series-details/${encodeURIComponent(seriesId)}?${query}`, {
+        credentials: "include",
+      }),
+    );
   }
 }

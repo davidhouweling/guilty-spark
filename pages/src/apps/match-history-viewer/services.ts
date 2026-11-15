@@ -9,14 +9,10 @@ import {
 } from "../../services/individual-tracker/install";
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
-import {
-  installMatchAnalyticsService,
-  installMatchDetailsService,
-  installSeriesMatchesService,
-} from "../../services/stats/install";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import { installMatchAnalyticsService } from "../../services/stats/install";
+import { installSeriesMatchesService } from "../../services/series-matches/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 
 export interface Services {
   readonly authService: AuthService;
@@ -26,7 +22,6 @@ export interface Services {
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService: MatchDetailsService;
 }
 
 export async function installServices(apiHost: string): Promise<Services> {
@@ -38,14 +33,12 @@ export async function installServices(apiHost: string): Promise<Services> {
     individualTrackerSettingsService,
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
   ] = await Promise.all([
     installAuthService(apiHost),
     installIndividualTrackerService(apiHost, haloClient),
     installIndividualTrackerSettingsService(apiHost),
     installMatchAnalyticsService(apiHost),
     installSeriesMatchesService(apiHost),
-    installMatchDetailsService(apiHost),
   ]);
   return {
     authService,
@@ -55,6 +48,5 @@ export async function installServices(apiHost: string): Promise<Services> {
     medalMetadataResolver,
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
   };
 }

@@ -1,7 +1,13 @@
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
+import { matchDetailContract, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import {
+  aFakeMatchDetailWith,
+  aFakeSeriesDetailResponseWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { isMatchStats } from "../../../controllers/stats/is-match-stats";
-import type { SeriesMatchesService } from "../series-matches-types";
+import type { SeriesMatchesService } from "../types";
 
 function getGameVariantCategory(matchId: string): number {
   const rawMatch = sampleLiveTrackerStateMessage.data.rawMatches[matchId];
@@ -43,6 +49,17 @@ function buildSampleResponse(matchIds: readonly string[]): SeriesMatchesResponse
   return { playerXuidToGametag, matches };
 }
 
+function buildMatchDetails(matchIds: readonly string[]): MatchDetailResponse {
+  return matchDetailContract.parse({
+    matchIds: [...matchIds],
+    results: matchIds.map((matchId) => ({
+      status: "resolved",
+      matchId,
+      detail: aFakeMatchDetailWith({ matchId }),
+    })),
+  });
+}
+
 export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesResponse>): SeriesMatchesService {
   return {
     getSeriesMatches: async (matchIds): Promise<SeriesMatchesResponse> => {
@@ -52,5 +69,10 @@ export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesRe
 
       return Promise.resolve(buildSampleResponse(matchIds));
     },
+    getMatchDetails: async (matchIds): Promise<MatchDetailResponse> => Promise.resolve(buildMatchDetails(matchIds)),
+    getSeriesDetail: async (seriesId, matchIds): Promise<SeriesDetailResponse> =>
+      Promise.resolve(
+        seriesDetailContract.parse(aFakeSeriesDetailResponseWith({ seriesId, matches: buildMatchDetails(matchIds) })),
+      ),
   };
 }

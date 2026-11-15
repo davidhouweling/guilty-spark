@@ -6,9 +6,10 @@ import { installFollowLiveService } from "../../services/follow/install";
 import type { FollowLiveService } from "../../services/follow/follow-types";
 import { installIndividualTrackerViewService } from "../../services/individual-tracker/install";
 import type { IndividualTrackerViewService } from "../../services/individual-tracker/view-types";
-import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
+import { installMatchAnalyticsService } from "../../services/stats/install";
+import { installSeriesMatchesService } from "../../services/series-matches/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { getMode } from "../../services/mode";
 
 export interface Services {
@@ -32,7 +33,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       import("../../services/follow/fakes/follow.fake"),
       import("../../services/individual-tracker/fakes/view.fake"),
       import("../../services/stats/fakes/match-analytics.fake"),
-      import("../../services/stats/fakes/series-matches.fake"),
+      import("../../services/series-matches/fakes/series-matches.fake"),
       import("../../services/fakes/halo-client.fake"),
     ]);
     const haloClient = aFakeHaloClientWith();

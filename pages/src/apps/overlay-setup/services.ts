@@ -16,9 +16,10 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { OverlayPreviewService } from "../../services/individual-tracker/overlay-preview-types";
 import { aFakeIndividualTrackerSettingsServiceWith } from "../../services/individual-tracker/fakes/settings.fake";
 import { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
-import { installMatchAnalyticsService, installSeriesMatchesService } from "../../services/stats/install";
+import { installMatchAnalyticsService } from "../../services/stats/install";
+import { installSeriesMatchesService } from "../../services/series-matches/install";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { getMode } from "../../services/mode";
 
 export interface Services {
@@ -46,7 +47,7 @@ export async function installServices(apiHost: string): Promise<Services> {
       import("../../services/auth/fakes/auth.fake"),
       import("../../services/individual-tracker/fakes/view.fake"),
       import("../../services/stats/fakes/match-analytics.fake"),
-      import("../../services/stats/fakes/series-matches.fake"),
+      import("../../services/series-matches/fakes/series-matches.fake"),
       import("../../services/fakes/halo-client.fake"),
     ]);
     const haloClient = aFakeHaloClientWith();

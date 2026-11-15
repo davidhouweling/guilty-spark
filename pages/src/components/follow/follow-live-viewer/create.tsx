@@ -3,7 +3,7 @@ import type { FollowLiveService } from "../../../services/follow/follow-types";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/stats/series-matches-types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { useFollowLiveDirectory } from "../use-follow-live-directory";
 import { FollowLiveViewerPresenter } from "./follow-live-viewer-presenter";
 import { FollowLiveViewer } from "./follow-live-viewer";

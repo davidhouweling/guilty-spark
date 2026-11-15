@@ -180,7 +180,9 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       killMatrixStatus: ComponentLoaderStatus.LOADED,
       scoreProgressionStatus: ComponentLoaderStatus.LOADED,
     });
-    expect(viewModel.matchDetails[0]?.killMatrixPivotData.tableRows[0]).toMatchObject({
+    expect(
+      viewModel.matchDetails[0]?.killMatrixPivotData.tableRows.find(({ killerId }) => killerId === "100"),
+    ).toMatchObject({
       killerId: "100",
       kills: new Map([
         ["100", 0],

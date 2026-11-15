@@ -4,8 +4,7 @@ import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metada
 import type { IndividualTrackerService } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../services/stats/series-matches-types";
-import type { MatchDetailsService } from "../../services/stats/detail-types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { IndividualTrackerViewerPresenter } from "../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { IndividualTrackerViewerSnapshot } from "../individual-tracker/viewer/viewer-store";
@@ -17,7 +16,6 @@ interface UseMatchHistoryViewerOpts {
   readonly individualTrackerSettingsService: IndividualTrackerSettingsService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
-  readonly matchDetailsService?: MatchDetailsService | undefined;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly gamertag: string;
 }
@@ -35,7 +33,6 @@ export function useMatchHistoryViewer({
   individualTrackerSettingsService,
   matchAnalyticsService,
   seriesMatchesService,
-  matchDetailsService,
   medalMetadataResolver,
   gamertag,
 }: UseMatchHistoryViewerOpts): MatchHistoryViewerHookResult {
@@ -48,7 +45,6 @@ export function useMatchHistoryViewer({
         individualTrackerSettingsService,
         matchAnalyticsService,
         seriesMatchesService,
-        matchDetailsService,
         medalMetadataResolver,
         viewerStore,
       }),
@@ -57,7 +53,6 @@ export function useMatchHistoryViewer({
       individualTrackerSettingsService,
       matchAnalyticsService,
       seriesMatchesService,
-      matchDetailsService,
       medalMetadataResolver,
       viewerStore,
     ],
