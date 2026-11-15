@@ -71,16 +71,17 @@ export function mapMatchDetailRosters(
       });
       rowsByPlayerId.set(entry.player.PlayerId, rows);
     }
+    const rosterPlayerIds = match.Players.filter(
+      (player) =>
+        player.LastTeamId === source.TeamId || player.PlayerTeamStats.some((stats) => stats.TeamId === source.TeamId),
+    ).map((player) => player.PlayerId);
     return teamSchema.parse({
       matchTeamId: source.TeamId,
       seriesTeamId,
       name: null,
       outcome: getMatchOutcomeLabel(source.Outcome),
       rank: source.Rank,
-      playerIds: match.Players.filter(
-        (player) =>
-          player.LastTeamId === source.TeamId || player.PlayerTeamStats.some((stats) => stats.TeamId === source.TeamId),
-      ).map((player) => player.PlayerId),
+      playerIds: [...new Set([...team.players.map(({ player }) => player.PlayerId), ...rosterPlayerIds])],
       stats: serializeStatDetails(team.values, team.coreStats),
       medals: serializeMedalDetails(team.coreStats.Medals, metadata, difficulties),
     });

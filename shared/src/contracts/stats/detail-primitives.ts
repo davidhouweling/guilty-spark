@@ -85,7 +85,9 @@ export const teamSchema = teamMappingSchema.extend({
   name: z.string().nullable(),
   outcome: trackerMatchOutcomeSchema,
   rank: z.number().int().nonnegative().nullable(),
-  playerIds: z.array(z.string().min(1)),
+  playerIds: z
+    .array(z.string().min(1))
+    .describe("Stat-eligible players in legacy table order, followed by remaining roster identities in source order"),
   stats: z.array(statSchema),
   medals: z.array(medalSchema),
 });
