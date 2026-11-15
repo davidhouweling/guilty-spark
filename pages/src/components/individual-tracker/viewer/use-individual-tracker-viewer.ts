@@ -27,7 +27,7 @@ export interface IndividualTrackerViewerHookResult {
   readonly snapshot: IndividualTrackerViewerSnapshot;
   readonly model: IndividualTrackerViewerViewModel;
   readonly onToggleEntry: (item: ViewerTimelineItem) => void;
-  readonly onLoadAnalytics: (item: ViewerTimelineItem, module: AnalyticsModule) => void;
+  readonly onLoadAnalytics: (item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string) => void;
   readonly onRefresh: () => void;
   readonly onRetry: () => void;
 }
@@ -101,8 +101,8 @@ export function useIndividualTrackerViewer({
   );
 
   const onLoadAnalytics = useCallback(
-    (item: ViewerTimelineItem, module: AnalyticsModule): void => {
-      presenter.loadAnalytics(item, module);
+    (item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string): void => {
+      presenter.loadAnalytics(item, module, matchId);
     },
     [presenter],
   );
