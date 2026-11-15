@@ -13,6 +13,40 @@ import { aFakeMedalMetadataWith } from "@guilty-spark/shared/halo/fakes/medal-me
 import { mapMatchDetailRosters } from "../match-detail-rosters";
 
 describe("mapMatchDetailRosters", () => {
+  it("orders membership by rank, selected-team score and personal score while preserving ties and source data", () => {
+    const players = [
+      { playerId: "rank-two", rank: 2, score: 999, personalScore: 9999 },
+      { playerId: "low-personal", rank: 1, score: 20, personalScore: 100 },
+      { playerId: "low-score", rank: 1, score: 10, personalScore: 1000 },
+      { playerId: "high-personal", rank: 1, score: 20, personalScore: 200 },
+      { playerId: "tied", rank: 1, score: 20, personalScore: 200 },
+    ].map(({ playerId, rank, score, personalScore }) =>
+      aFakePlayerWith({
+        PlayerId: playerId,
+        Rank: rank,
+        LastTeamId: 7,
+        PlayerTeamStats: [
+          { TeamId: 3, Stats: { CoreStats: aFakeCoreStatsWith({ Score: -score, PersonalScore: -personalScore }) } },
+          { TeamId: 7, Stats: { CoreStats: aFakeCoreStatsWith({ Score: score, PersonalScore: personalScore }) } },
+        ],
+      }),
+    );
+    const source = aFakeMatchStatsWith({
+      Teams: [aFakeTeamWith({ TeamId: 7 }), aFakeTeamWith({ TeamId: 3 })],
+      Players: players,
+    });
+    const originalJson = JSON.stringify(source);
+
+    const result = mapMatchDetailRosters(source);
+
+    expect(result.teams.map((team) => team.playerIds)).toEqual([
+      ["high-personal", "tied", "low-personal", "low-score", "rank-two"],
+      ["low-score", "low-personal", "high-personal", "tied", "rank-two"],
+    ]);
+    expect(result.players.map((player) => player.playerId)).toEqual(players.map((player) => player.PlayerId));
+    expect(JSON.stringify(source)).toBe(originalJson);
+  });
+
   it.each([false, true])("matches raw player/team IDs independently of source order (reversed %s)", (reversed) => {
     const players = [
       aFakePlayerWith({
@@ -90,45 +124,48 @@ describe("mapMatchDetailRosters", () => {
     expect(result.teams.map((team) => team.seriesTeamId)).toEqual([null, null]);
   });
 
-  it("retains bots, unresolved identities, and late participation without fabricating late stat rows", () => {
-    const late = aFakePlayerWith({
-      PlayerId: "xuid(55)",
-      PlayerTeamStats: [],
-      ParticipationInfo: {
-        ...aFakePlayerWith().ParticipationInfo,
-        PresentAtBeginning: false,
-        JoinedInProgress: true,
-        LeftInProgress: true,
-        PresentAtCompletion: false,
-      },
-    });
-    const result = mapMatchDetailRosters(
-      aFakeMatchStatsWith({
-        Teams: [aFakeTeamWith()],
-        Players: [
-          aFakePlayerWith({ PlayerId: "bid(7)", PlayerType: 2 }),
-          late,
-          aFakePlayerWith({ PlayerId: "unresolved" }),
-        ],
-      }),
-    );
-    expect(result.players.map((player) => player.playerId)).toEqual(["bid(7)", "xuid(55)", "unresolved"]);
-    expect(result.players[0]).toMatchObject({ gamertag: null, playerType: 2 });
-    expect(result.players[0]).not.toHaveProperty("xuid");
-    expect(result.players[2]).not.toHaveProperty("xuid");
-    expect(result.players[2]?.teamStats).toHaveLength(1);
-    expect(result.players[1]).toMatchObject({
-      xuid: "55",
-      teamStats: [],
-      participation: {
-        presentAtBeginning: false,
-        joinedInProgress: true,
-        leftInProgress: true,
-        presentAtCompletion: false,
-      },
-    });
-    expect(result.teams[0]?.playerIds).toEqual(["bid(7)", "xuid(55)", "unresolved"]);
-  });
+  it.each([false, true])(
+    "retains bots, unresolved identities, and late participation without fabricating rows (late team stats %s)",
+    (hasLateTeamStats) => {
+      const late = aFakePlayerWith({
+        PlayerId: "xuid(55)",
+        PlayerTeamStats: hasLateTeamStats ? aFakePlayerWith().PlayerTeamStats : [],
+        ParticipationInfo: {
+          ...aFakePlayerWith().ParticipationInfo,
+          PresentAtBeginning: false,
+          JoinedInProgress: true,
+          LeftInProgress: true,
+          PresentAtCompletion: false,
+        },
+      });
+      const result = mapMatchDetailRosters(
+        aFakeMatchStatsWith({
+          Teams: [aFakeTeamWith()],
+          Players: [
+            aFakePlayerWith({ PlayerId: "bid(7)", PlayerType: 2 }),
+            late,
+            aFakePlayerWith({ PlayerId: "unresolved" }),
+          ],
+        }),
+      );
+      expect(result.players.map((player) => player.playerId)).toEqual(["bid(7)", "xuid(55)", "unresolved"]);
+      expect(result.players[0]).toMatchObject({ gamertag: null, playerType: 2 });
+      expect(result.players[0]).not.toHaveProperty("xuid");
+      expect(result.players[2]).not.toHaveProperty("xuid");
+      expect(result.players[2]?.teamStats).toHaveLength(1);
+      expect(result.players[1]).toMatchObject({
+        xuid: "55",
+        teamStats: [],
+        participation: {
+          presentAtBeginning: false,
+          joinedInProgress: true,
+          leftInProgress: true,
+          presentAtCompletion: false,
+        },
+      });
+      expect(result.teams[0]?.playerIds).toEqual(["bid(7)", "unresolved", "xuid(55)"]);
+    },
+  );
 
   it.each([
     [MatchOutcome.Win, "Win"],
