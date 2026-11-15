@@ -351,7 +351,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
     }
 
     const response = await fetch(
-      `${this.apiHost}/api/individual-tracker/search/${encodeURIComponent(request.xuid)}/matches?${query.toString()}`,
+      this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(request.xuid)}/matches?${query.toString()}`),
       { credentials: "include" },
     );
     if (!response.ok) {

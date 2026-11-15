@@ -318,33 +318,37 @@ describe("RealIndividualTrackerService", () => {
     });
 
     describe("getCondensedMatchHistory", () => {
-      it("requests a bounded custom page with credentials and an encoded owner selector", async () => {
-        const match = aFakeCondensedMatchHistoryEntryWith();
-        fetchSpy.mockResolvedValueOnce(
-          condensedMatchHistoryPageContract.toResponse({ matches: [match], suggestedGroupings: [["a", "b"]] }),
-        );
+      it.each(["https://api.example.com", "https://api.example.com/"])(
+        "requests a bounded custom page with credentials and an encoded owner selector from %s",
+        async (apiHost) => {
+          service = new RealIndividualTrackerService({ apiHost, haloInfiniteClient });
+          const match = aFakeCondensedMatchHistoryEntryWith();
+          fetchSpy.mockResolvedValueOnce(
+            condensedMatchHistoryPageContract.toResponse({ matches: [match], suggestedGroupings: [["a", "b"]] }),
+          );
 
-        const page = await service.getCondensedMatchHistory({
-          xuid: "123",
-          start: 25,
-          count: 10,
-          category: "custom",
-          gamertag: "Player + One",
-        });
+          const page = await service.getCondensedMatchHistory({
+            xuid: "123",
+            start: 25,
+            count: 10,
+            category: "custom",
+            gamertag: "Player + One",
+          });
 
-        expect(fetchSpy).toHaveBeenCalledWith(
-          "https://api.example.com/api/individual-tracker/search/123/matches?start=25&count=10&category=custom&gamertag=Player+%2B+One",
-          { credentials: "include" },
-        );
-        expect(page.suggestedGroupings).toEqual([["a", "b"]]);
-        expect(page.matches[0]).toMatchObject({
-          ...match,
-          duration: "10m",
-          scoreDisplay: "50:42",
-          resultString: "Win - 50:42",
-        });
-        expect(page.matches[0]).not.toHaveProperty("rawMatchStats");
-      });
+          expect(fetchSpy).toHaveBeenCalledWith(
+            "https://api.example.com/api/individual-tracker/search/123/matches?start=25&count=10&category=custom&gamertag=Player+%2B+One",
+            { credentials: "include" },
+          );
+          expect(page.suggestedGroupings).toEqual([["a", "b"]]);
+          expect(page.matches[0]).toMatchObject({
+            ...match,
+            duration: "10m",
+            scoreDisplay: "50:42",
+            resultString: "Win - 50:42",
+          });
+          expect(page.matches[0]).not.toHaveProperty("rawMatchStats");
+        },
+      );
 
       it("defaults to all categories and preserves an empty page", async () => {
         fetchSpy.mockResolvedValueOnce(
