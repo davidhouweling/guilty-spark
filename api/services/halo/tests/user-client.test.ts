@@ -303,11 +303,12 @@ describe("user Halo clients", () => {
       .mockResolvedValueOnce(
         Response.json({ SpartanToken: "spartan", ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" } }),
       );
-    const warn = vi.spyOn(console, "warn").mockImplementation((): void => undefined);
+    const logService = aFakeLogServiceWith();
+    const warn = vi.spyOn(logService, "warn");
     const provider = new UserTokenProvider({
       authService: aFakeAuthServiceWith(),
       xboxService: aFakeXboxServiceWith(),
-      logService: aFakeLogServiceWith(),
+      logService,
       fetchForUser: (): typeof fetch => fetchFn,
     });
 

@@ -1,6 +1,7 @@
 import { HaloAuthenticationClient, HaloInfiniteClient } from "halo-infinite-api";
 import { inMemoryTokenPersister } from "halo-infinite-api/token-persisters";
 import type { DateTime } from "luxon";
+import type { LogService } from "../log/types";
 import type { UserTokenContext } from "./user-token-provider";
 
 interface CachedSpartanToken {
@@ -29,14 +30,19 @@ async function getCredentialKey(userId: string, xstsToken: string): Promise<stri
   return `halo.authToken:${fingerprint}`;
 }
 
-export function createUserClient(userId: string, xstsToken: string, fetchFn: typeof fetch = fetch): UserTokenContext {
+export function createUserClient(
+  userId: string,
+  xstsToken: string,
+  logService: LogService,
+  fetchFn: typeof fetch = fetch,
+): UserTokenContext {
   const credentialKey = getCredentialKey(userId, xstsToken);
   const tokenName = `halo.authToken:user:${userId}`;
   const spartanTokenProvider = new HaloAuthenticationClient(
     {
       fetchToken: (): string => xstsToken,
       clearXstsToken: async (): Promise<void> => {
-        console.warn("StaticXstsTicketTokenSpartanTokenProvider does not support clearing xstsTickets");
+        logService.warn("StaticXstsTicketTokenSpartanTokenProvider does not support clearing xstsTickets");
         await Promise.resolve();
       },
     },
