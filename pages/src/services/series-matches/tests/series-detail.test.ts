@@ -98,6 +98,23 @@ describe("RealSeriesMatchesService.getSeriesDetail", () => {
     );
   });
 
+  it.each([30, 31])("handles a trailing slash in the API host for %i matches", async (count) => {
+    const matchIds = Array.from({ length: count }, (_, index) => `match-${index.toString()}`);
+    const detail = await aFakeSeriesMatchesServiceWith().getSeriesDetail("guild:queue/1", matchIds);
+    fetchSpy.mockResolvedValueOnce(seriesDetailContract.toResponse(detail));
+    service = new RealSeriesMatchesService({ apiHost: "https://api.example.com/" });
+
+    await expect(service.getSeriesDetail("guild:queue/1", matchIds, " tracker-1 ")).resolves.toEqual(detail);
+    const query = new URLSearchParams();
+    if (count === 30) {
+      query.set("matchIds", matchIds.join(","));
+    }
+    query.set("trackerId", "tracker-1");
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      `https://api.example.com/api/stats/series-details/guild%3Aqueue%2F1?${query.toString()}`,
+    );
+  });
+
   it.each([{ matchIds: [] }, { matchIds: [" "] }])(
     "rejects invalid selection $matchIds before fetching",
     async ({ matchIds }) => {
