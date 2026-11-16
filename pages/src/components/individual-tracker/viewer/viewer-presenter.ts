@@ -11,9 +11,6 @@ import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { resolveSeriesTeamMapping } from "@guilty-spark/shared/halo/series-team-identity";
 import type { MatchTeamRoster, SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
-import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
-import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
-import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type {
   IndividualTrackerViewService,
@@ -24,7 +21,7 @@ import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { SeriesOverviewProps } from "../../series-overview/types";
-import { EntryDetailController } from "./entry-detail-controller";
+import type { EntryDetailController } from "../../../controllers/entry-detail/entry-detail-controller";
 import { buildViewerRenderModel } from "./viewer-render-model";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } from "./viewer-store";
 import type {
@@ -38,9 +35,7 @@ import type {
 interface Config {
   readonly individualTrackerService?: IndividualTrackerService;
   readonly individualTrackerViewService: IndividualTrackerViewService;
-  readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly seriesMatchesService: SeriesMatchesService;
-  readonly medalMetadataResolver: HaloMedalMetadataResolver;
+  readonly entryDetailController: EntryDetailController;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
 }
@@ -62,13 +57,7 @@ export class IndividualTrackerViewerPresenter {
 
   public constructor(config: Config) {
     this.config = config;
-    this.entryDetailController = new EntryDetailController({
-      store: config.store,
-      seriesMatchesService: config.seriesMatchesService,
-      matchAnalyticsService: config.matchAnalyticsService,
-      medalMetadataResolver: config.medalMetadataResolver,
-      trackerId: config.trackerId,
-    });
+    this.entryDetailController = config.entryDetailController;
   }
 
   public static present(snapshot: IndividualTrackerViewerSnapshot): IndividualTrackerViewerViewModel {

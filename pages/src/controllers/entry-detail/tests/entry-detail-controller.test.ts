@@ -4,33 +4,31 @@ import type { MatchDetailResponse } from "@guilty-spark/shared/contracts/stats/d
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { aFakeMatchDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
-import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
-} from "../../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
-import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
-import type { SeriesMatchesService } from "../../../../services/series-matches/types";
-import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
-import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
-import { StatsDetailController } from "../../../../controllers/stats/stats-detail-controller";
-import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
-import { SeriesDetailStatsViewModelPresenter } from "../../../series-stats/series-detail-stats-view-model-presenter";
+} from "../../../services/individual-tracker/fakes/view.fake";
+import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
+import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
+import { aFakeMatchAnalyticsWith } from "../../stats/kill-matrix/fakes/match-analytics.fake";
+import { StatsDetailController } from "../../stats/stats-detail-controller";
+import { ComponentLoaderStatus } from "../../../components/component-loader/component-loader";
+import { SeriesDetailStatsViewModelPresenter } from "../../../components/series-stats/series-detail-stats-view-model-presenter";
 import { EntryDetailController } from "../entry-detail-controller";
-import { IndividualTrackerViewerStore } from "../viewer-store";
-import type { SeriesEntryLoadedState } from "../viewer-store";
-import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
-import type { ViewerTimelineItem } from "../types";
-import { aFakeViewerSeriesDetailWith } from "../fakes/series-detail.fake";
+import { IndividualTrackerViewerStore } from "../../../components/individual-tracker/viewer/viewer-store";
+import type { SeriesEntryLoadedState } from "../../../components/individual-tracker/viewer/viewer-store";
+import { IndividualTrackerViewerPresenter } from "../../../components/individual-tracker/viewer/viewer-presenter";
+import type { ViewerTimelineItem } from "../../../components/individual-tracker/viewer/types";
+import { aFakeViewerSeriesDetailWith } from "../../../components/individual-tracker/viewer/fakes/series-detail.fake";
 
 function setup(): {
   store: IndividualTrackerViewerStore;
   item: Extract<ViewerTimelineItem, { type: "match" }>;
   controller: EntryDetailController;
-  matchDetailsService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
+  seriesMatchesService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
   matchAnalyticsService: MatchAnalyticsService;
   key: string;
 } {
@@ -40,19 +38,19 @@ function setup(): {
     IndividualTrackerViewerPresenter.present(store.getSnapshot()).renderModel?.timeline[0],
     "Expected timeline entry",
   );
-  const matchDetailsService = aFakeSeriesMatchesServiceWith();
+  const seriesMatchesService = aFakeSeriesMatchesServiceWith();
   const matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const controller = new EntryDetailController({
     store,
     matchAnalyticsService,
-    seriesMatchesService: matchDetailsService,
-    medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+    seriesMatchesService,
+    statsDetailController: new StatsDetailController(),
     trackerId: "tracker-one",
   });
   if (item.type !== "match") {
     throw new Error("Expected single match");
   }
-  return { store, item, controller, matchDetailsService, matchAnalyticsService, key: `match:${item.match.matchId}` };
+  return { store, item, controller, seriesMatchesService, matchAnalyticsService, key: `match:${item.match.matchId}` };
 }
 
 function setupSeries(
@@ -62,7 +60,7 @@ function setupSeries(
   store: IndividualTrackerViewerStore;
   item: Extract<ViewerTimelineItem, { type: "series" }>;
   controller: EntryDetailController;
-  seriesDetailService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
+  seriesMatchesService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
   matchAnalyticsService: MatchAnalyticsService;
   legacySpy: MockInstance<SeriesMatchesService["getSeriesMatches"]>;
 } {
@@ -77,18 +75,18 @@ function setupSeries(
   if (item?.type !== "series") {
     throw new Error("Expected series");
   }
-  const seriesDetailService = aFakeSeriesMatchesServiceWith();
-  vi.spyOn(seriesDetailService, "getSeriesDetail").mockResolvedValue(response);
+  const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+  vi.spyOn(seriesMatchesService, "getSeriesDetail").mockResolvedValue(response);
   const matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
-  const legacySpy = vi.spyOn(seriesDetailService, "getSeriesMatches");
+  const legacySpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
   const controller = new EntryDetailController({
     store,
     matchAnalyticsService,
-    seriesMatchesService: seriesDetailService,
-    medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+    seriesMatchesService,
+    statsDetailController: new StatsDetailController(),
     trackerId: "tracker-one",
   });
-  return { store, item, controller, seriesDetailService, matchAnalyticsService, legacySpy };
+  return { store, item, controller, seriesMatchesService, matchAnalyticsService, legacySpy };
 }
 
 function getLoadedSeriesState(store: IndividualTrackerViewerStore): SeriesEntryLoadedState {
@@ -105,11 +103,11 @@ describe("EntryDetailController condensed series loading", () => {
       aggregation: { status: "unavailable", reason: "incomplete-matches" },
     });
     data.matches.results[0] = { status: "unavailable", matchId: "missing", reason: "not-found" };
-    const { store, item, controller, seriesDetailService, matchAnalyticsService, legacySpy } = setupSeries(
+    const { store, item, controller, seriesMatchesService, matchAnalyticsService, legacySpy } = setupSeries(
       ["missing", "m-1", "m-1"],
       data,
     );
-    const detailSpy = vi.spyOn(seriesDetailService, "getSeriesDetail");
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
     const analyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
     controller.toggleEntry(item);
     await vi.waitFor(() => {
@@ -509,9 +507,9 @@ describe("EntryDetailController condensed match loading", () => {
   );
 
   it("retries unavailable details and failed analytics while deduplicating loaded modules and expansion", async () => {
-    const { store, item, controller, matchDetailsService, matchAnalyticsService, key } = setup();
+    const { store, item, controller, seriesMatchesService, matchAnalyticsService, key } = setup();
     const detailSpy = vi
-      .spyOn(matchDetailsService, "getMatchDetails")
+      .spyOn(seriesMatchesService, "getMatchDetails")
       .mockResolvedValueOnce(aFakeMatchDetailResponseWith({ matchIds: [item.match.matchId], results: [] }));
     const analyticsSpy = vi
       .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
@@ -552,12 +550,12 @@ describe("EntryDetailController condensed match loading", () => {
   });
 
   it("ignores condensed detail completion after disposal", async () => {
-    const { store, item, controller, matchDetailsService } = setup();
+    const { store, item, controller, seriesMatchesService } = setup();
     let resolveDetails: ((value: MatchDetailResponse) => void) | undefined;
     const request = new Promise<MatchDetailResponse>((resolve) => {
       resolveDetails = resolve;
     });
-    vi.spyOn(matchDetailsService, "getMatchDetails").mockReturnValue(request);
+    vi.spyOn(seriesMatchesService, "getMatchDetails").mockReturnValue(request);
     controller.toggleEntry(item);
     const pending = store.getSnapshot();
     controller.dispose();

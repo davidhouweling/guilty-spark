@@ -5,6 +5,8 @@ import type { IndividualTrackerService } from "../../services/individual-tracker
 import type { IndividualTrackerSettingsService } from "../../services/individual-tracker/settings-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
+import { EntryDetailController } from "../../controllers/entry-detail/entry-detail-controller";
+import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import { IndividualTrackerViewerPresenter } from "../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
 import type { IndividualTrackerViewerSnapshot } from "../individual-tracker/viewer/viewer-store";
@@ -33,30 +35,32 @@ export function useMatchHistoryViewer({
   individualTrackerSettingsService,
   matchAnalyticsService,
   seriesMatchesService,
-  medalMetadataResolver,
   gamertag,
 }: UseMatchHistoryViewerOpts): MatchHistoryViewerHookResult {
   const viewerStore = useMemo(() => new IndividualTrackerViewerStore(), []);
+  const statsDetailController = useMemo(() => new StatsDetailController(), []);
 
-  const presenter = useMemo(
-    () =>
-      new MatchHistoryViewerPresenter({
-        individualTrackerService,
-        individualTrackerSettingsService,
-        matchAnalyticsService,
-        seriesMatchesService,
-        medalMetadataResolver,
-        viewerStore,
-      }),
-    [
+  const presenter = useMemo(() => {
+    const entryDetailController = new EntryDetailController({
+      store: viewerStore,
+      statsDetailController,
+      seriesMatchesService,
+      matchAnalyticsService,
+    });
+    return new MatchHistoryViewerPresenter({
       individualTrackerService,
       individualTrackerSettingsService,
-      matchAnalyticsService,
-      seriesMatchesService,
-      medalMetadataResolver,
+      entryDetailController,
       viewerStore,
-    ],
-  );
+    });
+  }, [
+    individualTrackerService,
+    individualTrackerSettingsService,
+    matchAnalyticsService,
+    seriesMatchesService,
+    statsDetailController,
+    viewerStore,
+  ]);
 
   useEffect(() => {
     if (gamertag === "") {

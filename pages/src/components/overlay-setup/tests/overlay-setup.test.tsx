@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AuthService } from "../../../services/auth/types";
@@ -60,8 +60,15 @@ function getSettingsCheckbox(section: "In Series" | "Matchmaking", label: string
 }
 
 describe("OverlaySetupShell", () => {
+  const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
   afterEach(() => {
     cleanup();
+    if (scrollIntoViewDescriptor == null) {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    } else {
+      Object.defineProperty(Element.prototype, "scrollIntoView", scrollIntoViewDescriptor);
+    }
+    vi.restoreAllMocks();
   });
   it("renders all three steps with their content", () => {
     render(
@@ -157,7 +164,14 @@ describe("OverlaySetupShell", () => {
   });
 
   it("switches the preview to the UI section being configured", async () => {
+    Element.prototype.scrollIntoView = vi.fn<Element["scrollIntoView"]>();
     const user = userEvent.setup();
+    const dependencies = previewDependencies();
+    const getSeriesDetail = vi.spyOn(dependencies.seriesMatchesService, "getSeriesDetail");
+    const getPreview = dependencies.overlayPreviewService.getPreview.bind(dependencies.overlayPreviewService);
+    vi.spyOn(dependencies.overlayPreviewService, "getPreview").mockImplementation(async (_mode, settings) =>
+      getPreview("series", settings),
+    );
     const settingsService: IndividualTrackerSettingsService = {
       getSettings: async () => Promise.resolve({}),
       updateSettings: async (settings) => Promise.resolve(settings),
@@ -169,7 +183,7 @@ describe("OverlaySetupShell", () => {
     const OverlaySetupPage = createOverlaySetupPage({
       authService,
       settingsService,
-      ...previewDependencies(),
+      ...dependencies,
       apiHost: "https://api.example.com",
     });
 
@@ -191,5 +205,16 @@ describe("OverlaySetupShell", () => {
 
     await user.selectOptions(screen.getByRole("combobox", { name: "Highlight 1" }), "kda");
     expect(matchmakingTab).toHaveAttribute("aria-pressed", "true");
+    await user.click(seriesTab);
+    await user.click(screen.getByRole("button", { name: "Viewer" }));
+    await user.click(await screen.findByRole("button", { name: "Series Recent Series" }));
+    await waitFor(() => {
+      expect(getSeriesDetail).toHaveBeenCalledWith(
+        "overlay-preview-series",
+        expect.any(Array),
+        undefined,
+        "substitution-aware",
+      );
+    });
   });
 });

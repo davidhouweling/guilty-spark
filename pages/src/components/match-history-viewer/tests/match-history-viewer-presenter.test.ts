@@ -10,8 +10,8 @@ import { aFakeIndividualTrackerSettingsServiceWith } from "../../../services/ind
 import { prepareCondensedMatchHistory } from "../../../services/individual-tracker/prepare-condensed-match-history";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
-import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
-import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
+import { EntryDetailController } from "../../../controllers/entry-detail/entry-detail-controller";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { IndividualTrackerViewerPresenter } from "../../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../../individual-tracker/viewer/viewer-store";
 import { MatchHistoryViewerPresenter } from "../match-history-viewer-presenter";
@@ -45,21 +45,22 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
   individualTrackerService: ReturnType<typeof aFakeIndividualTrackerServiceWith>;
   matchAnalyticsService: ReturnType<typeof aFakeMatchAnalyticsServiceWith>;
   seriesMatchesService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
-  matchDetailsService: ReturnType<typeof aFakeSeriesMatchesServiceWith>;
 } {
   const individualTrackerService = aFakeIndividualTrackerServiceWith();
   const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
   const seriesMatchesService = aFakeSeriesMatchesServiceWith();
-  const matchDetailsService = seriesMatchesService;
   const viewerStore = new IndividualTrackerViewerStore();
-  const haloClient = aFakeHaloClientWith();
+  const entryDetailController = new EntryDetailController({
+    store: viewerStore,
+    statsDetailController: new StatsDetailController(),
+    matchAnalyticsService,
+    seriesMatchesService,
+  });
 
   const presenter = new MatchHistoryViewerPresenter({
     individualTrackerService,
     individualTrackerSettingsService: aFakeIndividualTrackerSettingsServiceWith(settings),
-    matchAnalyticsService,
-    seriesMatchesService,
-    medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+    entryDetailController,
     viewerStore,
   });
 
@@ -69,7 +70,6 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
     individualTrackerService,
     matchAnalyticsService,
     seriesMatchesService,
-    matchDetailsService,
   };
 }
 
@@ -126,14 +126,8 @@ describe("MatchHistoryViewerPresenter", () => {
   });
 
   it("loads selected analytics for an expanded match", async () => {
-    const {
-      presenter,
-      viewerStore,
-      individualTrackerService,
-      matchAnalyticsService,
-      seriesMatchesService,
-      matchDetailsService,
-    } = aPresenterSetup();
+    const { presenter, viewerStore, individualTrackerService, matchAnalyticsService, seriesMatchesService } =
+      aPresenterSetup();
     const matchId = "match-1";
     vi.spyOn(individualTrackerService, "searchGamertag").mockResolvedValue(aFakeTrackerSearchResultWith());
     vi.spyOn(individualTrackerService, "getSearchEsra").mockResolvedValue({ esra: null, lastRankedGamePlayed: null });
@@ -141,7 +135,7 @@ describe("MatchHistoryViewerPresenter", () => {
       matches: [aFakeMatchHistoryEntryWith({ matchId })],
       suggestedGroupings: [],
     });
-    const detailSpy = vi.spyOn(matchDetailsService, "getMatchDetails");
+    const detailSpy = vi.spyOn(seriesMatchesService, "getMatchDetails");
     const legacySpy = vi.spyOn(seriesMatchesService, "getSeriesMatches");
     const getBatchMatchAnalyticsSpy = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
 
