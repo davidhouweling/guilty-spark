@@ -1,9 +1,10 @@
 import type { TrackerLiveMessageView, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { TrackerViewConnectionStatus } from "../../../services/individual-tracker/view-types";
 import type { MatchStatsData } from "../../../controllers/stats/types";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
-import type { SeriesStatsViewModel } from "../../series-stats/types";
+import type { SeriesMatchAnalyticsById } from "../../series-stats/types";
 import type { ScoreProgressionViewData } from "../../stats/score-progression/types";
 import type { ViewerEntryState } from "./types";
 
@@ -26,7 +27,8 @@ export interface MatchEntryLoadedState {
 
 export interface SeriesEntryLoadedState {
   readonly seriesId: string;
-  readonly viewModel: SeriesStatsViewModel;
+  readonly data: SeriesDetailResponse;
+  readonly analyticsByMatchId: SeriesMatchAnalyticsById;
 }
 
 export interface IndividualTrackerViewerSnapshot {
