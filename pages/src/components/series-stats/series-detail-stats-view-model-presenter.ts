@@ -21,6 +21,7 @@ import type {
   SeriesMatchAnalyticsById,
   SeriesMatchAnalyticsState,
   SeriesMatchSummary,
+  SeriesStatsPresentationOptions,
   SeriesStatsSummary,
   SeriesStatsViewModel,
   SeriesTeamCard,
@@ -59,6 +60,7 @@ export class SeriesDetailStatsViewModelPresenter {
   present(
     response: SeriesDetailResponse,
     analyticsByMatchId: SeriesMatchAnalyticsById = new Map(),
+    { teamColors = [] }: SeriesStatsPresentationOptions = {},
   ): SeriesStatsViewModel {
     const resolvedMatches = response.matches.results.filter(
       (result): result is ResolvedMatchResult => result.status === "resolved",
@@ -68,7 +70,7 @@ export class SeriesDetailStatsViewModelPresenter {
     const seriesStatsWarning =
       response.aggregation.status === "unavailable" ? AGGREGATION_WARNINGS[response.aggregation.reason] : null;
     const matchDetails = response.matches.results.map((result, index) =>
-      this.presentMatch(result, index, analyticsByMatchId.get(result.matchId)),
+      this.presentMatch(result, index, analyticsByMatchId.get(result.matchId), teamColors),
     );
     const summaryDetails = response.matches.results.map((result) =>
       result.status === "resolved" ? result.detail : null,
@@ -79,8 +81,8 @@ export class SeriesDetailStatsViewModelPresenter {
       title: this.presentLabel(response.context?.title, "Series stats"),
       subtitle: this.presentLabel(response.context?.subtitle, "Series details unavailable"),
       seriesScore,
-      matchSummaries: response.matches.results.map((result) => this.presentMatchSummary(result)),
-      teams: this.presentTeams(resolvedMatches, aggregation),
+      matchSummaries: response.matches.results.map((result) => this.presentMatchSummary(result, teamColors)),
+      teams: this.presentTeams(resolvedMatches, aggregation, teamColors),
       seriesStats:
         aggregation == null
           ? null
@@ -90,6 +92,7 @@ export class SeriesDetailStatsViewModelPresenter {
               response.matches.matchIds,
               analyticsByMatchId,
               this.getLatestMatch(resolvedMatches),
+              teamColors,
             ),
       seriesStatsWarning,
       matchDetails,
@@ -100,6 +103,7 @@ export class SeriesDetailStatsViewModelPresenter {
     result: MatchDetailResult,
     index: number,
     analyticsState: SeriesMatchAnalyticsState | undefined,
+    colorOverrides: readonly TeamColor[],
   ): SeriesMatchDetail {
     if (result.status === "unavailable") {
       return this.presentUnavailableMatch(result, index);
@@ -108,7 +112,7 @@ export class SeriesDetailStatsViewModelPresenter {
     const { detail } = result;
     const labels = this.presentMatchLabels(detail);
     const data = this.statsDetailController.mapMatchDetailToStats(detail);
-    const teamColors = this.presentMatchTeamColors(detail);
+    const teamColors = this.presentMatchTeamColors(detail, colorOverrides);
     return {
       matchId: result.matchId,
       data,
@@ -154,7 +158,7 @@ export class SeriesDetailStatsViewModelPresenter {
     };
   }
 
-  private presentMatchSummary(result: MatchDetailResult): SeriesMatchSummary {
+  private presentMatchSummary(result: MatchDetailResult, colorOverrides: readonly TeamColor[]): SeriesMatchSummary {
     if (result.status === "unavailable") {
       return {
         matchId: result.matchId,
@@ -172,7 +176,7 @@ export class SeriesDetailStatsViewModelPresenter {
     const labels = this.presentMatchLabels(detail);
     const scores = this.presentMatchScores(detail);
     const winner = detail.teams.find((team) => team.outcome === "Win");
-    const teamColors = this.presentMatchTeamColors(detail);
+    const teamColors = this.presentMatchTeamColors(detail, colorOverrides);
     const winnerColor = winner == null ? null : teamColors[winner.matchTeamId];
 
     return {
@@ -227,22 +231,23 @@ export class SeriesDetailStatsViewModelPresenter {
       .join(":");
   }
 
-  private presentMatchTeamColors(detail: MatchDetail): TeamColor[] {
+  private presentMatchTeamColors(detail: MatchDetail, colorOverrides: readonly TeamColor[]): TeamColor[] {
     const teamColors: TeamColor[] = [];
     const teams = [...detail.teams].sort((left, right) => this.getStableTeamId(left) - this.getStableTeamId(right));
     for (const [index, team] of teams.entries()) {
-      teamColors[team.matchTeamId] = this.presentTeamColor(index);
+      teamColors[team.matchTeamId] = this.presentTeamColor(index, colorOverrides);
     }
     return teamColors;
   }
 
-  private presentTeamColor(teamIndex: number): TeamColor {
-    return getTeamColorOrDefault(undefined, teamIndex);
+  private presentTeamColor(teamIndex: number, colorOverrides: readonly TeamColor[]): TeamColor {
+    return colorOverrides[teamIndex] ?? getTeamColorOrDefault(undefined, teamIndex);
   }
 
   private presentTeams(
     resolvedResults: readonly ResolvedMatchResult[],
     aggregation: ResolvedAggregation | null,
+    colorOverrides: readonly TeamColor[],
   ): SeriesTeamCard[] {
     const latestMatch = this.getLatestMatch(resolvedResults);
     if (latestMatch == null) {
@@ -275,7 +280,7 @@ export class SeriesDetailStatsViewModelPresenter {
       return {
         name: this.presentLabel(seriesTeam?.name, this.presentLabel(team.name, getTeamName(stableTeamId))),
         players,
-        teamColorHex: this.presentTeamColor(index).hex,
+        teamColorHex: this.presentTeamColor(index, colorOverrides).hex,
       };
     });
   }
@@ -323,12 +328,13 @@ export class SeriesDetailStatsViewModelPresenter {
     matchIds: readonly string[],
     analyticsByMatchId: SeriesMatchAnalyticsById,
     latestMatch: MatchDetail | null,
+    colorOverrides: readonly TeamColor[],
   ): SeriesStatsSummary {
     const data = this.statsDetailController.mapSeriesAggregationToStats(aggregation);
     const teamColors: TeamColor[] = [];
     const teams = [...aggregation.teams].sort((left, right) => left.seriesTeamId - right.seriesTeamId);
     for (const [index, team] of teams.entries()) {
-      teamColors[team.seriesTeamId] = this.presentTeamColor(index);
+      teamColors[team.seriesTeamId] = this.presentTeamColor(index, colorOverrides);
     }
     const historicalPlayers = this.getSeriesKillMatrixPlayers(aggregation);
     const hasTeamChanges = historicalPlayers.some((player) => player.teamId == null);
