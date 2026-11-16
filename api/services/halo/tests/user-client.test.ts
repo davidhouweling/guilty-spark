@@ -220,6 +220,45 @@ describe("user Halo clients", () => {
     expect(fetchFn).toHaveBeenCalledTimes(3);
   });
 
+  it("clears a matching token for newly created contexts", async () => {
+    let mints = 0;
+    const firstFetch = vi.fn<typeof fetch>().mockImplementation(async () => {
+      mints += 1;
+      return await Promise.resolve(
+        Response.json({
+          SpartanToken: `spartan-${mints.toString()}`,
+          ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" },
+        }),
+      );
+    });
+    const nextFetch = vi.fn<typeof fetch>().mockImplementation(async () => {
+      mints += 1;
+      return await Promise.resolve(
+        Response.json({
+          SpartanToken: `spartan-${mints.toString()}`,
+          ExpiresUtc: { ISO8601Date: "2099-01-01T00:00:00Z" },
+        }),
+      );
+    });
+    let fetchFn = firstFetch;
+    const provider = new UserTokenProvider({
+      authService: aFakeAuthServiceWith(),
+      xboxService: aFakeXboxServiceWith(),
+      logService: aFakeLogServiceWith(),
+      fetchForUser: (): typeof fetch => fetchFn,
+    });
+    const first = provider.createContextFromXstsToken("clear-user", "clear-xsts").spartanTokenProvider;
+
+    expect(await first.getSpartanToken()).toBe("spartan-1");
+    await first.clearSpartanToken();
+    fetchFn = nextFetch;
+    const fresh = provider.createContextFromXstsToken("clear-user", "clear-xsts").spartanTokenProvider;
+
+    expect(await fresh.getSpartanToken()).toBe("spartan-2");
+    expect(firstFetch).toHaveBeenCalledOnce();
+    expect(nextFetch).toHaveBeenCalledOnce();
+  });
+
   it("replaces the stored credential on rotation while preserving other users and existing clients", async () => {
     let mints = 0;
     const fetchFn = vi.fn<typeof fetch>().mockImplementation(async () => {
