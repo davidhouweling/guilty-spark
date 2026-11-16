@@ -1,7 +1,7 @@
 import { compareAsc } from "date-fns";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { matchDetailBatchSchema, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import { seriesMatchDetailBatchSchema, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
 import type { MatchDetail, MatchDetailResult, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import {
   buildPresentAtBeginningTeamRosters,
@@ -118,7 +118,7 @@ export function mapSeriesDetail(
   rawMatches: readonly MatchStats[],
   options: SeriesDetailOptions = {},
 ): SeriesDetailResponse {
-  const batch = matchDetailBatchSchema.parse({ matchIds, results });
+  const batch = seriesMatchDetailBatchSchema.parse({ matchIds, results });
   validateRawMatches(batch.results, rawMatches);
   const matches = [...rawMatches].sort((left, right) =>
     compareAsc(left.MatchInfo.StartTime, right.MatchInfo.StartTime),
