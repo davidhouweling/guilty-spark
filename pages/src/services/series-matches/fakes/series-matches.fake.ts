@@ -1,6 +1,10 @@
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
-import { matchDetailContract, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import {
+  matchDetailContract,
+  seriesDetailContract,
+  seriesDetailRequestSchema,
+} from "@guilty-spark/shared/contracts/stats/detail";
 import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import {
   aFakeMatchDetailWith,
@@ -71,9 +75,13 @@ export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesRe
     },
     getMatchDetails: async (matchIds): Promise<MatchDetailResponse> =>
       Promise.resolve(matchDetailContract.parse(buildMatchDetails(matchIds))),
-    getSeriesDetail: async (seriesId, matchIds): Promise<SeriesDetailResponse> =>
-      Promise.resolve(
-        seriesDetailContract.parse(aFakeSeriesDetailResponseWith({ seriesId, matches: buildMatchDetails(matchIds) })),
-      ),
+    getSeriesDetail: async (seriesId, matchIds, _trackerId, teamMappingMode): Promise<SeriesDetailResponse> => {
+      const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode });
+      return Promise.resolve(
+        seriesDetailContract.parse(
+          aFakeSeriesDetailResponseWith({ seriesId, matches: buildMatchDetails(request.matchIds) }),
+        ),
+      );
+    },
   };
 }

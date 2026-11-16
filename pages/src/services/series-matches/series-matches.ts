@@ -6,6 +6,7 @@ import {
   seriesDetailContract,
   seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
+import type { SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
 import { normalizeTrackerId } from "../stats/normalize-tracker-id";
 import type { SeriesMatchesService } from "./types";
 import { getDetailQuery } from "./get-detail-query";
@@ -54,8 +55,9 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     seriesId: string,
     matchIds: readonly string[],
     trackerId?: string,
+    teamMappingMode?: SeriesTeamMappingMode,
   ): ReturnType<SeriesMatchesService["getSeriesDetail"]> {
-    const request = seriesDetailRequestSchema.parse({ matchIds });
+    const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode });
     const url = new URL(`/api/stats/series-details/${encodeURIComponent(seriesId)}`, this.apiHost);
     const usePost = request.matchIds.length > MATCH_DETAIL_BATCH_LIMIT;
     if (!usePost) {
@@ -65,6 +67,9 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     const normalizedTrackerId = normalizeTrackerId(trackerId);
     if (normalizedTrackerId != null) {
       url.searchParams.set("trackerId", normalizedTrackerId);
+    }
+    if (!usePost && request.teamMappingMode != null) {
+      url.searchParams.set("teamMappingMode", request.teamMappingMode);
     }
 
     const response = await fetch(

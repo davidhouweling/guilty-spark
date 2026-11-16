@@ -1,5 +1,9 @@
 import type { SeriesMatchesResponse } from "@guilty-spark/shared/contracts/stats/series-matches";
-import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type {
+  MatchDetailResponse,
+  SeriesDetailResponse,
+  SeriesTeamMappingMode,
+} from "@guilty-spark/shared/contracts/stats/detail";
 
 export interface SeriesMatchesService {
   getSeriesMatches(
@@ -8,5 +12,10 @@ export interface SeriesMatchesService {
     anchorMatchId?: string,
   ): Promise<SeriesMatchesResponse>;
   getMatchDetails(matchIds: readonly string[], trackerId?: string): Promise<MatchDetailResponse>;
-  getSeriesDetail(seriesId: string, matchIds: readonly string[], trackerId?: string): Promise<SeriesDetailResponse>;
+  getSeriesDetail(
+    seriesId: string,
+    matchIds: readonly string[],
+    trackerId?: string,
+    teamMappingMode?: SeriesTeamMappingMode,
+  ): Promise<SeriesDetailResponse>;
 }
