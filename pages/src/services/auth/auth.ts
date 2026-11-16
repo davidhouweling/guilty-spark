@@ -2,6 +2,7 @@ import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/sessio
 import { sessionContract } from "@guilty-spark/shared/contracts/auth/session";
 import { logoutContract } from "@guilty-spark/shared/contracts/auth/logout";
 import { errorContract } from "@guilty-spark/shared/contracts/error";
+import { createApiUrl } from "../api-url";
 import type { AuthService } from "./types";
 
 interface AuthServiceOpts {
@@ -16,9 +17,7 @@ export class RealAuthService implements AuthService {
   }
 
   private buildUrl(path: string): string {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return createApiUrl(this.apiHost, path).toString();
   }
 
   private async readError(response: Response): Promise<Error> {

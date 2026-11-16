@@ -8,6 +8,7 @@ import type {
   OverlayPreviewResponse,
 } from "@guilty-spark/shared/contracts/individual-tracker/overlay-preview";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { createApiUrl } from "../api-url";
 import type { OverlayPreviewService } from "./overlay-preview-types";
 
 interface RealOverlayPreviewServiceOptions {
@@ -25,12 +26,11 @@ export class RealOverlayPreviewService implements OverlayPreviewService {
     mode: OverlayPreviewMode,
     previewSettings?: StreamerViewSettings,
   ): Promise<OverlayPreviewResponse> {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
     const body = overlayPreviewRequestSchema.parse({
       mode,
       ...(previewSettings !== undefined ? { previewSettings } : {}),
     });
-    const response = await fetch(`${baseUrl}/api/individual-tracker/overlay-preview`, {
+    const response = await fetch(createApiUrl(this.apiHost, "/api/individual-tracker/overlay-preview").toString(), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

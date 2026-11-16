@@ -1,5 +1,6 @@
 import { discordSeriesStatsContract } from "@guilty-spark/shared/contracts/stats/discord-series";
 import { seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import { createApiUrl } from "../api-url";
 import type {
   DiscordSeriesStatsDetailResult,
   DiscordSeriesStatsLookupResult,
@@ -77,19 +78,23 @@ export class RealDiscordSeriesStatsService implements DiscordSeriesStatsService 
   }
 
   async getStats(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsResult> {
-    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}`);
+    const response = await fetch(createApiUrl(this.apiHost, `/api/stats/discord/${guildId}/${queueNumber}`).toString());
 
     return parseDiscordSeriesStatsResponse(response);
   }
 
   async getDetail(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsDetailResult> {
-    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/detail`);
+    const response = await fetch(
+      createApiUrl(this.apiHost, `/api/stats/discord/${guildId}/${queueNumber}/detail`).toString(),
+    );
 
     return parseDiscordSeriesStatsDetailResponse(response);
   }
 
   async getLookup(guildId: string, queueNumber: string): Promise<DiscordSeriesStatsLookupResult> {
-    const response = await fetch(`${this.apiHost}/api/stats/discord/${guildId}/${queueNumber}/lookup`);
+    const response = await fetch(
+      createApiUrl(this.apiHost, `/api/stats/discord/${guildId}/${queueNumber}/lookup`).toString(),
+    );
     await discardResponseBody(response);
 
     return parseDiscordSeriesStatsLookupResponse(response);

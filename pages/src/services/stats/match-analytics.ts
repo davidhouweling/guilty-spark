@@ -3,6 +3,7 @@ import {
   BATCH_MATCH_ANALYTICS_MAX_MATCH_IDS,
   batchMatchAnalyticsContract,
 } from "@guilty-spark/shared/contracts/stats/batch-match-analytics";
+import { createApiUrl } from "../api-url";
 import { normalizeTrackerId } from "./normalize-tracker-id";
 import type { MatchAnalyticsService } from "./match-analytics-types";
 
@@ -35,14 +36,13 @@ export class RealMatchAnalyticsService implements MatchAnalyticsService {
 
     for (let index = 0; index < uniqueMatchIds.length; index += BATCH_MATCH_ANALYTICS_MAX_MATCH_IDS) {
       const matchIdBatch = uniqueMatchIds.slice(index, index + BATCH_MATCH_ANALYTICS_MAX_MATCH_IDS);
-      const query = new URLSearchParams({
-        matchIds: matchIdBatch.join(","),
-        modules: buildModulesQuery(normalizedModules),
-      });
+      const url = createApiUrl(this.apiHost, "/api/stats/match-analytics");
+      url.searchParams.set("matchIds", matchIdBatch.join(","));
+      url.searchParams.set("modules", buildModulesQuery(normalizedModules));
       if (normalizedTrackerId != null) {
-        query.set("trackerId", normalizedTrackerId);
+        url.searchParams.set("trackerId", normalizedTrackerId);
       }
-      const response = await fetch(`${this.apiHost}/api/stats/match-analytics?${query.toString()}`, {
+      const response = await fetch(url.toString(), {
         credentials: "include",
       });
       const parsed = await batchMatchAnalyticsContract.fromResponse(response);
