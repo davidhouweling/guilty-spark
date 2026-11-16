@@ -22,6 +22,24 @@ function presentRosters(detail: MatchDetail | undefined): MatchTeamRoster[] {
   return [...rosters].sort(([left], [right]) => left - right).map(([matchTeamId, xuids]) => ({ matchTeamId, xuids }));
 }
 
+function presentBackendTeamOrder(detail: MatchDetail): number[] | null {
+  const teams = [...detail.teams].sort((left, right) => {
+    if (left.seriesTeamId == null || right.seriesTeamId == null) {
+      return 0;
+    }
+    return left.seriesTeamId - right.seriesTeamId;
+  });
+  if (
+    teams.length !== 2 ||
+    teams.some((team) => team.seriesTeamId == null) ||
+    new Set(teams.map((team) => team.seriesTeamId)).size !== teams.length ||
+    new Set(teams.map((team) => team.matchTeamId)).size !== teams.length
+  ) {
+    return null;
+  }
+  return teams.map((team) => team.matchTeamId);
+}
+
 function presentScoreTeamIds(series: ViewerSeriesTab, detail: MatchDetail, anchor: MatchDetail | undefined): number[] {
   const anchorRosters = presentRosters(anchor);
   const matchRosters = presentRosters(detail);
@@ -30,6 +48,9 @@ function presentScoreTeamIds(series: ViewerSeriesTab, detail: MatchDetail, ancho
     matchRosters,
   );
   const orderedIds = canonical?.map((entry) => entry.matchTeamId) ?? detail.teams.map((team) => team.matchTeamId);
+  if (series.teams.length === 0) {
+    return presentBackendTeamOrder(detail) ?? orderedIds;
+  }
   if (anchor == null || series.teams.length !== 2 || detail.teams.length !== 2) {
     return orderedIds;
   }

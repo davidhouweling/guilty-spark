@@ -358,6 +358,15 @@ export class EntryDetailController {
         module === "killMatrix"
           ? { ...current, killMatrix: { status: moduleStatus, data: analytics?.killMatrix ?? null } }
           : { ...current, scoreProgression: { status: moduleStatus, data: analytics?.scoreProgression ?? null } };
+      if (module === "scoreProgression" && moduleStatus === ComponentLoaderStatus.ERROR) {
+        const killMatrixStatus = current?.killMatrix?.status;
+        if (killMatrixStatus !== ComponentLoaderStatus.LOADING && killMatrixStatus !== ComponentLoaderStatus.LOADED) {
+          state = {
+            ...state,
+            killMatrix: { status: ComponentLoaderStatus.ERROR, data: current?.killMatrix?.data ?? null },
+          };
+        }
+      }
       if (analytics?.requestedModules.includes("killMatrix") === true && module !== "killMatrix") {
         state = { ...state, killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix } };
       }

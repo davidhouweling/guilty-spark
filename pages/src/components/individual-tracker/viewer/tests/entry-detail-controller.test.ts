@@ -16,9 +16,12 @@ import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-match
 import type { SeriesMatchesService } from "../../../../services/series-matches/types";
 import type { MatchAnalyticsService } from "../../../../services/stats/match-analytics-types";
 import { aFakeMatchAnalyticsWith } from "../../../../controllers/stats/kill-matrix/fakes/match-analytics.fake";
+import { StatsDetailController } from "../../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
+import { SeriesDetailStatsViewModelPresenter } from "../../../series-stats/series-detail-stats-view-model-presenter";
 import { EntryDetailController } from "../entry-detail-controller";
 import { IndividualTrackerViewerStore } from "../viewer-store";
+import type { SeriesEntryLoadedState } from "../viewer-store";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
 import type { ViewerTimelineItem } from "../types";
 import { aFakeViewerSeriesDetailWith } from "../fakes/series-detail.fake";
@@ -86,6 +89,14 @@ function setupSeries(
     trackerId: "tracker-one",
   });
   return { store, item, controller, seriesDetailService, matchAnalyticsService, legacySpy };
+}
+
+function getLoadedSeriesState(store: IndividualTrackerViewerStore): SeriesEntryLoadedState {
+  const entry = store.getSnapshot().entryStates.get("series:series-1");
+  if (entry?.kind !== "series" || entry.state.status !== "loaded") {
+    throw new Error("Expected loaded series details");
+  }
+  return entry.state;
 }
 
 describe("EntryDetailController condensed series loading", () => {
@@ -265,6 +276,147 @@ describe("EntryDetailController condensed series loading", () => {
       expect(spy).toHaveBeenCalledTimes(3);
     },
   );
+
+  it.each<"rejected" | "missing" | "null">(["rejected", "missing", "null"])(
+    "retries a skipped matrix request after a timeline request is %s",
+    async (timelineResult) => {
+      const { store, item, controller, matchAnalyticsService } = setupSeries(["m-1", "m-2"]);
+      controller.toggleEntry(item);
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().entryStates.get("series:series-1")?.state.status).toBe("loaded");
+      });
+      let resolveTimeline: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
+      let rejectTimeline: ((reason: Error) => void) | undefined;
+      const timeline = new Promise<Record<string, MatchAnalytics | null>>((resolve, reject) => {
+        resolveTimeline = resolve;
+        rejectTimeline = reject;
+      });
+      const analytics = aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], killMatrix: {} });
+      const spy = vi
+        .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+        .mockReturnValueOnce(timeline)
+        .mockResolvedValueOnce({ "m-2": analytics })
+        .mockResolvedValueOnce({ "m-1": analytics });
+      const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
+
+      controller.loadAnalytics(item, "scoreProgression", "m-1");
+      controller.loadAnalytics(item, "killMatrix");
+      expect(spy).toHaveBeenNthCalledWith(2, ["m-2"], ["killMatrix"], "tracker-one");
+      await vi.waitFor(() => {
+        expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-2")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix },
+        });
+      });
+
+      if (timelineResult === "rejected") {
+        rejectTimeline?.(new Error("offline"));
+      } else {
+        resolveTimeline?.(timelineResult === "missing" ? {} : { "m-1": null });
+      }
+
+      await vi.waitFor(() => {
+        const state = getLoadedSeriesState(store);
+        expect(state.analyticsByMatchId.get("m-1")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.ERROR, data: null },
+          scoreProgression: { status: ComponentLoaderStatus.ERROR, data: null },
+        });
+        expect(state.analyticsByMatchId.get("m-2")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix },
+        });
+        expect(presenter.present(state.data, state.analyticsByMatchId).seriesStats?.killMatrixStatus).toBe(
+          ComponentLoaderStatus.ERROR,
+        );
+      });
+
+      controller.loadAnalytics(item, "killMatrix");
+      await vi.waitFor(() => {
+        const state = getLoadedSeriesState(store);
+        expect(state.analyticsByMatchId.get("m-1")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix },
+          scoreProgression: { status: ComponentLoaderStatus.ERROR, data: null },
+        });
+        expect(state.analyticsByMatchId.get("m-2")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix },
+        });
+        expect(presenter.present(state.data, state.analyticsByMatchId).seriesStats?.killMatrixStatus).toBe(
+          ComponentLoaderStatus.LOADED,
+        );
+      });
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect(spy).toHaveBeenLastCalledWith(["m-1"], ["killMatrix"], "tracker-one");
+    },
+  );
+
+  it.each<"loading" | "loaded">(["loading", "loaded"])(
+    "preserves an independently %s matrix when the timeline request returns null",
+    async (matrixStatus) => {
+      const { store, item, controller, matchAnalyticsService } = setupSeries(["m-1", "m-2"]);
+      controller.toggleEntry(item);
+      await vi.waitFor(() => {
+        expect(store.getSnapshot().entryStates.get("series:series-1")?.state.status).toBe("loaded");
+      });
+      let resolveMatrix: ((value: Record<string, MatchAnalytics | null>) => void) | undefined;
+      const matrix = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
+        resolveMatrix = resolve;
+      });
+      const analytics = aFakeMatchAnalyticsWith({ requestedModules: ["killMatrix"], killMatrix: {} });
+      const spy = vi
+        .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+        .mockImplementation(async (_ids, modules) => {
+          return modules?.includes("killMatrix") === true ? matrix : Promise.resolve({ "m-1": null });
+        });
+
+      controller.loadAnalytics(item, "killMatrix", "m-1");
+      if (matrixStatus === "loaded") {
+        resolveMatrix?.({ "m-1": analytics });
+      }
+      const expectedMatrix = {
+        status: matrixStatus === "loaded" ? ComponentLoaderStatus.LOADED : ComponentLoaderStatus.LOADING,
+        data: matrixStatus === "loaded" ? analytics.killMatrix : null,
+      };
+      await vi.waitFor(() => {
+        expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-1")).toEqual({
+          killMatrix: expectedMatrix,
+        });
+      });
+
+      controller.loadAnalytics(item, "scoreProgression", "m-1");
+      await vi.waitFor(() => {
+        expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-1")).toEqual({
+          killMatrix: expectedMatrix,
+          scoreProgression: { status: ComponentLoaderStatus.ERROR, data: null },
+        });
+      });
+
+      resolveMatrix?.({ "m-1": analytics });
+      await vi.waitFor(() => {
+        expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-1")).toEqual({
+          killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix },
+          scoreProgression: { status: ComponentLoaderStatus.ERROR, data: null },
+        });
+      });
+      expect(spy).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("marks the implicitly requested matrix retryable when a timeline fails before matrix selection", async () => {
+    const { store, item, controller, matchAnalyticsService } = setupSeries(["m-1", "m-2"]);
+    controller.toggleEntry(item);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().entryStates.get("series:series-1")?.state.status).toBe("loaded");
+    });
+    vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockResolvedValueOnce({ "m-1": null });
+
+    controller.loadAnalytics(item, "scoreProgression", "m-1");
+
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-1")).toEqual({
+        killMatrix: { status: ComponentLoaderStatus.ERROR, data: null },
+        scoreProgression: { status: ComponentLoaderStatus.ERROR, data: null },
+      });
+    });
+  });
+
   it("ignores in-flight analytics after disposal and does not request another chunk", async () => {
     const ids = Array.from({ length: 31 }, (_, index) => `m-${index.toString()}`);
     const { store, item, controller, matchAnalyticsService } = setupSeries(ids);
