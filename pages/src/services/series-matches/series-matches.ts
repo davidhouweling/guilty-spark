@@ -1,5 +1,11 @@
 import { seriesMatchesContract } from "@guilty-spark/shared/contracts/stats/series-matches";
-import { matchDetailContract, seriesDetailContract } from "@guilty-spark/shared/contracts/stats/detail";
+import {
+  MATCH_DETAIL_BATCH_LIMIT,
+  matchDetailContract,
+  matchDetailQuerySchema,
+  seriesDetailContract,
+  seriesDetailRequestSchema,
+} from "@guilty-spark/shared/contracts/stats/detail";
 import { normalizeTrackerId } from "../stats/normalize-tracker-id";
 import type { SeriesMatchesService } from "./types";
 import { getDetailQuery } from "./get-detail-query";
@@ -49,11 +55,29 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     matchIds: readonly string[],
     trackerId?: string,
   ): ReturnType<SeriesMatchesService["getSeriesDetail"]> {
-    const query = getDetailQuery(matchIds, trackerId);
-    return seriesDetailContract.fromResponse(
-      await fetch(`${this.apiHost}/api/stats/series-details/${encodeURIComponent(seriesId)}?${query}`, {
-        credentials: "include",
-      }),
+    const request = seriesDetailRequestSchema.parse({ matchIds });
+    const url = new URL(`/api/stats/series-details/${encodeURIComponent(seriesId)}`, this.apiHost);
+    const usePost = request.matchIds.length > MATCH_DETAIL_BATCH_LIMIT;
+    if (!usePost) {
+      const parsedQuery = matchDetailQuerySchema.parse({ matchIds: request.matchIds.join(",") });
+      url.searchParams.set("matchIds", parsedQuery.matchIds.join(","));
+    }
+    const normalizedTrackerId = normalizeTrackerId(trackerId);
+    if (normalizedTrackerId != null) {
+      url.searchParams.set("trackerId", normalizedTrackerId);
+    }
+
+    const response = await fetch(
+      url.toString(),
+      usePost
+        ? {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+          }
+        : { credentials: "include" },
     );
+    return seriesDetailContract.fromResponse(response);
   }
 }

@@ -39,14 +39,14 @@ npm start
 - WebSocket endpoint: `ws://[host]/ws/tracker/{guildId}/{queueNumber}`
 
 **Configuration**:
-Edit `.env.development` to set the API host:
+Edit `.env.development` to set the API host to an absolute origin:
 
 ```bash
 # Local development
-PUBLIC_API_HOST=localhost:8787
+PUBLIC_API_HOST=http://localhost:8787
 
 # Or use production
-PUBLIC_API_HOST=api.guilty-spark.app
+PUBLIC_API_HOST=https://api.guilty-spark.app
 ```
 
 **How it works**:

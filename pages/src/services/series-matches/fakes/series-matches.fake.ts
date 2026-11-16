@@ -50,14 +50,14 @@ function buildSampleResponse(matchIds: readonly string[]): SeriesMatchesResponse
 }
 
 function buildMatchDetails(matchIds: readonly string[]): MatchDetailResponse {
-  return matchDetailContract.parse({
+  return {
     matchIds: [...matchIds],
     results: matchIds.map((matchId) => ({
       status: "resolved",
       matchId,
       detail: aFakeMatchDetailWith({ matchId }),
     })),
-  });
+  };
 }
 
 export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesResponse>): SeriesMatchesService {
@@ -69,7 +69,8 @@ export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesRe
 
       return Promise.resolve(buildSampleResponse(matchIds));
     },
-    getMatchDetails: async (matchIds): Promise<MatchDetailResponse> => Promise.resolve(buildMatchDetails(matchIds)),
+    getMatchDetails: async (matchIds): Promise<MatchDetailResponse> =>
+      Promise.resolve(matchDetailContract.parse(buildMatchDetails(matchIds))),
     getSeriesDetail: async (seriesId, matchIds): Promise<SeriesDetailResponse> =>
       Promise.resolve(
         seriesDetailContract.parse(aFakeSeriesDetailResponseWith({ seriesId, matches: buildMatchDetails(matchIds) })),
