@@ -4,7 +4,7 @@ Read this file before writing code. Also read the applicable guides before
 working in their scope; links alone do not guarantee their contents are loaded:
 
 - [API and shared architecture](.github/agent-guidance/api.md): editing or
-  reviewing `api/` or `shared/`.
+  reviewing `api/`, `shared/`, or Worker environment bindings, including in `pages/`.
 - [Pages architecture](.github/agent-guidance/pages.md): editing or reviewing
   `pages/`.
 - [Testing guidance](.github/agent-guidance/testing.md): adding or changing tests
