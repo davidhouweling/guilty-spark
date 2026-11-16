@@ -1,10 +1,16 @@
+import { compareDesc } from "date-fns";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { MatchDetail, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import {
   getStreamerViewTeamColorIds,
   withStreamerViewSettingsDefaults,
 } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { unwrapXuid } from "@guilty-spark/shared/halo/match-stats";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
+import { resolveSeriesTeamMapping } from "@guilty-spark/shared/halo/series-team-identity";
+import type { MatchTeamRoster, SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
@@ -15,14 +21,17 @@ import type {
   TrackerViewSubscription,
 } from "../../../services/individual-tracker/view-types";
 import { getReconnectDelayMs } from "../../../services/base/reconnect-policy";
+import { getTeamColorOrDefault } from "../../team-colors/team-colors";
+import type { TeamColor } from "../../team-colors/team-colors";
+import type { SeriesOverviewProps } from "../../series-overview/types";
 import { EntryDetailController } from "./entry-detail-controller";
 import { buildViewerRenderModel } from "./viewer-render-model";
-import { presentViewerSeriesOverview } from "./viewer-series-overview";
 import type { IndividualTrackerViewerSnapshot, IndividualTrackerViewerStore } from "./viewer-store";
 import type {
   IndividualTrackerViewerRenderModel,
   IndividualTrackerViewerViewModel,
   ViewerEntryState,
+  ViewerSeriesTab,
   ViewerTimelineItem,
 } from "./types";
 
@@ -34,32 +43,6 @@ interface Config {
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly store: IndividualTrackerViewerStore;
   readonly trackerId: string;
-}
-
-function applyLoadedSeriesDetails(
-  renderModel: IndividualTrackerViewerRenderModel,
-  entryStates: ReadonlyMap<string, ViewerEntryState>,
-): IndividualTrackerViewerRenderModel {
-  const timeline = renderModel.timeline.map((item) => {
-    if (item.type !== "series") {
-      return item;
-    }
-
-    const entryState = entryStates.get(`series:${item.series.id}`);
-    if (entryState?.kind !== "series" || entryState.state.status !== "loaded") {
-      return item;
-    }
-
-    return {
-      ...item,
-      series: {
-        ...item.series,
-        seriesOverview: presentViewerSeriesOverview(item.series, entryState.state.data, renderModel.teamColors),
-      },
-    };
-  });
-
-  return { ...renderModel, timeline };
 }
 
 export class IndividualTrackerViewerPresenter {
@@ -100,13 +83,179 @@ export class IndividualTrackerViewerPresenter {
             preferredEnemyColorId: enemyColorId,
           });
     return {
-      renderModel: baseRenderModel == null ? null : applyLoadedSeriesDetails(baseRenderModel, snapshot.entryStates),
+      renderModel:
+        baseRenderModel == null
+          ? null
+          : IndividualTrackerViewerPresenter.applyLoadedSeriesDetails(baseRenderModel, snapshot.entryStates),
       connectionStatus: snapshot.connectionStatus,
       refreshPending: snapshot.refreshPending,
       expandedEntryKeys: snapshot.expandedEntryKeys,
       entryStates: snapshot.entryStates,
       streamerSettings,
     };
+  }
+
+  private static applyLoadedSeriesDetails(
+    renderModel: IndividualTrackerViewerRenderModel,
+    entryStates: ReadonlyMap<string, ViewerEntryState>,
+  ): IndividualTrackerViewerRenderModel {
+    const timeline = renderModel.timeline.map((item) => {
+      if (item.type !== "series") {
+        return item;
+      }
+
+      const entryState = entryStates.get(`series:${item.series.id}`);
+      if (entryState?.kind !== "series" || entryState.state.status !== "loaded") {
+        return item;
+      }
+
+      return {
+        ...item,
+        series: {
+          ...item.series,
+          seriesOverview: this.presentViewerSeriesOverview(item.series, entryState.state.data, renderModel.teamColors),
+        },
+      };
+    });
+
+    return { ...renderModel, timeline };
+  }
+
+  private static presentViewerSeriesOverview(
+    series: ViewerSeriesTab,
+    data: SeriesDetailResponse,
+    colors: readonly TeamColor[],
+  ): ViewerSeriesTab["seriesOverview"] {
+    const resultsById = new Map(data.matches.results.map((result) => [result.matchId, result]));
+    const details = data.matches.results.flatMap((result) => (result.status === "resolved" ? [result.detail] : []));
+    const anchor = details.find((detail) => detail.matchId === series.matches[0]?.matchId);
+    const loadedTeams = this.presentTeams(details, colors);
+    return {
+      ...series.seriesOverview,
+      teams: series.teams.length === 0 && loadedTeams.length > 0 ? loadedTeams : series.seriesOverview.teams,
+      matches: series.seriesOverview.matches.map((match) => {
+        const result = resultsById.get(match.id);
+        if (result == null) {
+          return match;
+        }
+        if (result.status === "unavailable") {
+          return { ...match, score: "Unavailable", subScore: null };
+        }
+        const { detail } = result;
+        const orderedIds = this.presentScoreTeamIds(series, detail, anchor);
+        return {
+          ...match,
+          mapBackgroundUrl:
+            detail.map.thumbnailUrl == null || detail.map.thumbnailUrl === "data:,"
+              ? match.mapBackgroundUrl
+              : detail.map.thumbnailUrl,
+          score: this.presentScore(detail.score.primary, orderedIds) ?? "Unavailable",
+          subScore: this.presentScore(detail.score.secondary, orderedIds),
+        };
+      }),
+    };
+  }
+
+  private static presentRosters(detail: MatchDetail | undefined): MatchTeamRoster[] {
+    const rosters = new Map<number, Set<string>>();
+    for (const player of detail?.players ?? []) {
+      if (!player.participation.presentAtBeginning || player.lastMatchTeamId == null) {
+        continue;
+      }
+      const roster = rosters.get(player.lastMatchTeamId) ?? new Set<string>();
+      roster.add(unwrapXuid(player.playerId));
+      rosters.set(player.lastMatchTeamId, roster);
+    }
+    return [...rosters].sort(([left], [right]) => left - right).map(([matchTeamId, xuids]) => ({ matchTeamId, xuids }));
+  }
+
+  private static presentBackendTeamOrder(detail: MatchDetail): number[] | null {
+    const teams = [...detail.teams].sort((left, right) => {
+      if (left.seriesTeamId == null || right.seriesTeamId == null) {
+        return 0;
+      }
+      return left.seriesTeamId - right.seriesTeamId;
+    });
+    if (
+      teams.length !== 2 ||
+      teams.some((team) => team.seriesTeamId == null) ||
+      new Set(teams.map((team) => team.seriesTeamId)).size !== teams.length ||
+      new Set(teams.map((team) => team.matchTeamId)).size !== teams.length
+    ) {
+      return null;
+    }
+    return teams.map((team) => team.matchTeamId);
+  }
+
+  private static presentScoreTeamIds(
+    series: ViewerSeriesTab,
+    detail: MatchDetail,
+    anchor: MatchDetail | undefined,
+  ): number[] {
+    const anchorRosters = this.presentRosters(anchor);
+    const matchRosters = this.presentRosters(detail);
+    const canonical = resolveSeriesTeamMapping(
+      anchorRosters.map((roster) => ({ seriesTeamId: roster.matchTeamId, xuids: roster.xuids })),
+      matchRosters,
+    );
+    const orderedIds = canonical?.map((entry) => entry.matchTeamId) ?? detail.teams.map((team) => team.matchTeamId);
+    if (series.teams.length === 0) {
+      return this.presentBackendTeamOrder(detail) ?? orderedIds;
+    }
+    if (anchor == null || series.teams.length !== 2 || detail.teams.length !== 2) {
+      return orderedIds;
+    }
+    const configured: SeriesTeamRoster[] = series.teams.map((team) => {
+      const xuids = new Set(
+        team.players.flatMap((player) => (player.xboxId == null ? [] : [unwrapXuid(player.xboxId)])),
+      );
+      return { seriesTeamId: team.id, xuids, unidentifiedPlayerCount: team.players.length - xuids.size };
+    });
+    if (configured.some((roster) => roster.xuids.size === 0)) {
+      return orderedIds;
+    }
+    const resolution = resolveSeriesTeamMapping(configured, matchRosters);
+    const firstTeam = resolution?.find((entry) => entry.seriesTeamId === series.teams[0]?.id);
+    return firstTeam?.matchTeamId === orderedIds[1] ? [...orderedIds].reverse() : orderedIds;
+  }
+
+  private static presentScore(section: MatchDetail["score"]["primary"], teamIds: readonly number[]): string | null {
+    if (section == null || section.teams.length === 0) {
+      return null;
+    }
+    const scores = new Map(section.teams.map((team) => [team.matchTeamId, team.value]));
+    return teamIds
+      .flatMap((id) => {
+        const score = scores.get(id);
+        return score == null ? [] : [score.toLocaleString("en-US")];
+      })
+      .join(":");
+  }
+
+  private static presentTeams(
+    details: readonly MatchDetail[],
+    colors: readonly TeamColor[],
+  ): SeriesOverviewProps["teams"] {
+    const latest = [...details].sort((left, right) => compareDesc(left.endTime, right.endTime)).at(0);
+    return [...(latest?.teams ?? [])]
+      .sort((left, right) => (left.seriesTeamId ?? left.matchTeamId) - (right.seriesTeamId ?? right.matchTeamId))
+      .map((team, index) => ({
+        id: `loaded:${team.matchTeamId.toString()}`,
+        name: team.name ?? getTeamName(team.matchTeamId),
+        teamColorHex: getTeamColorOrDefault(colors[index]?.id, index).hex,
+        players: (latest?.players ?? [])
+          .filter(
+            (player) =>
+              player.playerType === 1 &&
+              player.participation.presentAtBeginning &&
+              player.teamStats.some((stats) => stats.matchTeamId === team.matchTeamId),
+          )
+          .map((player) => ({
+            id: player.playerId,
+            discordName: player.gamertag ?? "*Unknown*",
+            gamertag: player.gamertag,
+          })),
+      }));
   }
 
   public refresh(): void {
