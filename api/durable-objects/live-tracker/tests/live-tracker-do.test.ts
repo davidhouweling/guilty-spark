@@ -23,7 +23,7 @@ import { aFakeGuildConfigRow } from "../../../services/database/fakes/database.f
 import { MapsPostType } from "../../../services/database/types/guild_config";
 import { getMatchStats } from "../../../services/halo/fakes/data";
 import type { LiveTrackerState } from "../types";
-import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectId, aFakeWebSocket } from "../../../base/fakes/do.fake";
 import { aFakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 import type { FakeWebSocketHibernationAdapter } from "../../../base/fakes/websocket-hibernation-adapter.fake";
 
@@ -334,6 +334,20 @@ describe("LiveTrackerDO", () => {
   let storageSetAlarmSpy: MockInstance<typeof mockStorage.setAlarm>;
   let storageDeleteAllSpy: MockInstance<typeof mockStorage.deleteAll>;
   let storageDeleteAlarmSpy: MockInstance<typeof mockStorage.deleteAlarm>;
+
+  const configureWebSocketRecipients = (sockets: WebSocket[], condensedSockets: WebSocket[]): void => {
+    const condensedTags = new Map(condensedSockets.map((socket) => [socket, ["live-tracker:format:condensed"]]));
+    vi.spyOn(mockState, "getWebSockets").mockImplementation((tag) =>
+      tag == null ? sockets : sockets.filter((socket) => condensedTags.get(socket)?.includes(tag) === true),
+    );
+  };
+
+  const messageBroadcastTo = (recipient: WebSocket): string =>
+    Preconditions.checkExists(
+      fakeWebSocketAdapter.broadcasts[
+        fakeWebSocketAdapter.broadcastRecipients.findIndex((recipients) => recipients.includes(recipient))
+      ],
+    );
 
   beforeEach(() => {
     vi.useFakeTimers({
@@ -4433,6 +4447,99 @@ describe("LiveTrackerDO", () => {
       expect(parsed?.data.seriesStartedAt).toBe(trackerState.startTime);
     });
 
+    it.each(["?format=legacy", "?format=", "?format=condensed&format=condensed"])(
+      "rejects an invalid supplied format (%s)",
+      async (query) => {
+        const response = await liveTrackerDO.fetch(
+          new Request(`http://do/websocket${query}`, { headers: { Upgrade: "websocket" } }),
+        );
+
+        expect(response.status).toBe(400);
+        expect(await response.text()).toContain("Invalid WebSocket format");
+        expect(fakeWebSocketAdapter.initialMessages).toHaveLength(0);
+      },
+    );
+
+    it("sends a compact initial snapshot without raw matches and keeps a smaller synthetic frame", async () => {
+      const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const match = Preconditions.checkExists(getMatchStats(matchId));
+      const trackerState = aFakeStateWith({
+        matchIds: [matchId],
+        discoveredMatches: {
+          [matchId]: aMatchSummaryWith({
+            matchId,
+            gameInfo: {
+              mapAssetId: match.MatchInfo.MapVariant.AssetId,
+              mapVersionId: match.MatchInfo.MapVariant.VersionId,
+              gameVariantCategory: match.MatchInfo.GameVariantCategory,
+            },
+          }),
+        },
+      });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValue(match);
+
+      await liveTrackerDO.fetch(new Request("http://do/websocket", { headers: { Upgrade: "websocket" } }));
+      await liveTrackerDO.fetch(
+        new Request("http://do/websocket?format=condensed", { headers: { Upgrade: "websocket" } }),
+      );
+
+      const [legacyMessage, condensedMessage] = fakeWebSocketAdapter.initialMessages;
+      const legacy = Preconditions.checkExists(tryParseLiveTrackerMessage(Preconditions.checkExists(legacyMessage)));
+      const condensed = Preconditions.checkExists(
+        tryParseLiveTrackerMessage(Preconditions.checkExists(condensedMessage)),
+      );
+      expect(legacy.type).toBe("state");
+      expect(legacy.data.rawMatches).toEqual({ [matchId]: match });
+      expect(condensed.type).toBe("state");
+      expect(condensed.data.rawMatches).toEqual({});
+      expect(fakeWebSocketAdapter.acceptedTags).toEqual([undefined, ["live-tracker:format:condensed"]]);
+      expect(kvGetSpy).toHaveBeenCalledTimes(1);
+      const legacyBytes = new TextEncoder().encode(legacyMessage ?? "").byteLength;
+      const condensedBytes = new TextEncoder().encode(condensedMessage ?? "").byteLength;
+      expect(legacyBytes - condensedBytes).toBeGreaterThan(100);
+    });
+
+    it("restores gameInfo for compact legacy summaries only when the match remains in KV", async () => {
+      const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const match = Preconditions.checkExists(getMatchStats(matchId));
+      const trackerState = aFakeStateWith({
+        discoveredMatches: { [matchId]: aMatchSummaryWith({ matchId }) },
+      });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      const kvGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      kvGetSpy.mockResolvedValueOnce(match).mockResolvedValueOnce(null);
+
+      await liveTrackerDO.fetch(
+        new Request("http://do/websocket?format=condensed", { headers: { Upgrade: "websocket" } }),
+      );
+      await liveTrackerDO.fetch(
+        new Request("http://do/websocket?format=condensed", { headers: { Upgrade: "websocket" } }),
+      );
+
+      const [availableMessage, missingMessage] = fakeWebSocketAdapter.initialMessages;
+      const available = Preconditions.checkExists(
+        tryParseLiveTrackerMessage(Preconditions.checkExists(availableMessage)),
+      );
+      const missing = Preconditions.checkExists(tryParseLiveTrackerMessage(Preconditions.checkExists(missingMessage)));
+      expect(available.data.matchSummaries[0]?.gameInfo).toEqual({
+        mapAssetId: match.MatchInfo.MapVariant.AssetId,
+        mapVersionId: match.MatchInfo.MapVariant.VersionId,
+        gameVariantCategory: match.MatchInfo.GameVariantCategory,
+      });
+      expect(missing.data.matchSummaries[0]).not.toHaveProperty("gameInfo");
+      expect(available.data.rawMatches).toEqual({});
+      expect(missing.data.rawMatches).toEqual({});
+      expect(kvGetSpy).toHaveBeenCalledTimes(2);
+    });
+
     it("includes confirmed maps in the initial WebSocket state", async () => {
       const trackerState = aFakeStateWith();
       const plannedMaps: LiveTrackerMap[] = [{ mode: "FFA Slayer", map: "Live Fire" }];
@@ -4481,6 +4588,56 @@ describe("LiveTrackerDO", () => {
 
       expect(fakeWebSocketAdapter.broadcasts).toHaveLength(0);
     });
+
+    it("sends separate update snapshots to tagged and untagged hibernated sockets", async () => {
+      const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const match = Preconditions.checkExists(getMatchStats(matchId));
+      const trackerState = aFakeStateWith({ matchIds: [matchId] });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      const condensedSocket = aFakeWebSocket();
+      const legacySocket = aFakeWebSocket();
+      const hibernatedUntaggedSocket = aFakeWebSocket();
+      const sockets = [condensedSocket, legacySocket, hibernatedUntaggedSocket];
+      configureWebSocketRecipients(sockets, [condensedSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      appDataGetSpy.mockResolvedValue(match);
+
+      await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.broadcastRecipients).toHaveLength(2);
+      expect(fakeWebSocketAdapter.broadcastRecipients).toContainEqual([legacySocket, hibernatedUntaggedSocket]);
+      expect(fakeWebSocketAdapter.broadcastRecipients).toContainEqual([condensedSocket]);
+      const legacy = Preconditions.checkExists(tryParseLiveTrackerMessage(messageBroadcastTo(legacySocket)));
+      const condensed = Preconditions.checkExists(tryParseLiveTrackerMessage(messageBroadcastTo(condensedSocket)));
+      expect(legacy.data.rawMatches).toEqual({ [matchId]: match });
+      expect(condensed.data.rawMatches).toEqual({});
+    });
+
+    it("keeps the legacy update when compact metadata lookup fails", async () => {
+      const matchId = "legacy-summary";
+      const trackerState = aFakeStateWith({
+        discoveredMatches: { [matchId]: aMatchSummaryWith({ matchId }) },
+      });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      const condensedSocket = aFakeWebSocket();
+      const legacySocket = aFakeWebSocket();
+      configureWebSocketRecipients([condensedSocket, legacySocket], [condensedSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      vi.spyOn(env.APP_DATA, "get").mockRejectedValue(new Error("Compact summary KV unavailable"));
+
+      const response = await liveTrackerDO.fetch(new Request("http://do/pause", { method: "POST" }));
+
+      expect(response.status).toBe(500);
+      expect(fakeWebSocketAdapter.broadcastRecipients).toEqual([[legacySocket]]);
+      const [legacyMessage] = fakeWebSocketAdapter.broadcasts;
+      const legacy = Preconditions.checkExists(tryParseLiveTrackerMessage(Preconditions.checkExists(legacyMessage)));
+      expect(legacy.data.rawMatches).toEqual({});
+    });
   });
 
   describe("dispose() WebSocket behaviour", () => {
@@ -4522,6 +4679,101 @@ describe("LiveTrackerDO", () => {
       const parsed = tryParseLiveTrackerMessage(Preconditions.checkExists(broadcast));
       expect(parsed?.data.status).toBe("stopped");
       expect(parsed?.data.seriesStartedAt).toBe(trackerState.startTime);
+    });
+
+    it("sends separate final snapshots before closing compact and legacy sockets", async () => {
+      const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const match = Preconditions.checkExists(getMatchStats(matchId));
+      const trackerState = aFakeStateWith({ status: "active", matchIds: [matchId] });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      const condensedSocket = aFakeWebSocket();
+      const legacySocket = aFakeWebSocket();
+      const sockets = [condensedSocket, legacySocket];
+      configureWebSocketRecipients(sockets, [condensedSocket]);
+      vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
+      const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      appDataGetSpy.mockResolvedValue(match);
+
+      await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+
+      expect(fakeWebSocketAdapter.actions.map((action) => action.type)).toEqual(["broadcast", "broadcast", "close"]);
+      const legacy = Preconditions.checkExists(tryParseLiveTrackerMessage(messageBroadcastTo(legacySocket)));
+      const condensed = Preconditions.checkExists(tryParseLiveTrackerMessage(messageBroadcastTo(condensedSocket)));
+      expect(legacy.data.status).toBe("stopped");
+      expect(condensed.data.status).toBe("stopped");
+      expect(legacy.data.rawMatches).toEqual({ [matchId]: match });
+      expect(condensed.data.rawMatches).toEqual({});
+      expect(fakeWebSocketAdapter.broadcastRecipients).toContainEqual([legacySocket]);
+      expect(fakeWebSocketAdapter.broadcastRecipients).toContainEqual([condensedSocket]);
+    });
+
+    it("delivers the compact final and waits to close when legacy KV loading fails", async () => {
+      const matchId = "9535b946-f30c-4a43-b852-000000slayer";
+      const trackerState = aFakeStateWith({
+        status: "active",
+        matchIds: [matchId],
+        discoveredMatches: {
+          [matchId]: aMatchSummaryWith({
+            matchId,
+            gameInfo: {
+              mapAssetId: "map-asset",
+              mapVersionId: "map-version",
+              gameVariantCategory: 1,
+            },
+          }),
+        },
+      });
+      storageGetSpy.mockImplementation(
+        async (key) => await Promise.resolve(key === "trackerState" ? trackerState : null),
+      );
+      const condensedSocket = aFakeWebSocket();
+      const legacySocket = aFakeWebSocket();
+      configureWebSocketRecipients([condensedSocket, legacySocket], [condensedSocket]);
+      let guildCalls = 0;
+      let compactSerializationStarted = false;
+      let releaseCompactSerialization: (() => void) | undefined;
+      const compactSerialization = new Promise<void>((resolve) => {
+        releaseCompactSerialization = resolve;
+      });
+      let releaseLegacyKvStarted: (() => void) | undefined;
+      const legacyKvStarted = new Promise<void>((resolve) => {
+        releaseLegacyKvStarted = resolve;
+      });
+      vi.spyOn(services.discordService, "getGuild").mockImplementation(async () => {
+        guildCalls += 1;
+        if (guildCalls === 2) {
+          compactSerializationStarted = true;
+          await compactSerialization;
+        }
+        return guild;
+      });
+      const appDataGetSpy: MockInstance = vi.spyOn(env.APP_DATA, "get");
+      appDataGetSpy.mockImplementation(async () => {
+        Preconditions.checkExists(releaseLegacyKvStarted)();
+        await Promise.resolve();
+        throw new Error("Legacy match KV unavailable");
+      });
+      const warnSpy = vi.spyOn(services.logService, "warn");
+
+      const stopResponse = liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+      await legacyKvStarted;
+      await Promise.resolve();
+      const compactWasBuildingBeforeRelease = compactSerializationStarted;
+      const closesBeforeRelease = fakeWebSocketAdapter.closes.length;
+      Preconditions.checkExists(releaseCompactSerialization)();
+      await stopResponse;
+
+      expect(compactWasBuildingBeforeRelease).toBe(true);
+      expect(closesBeforeRelease).toBe(0);
+      expect(fakeWebSocketAdapter.actions.map((action) => action.type)).toEqual(["broadcast", "close"]);
+      const [compactMessage] = fakeWebSocketAdapter.broadcasts;
+      const compact = Preconditions.checkExists(tryParseLiveTrackerMessage(Preconditions.checkExists(compactMessage)));
+      expect(compact.data.status).toBe("stopped");
+      expect(compact.data.rawMatches).toEqual({});
+      expect(fakeWebSocketAdapter.broadcastRecipients).toEqual([[condensedSocket]]);
+      expect(warnSpy).toHaveBeenCalledWith("LiveTracker: Failed to build stop message state", expect.any(Map));
     });
 
     it("does not persist state after disposal when finally block runs", async () => {
