@@ -75,6 +75,7 @@ const ERROR_THRESHOLD_MINUTES = 10;
 
 const REFRESH_COOLDOWN_MS = 30 * 1000;
 const REFRESH_STALE_TIMEOUT_MS = 1 * 60 * 1000;
+const CONDENSED_WEBSOCKET_TAG = "live-tracker:format:condensed";
 
 export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   __DURABLE_OBJECT_BRAND = undefined as never;
@@ -1714,6 +1715,12 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       return new Response("Expected WebSocket upgrade", { status: 426 });
     }
 
+    const formatValues = new URL(request.url).searchParams.getAll("format");
+    if (formatValues.length > 1 || (formatValues.length === 1 && formatValues[0] !== "condensed")) {
+      return new Response("Invalid WebSocket format. Supported format: condensed.", { status: 400 });
+    }
+    const isCondensed = formatValues[0] === "condensed";
+
     // Check if tracker exists before accepting connection
     const trackerState = await this.getState();
     if (!trackerState) {
@@ -1724,13 +1731,17 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
     }
 
     try {
-      const data = await this.stateToContractData(trackerState);
+      const data = await this.stateToContractData(trackerState, !isCondensed);
       const initialMessage = JSON.stringify({
         type: "state",
         data,
         timestamp: new Date().toISOString(),
       });
-      const response = this.webSocketAdapter.upgrade(this.state, initialMessage);
+      const response = this.webSocketAdapter.upgrade(
+        this.state,
+        initialMessage,
+        isCondensed ? [CONDENSED_WEBSOCKET_TAG] : undefined,
+      );
       this.logService.info(
         "LiveTracker: WebSocket client connected",
         new Map([
@@ -1756,23 +1767,62 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
   }
 
   private async broadcastStateUpdate(state: LiveTrackerState): Promise<void> {
-    if (this.state.getWebSockets().length === 0) {
+    const webSockets = this.state.getWebSockets();
+    if (webSockets.length === 0) {
       return;
     }
 
-    const data = await this.stateToContractData(state);
-    const message = JSON.stringify({
+    const condensedSockets = this.state.getWebSockets(CONDENSED_WEBSOCKET_TAG);
+    const legacySockets = webSockets.filter((socket) => !condensedSockets.includes(socket));
+    const deliveries: Promise<void>[] = [];
+
+    if (legacySockets.length > 0) {
+      deliveries.push(this.broadcastFormat(state, true, legacySockets));
+    }
+    if (condensedSockets.length > 0) {
+      deliveries.push(this.broadcastFormat(state, false, condensedSockets));
+    }
+
+    const results = await Promise.allSettled(deliveries);
+    const errors = results.flatMap((result) => {
+      if (result.status !== "rejected") {
+        return [];
+      }
+
+      return [result.reason instanceof Error ? result.reason : new Error(String(result.reason))];
+    });
+    for (const error of errors) {
+      this.logService.error("LiveTracker: WebSocket format delivery failed", new Map([["error", String(error)]]));
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Failed to broadcast live tracker state to all socket formats");
+    }
+  }
+
+  private async broadcastFormat(
+    state: LiveTrackerState,
+    includeRawMatches: boolean,
+    recipients: readonly WebSocket[],
+  ): Promise<void> {
+    const message = await this.stateMessage(state, includeRawMatches);
+    this.webSocketAdapter.broadcast(this.state, message, recipients);
+  }
+
+  private async stateMessage(state: LiveTrackerState, includeRawMatches: boolean): Promise<string> {
+    const data = await this.stateToContractData(state, includeRawMatches);
+    return JSON.stringify({
       type: "state",
       data,
       timestamp: new Date().toISOString(),
     });
-
-    this.webSocketAdapter.broadcast(this.state, message);
   }
 
-  private async stateToContractData(state: LiveTrackerState): Promise<LiveTrackerStateData> {
+  private async stateToContractData(state: LiveTrackerState, includeRawMatches = true): Promise<LiveTrackerStateData> {
     const guild = await this.discordService.getGuild(state.guildId);
-    const rawMatches = await this.loadMatchesFromKV(state.matchIds);
+    const rawMatches = includeRawMatches ? await this.loadMatchesFromKV(state.matchIds) : {};
+    const matchSummaries = includeRawMatches
+      ? Object.values(state.discoveredMatches)
+      : await this.matchSummariesWithGameInfo(state);
 
     return {
       type: "neatqueue",
@@ -1794,7 +1844,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         teamName: sub.teamName,
         timestamp: sub.timestamp,
       })),
-      matchSummaries: Object.values(state.discoveredMatches),
+      matchSummaries,
       plannedMaps: await this.getPlannedMaps(),
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
@@ -1802,6 +1852,30 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       playersAssociationData: state.playersAssociationData,
       rawMatches: rawMatches,
     };
+  }
+
+  private async matchSummariesWithGameInfo(state: LiveTrackerState): Promise<LiveTrackerMatchSummary[]> {
+    return await Promise.all(
+      Object.values(state.discoveredMatches).map(async (summary) => {
+        if (summary.gameInfo != null) {
+          return summary;
+        }
+
+        const match = await this.env.APP_DATA.get<MatchStats>(`live-tracker-match:${summary.matchId}`, "json");
+        if (match == null) {
+          return summary;
+        }
+
+        return {
+          ...summary,
+          gameInfo: {
+            mapAssetId: match.MatchInfo.MapVariant.AssetId,
+            mapVersionId: match.MatchInfo.MapVariant.VersionId,
+            gameVariantCategory: match.MatchInfo.GameVariantCategory,
+          },
+        };
+      }),
+    );
   }
 
   /**
@@ -1848,14 +1922,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     try {
       // Send final state update with status='stopped' so the frontend receives complete state
-      const data = await this.stateToContractData(state);
-      const message = JSON.stringify({
-        type: "state",
-        data,
-        timestamp: new Date().toISOString(),
-      });
-
-      this.webSocketAdapter.broadcast(this.state, message);
+      await this.broadcastStateUpdate(state);
     } catch (error) {
       this.logService.warn("LiveTracker: Failed to build stop message state", new Map([["error", String(error)]]));
     }

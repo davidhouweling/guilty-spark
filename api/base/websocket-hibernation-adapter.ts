@@ -1,17 +1,17 @@
 export interface WebSocketHibernationAdapter {
-  upgrade(state: DurableObjectState, initialMessage?: string): Response;
-  broadcast(state: DurableObjectState, message: string): void;
+  upgrade(state: DurableObjectState, initialMessage?: string, tags?: string[]): Response;
+  broadcast(state: DurableObjectState, message: string, recipients?: readonly WebSocket[]): void;
   closeAll(state: DurableObjectState, code: number, reason: string): void;
 }
 
 export class CloudflareWebSocketHibernationAdapter implements WebSocketHibernationAdapter {
-  upgrade(state: DurableObjectState, initialMessage?: string): Response {
+  upgrade(state: DurableObjectState, initialMessage?: string, tags?: string[]): Response {
     const webSocketPair = new WebSocketPair();
     const client = webSocketPair[0];
     const server = webSocketPair[1];
 
     try {
-      state.acceptWebSocket(server);
+      state.acceptWebSocket(server, tags);
       if (initialMessage != null) {
         server.send(initialMessage);
       }
@@ -26,8 +26,8 @@ export class CloudflareWebSocketHibernationAdapter implements WebSocketHibernati
     }
   }
 
-  broadcast(state: DurableObjectState, message: string): void {
-    for (const socket of state.getWebSockets()) {
+  broadcast(state: DurableObjectState, message: string, recipients?: readonly WebSocket[]): void {
+    for (const socket of recipients ?? state.getWebSockets()) {
       try {
         socket.send(message);
       } catch {
