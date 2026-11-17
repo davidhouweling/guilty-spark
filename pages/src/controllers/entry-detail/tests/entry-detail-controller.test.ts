@@ -9,7 +9,10 @@ import {
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import {
+  aFakeCtfMatchAnalyticsWith,
+  aFakeMatchAnalyticsServiceWith,
+} from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -18,6 +21,7 @@ import { StatsDetailController } from "../../stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../../components/component-loader/component-loader";
 import { SeriesDetailStatsViewModelPresenter } from "../../../components/series-stats/series-detail-stats-view-model-presenter";
 import { EntryDetailController } from "../entry-detail-controller";
+import { SeriesAnalyticsController } from "../../series-analytics/series-analytics-controller";
 import { IndividualTrackerViewerStore } from "../../../components/individual-tracker/viewer/viewer-store";
 import type { SeriesEntryLoadedState } from "../../../components/individual-tracker/viewer/viewer-store";
 import { IndividualTrackerViewerPresenter } from "../../../components/individual-tracker/viewer/viewer-presenter";
@@ -46,6 +50,8 @@ function setup(): {
     seriesMatchesService,
     statsDetailController: new StatsDetailController(),
     trackerId: "tracker-one",
+    createSeriesAnalyticsController: (onChange): SeriesAnalyticsController =>
+      new SeriesAnalyticsController({ matchAnalyticsService, trackerId: "tracker-one", onChange }),
   });
   if (item.type !== "match") {
     throw new Error("Expected single match");
@@ -85,12 +91,14 @@ function setupSeries(
     seriesMatchesService,
     statsDetailController: new StatsDetailController(),
     trackerId: "tracker-one",
+    createSeriesAnalyticsController: (onChange): SeriesAnalyticsController =>
+      new SeriesAnalyticsController({ matchAnalyticsService, trackerId: "tracker-one", onChange }),
   });
   return { store, item, controller, seriesMatchesService, matchAnalyticsService, legacySpy };
 }
 
-function getLoadedSeriesState(store: IndividualTrackerViewerStore): SeriesEntryLoadedState {
-  const entry = store.getSnapshot().entryStates.get("series:series-1");
+function getLoadedSeriesState(store: IndividualTrackerViewerStore, key = "series:series-1"): SeriesEntryLoadedState {
+  const entry = store.getSnapshot().entryStates.get(key);
   if (entry?.kind !== "series" || entry.state.status !== "loaded") {
     throw new Error("Expected loaded series details");
   }
@@ -98,6 +106,44 @@ function getLoadedSeriesState(store: IndividualTrackerViewerStore): SeriesEntryL
 }
 
 describe("EntryDetailController condensed series loading", () => {
+  it("isolates module loading between expanded series", async () => {
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
+    const { store, item, controller, seriesMatchesService } = setupSeries(["m-1", "m-2"], data);
+    const secondItem: Extract<ViewerTimelineItem, { type: "series" }> = {
+      ...item,
+      series: {
+        ...item.series,
+        id: "series-2",
+        matches: item.series.matches.map((match, index) => ({ ...match, matchId: `m-${(index + 3).toString()}` })),
+      },
+    };
+    vi.spyOn(seriesMatchesService, "getSeriesDetail")
+      .mockResolvedValueOnce(data)
+      .mockResolvedValueOnce(aFakeViewerSeriesDetailWith(["m-3", "m-4"], { seriesId: "series-2" }));
+    controller.toggleEntry(item);
+    controller.toggleEntry(secondItem);
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).analyticsByMatchId.size).toBe(0);
+      expect(getLoadedSeriesState(store, "series:series-2").analyticsByMatchId.size).toBe(0);
+    });
+    const secondState = getLoadedSeriesState(store, "series:series-2");
+    controller.loadAnalytics(item, "killMatrix");
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).analyticsByMatchId.get("m-1")?.killMatrix?.status).toBe(
+        ComponentLoaderStatus.LOADED,
+      );
+    });
+    expect(getLoadedSeriesState(store, "series:series-2")).toBe(secondState);
+    const firstState = getLoadedSeriesState(store);
+    controller.loadAnalytics(secondItem, "scoreProgression", "m-3");
+    await vi.waitFor(() => {
+      expect(
+        getLoadedSeriesState(store, "series:series-2").analyticsByMatchId.get("m-3")?.scoreProgression?.status,
+      ).toBe(ComponentLoaderStatus.LOADED);
+    });
+    expect(getLoadedSeriesState(store)).toBe(firstState);
+  });
+
   it("preserves partial unavailable results and never calls the raw source", async () => {
     const data = aFakeViewerSeriesDetailWith(["missing", "m-1", "m-1"], {
       aggregation: { status: "unavailable", reason: "incomplete-matches" },
@@ -133,7 +179,7 @@ describe("EntryDetailController condensed series loading", () => {
     const matrix = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
       resolveMatrix = resolve;
     });
-    const analytics = aFakeMatchAnalyticsWith({ requestedModules: ["scoreProgression", "killMatrix"] });
+    const analytics = aFakeCtfMatchAnalyticsWith();
     const spy = vi
       .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
       .mockImplementation(async (_ids, modules) =>

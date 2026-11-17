@@ -6,6 +6,7 @@ import type { IndividualTrackerSettingsService } from "../../services/individual
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { EntryDetailController } from "../../controllers/entry-detail/entry-detail-controller";
+import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import { IndividualTrackerViewerPresenter } from "../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../individual-tracker/viewer/viewer-store";
@@ -46,6 +47,8 @@ export function useMatchHistoryViewer({
       statsDetailController,
       seriesMatchesService,
       matchAnalyticsService,
+      createSeriesAnalyticsController: (onChange): SeriesAnalyticsController =>
+        new SeriesAnalyticsController({ matchAnalyticsService, onChange }),
     });
     return new MatchHistoryViewerPresenter({
       individualTrackerService,
