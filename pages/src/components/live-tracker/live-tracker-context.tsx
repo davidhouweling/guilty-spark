@@ -32,6 +32,7 @@ interface LiveTrackerContextValue {
   readonly seriesKillMatrix: KillMatrixResult | null;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
   readonly onRetrySeriesDetails: () => void;
+  readonly onRetryLivePreSeries: () => void;
 }
 
 const LiveTrackerContext = createContext<LiveTrackerContextValue | null>(null);
@@ -50,6 +51,7 @@ export interface LiveTrackerProviderProps {
   readonly seriesKillMatrix: KillMatrixResult | null;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
   readonly onRetrySeriesDetails: () => void;
+  readonly onRetryLivePreSeries: () => void;
   readonly children: React.ReactNode;
 }
 
@@ -63,6 +65,7 @@ export function LiveTrackerProvider({
   seriesKillMatrix,
   onAnalyticsTabSelected,
   onRetrySeriesDetails,
+  onRetryLivePreSeries,
   children,
 }: LiveTrackerProviderProps): React.ReactElement {
   // Memoize context value to prevent unnecessary re-renders
@@ -77,6 +80,7 @@ export function LiveTrackerProvider({
       seriesKillMatrix,
       onAnalyticsTabSelected,
       onRetrySeriesDetails,
+      onRetryLivePreSeries,
     }),
     [
       model,
@@ -88,6 +92,7 @@ export function LiveTrackerProvider({
       seriesKillMatrix,
       onAnalyticsTabSelected,
       onRetrySeriesDetails,
+      onRetryLivePreSeries,
     ],
   );
 
@@ -300,6 +305,23 @@ export function useSeriesDetailActions(): {
 } {
   const { onAnalyticsTabSelected, onRetrySeriesDetails } = useLiveTrackerContext();
   return { onAnalyticsTabSelected, onRetrySeriesDetails };
+}
+
+export function useLivePreSeriesState(): Pick<
+  LiveTrackerViewModel,
+  "livePreSeriesPlayersAssociationData" | "livePreSeriesStatus" | "livePreSeriesError"
+> {
+  const { model } = useLiveTrackerContext();
+  return {
+    livePreSeriesPlayersAssociationData: model.livePreSeriesPlayersAssociationData,
+    livePreSeriesStatus: model.livePreSeriesStatus,
+    livePreSeriesError: model.livePreSeriesError,
+  };
+}
+
+export function useLivePreSeriesActions(): { readonly onRetryLivePreSeries: () => void } {
+  const { onRetryLivePreSeries } = useLiveTrackerContext();
+  return { onRetryLivePreSeries };
 }
 
 export function useSeriesDetailState(

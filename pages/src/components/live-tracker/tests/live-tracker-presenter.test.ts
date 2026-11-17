@@ -23,6 +23,9 @@ import type {
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
+import { LivePreSeriesCache } from "../../../services/live-pre-series/cache";
+import type { LivePreSeriesService } from "../../../services/live-pre-series/types";
+import { aFakeLivePreSeriesServiceWith } from "../../../services/live-pre-series/fakes/live-pre-series.fake";
 import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
@@ -99,6 +102,9 @@ class MockLiveTrackerStore {
       seriesDetailStatus: ComponentLoaderStatus.PENDING,
       seriesDetailError: null,
       seriesAnalyticsByMatchId: new Map(),
+      livePreSeriesResponse: null,
+      livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+      livePreSeriesError: null,
     };
   }
 
@@ -127,6 +133,7 @@ interface PresenterFactoryOptions {
   readonly store: MockLiveTrackerStore;
   readonly matchAnalyticsService?: MatchAnalyticsService;
   readonly seriesMatchesService?: SeriesMatchesService;
+  readonly livePreSeriesService?: LivePreSeriesService;
 }
 
 function createPresenter({
@@ -135,6 +142,7 @@ function createPresenter({
   store,
   matchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
   seriesMatchesService = aFakeSeriesMatchesServiceWith(),
+  livePreSeriesService = aFakeLivePreSeriesServiceWith(),
 }: PresenterFactoryOptions): LiveTrackerPresenter {
   const target: { presenter?: LiveTrackerPresenter | undefined } = {};
   const analyticsController = new SeriesAnalyticsController({
@@ -148,6 +156,7 @@ function createPresenter({
     liveTrackerService,
     store,
     seriesMatchesService,
+    livePreSeriesCache: new LivePreSeriesCache(livePreSeriesService),
     analyticsController,
   });
   target.presenter = presenter;
@@ -223,6 +232,67 @@ describe("LiveTrackerPresenter substitution framing", () => {
   });
 });
 
+describe("LiveTrackerPresenter captured pre-series data", () => {
+  beforeEach((): void => {
+    vi.useFakeTimers();
+  });
+
+  afterEach((): void => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("reloads captured data when substitutions and series scope change", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const service = aFakeLivePreSeriesServiceWith();
+    const loadSpy = vi.spyOn(service, "getCapturedRoster");
+    const first = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+        matchSummaries: [],
+      },
+    };
+    const playerOut = Preconditions.checkExists(first.data.players[0]);
+    const playerIn = Preconditions.checkExists(first.data.players[1]);
+    const changed = {
+      ...first,
+      data: {
+        ...first.data,
+        seriesStartedAt: "2026-11-07T00:00:00.000Z",
+        substitutions: [
+          {
+            playerOutId: playerOut.id,
+            playerInId: playerIn.id,
+            teamIndex: 0,
+            teamName: Preconditions.checkExists(first.data.teams[0]).name,
+            timestamp: "2026-11-07T00:01:00.000Z",
+          },
+        ],
+      },
+    };
+    const presenter = createPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      livePreSeriesService: service,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage(first);
+    await vi.runAllTimersAsync();
+    connection.emitMessage(changed);
+    await vi.runAllTimersAsync();
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    presenter.dispose();
+  });
+});
+
 describe("LiveTrackerPresenter live detail integration", () => {
   beforeEach((): void => {
     vi.useFakeTimers();
@@ -278,11 +348,14 @@ describe("LiveTrackerPresenter live detail integration", () => {
     });
     const seriesMatchesService = aFakeSeriesMatchesServiceWith();
     const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const livePreSeriesService = aFakeLivePreSeriesServiceWith();
+    const preSeriesSpy = vi.spyOn(livePreSeriesService, "getCapturedRoster");
     const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore,
       seriesMatchesService,
+      livePreSeriesService,
     });
 
     presenter.start();
@@ -314,6 +387,8 @@ describe("LiveTrackerPresenter live detail integration", () => {
       },
     );
     expect(mockStore.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(preSeriesSpy).not.toHaveBeenCalled();
+    expect(presentSnapshot(mockStore.getSnapshot()).state?.playersAssociationData).toBe(data.playersAssociationData);
 
     presenter.dispose();
   });
@@ -347,7 +422,11 @@ describe("LiveTrackerPresenter live detail integration", () => {
     connection.emitMessage({
       ...sampleLiveTrackerStateMessage,
       timestamp: "2025-01-01T00:01:00.000Z",
-      data: { ...sampleLiveTrackerStateMessage.data, lastUpdateTime: "2025-01-01T00:01:00.000Z" },
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        lastUpdateTime: "2025-01-01T00:01:00.000Z",
+        seriesStartedAt: "2025-01-01T00:00:00.000Z",
+      },
     });
     await vi.runAllTimersAsync();
     expect(detailSpy).toHaveBeenCalledTimes(1);

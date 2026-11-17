@@ -28,6 +28,8 @@ import {
   useAvailablePlayers,
   useSeriesDetailActions,
   useSeriesDetailState,
+  useLivePreSeriesState,
+  useLivePreSeriesActions,
 } from "./live-tracker-context";
 import type { LiveTrackerStateRenderModel, LiveTrackerViewModel } from "./types";
 import styles from "./live-tracker.module.css";
@@ -132,6 +134,8 @@ export function LiveTrackerView(): React.ReactElement {
   const matchSubstitutions = useMatchSubstitutions();
   const availablePlayers = useAvailablePlayers();
   const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
+  const livePreSeriesState = useLivePreSeriesState();
+  const { onRetryLivePreSeries } = useLivePreSeriesActions();
   const SeriesStatsContent = useMemo(() => createSeriesStatsContent(), []);
 
   const { settings, setSettings } = useStreamerSettings();
@@ -435,13 +439,34 @@ export function LiveTrackerView(): React.ReactElement {
                 )}
               </Container>
             )}
-            {hasState(state) && !hasMatches && state.playersAssociationData && (
+            {hasState(state) && !hasMatches && state.seriesStartedAt == null && state.playersAssociationData && (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
                 teams={state.teams}
                 playersAssociationData={state.playersAssociationData}
                 teamColors={teamColorsArray}
               />
+            )}
+            {hasState(state) && !hasMatches && state.seriesStartedAt != null && (
+              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                {livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.ERROR ||
+                (livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.LOADED &&
+                  livePreSeriesState.livePreSeriesPlayersAssociationData == null) ? (
+                  <ErrorState
+                    message={livePreSeriesState.livePreSeriesError ?? "Captured player info is unavailable."}
+                    onRetry={onRetryLivePreSeries}
+                  />
+                ) : livePreSeriesState.livePreSeriesStatus !== ComponentLoaderStatus.LOADED ? (
+                  <LoadingState text="Loading captured player info..." />
+                ) : null}
+                {livePreSeriesState.livePreSeriesPlayersAssociationData != null && (
+                  <PlayerPreSeriesInfo
+                    teams={state.teams}
+                    playersAssociationData={livePreSeriesState.livePreSeriesPlayersAssociationData}
+                    teamColors={teamColorsArray}
+                  />
+                )}
+              </Container>
             )}
             {hasState(state) &&
               (!hasMatches || detailState.seriesDetail == null) &&

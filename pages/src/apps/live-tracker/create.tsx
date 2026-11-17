@@ -25,6 +25,7 @@ export function LiveTrackerApp({ apiHost }: LiveTrackerAppProps): ReactElement {
             liveTrackerService: services.liveTrackerService,
             matchAnalyticsService: services.matchAnalyticsService,
             seriesMatchesService: services.seriesMatchesService,
+            livePreSeriesService: services.livePreSeriesService,
           }),
     [services],
   );
