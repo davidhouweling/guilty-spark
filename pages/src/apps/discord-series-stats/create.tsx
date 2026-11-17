@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { ComponentLoader, ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { ErrorState } from "../../components/error-state/error-state";
 import { LoadingState } from "../../components/loading-state/loading-state";
 import { createDiscordSeriesDetailStats } from "../../components/discord-series-stats/create-detail";
+import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
@@ -34,13 +36,24 @@ function DiscordSeriesStatsData({
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
 
   const presenter = useMemo(() => {
-    return new DiscordSeriesStatsPresenter({
+    const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
+    const analyticsController = new SeriesAnalyticsController({
+      matchAnalyticsService,
+      onChange: (analyticsByMatchId): void => {
+        Preconditions.checkExists(target.presenter, "Analytics presenter is not initialized").setAnalytics(
+          analyticsByMatchId,
+        );
+      },
+    });
+    const instance = new DiscordSeriesStatsPresenter({
       store,
       discordSeriesStatsService,
-      matchAnalyticsService,
+      analyticsController,
       guildId,
       queueNumber,
     });
+    target.presenter = instance;
+    return instance;
   }, [discordSeriesStatsService, guildId, matchAnalyticsService, queueNumber, store]);
 
   useEffect(() => {

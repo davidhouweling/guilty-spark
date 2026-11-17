@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -9,6 +10,8 @@ import type {
 } from "../../../services/stats/discord-series-types";
 import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
 import { ComponentLoaderStatus } from "../../../components/component-loader/component-loader";
+import { SeriesAnalyticsController } from "../../../controllers/series-analytics/series-analytics-controller";
+import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import {
   aFakeCtfMatchAnalyticsWith,
   aFakeMatchAnalyticsServiceWith,
@@ -22,6 +25,31 @@ function createServiceWith(getDetail: DiscordSeriesStatsService["getDetail"]): D
   return service;
 }
 
+function createPresenter(
+  store: DiscordSeriesStatsStore,
+  discordSeriesStatsService: DiscordSeriesStatsService,
+  matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
+): DiscordSeriesStatsPresenter {
+  const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
+  const analyticsController = new SeriesAnalyticsController({
+    matchAnalyticsService,
+    onChange: (analyticsByMatchId): void => {
+      Preconditions.checkExists(target.presenter, "Analytics presenter is not initialized").setAnalytics(
+        analyticsByMatchId,
+      );
+    },
+  });
+  const presenter = new DiscordSeriesStatsPresenter({
+    store,
+    discordSeriesStatsService,
+    analyticsController,
+    guildId: "123456789012345678",
+    queueNumber: "7777",
+  });
+  target.presenter = presenter;
+  return presenter;
+}
+
 describe("DiscordSeriesStatsPresenter", () => {
   it("loads stats from the service using the guild and queue params", async (): Promise<void> => {
     const response = aFakeSeriesDetailResponseWith();
@@ -33,13 +61,7 @@ describe("DiscordSeriesStatsPresenter", () => {
       });
     });
     const store = new DiscordSeriesStatsStore();
-    const presenter = new DiscordSeriesStatsPresenter({
-      store,
-      discordSeriesStatsService: createServiceWith(getDetail),
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      guildId: "123456789012345678",
-      queueNumber: "7777",
-    });
+    const presenter = createPresenter(store, createServiceWith(getDetail));
 
     presenter.start();
     await vi.waitFor(() => {
@@ -66,13 +88,7 @@ describe("DiscordSeriesStatsPresenter", () => {
       }),
     );
     const store = new DiscordSeriesStatsStore();
-    const presenter = new DiscordSeriesStatsPresenter({
-      store,
-      discordSeriesStatsService: createServiceWith(getDetail),
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      guildId: "123456789012345678",
-      queueNumber: "7777",
-    });
+    const presenter = createPresenter(store, createServiceWith(getDetail));
 
     presenter.start();
     await vi.waitFor(() => {
@@ -82,13 +98,10 @@ describe("DiscordSeriesStatsPresenter", () => {
 
   it("stores an error when the service request fails", async (): Promise<void> => {
     const store = new DiscordSeriesStatsStore();
-    const presenter = new DiscordSeriesStatsPresenter({
+    const presenter = createPresenter(
       store,
-      discordSeriesStatsService: createServiceWith(async (): Promise<never> => Promise.reject(new Error("boom"))),
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      guildId: "123456789012345678",
-      queueNumber: "7777",
-    });
+      createServiceWith(async (): Promise<never> => Promise.reject(new Error("boom"))),
+    );
 
     presenter.start();
     await vi.waitFor(() => {
@@ -98,6 +111,48 @@ describe("DiscordSeriesStatsPresenter", () => {
         response: null,
       });
     });
+  });
+
+  it("ignores analytics from an earlier detail load after restart", async () => {
+    const response = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: ["match-one"],
+        results: [{ status: "resolved", matchId: "match-one", detail: aFakeMatchDetailWith({ matchId: "match-one" }) }],
+      },
+    });
+    const service: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    let finish: (value: Awaited<ReturnType<MatchAnalyticsService["getBatchMatchAnalytics"]>>) => void = () => {
+      throw new Error("Promise resolver unavailable");
+    };
+    vi.spyOn(service, "getBatchMatchAnalytics").mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const store = new DiscordSeriesStatsStore();
+    const presenter = createPresenter(
+      store,
+      createServiceWith(async () =>
+        Promise.resolve({
+          status: 200,
+          data: response,
+          retryAfterSeconds: null,
+        }),
+      ),
+      service,
+    );
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().loaderStatus).toBe(ComponentLoaderStatus.LOADED);
+    });
+    presenter.loadAnalytics("killMatrix");
+    presenter.start();
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().loaderStatus).toBe(ComponentLoaderStatus.LOADED);
+    });
+    finish({ "match-one": aFakeCtfMatchAnalyticsWith() });
+    await Promise.resolve();
+    expect(store.getSnapshot().analyticsByMatchId.size).toBe(0);
   });
 
   it.each([
@@ -121,9 +176,9 @@ describe("DiscordSeriesStatsPresenter", () => {
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith({ analytics, failMatchIds: ["match-two"] });
     const getBatchMatchAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
     const store = new DiscordSeriesStatsStore();
-    const presenter = new DiscordSeriesStatsPresenter({
+    const presenter = createPresenter(
       store,
-      discordSeriesStatsService: createServiceWith(async () =>
+      createServiceWith(async () =>
         Promise.resolve({
           status: 200,
           data: response,
@@ -131,9 +186,7 @@ describe("DiscordSeriesStatsPresenter", () => {
         }),
       ),
       matchAnalyticsService,
-      guildId: "123456789012345678",
-      queueNumber: "7777",
-    });
+    );
 
     presenter.start();
     await vi.waitFor(() => {
@@ -166,13 +219,13 @@ describe("DiscordSeriesStatsPresenter", () => {
     await vi.waitFor(() => {
       expect(getBatchMatchAnalytics).toHaveBeenCalledTimes(2);
     });
-    expect(getBatchMatchAnalytics).toHaveBeenLastCalledWith(["match-one", "match-two"], ["killMatrix"]);
+    expect(getBatchMatchAnalytics).toHaveBeenLastCalledWith(["match-two"], ["killMatrix"]);
     await vi.waitFor(() => {
       expect(store.getSnapshot().analyticsByMatchId.get("match-one")).toEqual({
         scoreProgression: { status: ComponentLoaderStatus.LOADED, data: analytics.scoreProgression },
         killMatrix: {
-          status: fails ? ComponentLoaderStatus.ERROR : ComponentLoaderStatus.LOADED,
-          data: fails ? null : {},
+          status: ComponentLoaderStatus.LOADED,
+          data: {},
         },
       });
       expect(store.getSnapshot().analyticsByMatchId.get("match-two")?.killMatrix).toEqual({
@@ -186,9 +239,7 @@ describe("DiscordSeriesStatsPresenter", () => {
     getBatchMatchAnalytics.mockResolvedValueOnce(fails ? { "match-one": analytics, "match-two": analytics } : {});
     presenter.loadAnalytics("killMatrix");
     await vi.waitFor(() => {
-      expect(getBatchMatchAnalytics).toHaveBeenLastCalledWith(fails ? ["match-one", "match-two"] : ["match-two"], [
-        "killMatrix",
-      ]);
+      expect(getBatchMatchAnalytics).toHaveBeenLastCalledWith(["match-two"], ["killMatrix"]);
       expect(store.getSnapshot().analyticsByMatchId.get("match-two")?.killMatrix).toEqual({
         status: fails ? ComponentLoaderStatus.LOADED : ComponentLoaderStatus.ERROR,
         data: fails ? {} : null,
