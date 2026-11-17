@@ -118,6 +118,7 @@ export interface LiveTrackerNeatQueueStateData extends LiveTrackerNeatQueueSerie
   readonly queueNumber: number;
   readonly status: LiveTrackerStatus;
   readonly lastUpdateTime: string;
+  readonly seriesStartedAt?: string | undefined;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
   readonly rawMatches: Record<string, unknown>;
 }

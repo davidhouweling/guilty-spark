@@ -1,4 +1,5 @@
 import type { MatchStats } from "halo-infinite-api";
+import { isValid, parseISO } from "date-fns";
 import {
   readJsonArray,
   readJsonObject,
@@ -185,6 +186,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
   const queueNumber = readNumber(data["queueNumber"] ?? null);
   const status = parseStatus(data["status"] ?? null);
   const lastUpdateTime = readString(data["lastUpdateTime"] ?? null);
+  const seriesStartedAtValue = data["seriesStartedAt"];
+  const seriesStartedAt = seriesStartedAtValue === undefined ? undefined : readString(seriesStartedAtValue);
   const playersArray = readJsonArray(data["players"] ?? null);
   const teamsArray = readJsonArray(data["teams"] ?? null);
   const substitutionsArray = readJsonArray(data["substitutions"] ?? null);
@@ -202,6 +205,8 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     queueNumber === null ||
     status === null ||
     lastUpdateTime === null ||
+    seriesStartedAt === null ||
+    (seriesStartedAt !== undefined && !isValid(parseISO(seriesStartedAt))) ||
     plannedMapsResult?.success === false ||
     playersArray === null ||
     teamsArray === null ||
@@ -280,6 +285,7 @@ export function parseLiveTrackerStateData(value: JsonValue): LiveTrackerNeatQueu
     rawMatches,
     seriesScore,
     lastUpdateTime,
+    ...(seriesStartedAt === undefined ? {} : { seriesStartedAt }),
     playersAssociationData,
   };
 }
