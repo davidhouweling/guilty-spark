@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { LiveTrackerIdentity } from "@guilty-spark/shared/live-tracker/types";
+import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { RealLiveTrackerService } from "../live-tracker";
-import type { LiveTrackerListener } from "../types";
+import type { LiveTrackerListener, LiveTrackerStatusListener } from "../types";
 
 class MockWebSocket {
   public onopen: ((event: Event) => void) | null = null;
@@ -60,7 +60,7 @@ describe("RealLiveTrackerService", () => {
     await service.connect(identity);
 
     expect(MockWebSocket.instances.length).toBe(1);
-    expect(MockWebSocket.instances[0]?.url).toBe("wss://api.example.com/ws/tracker/123/5");
+    expect(MockWebSocket.instances[0]?.url).toBe("wss://api.example.com/ws/tracker/123/5?format=condensed");
   });
 
   it("creates WebSocket connection with correct URL for http protocol", async () => {
@@ -75,7 +75,7 @@ describe("RealLiveTrackerService", () => {
     await service.connect(identity);
 
     expect(MockWebSocket.instances.length).toBe(1);
-    expect(MockWebSocket.instances[0]?.url).toBe("ws://localhost:8787/ws/tracker/456/3");
+    expect(MockWebSocket.instances[0]?.url).toBe("ws://localhost:8787/ws/tracker/456/3?format=condensed");
   });
 
   it("creates connection and allows status subscription", async () => {
@@ -250,31 +250,41 @@ describe("RealLiveTrackerService", () => {
     expect(messageListener).not.toHaveBeenCalled();
   });
 
-  it("emits stopped status and disconnects when message status is stopped", async () => {
+  it("delivers the final condensed state before stopped status and disconnect", async () => {
     const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
     const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
 
     const connection = await service.connect(identity);
-    const statusListener = vi.fn();
-    const messageListener = vi.fn<LiveTrackerListener>();
+    const events: string[] = [];
+    const statusListener = vi.fn<LiveTrackerStatusListener>((status): void => {
+      events.push(status);
+    });
+    const messageListener = vi.fn<LiveTrackerListener>((): void => {
+      events.push("message");
+    });
 
     connection.subscribeStatus(statusListener);
     connection.subscribe(messageListener);
 
     statusListener.mockClear();
 
-    const stoppedMessage = {
+    const stoppedMessage: LiveTrackerMessage = {
       ...sampleLiveTrackerStateMessage,
-      data: { ...sampleLiveTrackerStateMessage.data, status: "stopped" as const },
+      data: { ...sampleLiveTrackerStateMessage.data, status: "stopped", rawMatches: {} },
     };
 
     const [ws] = MockWebSocket.instances;
+    const closeSpy = vi.spyOn(ws, "close").mockImplementation((): void => {
+      events.push("closed");
+    });
     if (ws.onmessage) {
       ws.onmessage(new MessageEvent("message", { data: JSON.stringify(stoppedMessage) }));
     }
 
     expect(messageListener).toHaveBeenCalledWith(stoppedMessage);
     expect(statusListener).toHaveBeenCalledWith("stopped", undefined);
+    expect(events).toEqual(["message", "stopped", "closed"]);
+    expect(closeSpy).toHaveBeenCalledOnce();
   });
 
   it("allows subscribing and unsubscribing message listeners", async () => {

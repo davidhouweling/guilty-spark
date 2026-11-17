@@ -626,6 +626,59 @@ describe("LiveTrackerPresenter live detail integration", () => {
     presenter.dispose();
   });
 
+  it("retains final-match detail that resolves after the stopped connection closes", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    const connectSpy = vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const presenter = createPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    const { data } = sampleLiveTrackerStateMessage;
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...data, rawMatches: {}, matchSummaries: data.matchSummaries.slice(0, 1) },
+    });
+    await vi.runAllTimersAsync();
+    const initialDetail = store.getSnapshot().seriesDetail;
+    let resolveFinal: ((value: Awaited<ReturnType<SeriesMatchesService["getSeriesDetail"]>>) => void) | undefined;
+    detailSpy.mockImplementationOnce(
+      async () =>
+        new Promise((resolve) => {
+          resolveFinal = resolve;
+        }),
+    );
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...data, status: "stopped", rawMatches: {} },
+    });
+    connection.emitStatus("stopped");
+    connection.disconnect();
+    expect(store.getSnapshot().seriesDetail).toBe(initialDetail);
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
+
+    const matchIds = data.matchSummaries.map((match) => match.matchId);
+    const finalDetail = await aFakeSeriesMatchesServiceWith().getSeriesDetail(
+      `guild:${data.guildId}/queue/${data.queueNumber.toString()}`,
+      matchIds,
+    );
+    Preconditions.checkExists(resolveFinal)(finalDetail);
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().connectionState).toBe("stopped");
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(store.getSnapshot().seriesDetail?.matches.matchIds).toEqual(matchIds);
+    expect(detailSpy).toHaveBeenCalledTimes(2);
+    expect(connectSpy).toHaveBeenCalledOnce();
+    presenter.dispose();
+  });
+
   it("updates planned games when only persisted game metadata changes", async () => {
     const store = new MockLiveTrackerStore();
     const connection = new MockLiveTrackerConnection();

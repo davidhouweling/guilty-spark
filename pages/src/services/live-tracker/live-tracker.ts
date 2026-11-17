@@ -102,16 +102,15 @@ export class RealLiveTrackerService implements LiveTrackerService {
   }
 
   public async connect(identity: LiveTrackerIdentity): Promise<LiveTrackerConnection> {
-    // Parse the host from the HTTP(S) URL for WebSocket connection
-    const apiUrl = new URL(this.config.apiHost);
-    const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${apiUrl.host}/ws/tracker/${identity.guildId}/${identity.queueNumber}`;
+    const wsUrl = new URL(`/ws/tracker/${identity.guildId}/${identity.queueNumber}`, this.config.apiHost);
+    wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
+    wsUrl.searchParams.set("format", "condensed");
 
     // Preflight check to detect 404 before attempting WebSocket
     const trackerExists = await this.checkTrackerExists(identity);
     if (!trackerExists) {
       // Create a dummy connection that immediately reports "not_found"
-      const ws = new WebSocket(wsUrl); // Still create WS to maintain API contract
+      const ws = new WebSocket(wsUrl.toString()); // Still create WS to maintain API contract
       const connection = new RealLiveTrackerConnection(ws);
 
       // Close the WebSocket immediately
@@ -125,7 +124,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
       return connection;
     }
 
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(wsUrl.toString());
     const connection = new RealLiveTrackerConnection(ws);
 
     connection.handleStatus("connecting");
