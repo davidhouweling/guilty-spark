@@ -1410,6 +1410,11 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
         startTime: new Date(match.MatchInfo.StartTime).toISOString(),
         endTime: new Date(match.MatchInfo.EndTime).toISOString(),
         playerXuidToGametag,
+        gameInfo: {
+          mapAssetId: match.MatchInfo.MapVariant.AssetId,
+          mapVersionId: match.MatchInfo.MapVariant.VersionId,
+          gameVariantCategory: match.MatchInfo.GameVariantCategory,
+        },
       };
 
       trackerState.discoveredMatches[match.MatchId] = enrichedMatch;

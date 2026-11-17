@@ -208,6 +208,57 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     presenter.dispose();
   });
 
+  it("updates planned games when only persisted game metadata changes", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const presenter = new LiveTrackerPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+    });
+    const first = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries.at(0));
+    const second = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries.at(1));
+    const gameInfo = { mapAssetId: "map-a", mapVersionId: "v1", gameVariantCategory: 1 };
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        rawMatches: {},
+        matchSummaries: [
+          { ...first, gameInfo },
+          { ...second, gameInfo: { ...gameInfo, mapVersionId: "v2" } },
+        ],
+        plannedMaps: [
+          { mode: "Slayer", map: "Played Map" },
+          { mode: "Oddball", map: "Next Map" },
+        ],
+      },
+    };
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage(message);
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([]);
+
+    connection.emitMessage({
+      ...message,
+      data: {
+        ...message.data,
+        matchSummaries: [
+          { ...first, gameInfo },
+          { ...second, gameInfo },
+        ],
+      },
+    });
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([
+      expect.objectContaining({ gameNumber: 2, map: "Next Map" }),
+    ]);
+    presenter.dispose();
+  });
+
   it("updates snapshot immediately before medal metadata resolution completes", async (): Promise<void> => {
     const mockStore = new MockLiveTrackerStore();
     const analyticsService = aFakeMatchAnalyticsServiceWith();

@@ -8,6 +8,12 @@ export interface LiveTrackerIdentity {
 
 export type LiveTrackerStatus = "active" | "paused" | "stopped";
 
+export interface LiveTrackerMatchGameInfo {
+  readonly mapAssetId: string;
+  readonly mapVersionId: string;
+  readonly gameVariantCategory: number;
+}
+
 export interface LiveTrackerMatchSummary {
   readonly matchId: string;
   readonly gameTypeAndMap: string;
@@ -20,6 +26,7 @@ export interface LiveTrackerMatchSummary {
   readonly startTime: string;
   readonly endTime: string;
   readonly playerXuidToGametag: Record<string, string>;
+  readonly gameInfo?: LiveTrackerMatchGameInfo | undefined;
 }
 
 export interface LiveTrackerPlayer {

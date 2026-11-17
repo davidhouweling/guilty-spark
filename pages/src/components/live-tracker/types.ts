@@ -1,4 +1,8 @@
-import type { LiveTrackerStatus, PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
+import type {
+  LiveTrackerMatchSummary,
+  LiveTrackerStatus,
+  PlayerAssociationData,
+} from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchStatsData } from "../../controllers/stats/types";
@@ -41,6 +45,7 @@ export interface LiveTrackerMatchRenderModel {
   readonly startTime: string;
   readonly endTime: string;
   readonly rawMatchStats: MatchStats | null;
+  readonly gameInfo?: LiveTrackerMatchSummary["gameInfo"];
   readonly playerXuidToGametag: Record<string, string>;
 }
 
