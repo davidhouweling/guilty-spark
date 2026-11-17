@@ -1,6 +1,6 @@
 export const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
-function getCallerSignal(input: RequestInfo | URL, init: RequestInit | undefined): AbortSignal | null {
+export function getCallerSignal(input: RequestInfo | URL, init: RequestInit | undefined): AbortSignal | null {
   if (init?.signal !== undefined) {
     return init.signal;
   }

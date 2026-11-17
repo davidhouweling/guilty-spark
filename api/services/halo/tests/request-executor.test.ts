@@ -57,12 +57,72 @@ describe("shared Halo HTTP lane", () => {
     caller.abort(new Error("cancelled"));
     expect(timeoutSpy).toHaveBeenCalledTimes(1);
 
+    await rejection;
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
     Preconditions.checkExists(bodyController).close();
     await first;
-    await rejection;
     expect(await (await resilientFetch("https://example.com/next")).text()).toBe("ok");
-    expect(timeoutSpy).toHaveBeenCalledTimes(3);
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(timeoutSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["init", "request"])(
+    "promptly aborts a queued request using its %s signal without releasing the lane",
+    async (source) => {
+      const gate = createDeferred();
+      const started = createDeferred();
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+        if (input === "https://example.com/first") {
+          started.resolve();
+          await gate.promise;
+        }
+        return new Response("ok");
+      });
+      const resilientFetch = createResilientFetch({
+        env: aFakeEnvWith(),
+        logService: aFakeLogServiceWith(),
+        requestExecutor: new HaloRequestExecutor(),
+      });
+      const first = resilientFetch("https://example.com/first", { method: "POST" });
+      await started.promise;
+      const controller = new AbortController();
+      const input =
+        source === "request"
+          ? new Request("https://example.com/cancelled", { method: "POST", signal: controller.signal })
+          : "https://example.com/cancelled";
+      const cancelled = resilientFetch(
+        input,
+        source === "init" ? { method: "POST", signal: controller.signal } : undefined,
+      );
+      const rejection = expect(cancelled).rejects.toThrow("cancelled");
+      const next = resilientFetch("https://example.com/next", { method: "POST" });
+      controller.abort(new Error("cancelled"));
+
+      try {
+        await rejection;
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        gate.resolve();
+      }
+      await first;
+      await next;
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("uses the init signal instead of an aborted Request signal", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const resilientFetch = createResilientFetch({
+      env: aFakeEnvWith(),
+      logService: aFakeLogServiceWith(),
+      requestExecutor: new HaloRequestExecutor(),
+    });
+    const requestController = new AbortController();
+    const request = new Request("https://example.com/override", { method: "POST", signal: requestController.signal });
+    requestController.abort();
+
+    expect(await (await resilientFetch(request, { signal: new AbortController().signal })).text()).toBe("ok");
+    expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
   it("holds through retries and binary body consumption across transports while cache hits bypass the lane", async () => {
@@ -185,6 +245,18 @@ describe("shared Halo HTTP lane", () => {
 });
 
 describe("HaloRequestExecutor", () => {
+  it("rejects an already-aborted request with its reason without starting it", async () => {
+    const executor = new HaloRequestExecutor();
+    const controller = new AbortController();
+    const reason = new Error("already cancelled");
+    controller.abort(reason);
+    const request = vi.fn<() => Promise<string>>().mockResolvedValue("unused");
+
+    await expect(executor.execute(request, controller.signal)).rejects.toBe(reason);
+    expect(request).not.toHaveBeenCalled();
+    await expect(executor.execute(async () => Promise.resolve("next"))).resolves.toBe("next");
+  });
+
   it("waits for a running request to complete before starting queued requests in order", async () => {
     const executor = new HaloRequestExecutor();
     const gate = createDeferred();

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { DateTime } from "luxon";
 import { CustomSpartanTokenProvider } from "../custom-spartan-token-provider";
+import { HaloRequestExecutor } from "../request-executor";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import type { XboxService } from "../../xbox/xbox";
 import { aFakeXboxServiceWith } from "../../xbox/fakes/xbox.fake";
@@ -102,6 +103,7 @@ describe("CustomSpartanTokenProvider", () => {
       releaseSecond = resolve;
     });
     const services = installServices({ env });
+    const executeSpy = vi.spyOn(HaloRequestExecutor.prototype, "execute");
     vi.spyOn(services.xboxService, "loadCredentials").mockResolvedValue();
     vi.spyOn(services.xboxService, "maybeRefreshXstsToken").mockResolvedValue();
     services.xboxService.tokenInfo = validKvToken;
@@ -122,7 +124,9 @@ describe("CustomSpartanTokenProvider", () => {
     const sessionRequest = session.spartanTokenProvider.getSpartanToken();
 
     try {
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.waitFor(() => {
+        expect(executeSpy).toHaveBeenCalledTimes(2);
+      });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy.mock.calls[0]?.[1]?.body).toContain("xsts-token");
       releaseFirst?.();

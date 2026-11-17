@@ -1,5 +1,5 @@
 import type { LogService } from "../log/types";
-import { DEFAULT_FETCH_TIMEOUT_MS, withTimeoutSignal } from "./fetch-timeout";
+import { DEFAULT_FETCH_TIMEOUT_MS, getCallerSignal, withTimeoutSignal } from "./fetch-timeout";
 import type { HaloRequestExecutor } from "./request-executor";
 import {
   getKvCacheSkipReason,
@@ -305,7 +305,10 @@ export function createResilientFetch({
       if (requestExecutor == null) {
         return await fetchWithRetry();
       }
-      return await requestExecutor.execute(async () => toResponse(await bufferResponse(fetchWithRetry())));
+      return await requestExecutor.execute(
+        async () => toResponse(await bufferResponse(fetchWithRetry())),
+        getCallerSignal(input, init),
+      );
     }
 
     try {
