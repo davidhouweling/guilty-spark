@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import classNames from "classnames";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
-import type { ComponentLoaderStatus } from "../component-loader/component-loader";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import { SortableTable } from "../table/sortable-table";
 import type { SortableTableColumn } from "../table/sortable-table";
 import tableStyles from "../table/table.module.css";
@@ -53,6 +53,12 @@ export function SeriesStats({
   const [activeTab, setActiveTab] = useState<"accumulated" | "kill-matrix">("accumulated");
   const hasTeamStats = teamData.length > 0 && teamData[0].teamStats.length > 0;
   const hasPlayerStats = playerData.some((team) => team.players.length > 0);
+
+  useEffect(() => {
+    if (hasPlayerStats && activeTab === "kill-matrix" && killMatrixStatus === ComponentLoaderStatus.PENDING) {
+      onAnalyticsTabSelected?.("killMatrix");
+    }
+  }, [activeTab, hasPlayerStats, killMatrixStatus, onAnalyticsTabSelected]);
 
   // Define team stats columns
   const teamColumns = useMemo<SortableTableColumn<MatchStatsData>[]>(() => {
@@ -304,7 +310,7 @@ export function SeriesStats({
           tabsClassName={styles.tabs}
           onTabChange={(tab): void => {
             setActiveTab(tab);
-            if (tab === "kill-matrix") {
+            if (tab === "kill-matrix" && (killMatrixStatus !== ComponentLoaderStatus.PENDING || activeTab === tab)) {
               onAnalyticsTabSelected?.("killMatrix");
             }
           }}

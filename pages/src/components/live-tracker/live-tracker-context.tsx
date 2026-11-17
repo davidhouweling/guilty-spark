@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo } from "react";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
@@ -26,6 +27,8 @@ interface LiveTrackerContextValue {
   readonly analyticsStatus: ComponentLoaderStatus;
   readonly allMatchKillMatrix: readonly MatchKillMatrix[];
   readonly seriesKillMatrix: KillMatrixResult | null;
+  readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
+  readonly onRetrySeriesDetails: () => void;
 }
 
 const LiveTrackerContext = createContext<LiveTrackerContextValue | null>(null);
@@ -42,6 +45,8 @@ export interface LiveTrackerProviderProps {
   readonly analyticsStatus: ComponentLoaderStatus;
   readonly allMatchKillMatrix: readonly MatchKillMatrix[];
   readonly seriesKillMatrix: KillMatrixResult | null;
+  readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
+  readonly onRetrySeriesDetails: () => void;
   readonly children: React.ReactNode;
 }
 
@@ -53,6 +58,8 @@ export function LiveTrackerProvider({
   analyticsStatus,
   allMatchKillMatrix,
   seriesKillMatrix,
+  onAnalyticsTabSelected,
+  onRetrySeriesDetails,
   children,
 }: LiveTrackerProviderProps): React.ReactElement {
   // Memoize context value to prevent unnecessary re-renders
@@ -65,8 +72,20 @@ export function LiveTrackerProvider({
       analyticsStatus,
       allMatchKillMatrix,
       seriesKillMatrix,
+      onAnalyticsTabSelected,
+      onRetrySeriesDetails,
     }),
-    [model, params, allMatchStats, seriesStats, analyticsStatus, allMatchKillMatrix, seriesKillMatrix],
+    [
+      model,
+      params,
+      allMatchStats,
+      seriesStats,
+      analyticsStatus,
+      allMatchKillMatrix,
+      seriesKillMatrix,
+      onAnalyticsTabSelected,
+      onRetrySeriesDetails,
+    ],
   );
 
   return <LiveTrackerContext.Provider value={value}>{children}</LiveTrackerContext.Provider>;
@@ -270,4 +289,26 @@ export function useAllMatchKillMatrix(): readonly MatchKillMatrix[] {
 export function useSeriesKillMatrix(): KillMatrixResult | null {
   const { seriesKillMatrix } = useLiveTrackerContext();
   return seriesKillMatrix;
+}
+
+export function useSeriesDetailActions(): {
+  onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
+  onRetrySeriesDetails: () => void;
+} {
+  const { onAnalyticsTabSelected, onRetrySeriesDetails } = useLiveTrackerContext();
+  return { onAnalyticsTabSelected, onRetrySeriesDetails };
+}
+
+export function useSeriesDetailState(): Pick<
+  LiveTrackerViewModel,
+  "seriesDetail" | "seriesDetailStatus" | "seriesDetailError" | "detailViewModel" | "seriesAnalyticsByMatchId"
+> {
+  const { model } = useLiveTrackerContext();
+  return {
+    seriesDetail: model.seriesDetail,
+    seriesDetailStatus: model.seriesDetailStatus,
+    seriesDetailError: model.seriesDetailError,
+    detailViewModel: model.detailViewModel,
+    seriesAnalyticsByMatchId: model.seriesAnalyticsByMatchId,
+  };
 }

@@ -3,25 +3,14 @@ import type {
   LiveTrackerStatus,
   PlayerAssociationData,
 } from "@guilty-spark/shared/live-tracker/types";
-import type { MatchStats } from "halo-infinite-api";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type {
-  KillMatrixCrossTeamData,
-  KillMatrixPivotData,
-  KillMatrixPlayer,
-} from "../../controllers/stats/kill-matrix/types";
+import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
+import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../series-stats/types";
 import type { LiveTrackerParams } from "./live-tracker-store";
-
-export interface LiveTrackerSeriesStatsData {
-  readonly teamData: MatchStatsData[];
-  readonly playerData: MatchStatsData[];
-  readonly metadata: SeriesMetadata | null;
-  readonly orderedPlayers: readonly KillMatrixPlayer[] | undefined;
-  readonly playersByXuid: ReadonlyMap<string, { gamertag: string; teamId: number | null }>;
-}
 
 export interface LiveTrackerPlayerRenderModel {
   readonly id: string;
@@ -44,9 +33,7 @@ export interface LiveTrackerMatchRenderModel {
   readonly gameSubScore: string | null;
   readonly startTime: string;
   readonly endTime: string;
-  readonly rawMatchStats: MatchStats | null;
   readonly gameInfo?: LiveTrackerMatchSummary["gameInfo"];
-  readonly playerXuidToGametag: Record<string, string>;
 }
 
 export interface LiveTrackerSubstitutionRenderModel {
@@ -140,6 +127,11 @@ export interface LiveTrackerViewModel {
   readonly matchSubstitutions: LiveTrackerMatchSubstitutions;
   readonly availablePlayers: readonly LiveTrackerAvailablePlayer[];
   readonly params: LiveTrackerParams;
+  readonly seriesDetail: SeriesDetailResponse | null;
+  readonly seriesDetailStatus: ComponentLoaderStatus;
+  readonly seriesDetailError: string | null;
+  readonly seriesAnalyticsByMatchId: SeriesMatchAnalyticsById;
+  readonly detailViewModel: SeriesStatsViewModel | null;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
   readonly seriesStats: {
     teamData: MatchStatsData[];

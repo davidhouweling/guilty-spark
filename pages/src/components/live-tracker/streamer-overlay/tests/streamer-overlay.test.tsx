@@ -63,6 +63,11 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     matchSubstitutions: { byMatchId: new Map(), trailing: [] },
     availablePlayers: [],
     params: defaultParams,
+    seriesDetail: null,
+    seriesDetailStatus: ComponentLoaderStatus.PENDING,
+    seriesDetailError: null,
+    seriesAnalyticsByMatchId: new Map(),
+    detailViewModel: null,
     allMatchStats: [],
     seriesStats: null,
     analyticsStatus: ComponentLoaderStatus.LOADED,
@@ -105,6 +110,8 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   analyticsStatus: ComponentLoaderStatus.LOADED,
   allMatchKillMatrix: [],
   seriesKillMatrix: null,
+  onAnalyticsTabSelected: vi.fn(),
+  onRetrySeriesDetails: vi.fn(),
 };
 
 describe("StreamerOverlay", () => {
@@ -171,8 +178,6 @@ describe("StreamerOverlay", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:50:00.000Z",
             endTime: "2025-01-01T00:00:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
         ],
         substitutions: [],
@@ -238,8 +243,6 @@ describe("StreamerOverlay", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:50:00.000Z",
             endTime: "2025-01-01T00:00:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
         ],
         substitutions: [],

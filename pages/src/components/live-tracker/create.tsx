@@ -1,10 +1,13 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
-import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
+import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -13,7 +16,7 @@ import { LiveTrackerProvider } from "./live-tracker-context";
 export interface CreateLiveTrackerConfig {
   readonly liveTrackerService: LiveTrackerService;
   readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly medalMetadataResolver: HaloMedalMetadataResolver;
+  readonly seriesMatchesService: SeriesMatchesService;
 }
 
 interface LiveTrackerInternalProps {
@@ -21,20 +24,29 @@ interface LiveTrackerInternalProps {
 }
 
 function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactElement {
-  const { liveTrackerService, matchAnalyticsService, medalMetadataResolver } = config;
+  const { liveTrackerService, matchAnalyticsService, seriesMatchesService } = config;
   const store = useMemo(() => new LiveTrackerStore(), []);
 
-  const presenter = useMemo(
-    () =>
-      new LiveTrackerPresenter({
-        liveTrackerService,
-        getUrl: (): URL => new URL(window.location.href),
-        store,
-        matchAnalyticsService,
-        medalMetadataResolver,
-      }),
-    [liveTrackerService, matchAnalyticsService, medalMetadataResolver, store],
-  );
+  const presenter = useMemo(() => {
+    const target: { presenter?: LiveTrackerPresenter | undefined } = {};
+    const analyticsController = new SeriesAnalyticsController({
+      matchAnalyticsService,
+      onChange: (analyticsByMatchId): void => {
+        Preconditions.checkExists(target.presenter, "Analytics presenter is not initialized").setAnalytics(
+          analyticsByMatchId,
+        );
+      },
+    });
+    const instance = new LiveTrackerPresenter({
+      liveTrackerService,
+      getUrl: (): URL => new URL(window.location.href),
+      store,
+      seriesMatchesService,
+      analyticsController,
+    });
+    target.presenter = instance;
+    return instance;
+  }, [liveTrackerService, matchAnalyticsService, seriesMatchesService, store]);
 
   useEffect(() => {
     presenter.start();
@@ -59,6 +71,15 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
       : ComponentLoaderStatus.LOADING;
 
   const model = useMemo(() => LiveTrackerPresenter.present(snapshot), [snapshot]);
+  const onAnalyticsTabSelected = useCallback(
+    (module: AnalyticsModule, matchId?: string): void => {
+      presenter.loadAnalytics(module, matchId);
+    },
+    [presenter],
+  );
+  const onRetrySeriesDetails = useCallback((): void => {
+    presenter.retrySeriesDetails();
+  }, [presenter]);
 
   return (
     <ComponentLoader
@@ -85,6 +106,8 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
           analyticsStatus={model.analyticsStatus}
           allMatchKillMatrix={model.allMatchKillMatrix}
           seriesKillMatrix={model.seriesKillMatrix}
+          onAnalyticsTabSelected={onAnalyticsTabSelected}
+          onRetrySeriesDetails={onRetrySeriesDetails}
         >
           <LiveTrackerView />
         </LiveTrackerProvider>

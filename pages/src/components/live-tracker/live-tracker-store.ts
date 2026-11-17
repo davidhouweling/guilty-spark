@@ -1,10 +1,8 @@
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
+import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
-import type { MatchStatsData } from "../../controllers/stats/types";
+import type { SeriesMatchAnalyticsById } from "../series-stats/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
-import type { LiveTrackerSeriesStatsData } from "./types";
 
 export type LiveTrackerConnectionState = "idle" | LiveTrackerConnectionStatus;
 
@@ -21,11 +19,10 @@ export interface LiveTrackerSnapshot {
   readonly lastStateMessage: LiveTrackerMessage | null;
   readonly hasConnection: boolean;
   readonly hasReceivedInitialData: boolean;
-  readonly analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>;
-  readonly analyticsStatus: ComponentLoaderStatus;
-  readonly medalMetadata: MedalMetadata;
-  readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];
-  readonly seriesStatsData: LiveTrackerSeriesStatsData | null;
+  readonly seriesDetail: SeriesDetailResponse | null;
+  readonly seriesDetailStatus: ComponentLoaderStatus;
+  readonly seriesDetailError: string | null;
+  readonly seriesAnalyticsByMatchId: SeriesMatchAnalyticsById;
 }
 
 export interface LiveTrackerStoreApi {
@@ -49,11 +46,10 @@ export class LiveTrackerStore implements LiveTrackerStoreApi {
       lastStateMessage: null,
       hasConnection: false,
       hasReceivedInitialData: false,
-      analyticsByMatchId: new Map(),
-      analyticsStatus: ComponentLoaderStatus.LOADED,
-      medalMetadata: {},
-      allMatchStats: [],
-      seriesStatsData: null,
+      seriesDetail: null,
+      seriesDetailStatus: ComponentLoaderStatus.PENDING,
+      seriesDetailError: null,
+      seriesAnalyticsByMatchId: new Map(),
     };
   }
 

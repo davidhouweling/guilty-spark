@@ -424,15 +424,13 @@ export class SeriesDetailStatsViewModelPresenter {
     if (statuses.some((status) => status === ComponentLoaderStatus.ERROR)) {
       return ComponentLoaderStatus.ERROR;
     }
-    if (statuses.every((status) => status === ComponentLoaderStatus.LOADED)) {
-      return ComponentLoaderStatus.LOADED;
+    if (statuses.some((status) => status === ComponentLoaderStatus.PENDING)) {
+      return ComponentLoaderStatus.PENDING;
     }
-    if (
-      statuses.some((status) => status === ComponentLoaderStatus.LOADING || status === ComponentLoaderStatus.LOADED)
-    ) {
+    if (statuses.some((status) => status === ComponentLoaderStatus.LOADING)) {
       return ComponentLoaderStatus.LOADING;
     }
-    return ComponentLoaderStatus.PENDING;
+    return ComponentLoaderStatus.LOADED;
   }
 
   private createKillMatrixAnalytics(killMatrix: MatchAnalytics["killMatrix"]): MatchAnalytics {

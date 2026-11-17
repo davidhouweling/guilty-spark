@@ -4,7 +4,6 @@ import type {
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
-import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { collapseSequentialSeriesEntries } from "@guilty-spark/shared/halo/match-enrichment";
 import { gameModeIconSrcForModeName } from "../individual-tracker/game-mode-icon";
@@ -24,11 +23,7 @@ function normalizeSeriesScore(score: string): string {
   return "0:0";
 }
 
-function toMatchRenderModel(
-  summary: LiveTrackerMatchSummary,
-  rawMatches: Record<string, unknown>,
-): LiveTrackerMatchRenderModel {
-  const rawMatchStats = rawMatches[summary.matchId];
+function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchRenderModel {
   return {
     matchId: summary.matchId,
     gameTypeAndMap: summary.gameTypeAndMap,
@@ -40,16 +35,11 @@ function toMatchRenderModel(
     gameSubScore: summary.gameSubScore,
     startTime: summary.startTime,
     endTime: summary.endTime,
-    rawMatchStats: (rawMatchStats ?? null) as MatchStats | null,
     gameInfo: summary.gameInfo,
-    playerXuidToGametag: summary.playerXuidToGametag,
   };
 }
 
-function transformNeatQueueData(
-  seriesData: LiveTrackerNeatQueueSeriesData,
-  rawMatches: Record<string, unknown>,
-): {
+function transformNeatQueueData(seriesData: LiveTrackerNeatQueueSeriesData): {
   matches: readonly LiveTrackerMatchRenderModel[];
   teams: readonly {
     name: string;
@@ -58,7 +48,7 @@ function transformNeatQueueData(
   substitutions: readonly LiveTrackerSubstitutionRenderModel[];
 } {
   const matches = seriesData.matchSummaries
-    .map((match) => toMatchRenderModel(match, rawMatches))
+    .map((match) => toMatchRenderModel(match))
     .sort((a, b) => a.endTime.localeCompare(b.endTime));
 
   const playersById = new Map(seriesData.players.map((player) => [player.id, player] as const));
@@ -111,13 +101,14 @@ function transformNeatQueueData(
 function toPlannedGames(
   matches: readonly LiveTrackerMatchRenderModel[],
   plannedMaps: LiveTrackerNeatQueueSeriesData["plannedMaps"],
+  rawMatches: Record<string, unknown>,
 ): readonly LiveTrackerPlannedGameRenderModel[] {
   const completedGames = collapseSequentialSeriesEntries(
     matches.flatMap((match) => {
       if (match.gameInfo != null) {
         return [{ startTime: match.startTime, ...match.gameInfo, match }];
       }
-      const raw = match.rawMatchStats;
+      const raw = rawMatches[match.matchId];
       return !isMatchStats(raw)
         ? []
         : [
@@ -149,7 +140,7 @@ export function toLiveTrackerStateRenderModel(
   message: LiveTrackerStateMessage,
   medalMetadata: MedalMetadata,
 ): LiveTrackerStateRenderModel {
-  const { matches, teams, substitutions } = transformNeatQueueData(message.data, message.data.rawMatches);
+  const { matches, teams, substitutions } = transformNeatQueueData(message.data);
 
   return {
     type: "neatqueue",
@@ -161,7 +152,7 @@ export function toLiveTrackerStateRenderModel(
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
-    plannedGames: toPlannedGames(matches, message.data.plannedMaps),
+    plannedGames: toPlannedGames(matches, message.data.plannedMaps, message.data.rawMatches),
     substitutions,
     seriesScore: normalizeSeriesScore(message.data.seriesScore),
     medalMetadata,

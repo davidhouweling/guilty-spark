@@ -11,7 +11,6 @@ import type { LiveTrackerProviderProps } from "../../live-tracker-context";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import type { LiveTrackerViewModel } from "../../types";
 import { DEFAULT_ALL_SETTINGS } from "../../settings/types";
-import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 
 vi.mock("../../../streamer-overlay/create", () => ({
   createStreamerOverlaySection: () =>
@@ -58,6 +57,11 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     matchSubstitutions: { byMatchId: new Map(), trailing: [] },
     availablePlayers: [],
     params: defaultParams,
+    seriesDetail: null,
+    seriesDetailStatus: ComponentLoaderStatus.PENDING,
+    seriesDetailError: null,
+    seriesAnalyticsByMatchId: new Map(),
+    detailViewModel: null,
     allMatchStats: [],
     seriesStats: null,
     analyticsStatus: ComponentLoaderStatus.LOADED,
@@ -100,6 +104,8 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   analyticsStatus: ComponentLoaderStatus.LOADED,
   allMatchKillMatrix: [],
   seriesKillMatrix: null,
+  onAnalyticsTabSelected: vi.fn(),
+  onRetrySeriesDetails: vi.fn(),
 };
 
 afterEach(() => {
@@ -146,8 +152,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:50:00.000Z",
             endTime: "2025-01-01T00:00:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
         ],
         substitutions: [],
@@ -204,8 +208,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:10:00.000Z",
             endTime: "2024-12-31T23:20:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
           {
             matchId: "match-1",
@@ -218,8 +220,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:25:00.000Z",
             endTime: "2024-12-31T23:35:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
           {
             matchId: "match-2",
@@ -232,8 +232,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:40:00.000Z",
             endTime: "2024-12-31T23:50:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
           {
             matchId: "match-3",
@@ -246,8 +244,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:55:00.000Z",
             endTime: "2025-01-01T00:05:00.000Z",
-            rawMatchStats: null,
-            playerXuidToGametag: {},
           },
         ],
         substitutions: [],
@@ -348,19 +344,6 @@ describe("StreamerOverlay create props", () => {
   });
 
   it("never dims tab icons for a loss, since the live tracker ticker only ever shows the in-progress series", () => {
-    const eagleLossStats = aFakeMatchStatsWith({
-      Teams: [
-        { ...aFakeMatchStatsWith().Teams[0], TeamId: 0, Outcome: 3 },
-        { ...aFakeMatchStatsWith().Teams[1], TeamId: 1, Outcome: 2 },
-      ],
-    });
-    const eagleWinStats = aFakeMatchStatsWith({
-      Teams: [
-        { ...aFakeMatchStatsWith().Teams[0], TeamId: 0, Outcome: 2 },
-        { ...aFakeMatchStatsWith().Teams[1], TeamId: 1, Outcome: 3 },
-      ],
-    });
-
     const model = aFakeLiveTrackerViewModelWith({
       state: {
         type: "neatqueue",
@@ -386,8 +369,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:50:00.000Z",
             endTime: "2025-01-01T00:00:00.000Z",
-            rawMatchStats: eagleLossStats,
-            playerXuidToGametag: {},
           },
           {
             matchId: "match-win",
@@ -400,8 +381,6 @@ describe("StreamerOverlay create props", () => {
             gameSubScore: null,
             startTime: "2024-12-31T23:35:00.000Z",
             endTime: "2024-12-31T23:45:00.000Z",
-            rawMatchStats: eagleWinStats,
-            playerXuidToGametag: {},
           },
         ],
         substitutions: [],
