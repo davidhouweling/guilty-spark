@@ -98,6 +98,71 @@ describe("SeriesAnalyticsController", () => {
     expect(snapshot().get("b")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADED);
   });
 
+  it("preserves loaded and in-flight modules when live matches are appended", async () => {
+    const { controller, request, snapshot } = setup();
+    controller.reset(["a", "b"]);
+    controller.load("killMatrix", "a");
+    await vi.waitFor(() => {
+      expect(snapshot().get("a")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+    const loaded = snapshot().get("a");
+    const pending = deferred<Record<string, MatchAnalytics | null>>();
+    request.mockReturnValueOnce(pending.promise);
+    controller.load("scoreProgression", "b");
+    const loading = snapshot().get("b");
+    controller.updateMatchIds(["a", "b", "c", "c"]);
+    controller.load("scoreProgression", "b");
+    controller.load("killMatrix");
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request).toHaveBeenLastCalledWith(["c"], ["killMatrix"]);
+    expect(snapshot().get("a")).toBe(loaded);
+    expect(snapshot().get("b")).toBe(loading);
+    pending.resolve({ b: aFakeCtfMatchAnalyticsWith() });
+    await vi.waitFor(() => {
+      expect(snapshot().get("b")?.scoreProgression?.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+    expect(snapshot().get("b")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADED);
+  });
+
+  it("prunes removed matches and skips their queued analytics requests", async () => {
+    const { controller, request, snapshot } = setup();
+    const ids = Array.from({ length: 61 }, (_, index) => `match-${index.toString()}`);
+    const pending = deferred<Record<string, MatchAnalytics | null>>();
+    request.mockReturnValueOnce(pending.promise);
+    controller.reset(ids);
+    controller.load("killMatrix");
+    controller.updateMatchIds(["match-0", "match-30"]);
+    pending.resolve(Object.fromEntries(ids.map((id) => [id, aFakeCtfMatchAnalyticsWith()])));
+    await vi.waitFor(() => {
+      expect(snapshot().get("match-30")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenLastCalledWith(["match-30"], ["killMatrix"]);
+    expect([...snapshot().keys()]).toEqual(["match-0", "match-30"]);
+  });
+
+  it("does not apply an obsolete result when a removed match is requested again", async () => {
+    const { controller, request, onChange, snapshot } = setup();
+    const obsolete = deferred<Record<string, MatchAnalytics | null>>();
+    const current = deferred<Record<string, MatchAnalytics | null>>();
+    request.mockReturnValueOnce(obsolete.promise).mockReturnValueOnce(current.promise);
+    controller.reset(["a"]);
+    controller.load("killMatrix");
+    controller.updateMatchIds([]);
+    controller.updateMatchIds(["a"]);
+    controller.load("killMatrix");
+    const notifications = onChange.mock.calls.length;
+    obsolete.resolve({ a: null });
+    await obsolete.promise;
+    await Promise.resolve();
+    expect(onChange).toHaveBeenCalledTimes(notifications);
+    expect(snapshot().get("a")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADING);
+    current.resolve({ a: aFakeCtfMatchAnalyticsWith() });
+    await vi.waitFor(() => {
+      expect(snapshot().get("a")?.killMatrix?.status).toBe(ComponentLoaderStatus.LOADED);
+    });
+  });
+
   it.each(["reset", "dispose"] as const)("ignores late results after %s", async (action) => {
     const { controller, request, onChange, snapshot } = setup();
     const pending = deferred<Record<string, MatchAnalytics | null>>();

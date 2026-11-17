@@ -32,6 +32,20 @@ export class SeriesAnalyticsController {
     this.config.onChange(this.analyticsByMatchId);
   }
 
+  updateMatchIds(matchIds: readonly string[]): void {
+    if (this.isDisposed) {
+      return;
+    }
+    const nextIds = [...new Set(matchIds)];
+    if (nextIds.length === this.matchIds.length && nextIds.every((id, index) => id === this.matchIds[index])) {
+      return;
+    }
+    this.matchIds = nextIds;
+    const retainedIds = new Set(nextIds);
+    this.analyticsByMatchId = new Map([...this.analyticsByMatchId].filter(([id]) => retainedIds.has(id)));
+    this.config.onChange(this.analyticsByMatchId);
+  }
+
   dispose(): void {
     this.isDisposed = true;
     this.generation += 1;
@@ -61,15 +75,30 @@ export class SeriesAnalyticsController {
     }
     const { generation } = this;
     this.update(matchIds, module, ComponentLoaderStatus.LOADING);
-    void this.loadAsync(module, matchIds, generation);
+    void this.loadAsync(module, matchIds, generation, this.analyticsByMatchId);
   }
 
-  private async loadAsync(module: AnalyticsModule, matchIds: readonly string[], generation: number): Promise<void> {
+  private isPending(matchId: string, module: AnalyticsModule, pending: SeriesMatchAnalyticsById): boolean {
+    const expected = pending.get(matchId)?.[module];
+    return (
+      expected?.status === ComponentLoaderStatus.LOADING && this.analyticsByMatchId.get(matchId)?.[module] === expected
+    );
+  }
+
+  private async loadAsync(
+    module: AnalyticsModule,
+    matchIds: readonly string[],
+    generation: number,
+    pending: SeriesMatchAnalyticsById,
+  ): Promise<void> {
     for (let index = 0; index < matchIds.length; index += BATCH_SIZE) {
       if (!this.isCurrent(generation)) {
         return;
       }
-      const batchIds = matchIds.slice(index, index + BATCH_SIZE);
+      const batchIds = matchIds.slice(index, index + BATCH_SIZE).filter((id) => this.isPending(id, module, pending));
+      if (batchIds.length === 0) {
+        continue;
+      }
       try {
         const results =
           this.config.trackerId == null
@@ -78,12 +107,12 @@ export class SeriesAnalyticsController {
         if (!this.isCurrent(generation)) {
           return;
         }
-        this.update(batchIds, module, ComponentLoaderStatus.LOADED, results);
+        this.update(batchIds, module, ComponentLoaderStatus.LOADED, results, pending);
       } catch {
         if (!this.isCurrent(generation)) {
           return;
         }
-        this.update(matchIds.slice(index), module, ComponentLoaderStatus.ERROR);
+        this.update(matchIds.slice(index), module, ComponentLoaderStatus.ERROR, {}, pending);
         return;
       }
     }
@@ -94,9 +123,14 @@ export class SeriesAnalyticsController {
     module: AnalyticsModule,
     status: ComponentLoaderStatus,
     results: Readonly<Record<string, MatchAnalytics | null>> = {},
+    pending?: SeriesMatchAnalyticsById,
   ): void {
     const next = new Map(this.analyticsByMatchId);
+    let hasUpdates = false;
     for (const matchId of matchIds) {
+      if (pending != null && !this.isPending(matchId, module, pending)) {
+        continue;
+      }
       const current = next.get(matchId);
       const analytics = results[matchId];
       if (current?.[module]?.status === ComponentLoaderStatus.LOADED) {
@@ -125,6 +159,10 @@ export class SeriesAnalyticsController {
         state = { ...state, killMatrix: { status: ComponentLoaderStatus.LOADED, data: analytics.killMatrix } };
       }
       next.set(matchId, state);
+      hasUpdates = true;
+    }
+    if (!hasUpdates) {
+      return;
     }
     this.analyticsByMatchId = next;
     this.config.onChange(next);
