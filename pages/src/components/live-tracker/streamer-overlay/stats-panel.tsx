@@ -25,6 +25,10 @@ interface StatsPanelContentProps {
   readonly selectedTab: number;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly isCapturedPreSeries: boolean;
+  readonly preSeriesStatus: ComponentLoaderStatus;
+  readonly preSeriesError: string | null;
+  readonly onRetryPreSeries: () => void;
   readonly seriesMatchCount: number;
   readonly seriesStats: {
     teamData: MatchStatsData[];
@@ -51,6 +55,10 @@ function StatsPanelContentComponent({
   selectedTab,
   teams,
   playersAssociationData,
+  isCapturedPreSeries,
+  preSeriesStatus,
+  preSeriesError,
+  onRetryPreSeries,
   seriesMatchCount,
   seriesStats,
   selectedMatchStats,
@@ -68,6 +76,51 @@ function StatsPanelContentComponent({
   matchKillMatrixStatus,
   onAnalyticsTabSelected,
 }: StatsPanelContentProps): React.ReactElement | null {
+  if (selectedTab === -1 && seriesMatchCount === 0 && isCapturedPreSeries) {
+    if (preSeriesStatus === ComponentLoaderStatus.ERROR) {
+      const error = (
+        <Alert variant="warning">
+          {preSeriesError ?? "Captured player info is unavailable."}{" "}
+          <button type="button" onClick={onRetryPreSeries}>
+            Retry
+          </button>
+        </Alert>
+      );
+      return playersAssociationData == null ? (
+        error
+      ) : (
+        <>
+          {error}
+          <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+        </>
+      );
+    }
+    if (preSeriesStatus !== ComponentLoaderStatus.LOADED) {
+      const loading = <LoadingState text="Loading captured player info..." />;
+      return playersAssociationData == null ? (
+        loading
+      ) : (
+        <>
+          {loading}
+          <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+        </>
+      );
+    }
+    if (playersAssociationData == null) {
+      return (
+        <Alert variant="warning">
+          Captured player info is unavailable.{" "}
+          <button type="button" onClick={onRetryPreSeries}>
+            Retry
+          </button>
+        </Alert>
+      );
+    }
+    return (
+      <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+    );
+  }
+
   if (detailStatus === ComponentLoaderStatus.ERROR && !hasRetainedDetail) {
     return (
       <Alert variant="warning">
