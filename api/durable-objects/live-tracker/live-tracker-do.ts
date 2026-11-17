@@ -1798,6 +1798,7 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
       plannedMaps: await this.getPlannedMaps(),
       seriesScore: state.seriesScore,
       lastUpdateTime: state.lastUpdateTime,
+      seriesStartedAt: state.startTime,
       playersAssociationData: state.playersAssociationData,
       rawMatches: rawMatches,
     };

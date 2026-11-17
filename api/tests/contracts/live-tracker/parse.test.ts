@@ -31,6 +31,32 @@ describe("parseLiveTrackerStateData", () => {
     expect(result?.data.matchSummaries[0]).not.toHaveProperty("gameInfo");
   });
 
+  it.each([undefined, "2025-01-01T00:00:00.000Z"])(
+    "preserves optional series start metadata: %s",
+    (seriesStartedAt) => {
+      const result = tryParseLiveTrackerMessage(
+        JSON.stringify({
+          ...sampleLiveTrackerStateMessage,
+          data: { ...sampleLiveTrackerStateMessage.data, seriesStartedAt },
+        }),
+      );
+
+      expect(result).not.toBeNull();
+      expect(result?.data.seriesStartedAt).toBe(seriesStartedAt);
+    },
+  );
+
+  it.each([null, 123, "invalid-date"])("rejects malformed supplied series start metadata: %j", (seriesStartedAt) => {
+    expect(
+      tryParseLiveTrackerMessage(
+        JSON.stringify({
+          ...sampleLiveTrackerStateMessage,
+          data: { ...sampleLiveTrackerStateMessage.data, seriesStartedAt },
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("round-trips optional match gameInfo", () => {
     const gameInfo = {
       mapAssetId: "map-asset-id",
