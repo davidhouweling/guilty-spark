@@ -9,7 +9,10 @@ import {
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../services/individual-tracker/fakes/view.fake";
-import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import {
+  aFakeCtfMatchAnalyticsWith,
+  aFakeMatchAnalyticsServiceWith,
+} from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
@@ -176,7 +179,7 @@ describe("EntryDetailController condensed series loading", () => {
     const matrix = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
       resolveMatrix = resolve;
     });
-    const analytics = aFakeMatchAnalyticsWith({ requestedModules: ["scoreProgression", "killMatrix"] });
+    const analytics = aFakeCtfMatchAnalyticsWith();
     const spy = vi
       .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
       .mockImplementation(async (_ids, modules) =>
