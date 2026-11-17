@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactElement } from "react";
+import { Fragment } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
@@ -14,6 +15,8 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesOverview?: boolean | undefined;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
+  readonly beforeMatchContent?: ReadonlyMap<string, ReactNode> | undefined;
+  readonly afterMatchesContent?: ReactNode;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
@@ -121,6 +124,8 @@ export function SeriesStatsView({
   showSeriesOverview,
   noGutter,
   wide,
+  beforeMatchContent,
+  afterMatchesContent,
   onAnalyticsTabSelected,
 }: SeriesStatsViewProps): ReactElement {
   const statsGutter = noGutter === true || wide === true ? "0" : undefined;
@@ -192,14 +197,17 @@ export function SeriesStatsView({
       </Container>
 
       {matchDetails.map((detail) => (
-        <MatchDetailSection
-          key={detail.matchId}
-          detail={detail}
-          noGutter={noGutter}
-          wide={wide}
-          onAnalyticsTabSelected={onAnalyticsTabSelected}
-        />
+        <Fragment key={detail.matchId}>
+          {beforeMatchContent?.get(detail.matchId)}
+          <MatchDetailSection
+            detail={detail}
+            noGutter={noGutter}
+            wide={wide}
+            onAnalyticsTabSelected={onAnalyticsTabSelected}
+          />
+        </Fragment>
       ))}
+      {afterMatchesContent}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
   useSeriesStats,
   useHasMatches,
   useSubstitutions,
+  useMatchSubstitutions,
   useAvailablePlayers,
   useAllMatchKillMatrix,
   useSeriesKillMatrix,
@@ -124,6 +125,7 @@ export function LiveTrackerView(): React.ReactElement {
   const seriesStats = useSeriesStats();
 
   const sortedSubstitutionsList = useSubstitutions();
+  const matchSubstitutions = useMatchSubstitutions();
   const availablePlayers = useAvailablePlayers();
   const allMatchKillMatrix = useAllMatchKillMatrix();
   const seriesKillMatrix = useSeriesKillMatrix();
@@ -408,16 +410,9 @@ export function LiveTrackerView(): React.ReactElement {
                 </Container>
                 {((): React.ReactElement[] => {
                   const elements: React.ReactElement[] = [];
-                  let substitutionIndex = 0;
 
                   for (const [matchIndex, match] of state.matches.entries()) {
-                    // Add any substitutions that occurred before this match
-                    while (substitutionIndex < sortedSubstitutionsList.length) {
-                      const substitution = sortedSubstitutionsList[substitutionIndex];
-                      if (new Date(match.endTime) < new Date(substitution.timestamp)) {
-                        break;
-                      }
-
+                    for (const substitution of matchSubstitutions.byMatchId.get(match.matchId) ?? []) {
                       elements.push(
                         <Container
                           key={`sub-${substitution.timestamp}`}
@@ -429,7 +424,6 @@ export function LiveTrackerView(): React.ReactElement {
                           </Alert>
                         </Container>,
                       );
-                      substitutionIndex++;
                     }
 
                     // Add match
@@ -481,9 +475,7 @@ export function LiveTrackerView(): React.ReactElement {
                     );
                   }
 
-                  // Add any remaining substitutions that occurred after the last match
-                  while (substitutionIndex < sortedSubstitutionsList.length) {
-                    const substitution = sortedSubstitutionsList[substitutionIndex];
+                  for (const substitution of matchSubstitutions.trailing) {
                     elements.push(
                       <Container
                         key={`sub-${substitution.timestamp}`}
@@ -495,7 +487,6 @@ export function LiveTrackerView(): React.ReactElement {
                         </Alert>
                       </Container>,
                     );
-                    substitutionIndex++;
                   }
 
                   return elements;

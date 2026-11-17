@@ -186,6 +186,10 @@ export function useSubstitutions(): readonly LiveTrackerSubstitutionRenderModel[
   return useMemo(() => model.sortedSubstitutions, [model.sortedSubstitutions]);
 }
 
+export function useMatchSubstitutions(): LiveTrackerViewModel["matchSubstitutions"] {
+  return useLiveTrackerContext().model.matchSubstitutions;
+}
+
 /**
  * Select available players for settings (pre-computed by presenter)
  */
