@@ -1,3 +1,4 @@
+import type { LivePreSeriesResponse } from "@guilty-spark/shared/contracts/stats/pre-series";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { LiveTrackerConnectionStatus } from "../../services/live-tracker/types";
@@ -23,6 +24,9 @@ export interface LiveTrackerSnapshot {
   readonly seriesDetailStatus: ComponentLoaderStatus;
   readonly seriesDetailError: string | null;
   readonly seriesAnalyticsByMatchId: SeriesMatchAnalyticsById;
+  readonly livePreSeriesResponse: LivePreSeriesResponse | null;
+  readonly livePreSeriesStatus: ComponentLoaderStatus;
+  readonly livePreSeriesError: string | null;
 }
 
 export interface LiveTrackerStoreApi {
@@ -50,6 +54,9 @@ export class LiveTrackerStore implements LiveTrackerStoreApi {
       seriesDetailStatus: ComponentLoaderStatus.PENDING,
       seriesDetailError: null,
       seriesAnalyticsByMatchId: new Map(),
+      livePreSeriesResponse: null,
+      livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+      livePreSeriesError: null,
     };
   }
 

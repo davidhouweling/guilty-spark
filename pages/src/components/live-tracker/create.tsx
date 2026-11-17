@@ -7,6 +7,8 @@ import { LoadingState } from "../loading-state/loading-state";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
+import type { LivePreSeriesService } from "../../services/live-pre-series/types";
+import { LivePreSeriesCache } from "../../services/live-pre-series/cache";
 import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
@@ -19,6 +21,7 @@ export interface CreateLiveTrackerConfig {
   readonly liveTrackerService: LiveTrackerService;
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
+  readonly livePreSeriesService: LivePreSeriesService;
 }
 
 interface LiveTrackerInternalProps {
@@ -26,9 +29,10 @@ interface LiveTrackerInternalProps {
 }
 
 function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactElement {
-  const { liveTrackerService, matchAnalyticsService, seriesMatchesService } = config;
+  const { liveTrackerService, matchAnalyticsService, seriesMatchesService, livePreSeriesService } = config;
   const store = useMemo(() => new LiveTrackerStore(), []);
   const seriesDetailPresenter = useMemo(() => new SeriesDetailStatsViewModelPresenter(new StatsDetailController()), []);
+  const livePreSeriesCache = useMemo(() => new LivePreSeriesCache(livePreSeriesService), [livePreSeriesService]);
 
   const presenter = useMemo(() => {
     const target: { presenter?: LiveTrackerPresenter | undefined } = {};
@@ -45,11 +49,12 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
       getUrl: (): URL => new URL(window.location.href),
       store,
       seriesMatchesService,
+      livePreSeriesCache,
       analyticsController,
     });
     target.presenter = instance;
     return instance;
-  }, [liveTrackerService, matchAnalyticsService, seriesMatchesService, store]);
+  }, [liveTrackerService, matchAnalyticsService, seriesMatchesService, livePreSeriesCache, store]);
 
   useEffect(() => {
     presenter.start();
@@ -89,6 +94,9 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
   const onRetrySeriesDetails = useCallback((): void => {
     presenter.retrySeriesDetails();
   }, [presenter]);
+  const onRetryLivePreSeries = useCallback((): void => {
+    presenter.retryLivePreSeries();
+  }, [presenter]);
 
   return (
     <ComponentLoader
@@ -117,6 +125,7 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
           seriesKillMatrix={model.seriesKillMatrix}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
           onRetrySeriesDetails={onRetrySeriesDetails}
+          onRetryLivePreSeries={onRetryLivePreSeries}
         >
           <LiveTrackerView />
         </LiveTrackerProvider>

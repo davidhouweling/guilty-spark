@@ -85,6 +85,7 @@ export interface LiveTrackerNeatQueueStateRenderModel {
   readonly guildIcon: string | null;
   readonly queueNumber: number;
   readonly status: LiveTrackerStatus;
+  readonly seriesStartedAt?: string | undefined;
   readonly lastUpdateTime: string;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly matches: readonly LiveTrackerMatchRenderModel[];
@@ -141,4 +142,7 @@ export interface LiveTrackerViewModel {
   readonly analyticsStatus: ComponentLoaderStatus;
   readonly allMatchKillMatrix: readonly MatchKillMatrix[];
   readonly seriesKillMatrix: KillMatrixResult | null;
+  readonly livePreSeriesPlayersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly livePreSeriesStatus: ComponentLoaderStatus;
+  readonly livePreSeriesError: string | null;
 }

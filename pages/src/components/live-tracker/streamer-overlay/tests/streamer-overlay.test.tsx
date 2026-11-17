@@ -73,6 +73,9 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     analyticsStatus: ComponentLoaderStatus.LOADED,
     allMatchKillMatrix: [],
     seriesKillMatrix: null,
+    livePreSeriesPlayersAssociationData: null,
+    livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+    livePreSeriesError: null,
     state: {
       type: "neatqueue",
       guildName: "Test Guild",
@@ -112,6 +115,7 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   seriesKillMatrix: null,
   onAnalyticsTabSelected: vi.fn(),
   onRetrySeriesDetails: vi.fn(),
+  onRetryLivePreSeries: vi.fn(),
 };
 
 describe("StreamerOverlay", () => {
