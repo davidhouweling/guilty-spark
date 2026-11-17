@@ -46,6 +46,18 @@ describe("RealSeriesMatchesService.getMatchDetails", () => {
     });
   });
 
+  it("preserves the API host path prefix when adding match and tracker parameters", async () => {
+    service = new RealSeriesMatchesService({ apiHost: "https://api.example.com/gateway/" });
+    fetchSpy.mockResolvedValueOnce(matchDetailContract.toResponse(aFakeMatchDetailResponseWith()));
+
+    await service.getMatchDetails(["match-1", "match-2"], "tracker-1");
+
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+      "https://api.example.com/gateway/api/stats/match-details?matchIds=match-1%2Cmatch-2&trackerId=tracker-1",
+      { credentials: "include" },
+    );
+  });
+
   it("uses the shared batch limit and rejects an oversized request before fetching", async () => {
     await expect(
       service.getMatchDetails(Array.from({ length: 31 }, (_, index) => `match-${index.toString()}`)),

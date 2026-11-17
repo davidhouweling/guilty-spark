@@ -26,6 +26,19 @@ describe("RealLivePreSeriesService", () => {
     );
   });
 
+  it("preserves an API host path prefix", async () => {
+    const data = aFakeLivePreSeriesResponseWith();
+    service = new RealLivePreSeriesService({ apiHost: "https://api.example.com/gateway/" });
+    fetchSpy.mockResolvedValueOnce(livePreSeriesContract.toResponse(data));
+
+    await service.getCapturedRoster(identity);
+
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+      "https://api.example.com/gateway/api/stats/discord/123456789012345678/7/pre-series",
+      { credentials: "include", cache: "no-store" },
+    );
+  });
+
   it("preserves paused rosters and missing captured values without enrichment", async () => {
     const data = aFakeLivePreSeriesResponseWith({
       trackerStatus: "paused",

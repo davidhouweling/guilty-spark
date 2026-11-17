@@ -1,6 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import type { TrackerViewResponse } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { trackerViewContract } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import { createApiUrl } from "../api-url";
 import { RealTrackerViewConnection } from "./view-connection";
 import type { IndividualTrackerViewService, TrackerViewConnection } from "./view-types";
 
@@ -16,9 +17,7 @@ export class RealIndividualTrackerViewService implements IndividualTrackerViewSe
   }
 
   private buildUrl(path: string): string {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return createApiUrl(this.apiHost, path).toString();
   }
 
   private async readError(response: Response): Promise<Error> {

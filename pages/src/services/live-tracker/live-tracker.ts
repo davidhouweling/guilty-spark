@@ -1,5 +1,6 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { tryParseLiveTrackerMessage } from "@guilty-spark/shared/live-tracker/parse";
+import { createApiUrl } from "../api-url";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,
@@ -89,10 +90,10 @@ export class RealLiveTrackerService implements LiveTrackerService {
    * @returns true if tracker exists, false if 404 (not found)
    */
   private async checkTrackerExists(identity: LiveTrackerIdentity): Promise<boolean> {
-    const statusUrl = `${this.config.apiHost}/tracker/${identity.guildId}/${identity.queueNumber}/status`;
+    const statusUrl = createApiUrl(this.config.apiHost, `/tracker/${identity.guildId}/${identity.queueNumber}/status`);
 
     try {
-      const response = await fetch(statusUrl);
+      const response = await fetch(statusUrl.toString());
       return response.ok; // Returns true for 2xx, false for 404/other errors
     } catch {
       // Network error - assume tracker might exist but we can't verify

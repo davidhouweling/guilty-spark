@@ -1,6 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { settingsBodySchema, settingsContract } from "@guilty-spark/shared/contracts/individual-tracker/settings";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { createApiUrl } from "../api-url";
 import type { IndividualTrackerSettingsService } from "./settings-types";
 
 interface IndividualTrackerSettingsServiceOpts {
@@ -15,9 +16,7 @@ export class RealIndividualTrackerSettingsService implements IndividualTrackerSe
   }
 
   private buildUrl(path: string): string {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return createApiUrl(this.apiHost, path).toString();
   }
 
   private async readError(response: Response): Promise<Error> {

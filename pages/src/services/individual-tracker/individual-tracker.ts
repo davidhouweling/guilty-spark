@@ -36,6 +36,7 @@ import type {
   UgcGameVariantAsset,
 } from "halo-infinite-api";
 import { AssetKind, MatchType } from "halo-infinite-api";
+import { createApiUrl } from "../api-url";
 import {
   formatDisplayDateTime,
   getCsrLabel,
@@ -83,9 +84,7 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
   }
 
   private buildUrl(path: string): string {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return createApiUrl(this.apiHost, path).toString();
   }
 
   private async readError(response: Response): Promise<Error> {
@@ -341,19 +340,18 @@ export class RealIndividualTrackerService implements IndividualTrackerService {
   }
 
   public async getCondensedMatchHistory(request: CondensedMatchHistoryRequest): Promise<PreparedMatchHistoryPage> {
-    const query = new URLSearchParams({
-      start: request.start.toString(),
-      count: request.count.toString(),
-      category: request.category ?? "all",
-    });
+    const url = createApiUrl(
+      this.apiHost,
+      `/api/individual-tracker/search/${encodeURIComponent(request.xuid)}/matches`,
+    );
+    url.searchParams.set("start", request.start.toString());
+    url.searchParams.set("count", request.count.toString());
+    url.searchParams.set("category", request.category ?? "all");
     if (request.gamertag != null) {
-      query.set("gamertag", request.gamertag);
+      url.searchParams.set("gamertag", request.gamertag);
     }
 
-    const response = await fetch(
-      this.buildUrl(`/api/individual-tracker/search/${encodeURIComponent(request.xuid)}/matches?${query.toString()}`),
-      { credentials: "include" },
-    );
+    const response = await fetch(url.toString(), { credentials: "include" });
     if (!response.ok) {
       throw new Error(`Failed to fetch match history (${response.status.toString()})`);
     }

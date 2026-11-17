@@ -1,6 +1,7 @@
 import { errorContract } from "@guilty-spark/shared/contracts/error";
 import { trackerDirectoryContract } from "@guilty-spark/shared/contracts/individual-tracker/follow";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";
+import { createApiUrl } from "../api-url";
 import { RealDirectoryConnection } from "./follow-connection";
 import type { DirectoryConnection, FollowLiveService } from "./follow-types";
 
@@ -16,9 +17,7 @@ export class RealFollowLiveService implements FollowLiveService {
   }
 
   private buildUrl(path: string): string {
-    const baseUrl = this.apiHost.endsWith("/") ? this.apiHost.slice(0, -1) : this.apiHost;
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    return createApiUrl(this.apiHost, path).toString();
   }
 
   private async readError(response: Response): Promise<Error> {

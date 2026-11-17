@@ -7,6 +7,7 @@ import {
   seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
 import type { SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
+import { createApiUrl } from "../api-url";
 import { normalizeTrackerId } from "../stats/normalize-tracker-id";
 import type { SeriesMatchesService } from "./types";
 import { getDetailQuery } from "./get-detail-query";
@@ -27,15 +28,16 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     trackerId?: string,
     anchorMatchId?: string,
   ): ReturnType<SeriesMatchesService["getSeriesMatches"]> {
-    const query = new URLSearchParams({ matchIds: matchIds.join(",") });
+    const url = createApiUrl(this.apiHost, "/api/stats/series-matches");
+    url.searchParams.set("matchIds", matchIds.join(","));
     const normalizedTrackerId = normalizeTrackerId(trackerId);
     if (normalizedTrackerId != null) {
-      query.set("trackerId", normalizedTrackerId);
+      url.searchParams.set("trackerId", normalizedTrackerId);
     }
     if (anchorMatchId != null && anchorMatchId.length > 0) {
-      query.set("anchorMatchId", anchorMatchId);
+      url.searchParams.set("anchorMatchId", anchorMatchId);
     }
-    const response = await fetch(`${this.apiHost}/api/stats/series-matches?${query.toString()}`, {
+    const response = await fetch(url.toString(), {
       credentials: "include",
     });
     return seriesMatchesContract.fromResponse(response);
@@ -45,10 +47,9 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     matchIds: readonly string[],
     trackerId?: string,
   ): ReturnType<SeriesMatchesService["getMatchDetails"]> {
-    const query = getDetailQuery(matchIds, trackerId);
-    return matchDetailContract.fromResponse(
-      await fetch(`${this.apiHost}/api/stats/match-details?${query}`, { credentials: "include" }),
-    );
+    const url = createApiUrl(this.apiHost, "/api/stats/match-details");
+    url.search = getDetailQuery(matchIds, trackerId);
+    return matchDetailContract.fromResponse(await fetch(url.toString(), { credentials: "include" }));
   }
 
   async getSeriesDetail(
