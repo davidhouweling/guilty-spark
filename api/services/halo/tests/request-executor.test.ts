@@ -28,10 +28,12 @@ describe("shared Halo HTTP lane", () => {
   it("starts timeouts at the queued request's turn and releases after caller cancellation", async () => {
     vi.useFakeTimers();
     const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    const requestExecutor = new HaloRequestExecutor();
+    const executeSpy = vi.spyOn(requestExecutor, "execute");
     const resilientFetch = createResilientFetch({
       env: aFakeEnvWith(),
       logService: aFakeLogServiceWith(),
-      requestExecutor: new HaloRequestExecutor(),
+      requestExecutor,
     });
     let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
@@ -54,6 +56,8 @@ describe("shared Halo HTTP lane", () => {
     const caller = new AbortController();
     const cancelled = resilientFetch("https://example.com/cancelled", { signal: caller.signal });
     const rejection = expect(cancelled).rejects.toThrow("cancelled");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(executeSpy).toHaveBeenCalledTimes(2);
     caller.abort(new Error("cancelled"));
     expect(timeoutSpy).toHaveBeenCalledTimes(1);
 
@@ -78,10 +82,12 @@ describe("shared Halo HTTP lane", () => {
         }
         return new Response("ok");
       });
+      const requestExecutor = new HaloRequestExecutor();
+      const executeSpy = vi.spyOn(requestExecutor, "execute");
       const resilientFetch = createResilientFetch({
         env: aFakeEnvWith(),
         logService: aFakeLogServiceWith(),
-        requestExecutor: new HaloRequestExecutor(),
+        requestExecutor,
       });
       const first = resilientFetch("https://example.com/first", { method: "POST" });
       await started.promise;
@@ -96,9 +102,12 @@ describe("shared Halo HTTP lane", () => {
       );
       const rejection = expect(cancelled).rejects.toThrow("cancelled");
       const next = resilientFetch("https://example.com/next", { method: "POST" });
-      controller.abort(new Error("cancelled"));
 
       try {
+        await vi.waitFor(() => {
+          expect(executeSpy).toHaveBeenCalledTimes(3);
+        });
+        controller.abort(new Error("cancelled"));
         await rejection;
         expect(fetchSpy).toHaveBeenCalledTimes(1);
       } finally {
