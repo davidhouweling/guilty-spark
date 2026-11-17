@@ -41,6 +41,7 @@ function toMatchRenderModel(
     startTime: summary.startTime,
     endTime: summary.endTime,
     rawMatchStats: (rawMatchStats ?? null) as MatchStats | null,
+    gameInfo: summary.gameInfo,
     playerXuidToGametag: summary.playerXuidToGametag,
   };
 }
@@ -113,6 +114,9 @@ function toPlannedGames(
 ): readonly LiveTrackerPlannedGameRenderModel[] {
   const completedGames = collapseSequentialSeriesEntries(
     matches.flatMap((match) => {
+      if (match.gameInfo != null) {
+        return [{ startTime: match.startTime, ...match.gameInfo, match }];
+      }
       const raw = match.rawMatchStats;
       return !isMatchStats(raw)
         ? []

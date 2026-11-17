@@ -2404,10 +2404,8 @@ describe("LiveTrackerDO", () => {
 
       storageGetSpy.mockResolvedValue(existingState);
 
-      const mockMatches = [
-        Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")),
-        Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf")),
-      ];
+      const newMatch = Preconditions.checkExists(getMatchStats("d81554d7-ddfe-44da-a6cb-000000000ctf"));
+      const mockMatches = [Preconditions.checkExists(getMatchStats("9535b946-f30c-4a43-b852-000000slayer")), newMatch];
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue(mockMatches);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("2:1");
 
@@ -2418,9 +2416,15 @@ describe("LiveTrackerDO", () => {
         expect.objectContaining({
           discoveredMatches: expect.objectContaining({
             "existing-match-id": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
-            "d81554d7-ddfe-44da-a6cb-000000000ctf": expect.any(Object) as LiveTrackerState["discoveredMatches"][string],
+            [newMatch.MatchId]: expect.objectContaining({
+              gameInfo: {
+                mapAssetId: newMatch.MatchInfo.MapVariant.AssetId,
+                mapVersionId: newMatch.MatchInfo.MapVariant.VersionId,
+                gameVariantCategory: newMatch.MatchInfo.GameVariantCategory,
+              },
+            }) as LiveTrackerState["discoveredMatches"][string],
           }) as LiveTrackerState["discoveredMatches"],
-          matchIds: expect.arrayContaining(["existing-match-id", "d81554d7-ddfe-44da-a6cb-000000000ctf"]) as string[],
+          matchIds: expect.arrayContaining(["existing-match-id", newMatch.MatchId]) as string[],
         }),
       );
     });

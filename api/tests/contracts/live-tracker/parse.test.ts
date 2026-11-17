@@ -24,6 +24,51 @@ describe("parseLiveTrackerStateData", () => {
     }
   });
 
+  it("accepts legacy match summaries without gameInfo", () => {
+    const result = tryParseLiveTrackerMessage(JSON.stringify(sampleLiveTrackerStateMessage));
+
+    expect(result?.data.matchSummaries[0]).toEqual(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    expect(result?.data.matchSummaries[0]).not.toHaveProperty("gameInfo");
+  });
+
+  it("round-trips optional match gameInfo", () => {
+    const gameInfo = {
+      mapAssetId: "map-asset-id",
+      mapVersionId: "map-version-id",
+      gameVariantCategory: 4,
+    };
+    const [firstSummary] = sampleLiveTrackerStateMessage.data.matchSummaries;
+    expect(firstSummary).toBeDefined();
+    const payload = JSON.stringify({
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [{ ...firstSummary, gameInfo }, ...sampleLiveTrackerStateMessage.data.matchSummaries.slice(1)],
+      },
+    });
+
+    const result = tryParseLiveTrackerMessage(payload);
+
+    expect(result?.data.type === "neatqueue" ? result.data.matchSummaries[0]?.gameInfo : undefined).toEqual(gameInfo);
+  });
+
+  it.each([null, {}, { mapAssetId: 1, mapVersionId: "version", gameVariantCategory: 4 }])(
+    "rejects malformed provided match gameInfo: %j",
+    (gameInfo) => {
+      const [firstSummary] = sampleLiveTrackerStateMessage.data.matchSummaries;
+      expect(firstSummary).toBeDefined();
+      const message = {
+        ...sampleLiveTrackerStateMessage,
+        data: {
+          ...sampleLiveTrackerStateMessage.data,
+          matchSummaries: [{ ...firstSummary, gameInfo }],
+        },
+      };
+
+      expect(tryParseLiveTrackerMessage(JSON.stringify(message))).toBeNull();
+    },
+  );
+
   it("returns null when status is invalid", () => {
     const data = {
       ...sampleLiveTrackerStateMessage.data,

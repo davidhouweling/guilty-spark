@@ -388,7 +388,10 @@ export class LiveTrackerPresenter {
         prevMatch.gameScore !== currMatch.gameScore ||
         prevMatch.duration !== currMatch.duration ||
         prevMatch.startTime !== currMatch.startTime ||
-        prevMatch.endTime !== currMatch.endTime
+        prevMatch.endTime !== currMatch.endTime ||
+        prevMatch.gameInfo?.mapAssetId !== currMatch.gameInfo?.mapAssetId ||
+        prevMatch.gameInfo?.mapVersionId !== currMatch.gameInfo?.mapVersionId ||
+        prevMatch.gameInfo?.gameVariantCategory !== currMatch.gameInfo?.gameVariantCategory
       ) {
         return false;
       }

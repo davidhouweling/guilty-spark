@@ -67,7 +67,10 @@ describe("toLiveTrackerStateRenderModel", () => {
       ...sampleLiveTrackerStateMessage,
       data: {
         ...sampleLiveTrackerStateMessage.data,
-        matchSummaries: [first, { ...second, gameMap: "Actual Map", gameType: "Actual Mode" }],
+        matchSummaries: [
+          { ...first, gameInfo: undefined },
+          { ...second, gameInfo: undefined, gameMap: "Actual Map", gameType: "Actual Mode" },
+        ],
         rawMatches: {
           [first.matchId]: {
             MatchId: first.matchId,
@@ -109,6 +112,65 @@ describe("toLiveTrackerStateRenderModel", () => {
         gameMapThumbnailUrl: "data:,",
         gameModeIconUrl: "data:,",
       },
+    ]);
+  });
+
+  it("counts resumed matches from summary metadata when raw matches have expired", () => {
+    const first = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
+    const second = sampleLiveTrackerStateMessage.data.matchSummaries.at(1);
+    if (first == null || second == null) {
+      throw new Error("Expected sample matches");
+    }
+    const gameInfo = { mapAssetId: "map-a", mapVersionId: "v1", gameVariantCategory: 1 };
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [
+          { ...first, gameInfo },
+          { ...second, gameInfo },
+        ],
+        rawMatches: {},
+        plannedMaps: [
+          { mode: "Slayer", map: "Played Map" },
+          { mode: "Oddball", map: "Next Map" },
+        ],
+      },
+    };
+
+    expect(toLiveTrackerStateRenderModel(message, {}).plannedGames).toEqual([
+      expect.objectContaining({ gameNumber: 2, mode: "Oddball", map: "Next Map" }),
+    ]);
+  });
+
+  it("keeps games distinct when their condensed map versions or modes differ", () => {
+    const first = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
+    const second = sampleLiveTrackerStateMessage.data.matchSummaries.at(1);
+    if (first == null || second == null) {
+      throw new Error("Expected sample matches");
+    }
+    const gameInfo = { mapAssetId: "map-a", mapVersionId: "v1", gameVariantCategory: 1 };
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: [
+          { ...first, gameInfo },
+          { ...second, gameInfo: { ...gameInfo, mapVersionId: "v2" } },
+          { ...second, matchId: "third", gameInfo: { ...gameInfo, mapVersionId: "v2", gameVariantCategory: 2 } },
+        ],
+        rawMatches: {},
+        plannedMaps: [
+          { mode: "Slayer", map: "One" },
+          { mode: "Slayer", map: "Two" },
+          { mode: "Oddball", map: "Three" },
+          { mode: "CTF", map: "Next Map" },
+        ],
+      },
+    };
+
+    expect(toLiveTrackerStateRenderModel(message, {}).plannedGames).toEqual([
+      expect.objectContaining({ gameNumber: 4, mode: "CTF", map: "Next Map" }),
     ]);
   });
 

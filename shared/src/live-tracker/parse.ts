@@ -12,6 +12,7 @@ import { liveTrackerMapSchema } from "../contracts/durable-objects/live-tracker/
 import type {
   LiveTrackerPlayer,
   LiveTrackerMatchSummary,
+  LiveTrackerMatchGameInfo,
   LiveTrackerMessage,
   LiveTrackerStatus,
   LiveTrackerNeatQueueStateData,
@@ -98,6 +99,22 @@ function parseTeam(value: JsonValue): LiveTrackerTeam | null {
   };
 }
 
+function parseMatchGameInfo(value: JsonValue): LiveTrackerMatchGameInfo | null {
+  const gameInfo = readJsonObject(value);
+  if (!gameInfo) {
+    return null;
+  }
+
+  const mapAssetId = readString(gameInfo["mapAssetId"] ?? null);
+  const mapVersionId = readString(gameInfo["mapVersionId"] ?? null);
+  const gameVariantCategory = readNumber(gameInfo["gameVariantCategory"] ?? null);
+  if (mapAssetId === null || mapVersionId === null || gameVariantCategory === null) {
+    return null;
+  }
+
+  return { mapAssetId, mapVersionId, gameVariantCategory };
+}
+
 function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const match = readJsonObject(value);
   if (!match) {
@@ -115,6 +132,12 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
   const startTime = readString(match["startTime"] ?? null);
   const endTime = readString(match["endTime"] ?? null);
   const playerXuidToGametag = readStringRecord(match["playerXuidToGametag"] ?? null);
+  const gameInfoValue = match["gameInfo"];
+  const gameInfo = gameInfoValue === undefined ? undefined : parseMatchGameInfo(gameInfoValue);
+
+  if (gameInfoValue !== undefined && gameInfo === null) {
+    return null;
+  }
 
   if (
     matchId === null ||
@@ -131,6 +154,8 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     return null;
   }
 
+  const parsedGameInfo = gameInfo ?? undefined;
+
   return {
     matchId,
     gameTypeAndMap,
@@ -143,6 +168,7 @@ function parseMatchSummary(value: JsonValue): LiveTrackerMatchSummary | null {
     startTime,
     endTime,
     playerXuidToGametag,
+    ...(parsedGameInfo === undefined ? {} : { gameInfo: parsedGameInfo }),
   };
 }
 
