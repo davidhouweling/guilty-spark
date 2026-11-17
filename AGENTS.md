@@ -41,6 +41,9 @@ always supply specific files or folders; never lint the whole repository.
 
 ## Implementation
 
+- Keep README files focused on high-level capabilities and getting started.
+  Do not add feature implementation details or change history to READMEs; use
+  appropriate non-README guidance and PR descriptions instead.
 - Understand the requirements and ask for clarification when uncertain. Follow
   the nearest applicable pattern, but do not replicate a known architectural
   violation. Keep changes scoped, preserve existing behavior, and surface errors.
