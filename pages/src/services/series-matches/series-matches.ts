@@ -6,7 +6,7 @@ import {
   seriesDetailContract,
   seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
-import type { SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
+import type { ConfiguredTeamContext, SeriesTeamMappingMode } from "@guilty-spark/shared/contracts/stats/detail";
 import { createApiUrl } from "../api-url";
 import { normalizeTrackerId } from "../stats/normalize-tracker-id";
 import type { SeriesMatchesService } from "./types";
@@ -57,10 +57,11 @@ export class RealSeriesMatchesService implements SeriesMatchesService {
     matchIds: readonly string[],
     trackerId?: string,
     teamMappingMode?: SeriesTeamMappingMode,
+    configuredTeamContext?: ConfiguredTeamContext,
   ): ReturnType<SeriesMatchesService["getSeriesDetail"]> {
-    const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode });
+    const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode, configuredTeamContext });
     const url = new URL(`/api/stats/series-details/${encodeURIComponent(seriesId)}`, this.apiHost);
-    const usePost = request.matchIds.length > MATCH_DETAIL_BATCH_LIMIT;
+    const usePost = request.configuredTeamContext != null || request.matchIds.length > MATCH_DETAIL_BATCH_LIMIT;
     if (!usePost) {
       const parsedQuery = matchDetailQuerySchema.parse({ matchIds: request.matchIds.join(",") });
       url.searchParams.set("matchIds", parsedQuery.matchIds.join(","));

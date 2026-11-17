@@ -9,6 +9,7 @@ import {
 } from "@guilty-spark/shared/halo/series-team-identity";
 import { mapManualSeriesToStableTeams, resolveManualSeriesTeamMappings } from "./manual-series-team-mapping";
 import type { ManualSeriesTeamMappings } from "./manual-series-team-mapping";
+import { resolveConfiguredSeriesTeamMappings } from "./configured-series-team-mapping";
 import { mapSeriesDetailAggregation } from "./series-detail-aggregation";
 import type { SeriesDetailOptions } from "./types";
 
@@ -60,6 +61,13 @@ function hasCompleteMapping(match: MatchStats, mapping: ReadonlyMap<number, numb
 }
 
 function resolveMappings(matches: MatchStats[], options: SeriesDetailOptions): ManualSeriesTeamMappings | null {
+  if (options.configuredTeamContext != null) {
+    const mappings = resolveConfiguredSeriesTeamMappings(matches, options.configuredTeamContext);
+    return mappings != null &&
+      matches.every((match) => hasCompleteMapping(match, mappings.matchTeamIdToSeriesTeamId.get(match.MatchId)))
+      ? mappings
+      : null;
+  }
   if (options.isManualSeries === true || options.teamMappingMode === "substitution-aware") {
     const mappings = resolveManualSeriesTeamMappings(matches);
     return mappings != null &&
@@ -92,10 +100,21 @@ function mapScoreSection(
       };
 }
 
-function mapDetailSeriesSides(detail: MatchDetail, mapping: ReadonlyMap<number, number> | undefined): MatchDetail {
+function mapDetailSeriesSides(
+  detail: MatchDetail,
+  mapping: ReadonlyMap<number, number> | undefined,
+  teamNames?: ReadonlyMap<number, string>,
+): MatchDetail {
   return {
     ...detail,
-    teams: detail.teams.map((team) => ({ ...team, seriesTeamId: mapping?.get(team.matchTeamId) ?? null })),
+    teams: detail.teams.map((team) => {
+      const seriesTeamId = mapping?.get(team.matchTeamId) ?? null;
+      return {
+        ...team,
+        seriesTeamId,
+        name: teamNames == null ? team.name : seriesTeamId == null ? null : (teamNames.get(seriesTeamId) ?? null),
+      };
+    }),
     players: detail.players.map((player) => ({
       ...player,
       teamStats: player.teamStats.map((stats) => ({
@@ -124,12 +143,22 @@ export function mapSeriesDetail(
     compareAsc(left.MatchInfo.StartTime, right.MatchInfo.StartTime),
   );
   const mappings = resolveMappings(matches, options);
+  if (options.configuredTeamContext != null) {
+    options = {
+      ...options,
+      teamNamesBySeriesTeamId: new Map(options.configuredTeamContext.teams.map((team, index) => [index, team.name])),
+    };
+  }
   const mappedResults = batch.results.map((result) =>
     result.status === "unavailable"
       ? result
       : {
           ...result,
-          detail: mapDetailSeriesSides(result.detail, mappings?.matchTeamIdToSeriesTeamId.get(result.matchId)),
+          detail: mapDetailSeriesSides(
+            result.detail,
+            mappings?.matchTeamIdToSeriesTeamId.get(result.matchId),
+            options.configuredTeamContext == null ? undefined : options.teamNamesBySeriesTeamId,
+          ),
         },
   );
   const aggregation: SeriesDetailResponse["aggregation"] = batch.results.some(

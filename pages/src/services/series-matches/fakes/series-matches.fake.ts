@@ -5,7 +5,11 @@ import {
   seriesDetailContract,
   seriesDetailRequestSchema,
 } from "@guilty-spark/shared/contracts/stats/detail";
-import type { MatchDetailResponse, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type {
+  ConfiguredTeamContext,
+  MatchDetailResponse,
+  SeriesDetailResponse,
+} from "@guilty-spark/shared/contracts/stats/detail";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -75,13 +79,34 @@ export function aFakeSeriesMatchesServiceWith(response?: Partial<SeriesMatchesRe
     },
     getMatchDetails: async (matchIds): Promise<MatchDetailResponse> =>
       Promise.resolve(matchDetailContract.parse(buildMatchDetails(matchIds))),
-    getSeriesDetail: async (seriesId, matchIds, _trackerId, teamMappingMode): Promise<SeriesDetailResponse> => {
-      const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode });
+    getSeriesDetail: async (
+      seriesId,
+      matchIds,
+      _trackerId,
+      teamMappingMode,
+      configuredTeamContext,
+    ): Promise<SeriesDetailResponse> => {
+      const request = seriesDetailRequestSchema.parse({ matchIds, teamMappingMode, configuredTeamContext });
       return Promise.resolve(
         seriesDetailContract.parse(
           aFakeSeriesDetailResponseWith({ seriesId, matches: buildMatchDetails(request.matchIds) }),
         ),
       );
     },
+  };
+}
+
+export function aFakeConfiguredTeamContextWith(overrides: Partial<ConfiguredTeamContext> = {}): ConfiguredTeamContext {
+  return {
+    teams: [
+      { name: "Configured one", playerIds: ["player-one"] },
+      { name: "Configured two", playerIds: ["player-two"] },
+    ],
+    playersAssociationData: {
+      "player-one": { xboxId: "111" },
+      "player-two": { xboxId: "222" },
+    },
+    substitutions: [],
+    ...overrides,
   };
 }

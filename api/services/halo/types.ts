@@ -1,6 +1,7 @@
 import type { HaloInfiniteClient, MatchStats, UserInfo as HaloUserInfo } from "halo-infinite-api";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import type {
+  ConfiguredTeamContext,
   MatchDetailResponse,
   SeriesDetailResponse,
   SeriesTeamMappingMode,
@@ -38,6 +39,7 @@ export interface SeriesDetailAggregationOptions {
 }
 
 export interface SeriesDetailOptions extends SeriesDetailAggregationOptions {
+  configuredTeamContext?: ConfiguredTeamContext | undefined;
   isManualSeries?: boolean | undefined;
   teamMappingMode?: SeriesTeamMappingMode | undefined;
   context?: SeriesDetailResponse["context"];

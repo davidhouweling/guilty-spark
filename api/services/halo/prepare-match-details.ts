@@ -2,12 +2,13 @@ import { RequestError } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { matchDetailBatchSchema } from "@guilty-spark/shared/contracts/stats/detail";
-import type { MatchDetailResult } from "@guilty-spark/shared/contracts/stats/detail";
+import type { ConfiguredTeamContext, MatchDetailResult } from "@guilty-spark/shared/contracts/stats/detail";
 import type { Player } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { LogService } from "../log/types";
 import type { HaloService } from "./halo";
 import { mapMatchDetail } from "./match-detail";
+import { resolveConfiguredSeriesTeamMappings } from "./configured-series-team-mapping";
 import type { MatchDetailRosterOptions, PreparedMatchDetails } from "./types";
 
 type UnavailableMatch = Extract<MatchDetailResult, { status: "unavailable" }>;
@@ -74,11 +75,14 @@ async function mapDetails(
   haloService: HaloService,
   matches: MatchStats[],
   rosterOptions: MatchDetailRosterOptions,
+  configuredTeamContext?: ConfiguredTeamContext,
 ): Promise<Map<string, MatchDetailResult>> {
   const mapNames = new Map<string, ReturnType<HaloService["getMapName"]>>();
   const modeNames = new Map<string, ReturnType<HaloService["getGameType"]>>();
   const thumbnails = new Map<string, ReturnType<HaloService["getMapThumbnailUrlStrict"]>>();
   const results = new Map<string, MatchDetailResult>();
+  const mappings =
+    configuredTeamContext == null ? null : resolveConfiguredSeriesTeamMappings(matches, configuredTeamContext);
   async function mapDetail(match: MatchStats): Promise<void> {
     const info = match.MatchInfo;
     const mapKey = JSON.stringify([info.MapVariant.AssetId, info.MapVariant.VersionId]);
@@ -100,6 +104,7 @@ async function mapDetails(
       matchId: match.MatchId,
       detail: mapMatchDetail(match, {
         ...rosterOptions,
+        matchTeamIdToSeriesTeamId: mappings?.matchTeamIdToSeriesTeamId.get(match.MatchId),
         mapName: gameMap,
         modeName: gameType,
         mapThumbnailUrl: thumbnail,
@@ -122,6 +127,7 @@ export async function prepareMatchDetails(
   haloService: HaloService,
   requestedIds: readonly string[],
   logService: LogService,
+  configuredTeamContext?: ConfiguredTeamContext,
 ): Promise<PreparedMatchDetails> {
   const matchIds = matchDetailBatchSchema.shape.matchIds.parse(requestedIds);
   const loadedMatches = await loadMatches(haloService, [...new Set(matchIds)], logService);
@@ -130,7 +136,7 @@ export async function prepareMatchDetails(
   const resultsById =
     rawMatches.length === 0
       ? new Map<string, MatchDetailResult>()
-      : await mapDetails(haloService, rawMatches, rosterOptions);
+      : await mapDetails(haloService, rawMatches, rosterOptions, configuredTeamContext);
   for (const match of loadedMatches) {
     if ("status" in match) {
       resultsById.set(match.matchId, match);

@@ -13,7 +13,10 @@ import type { Services } from "../../../services/install";
 import type { HaloService } from "../../../services/halo/halo";
 import { aFakeHaloServiceWith } from "../../../services/halo/fakes/halo.fake";
 import { aFakeHaloInfiniteClient } from "../../../services/halo/fakes/infinite-client.fake";
-import { aFakeSeriesDetailMatchWith } from "../../../services/halo/fakes/series-detail.fake";
+import {
+  aFakeConfiguredTeamContextWith,
+  aFakeSeriesDetailMatchWith,
+} from "../../../services/halo/fakes/series-detail.fake";
 import { getMedalsMetadata } from "../../../services/halo/fakes/data";
 import { statsRoutesRegisterHandler } from "../stats";
 
@@ -90,6 +93,152 @@ describe("/api/stats/series-details/:seriesId", () => {
       env,
     )) as Response;
   }
+
+  it("orients reversed first sides and later swapped substituted teams to configured names and columns", async () => {
+    const matches = [aFakeSeriesDetailMatchWith(0), aFakeSeriesDetailMatchWith(1, true, true)];
+    for (const [index, match] of matches.entries()) {
+      for (const team of match.Teams) {
+        team.Stats.CoreStats.Kills = index === 0 ? (team.TeamId === 7 ? 30 : 10) : team.TeamId === 7 ? 20 : 40;
+      }
+      for (const player of match.Players) {
+        player.PlayerId = `xuid(${player.PlayerId})`;
+      }
+    }
+    getMatchDetailsSpy.mockImplementation(async ([id]) =>
+      Promise.resolve(matches.filter((match) => match.MatchId === id)),
+    );
+    const series = await seriesDetailContract.fromResponse(
+      await post(
+        JSON.stringify({
+          matchIds: ["match-1", "match-0"],
+          configuredTeamContext: aFakeConfiguredTeamContextWith(),
+        }),
+      ),
+    );
+    const first = detailAt(series, 1);
+    const later = detailAt(series, 0);
+    expect(first.score.primary?.teams).toEqual([
+      { matchTeamId: 7, seriesTeamId: 1, value: 50 },
+      { matchTeamId: 3, seriesTeamId: 0, value: 40 },
+    ]);
+    expect(later.score.primary?.teams).toEqual([
+      { matchTeamId: 7, seriesTeamId: 0, value: 50 },
+      { matchTeamId: 3, seriesTeamId: 1, value: 40 },
+    ]);
+    expect(first.teams.map((team) => [team.matchTeamId, team.seriesTeamId, team.name, team.outcome])).toEqual([
+      [7, 1, "Configured B", "Win"],
+      [3, 0, "Configured A", "Loss"],
+    ]);
+    expect(
+      later.players.map((player) => player.teamStats.map((stats) => [stats.matchTeamId, stats.seriesTeamId])),
+    ).toEqual([[[7, 0]], [[7, 0]], [[3, 1]], [[3, 1]]]);
+    expect(series.aggregation).toMatchObject({
+      status: "resolved",
+      teams: [
+        { seriesTeamId: 0, name: "Configured A", gamesWon: 0, outcome: "Loss" },
+        { seriesTeamId: 1, name: "Configured B", gamesWon: 2, outcome: "Win" },
+      ],
+    });
+    if (series.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregate");
+    }
+    expect(series.aggregation.players.find((player) => player.playerId === "xuid(0900000000000000)")).toMatchObject({
+      teamStats: [{ seriesTeamId: 1 }],
+    });
+    expect(series.aggregation.teams.map((team) => team.stats.find((stat) => stat.key === "Kills"))).toMatchObject([
+      { status: "available", value: 30 },
+      { status: "available", value: 70 },
+    ]);
+    expect(getIndividualTrackerSpy).not.toHaveBeenCalled();
+    expect(withUserClientSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "missing association",
+    "unlinked association",
+    "duplicate association",
+    "wrong roster",
+    "inconsistent substitution",
+  ])("keeps raw detail but declines configured sides for %s without generic fallback", async (failure) => {
+    const context = aFakeConfiguredTeamContextWith();
+    if (failure === "missing association") {
+      delete context.playersAssociationData["d2"];
+    } else if (failure === "unlinked association") {
+      context.playersAssociationData["d2"] = { xboxId: null };
+    } else if (failure === "duplicate association") {
+      context.playersAssociationData["d2"] = { xboxId: "0100000000000000" };
+    } else if (failure === "inconsistent substitution") {
+      context.substitutions = context.substitutions.map((substitution) => ({ ...substitution, teamIndex: 0 }));
+    } else {
+      context.substitutions = [];
+    }
+    const series = await seriesDetailContract.fromResponse(
+      await post(
+        JSON.stringify({
+          matchIds: ["match-0"],
+          configuredTeamContext: context,
+        }),
+      ),
+    );
+    const detail = detailAt(series, 0);
+    expect(series.aggregation).toEqual({ status: "unavailable", reason: "ambiguous-team-mapping" });
+    expect(detail.teams.map((team) => [team.matchTeamId, team.seriesTeamId, team.name])).toEqual([
+      [7, null, null],
+      [3, null, null],
+    ]);
+    expect(detail.score.primary?.teams.map((team) => team.seriesTeamId)).toEqual([null, null]);
+    expect(detail.players.flatMap((player) => player.teamStats.map((stats) => stats.seriesTeamId))).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(detail.players).toHaveLength(4);
+  });
+
+  it("retains pre-anchor replacements instead of reversing their substitutions", async () => {
+    getMatchDetailsSpy.mockResolvedValue([aFakeSeriesDetailMatchWith(1, true, true)]);
+    const series = await seriesDetailContract.fromResponse(
+      await post(
+        JSON.stringify({
+          matchIds: ["match-1"],
+          configuredTeamContext: aFakeConfiguredTeamContextWith(),
+        }),
+      ),
+    );
+    expect(series.aggregation).toMatchObject({ status: "resolved", teams: [{ seriesTeamId: 0 }, { seriesTeamId: 1 }] });
+    expect(detailAt(series, 0).teams.map((team) => team.seriesTeamId)).toEqual([0, 1]);
+  });
+
+  it("rewinds chained later replacements in reverse event order even with equal timestamps", async () => {
+    const context = aFakeConfiguredTeamContextWith();
+    const event = Preconditions.checkExists(context.substitutions[0]);
+    context.substitutions = [
+      { ...event, playerInId: "d5" },
+      { ...event, playerOutId: "d5" },
+    ];
+    const series = await seriesDetailContract.fromResponse(
+      await post(JSON.stringify({ matchIds: ["match-0"], configuredTeamContext: context })),
+    );
+    expect(series.aggregation).toMatchObject({ status: "resolved" });
+    expect(detailAt(series, 0).teams.map((team) => team.seriesTeamId)).toEqual([1, 0]);
+  });
+
+  it.each([
+    { configuredTeamContext: { teams: [] } },
+    {
+      configuredTeamContext: {
+        ...aFakeConfiguredTeamContextWith(),
+        substitutions: [{ playerOutId: "d2", playerInId: "d9", teamIndex: 2, timestamp: "invalid" }],
+      },
+    },
+    { configuredTeamContext: aFakeConfiguredTeamContextWith(), teamMappingMode: "substitution-aware" },
+  ])("rejects malformed or mixed context before looking up credentials", async (body) => {
+    const response = await post(JSON.stringify({ matchIds: ["match-0"], ...body }), "?trackerId=tracker");
+    expect(response.status).toBe(400);
+    expect(getMatchDetailsSpy).not.toHaveBeenCalled();
+    expect(getIndividualTrackerSpy).not.toHaveBeenCalled();
+  });
 
   it("aggregates the entire series once across batches using the chronological anchor and distinct IDs", async () => {
     const matchIds = Array.from({ length: 31 }, (_, index) => `match-${String(30 - index)}`);
