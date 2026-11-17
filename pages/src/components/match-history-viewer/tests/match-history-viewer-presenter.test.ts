@@ -11,6 +11,7 @@ import { prepareCondensedMatchHistory } from "../../../services/individual-track
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import { EntryDetailController } from "../../../controllers/entry-detail/entry-detail-controller";
+import { SeriesAnalyticsController } from "../../../controllers/series-analytics/series-analytics-controller";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { IndividualTrackerViewerPresenter } from "../../individual-tracker/viewer/viewer-presenter";
 import { IndividualTrackerViewerStore } from "../../individual-tracker/viewer/viewer-store";
@@ -55,6 +56,8 @@ function aPresenterSetup(settings: Parameters<typeof aFakeIndividualTrackerSetti
     statsDetailController: new StatsDetailController(),
     matchAnalyticsService,
     seriesMatchesService,
+    createSeriesAnalyticsController: (onChange): SeriesAnalyticsController =>
+      new SeriesAnalyticsController({ matchAnalyticsService, onChange }),
   });
 
   const presenter = new MatchHistoryViewerPresenter({
