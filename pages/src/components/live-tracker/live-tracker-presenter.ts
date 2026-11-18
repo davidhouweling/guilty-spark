@@ -15,7 +15,7 @@ import type {
 } from "../../services/live-tracker/types";
 import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
-import type { SeriesMatchAnalyticsById } from "../series-stats/types";
+import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../series-stats/types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
 import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
@@ -26,6 +26,7 @@ import type {
   LiveTrackerMatchRenderModel,
   LiveTrackerMatchSubstitutions,
   LiveTrackerSubstitutionRenderModel,
+  LiveTrackerStateRenderModel,
 } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
@@ -99,6 +100,27 @@ function getMedalMetadata(detail: SeriesDetailResponse | null): MedalMetadata {
   return metadata;
 }
 
+function withDetailScores(
+  state: LiveTrackerStateRenderModel | null,
+  detail: SeriesStatsViewModel | null,
+): LiveTrackerStateRenderModel | null {
+  if (state == null || detail == null) {
+    return state;
+  }
+  const resolvedIds = new Set(detail.matchDetails.filter((match) => match.data != null).map((match) => match.matchId));
+  const scores = new Map(
+    detail.matchSummaries.filter((match) => resolvedIds.has(match.matchId)).map((match) => [match.matchId, match]),
+  );
+  return {
+    ...state,
+    seriesScore: detail.seriesStats == null ? state.seriesScore : detail.seriesScore,
+    matches: state.matches.map((match) => {
+      const score = scores.get(match.matchId);
+      return score == null ? match : { ...match, gameScore: score.gameScore, gameSubScore: score.gameSubScore };
+    }),
+  };
+}
+
 export class LiveTrackerPresenter {
   public static readonly usageText = "Usage: /tracker?server=123&queue=1";
 
@@ -157,16 +179,6 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
-    const medalMetadata = getMedalMetadata(snapshot.seriesDetail);
-    const state =
-      lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage, medalMetadata) : null;
-    const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
-    const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    const availablePlayers =
-      state?.type === "neatqueue"
-        ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
-        : [];
-
     const detailModel =
       snapshot.seriesDetail == null
         ? null
@@ -174,6 +186,17 @@ export class LiveTrackerPresenter {
             snapshot.seriesDetail,
             snapshot.seriesAnalyticsByMatchId,
           );
+    const medalMetadata = getMedalMetadata(snapshot.seriesDetail);
+    const state = withDetailScores(
+      lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage, medalMetadata) : null,
+      detailModel,
+    );
+    const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
+    const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    const availablePlayers =
+      state?.type === "neatqueue"
+        ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
+        : [];
     const allMatchStats = detailModel?.matchDetails.map(({ matchId, data }) => ({ matchId, data })) ?? [];
     const seriesStats =
       detailModel?.seriesStats == null
@@ -624,7 +647,7 @@ export class LiveTrackerPresenter {
       currentSnapshot.seriesDetail != null &&
       previousRequest?.identityKey === request.identityKey &&
       JSON.stringify(previousRequest.teamContext) === JSON.stringify(request.teamContext) &&
-      previousRequest.matchIds.every((matchId) => request.matchIds.includes(matchId));
+      previousRequest.matchIds.every((matchId, index) => request.matchIds[index] === matchId);
     this.config.store.setSnapshot({
       ...currentSnapshot,
       lastStateMessage: message,

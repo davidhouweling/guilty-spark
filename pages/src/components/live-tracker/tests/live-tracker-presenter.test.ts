@@ -366,6 +366,46 @@ describe("LiveTrackerPresenter live detail integration", () => {
     presenter.dispose();
   });
 
+  it("clears retained detail during an earlier insertion and after its refresh fails", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: sampleLiveTrackerStateMessage.data.matchSummaries.slice(1),
+      },
+    });
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetail).not.toBeNull();
+    vi.spyOn(seriesMatchesService, "getSeriesDetail").mockImplementationOnce(
+      async () =>
+        new Promise((_resolve, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(store.getSnapshot().seriesDetail).toBeNull();
+    Preconditions.checkExists(rejectRefresh)(new Error("insertion refresh failed"));
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+    expect(store.getSnapshot().seriesDetail).toBeNull();
+    presenter.dispose();
+  });
+
   it("updates planned games when only persisted game metadata changes", async () => {
     const store = new MockLiveTrackerStore();
     const connection = new MockLiveTrackerConnection();

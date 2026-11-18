@@ -33,7 +33,7 @@ interface StatsPanelContentProps {
   } | null;
   readonly selectedMatchStats: MatchStatsData[] | null;
   readonly selectedMatch: LiveTrackerMatchRenderModel | null;
-  readonly teamColors: TeamColor[];
+  readonly teamColors: readonly TeamColor[];
   readonly gameModeIconUrl: (gameMode: string, gameVariantCategory?: number) => string;
   readonly matchKillMatrix: KillMatrixData | null;
   readonly seriesKillMatrix: KillMatrixData | null;

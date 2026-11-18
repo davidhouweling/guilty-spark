@@ -131,7 +131,6 @@ export function LiveTrackerView(): React.ReactElement {
   const sortedSubstitutionsList = useSubstitutions();
   const matchSubstitutions = useMatchSubstitutions();
   const availablePlayers = useAvailablePlayers();
-  const detailState = useSeriesDetailState();
   const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
   const SeriesStatsContent = useMemo(() => createSeriesStatsContent(), []);
 
@@ -139,6 +138,11 @@ export function LiveTrackerView(): React.ReactElement {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [team1Color, setTeam1Color] = useState(DEFAULT_TEAM_COLORS[0]);
   const [team2Color, setTeam2Color] = useState(DEFAULT_TEAM_COLORS[1]);
+  const teamColorsArray = useMemo(
+    () => [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)],
+    [team1Color, team2Color],
+  );
+  const detailState = useSeriesDetailState(teamColorsArray);
 
   // State for view mode
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -264,7 +268,6 @@ export function LiveTrackerView(): React.ReactElement {
   }
   title.push("Live Tracker - Guilty Spark");
 
-  const teamColorsArray = [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)];
   const seriesOverviewMatches = hasState(state) ? toLiveSeriesOverviewMatches(state, detailState.detailViewModel) : [];
   const seriesOverviewTeams = hasState(state) ? toLiveSeriesOverviewTeams(state, team1Color, team2Color) : [];
 

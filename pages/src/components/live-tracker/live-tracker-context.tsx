@@ -4,6 +4,9 @@ import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/ty
 import type { MatchStatsData } from "../../controllers/stats/types";
 import type { SeriesMetadata } from "../../controllers/stats/series-metadata";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
+import type { TeamColor } from "../team-colors/team-colors";
+import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
+import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
 import type { LiveTrackerParams } from "./live-tracker-store";
 import type {
   LiveTrackerAvailablePlayer,
@@ -299,16 +302,26 @@ export function useSeriesDetailActions(): {
   return { onAnalyticsTabSelected, onRetrySeriesDetails };
 }
 
-export function useSeriesDetailState(): Pick<
+export function useSeriesDetailState(
+  teamColors?: readonly TeamColor[],
+): Pick<
   LiveTrackerViewModel,
   "seriesDetail" | "seriesDetailStatus" | "seriesDetailError" | "detailViewModel" | "seriesAnalyticsByMatchId"
 > {
   const { model } = useLiveTrackerContext();
+  const presenter = useMemo(() => new SeriesDetailStatsViewModelPresenter(new StatsDetailController()), []);
+  const detailViewModel = useMemo(
+    () =>
+      teamColors == null || model.seriesDetail == null
+        ? model.detailViewModel
+        : presenter.present(model.seriesDetail, model.seriesAnalyticsByMatchId, { teamColors }),
+    [model.seriesDetail, model.seriesAnalyticsByMatchId, model.detailViewModel, presenter, teamColors],
+  );
   return {
     seriesDetail: model.seriesDetail,
     seriesDetailStatus: model.seriesDetailStatus,
     seriesDetailError: model.seriesDetailError,
-    detailViewModel: model.detailViewModel,
+    detailViewModel,
     seriesAnalyticsByMatchId: model.seriesAnalyticsByMatchId,
   };
 }

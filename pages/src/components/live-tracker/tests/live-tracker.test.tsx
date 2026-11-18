@@ -9,6 +9,16 @@ import type {
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import {
+  aFakeMatchDetailWith,
+  aFakeSeriesDetailResponseWith,
+  aFakeSeriesTeamWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import {
+  aFakePlayerWith,
+  aFakePlayerTeamStatsWith,
+  aFakeTeamWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import type {
   LiveTrackerConnection,
   LiveTrackerStatusListener,
@@ -23,6 +33,21 @@ import { createLiveTracker } from "../create";
 
 vi.mock("../../icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
+}));
+
+vi.mock("../../scrolling-content/scrolling-content", () => ({
+  ScrollingContent: ({
+    children,
+    onScrollComplete,
+  }: {
+    children: React.ReactNode;
+    onScrollComplete?: (() => void) | undefined;
+  }): React.ReactNode => (
+    <div>
+      {children}
+      <button onClick={onScrollComplete}>Finish ticker row</button>
+    </div>
+  ),
 }));
 
 function isSteppableLiveTrackerConnection(
@@ -117,35 +142,148 @@ describe("LiveTracker", () => {
     cleanup();
   });
 
+  it.each(["normal", "streamer"])(
+    "uses configured scores and swapped colors on reversed first sides (%s)",
+    async (viewMode) => {
+      const detail = aFakeMatchDetailWith({
+        matchId: "m1",
+        teamCount: 2,
+        teams: [
+          aFakeTeamWith({ matchTeamId: 1, seriesTeamId: 0 }),
+          aFakeTeamWith({ matchTeamId: 0, seriesTeamId: 1, outcome: "Loss", playerIds: [] }),
+        ],
+        players: [
+          aFakePlayerWith({
+            lastMatchTeamId: 1,
+            teamStats: [aFakePlayerTeamStatsWith({ matchTeamId: 1, seriesTeamId: 0 })],
+          }),
+        ],
+        score: {
+          primary: {
+            metric: "score",
+            teams: [
+              { matchTeamId: 0, seriesTeamId: 1, value: 40 },
+              { matchTeamId: 1, seriesTeamId: 0, value: 50 },
+            ],
+          },
+          secondary: null,
+        },
+      });
+      const response = aFakeSeriesDetailResponseWith({
+        matches: { matchIds: ["m1"], results: [{ status: "resolved", matchId: "m1", detail }] },
+        aggregation: {
+          status: "resolved",
+          gamesPlayed: 1,
+          completedGameCount: 1,
+          players: [],
+          teams: [
+            aFakeSeriesTeamWith({ gamesWon: 1 }),
+            aFakeSeriesTeamWith({ seriesTeamId: 1, gamesWon: 0, outcome: "Loss", playerIds: [] }),
+          ],
+        },
+      });
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      let releaseDetail: ((value: typeof response) => void) | undefined;
+      vi.spyOn(seriesMatchesService, "getSeriesDetail").mockImplementation(
+        async () =>
+          new Promise((resolve) => {
+            releaseDetail = resolve;
+          }),
+      );
+      const message = aStateMessage(["m1"]);
+      const connection = await renderLiveTrackerWith(
+        {
+          ...message,
+          data: {
+            ...message.data,
+            seriesScore: "0:1",
+            matchSummaries: message.data.matchSummaries.map((match) => ({ ...match, gameScore: "40:50" })),
+          },
+        },
+        aFakeMatchAnalyticsServiceWith(),
+        `?server=1&queue=3&viewMode=${viewMode}&showTabs=true&showTicker=true&eagleColor=cerulean&cobraColor=salmon`,
+        { seriesMatchesService },
+      );
+      connection.step();
+      if (viewMode === "normal") {
+        expect(await screen.findByRole("heading", { name: "Series scores" })).toHaveTextContent("0:1");
+      } else {
+        expect(await screen.findByRole("button", { name: /Series score/ })).toHaveTextContent("0:1");
+      }
+      Preconditions.checkExists(releaseDetail)(response);
+      if (viewMode === "normal") {
+        await waitFor(() => expect(screen.getByRole("heading", { name: "Series scores" })).toHaveTextContent("1:0"));
+        const tile = within(screen.getByRole("list", { name: "Series score tiles" })).getByRole("listitem");
+        expect(tile).toHaveTextContent("50:40");
+        expect(tile).toHaveStyle({ "--team-color": "#3B9DFF" });
+      } else {
+        await waitFor(() => expect(screen.getByRole("button", { name: /Series score/ })).toHaveTextContent("1:0"));
+        const matchTab = screen.getByRole("button", { name: /Aquarius/ });
+        expect(matchTab).toHaveTextContent("50:40");
+        expect(matchTab).toHaveStyle({ "--tab-team-color": "#3B9DFF" });
+        fireEvent.click(matchTab);
+        const panel = Preconditions.checkExists(document.getElementById("m1"));
+        const playerRow = within(panel)
+          .getAllByText("Spartan One")
+          .map((player) => player.closest("tr"))
+          .find((row) => row != null);
+        expect(playerRow).toHaveStyle({ "--row-color": "#3B9DFF" });
+        const seriesTicker = screen.getByText("Team 1 (Accumulated)").closest('[style*="--row-color"]');
+        if (!(seriesTicker instanceof HTMLElement)) {
+          throw new Error("Expected the rendered ticker container");
+        }
+        fireEvent.click(within(seriesTicker).getByRole("button", { name: "Finish ticker row" }));
+        fireEvent.click(within(seriesTicker).getByRole("button", { name: "Finish ticker row" }));
+        await waitFor(() => {
+          const ticker = screen.getByText("Team 1 (Accumulated)").closest('[style*="--row-color"]');
+          expect(ticker).toHaveTextContent("Slayer: Aquarius");
+          expect(ticker).toHaveStyle({ "--row-color": "#3B9DFF" });
+        });
+      }
+    },
+  );
+
   it("appends upcoming map tiles to the completed score list", async () => {
     const message = aStateMessage(["m1"]);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    vi.spyOn(seriesMatchesService, "getSeriesDetail").mockResolvedValue(
+      aFakeSeriesDetailResponseWith({
+        matches: { matchIds: ["m1"], results: [{ status: "unavailable", matchId: "m1", reason: "not-found" }] },
+        aggregation: { status: "unavailable", reason: "incomplete-matches" },
+      }),
+    );
     const match = message.data.matchSummaries.at(0);
     if (match == null) {
       throw new Error("Expected match summary");
     }
-    const connection = await renderLiveTrackerWith({
-      ...message,
-      data: {
-        ...message.data,
-        plannedMaps: [
-          { mode: "Oddball", map: "Streets" },
-          { mode: "Strongholds", map: "Recharge" },
-        ],
-        rawMatches: {
-          m1: {
-            MatchId: "m1",
-            Teams: [],
-            Players: [],
-            MatchInfo: {
-              StartTime: match.startTime,
-              EndTime: match.endTime,
-              MapVariant: { AssetId: "aquarius", VersionId: "v1" },
-              GameVariantCategory: 1,
+    const connection = await renderLiveTrackerWith(
+      {
+        ...message,
+        data: {
+          ...message.data,
+          plannedMaps: [
+            { mode: "Oddball", map: "Streets" },
+            { mode: "Strongholds", map: "Recharge" },
+          ],
+          rawMatches: {
+            m1: {
+              MatchId: "m1",
+              Teams: [],
+              Players: [],
+              MatchInfo: {
+                StartTime: match.startTime,
+                EndTime: match.endTime,
+                MapVariant: { AssetId: "aquarius", VersionId: "v1" },
+                GameVariantCategory: 1,
+              },
             },
           },
         },
       },
-    });
+      aFakeMatchAnalyticsServiceWith(),
+      "?server=1&queue=3",
+      { seriesMatchesService },
+    );
     connection.step();
 
     const scores = await screen.findByRole("list", { name: "Series score tiles" });
