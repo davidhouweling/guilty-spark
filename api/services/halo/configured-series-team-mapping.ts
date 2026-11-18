@@ -66,7 +66,12 @@ export function resolveConfiguredSeriesTeamMappings(
   matches: readonly MatchStats[],
   context: ConfiguredTeamContext,
 ): ManualSeriesTeamMappings | null {
-  if (matches.length === 0) {
+  if (
+    matches.length === 0 ||
+    context.teams.length !== 2 ||
+    context.teams.some((team) => team.playerIds.length === 0) ||
+    context.substitutions.some((substitution) => substitution.teamIndex >= context.teams.length)
+  ) {
     return null;
   }
   const matchTeamIdToSeriesTeamId = new Map<string, ReadonlyMap<number, number>>();

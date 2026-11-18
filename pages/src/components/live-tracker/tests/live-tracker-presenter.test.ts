@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { GameVariantCategory } from "halo-infinite-api";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
@@ -554,6 +555,115 @@ describe("LiveTrackerPresenter live detail integration", () => {
     ]);
     presenter.dispose();
   });
+
+  it("updates legacy icons and planned slots when only raw metadata arrives without refetching detail", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        rawMatches: {},
+        matchSummaries: [{ ...summary, gameInfo: undefined }],
+        plannedMaps: [{ mode: "Oddball", map: "Played" }],
+      },
+    };
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage(message);
+    await vi.runAllTimersAsync();
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toHaveLength(1);
+    connection.emitMessage({
+      ...message,
+      data: {
+        ...message.data,
+        rawMatches: {
+          [summary.matchId]: {
+            MatchId: summary.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: summary.startTime,
+              EndTime: summary.endTime,
+              MapVariant: { AssetId: "map", VersionId: "v1" },
+              GameVariantCategory: GameVariantCategory.MultiplayerOddball,
+            },
+          },
+        },
+      },
+    });
+    const { state } = LiveTrackerPresenter.present(store.getSnapshot());
+    expect(state?.matches[0]?.gameInfo?.gameVariantCategory).toBe(GameVariantCategory.MultiplayerOddball);
+    expect(state?.plannedGames).toEqual([]);
+    expect(detailSpy).toHaveBeenCalledTimes(1);
+    presenter.dispose();
+  });
+
+  it.each([false, true])(
+    "shows Retry for partial fetch failures and retains usable detail (prior: %s)",
+    async (hasPrior) => {
+      const store = new MockLiveTrackerStore();
+      const connection = new MockLiveTrackerConnection();
+      const liveTrackerService = new MockLiveTrackerService();
+      vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const presenter = createPresenter({
+        getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService,
+        store,
+        seriesMatchesService,
+      });
+      presenter.start();
+      await vi.runAllTimersAsync();
+      const summaries = sampleLiveTrackerStateMessage.data.matchSummaries;
+      if (hasPrior) {
+        connection.emitMessage({
+          ...sampleLiveTrackerStateMessage,
+          data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: summaries.slice(0, 1) },
+        });
+        await vi.runAllTimersAsync();
+      }
+      const prior = store.getSnapshot().seriesDetail;
+      const partial = aFakeSeriesDetailResponseWith({
+        matches: {
+          matchIds: summaries.map((match) => match.matchId),
+          results: summaries.map(({ matchId }, index) =>
+            index === summaries.length - 1
+              ? { status: "unavailable", matchId, reason: "fetch-failed" }
+              : { status: "resolved", matchId, detail: aFakeMatchDetailWith({ matchId }) },
+          ),
+        },
+        aggregation: { status: "unavailable", reason: "incomplete-matches" },
+      });
+      const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail").mockResolvedValueOnce(partial);
+      connection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+      expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+      expect(store.getSnapshot().seriesDetailError).toBeTruthy();
+      expect(store.getSnapshot().seriesDetail).toEqual(prior ?? partial);
+      expect(LiveTrackerPresenter.present(store.getSnapshot()).allMatchStats.some((match) => match.data != null)).toBe(
+        true,
+      );
+      presenter.retrySeriesDetails();
+      await vi.runAllTimersAsync();
+      expect(detailSpy).toHaveBeenCalledTimes(2);
+      expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
+      expect(store.getSnapshot().seriesDetailError).toBeNull();
+      expect(store.getSnapshot().seriesDetail?.matches.matchIds).toEqual(partial.matches.matchIds);
+      presenter.dispose();
+    },
+  );
 });
 
 describe("LiveTrackerPresenter - Retry Behavior", () => {

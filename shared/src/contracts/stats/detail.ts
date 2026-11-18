@@ -95,13 +95,14 @@ export const seriesDetailQuerySchema = matchDetailQuerySchema.extend({
 
 // Display-only roster projection; not authoritative series linkage or a credential hint.
 // Team order defines seriesTeamId values. Omit for generic/manual series.
+// Unsupported roster shapes retain individual details but decline configured alignment.
 export const configuredTeamContextSchema = z.strictObject({
-  teams: z.array(configuredTeamSchema.extend({ playerIds: z.array(z.string().min(1)).min(1) }).strict()).length(2),
+  teams: z.array(configuredTeamSchema.extend({ playerIds: z.array(z.string().min(1)) }).strict()),
   playersAssociationData: z.record(z.string().min(1), z.strictObject({ xboxId: z.string().min(1).nullable() })),
   substitutions: z.array(
     substitutionSchema
       .omit({ teamName: true })
-      .extend({ teamIndex: z.number().int().min(0).max(1), timestamp: z.iso.datetime({ offset: true }) })
+      .extend({ teamIndex: z.number().int().nonnegative(), timestamp: z.iso.datetime({ offset: true }) })
       .strict(),
   ),
 });

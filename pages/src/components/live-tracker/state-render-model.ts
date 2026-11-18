@@ -23,7 +23,7 @@ function normalizeSeriesScore(score: string): string {
   return "0:0";
 }
 
-function getMatchGameInfo(
+export function getMatchGameInfo(
   summary: LiveTrackerMatchSummary,
   rawMatches: LiveTrackerStateMessage["data"]["rawMatches"],
 ): LiveTrackerMatchSummary["gameInfo"] {

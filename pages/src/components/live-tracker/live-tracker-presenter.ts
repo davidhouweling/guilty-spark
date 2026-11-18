@@ -28,7 +28,7 @@ import type {
   LiveTrackerSubstitutionRenderModel,
   LiveTrackerStateRenderModel,
 } from "./types";
-import { toLiveTrackerStateRenderModel } from "./state-render-model";
+import { getMatchGameInfo, toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
   readonly liveTrackerService: LiveTrackerService;
@@ -401,6 +401,8 @@ export class LiveTrackerPresenter {
     for (let i = 0; i < prevData.matchSummaries.length; i++) {
       const prevMatch = prevData.matchSummaries[i];
       const currMatch = currData.matchSummaries[i];
+      const prevGameInfo = getMatchGameInfo(prevMatch, prevData.rawMatches);
+      const currGameInfo = getMatchGameInfo(currMatch, currData.rawMatches);
       if (
         prevMatch.matchId !== currMatch.matchId ||
         prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
@@ -411,9 +413,9 @@ export class LiveTrackerPresenter {
         prevMatch.duration !== currMatch.duration ||
         prevMatch.startTime !== currMatch.startTime ||
         prevMatch.endTime !== currMatch.endTime ||
-        prevMatch.gameInfo?.mapAssetId !== currMatch.gameInfo?.mapAssetId ||
-        prevMatch.gameInfo?.mapVersionId !== currMatch.gameInfo?.mapVersionId ||
-        prevMatch.gameInfo?.gameVariantCategory !== currMatch.gameInfo?.gameVariantCategory
+        prevGameInfo?.mapAssetId !== currGameInfo?.mapAssetId ||
+        prevGameInfo?.mapVersionId !== currGameInfo?.mapVersionId ||
+        prevGameInfo?.gameVariantCategory !== currGameInfo?.gameVariantCategory
       ) {
         return false;
       }
@@ -740,11 +742,14 @@ export class LiveTrackerPresenter {
 
   private setSeriesDetail(response: SeriesDetailResponse): void {
     const current = this.config.store.getSnapshot();
+    const hasFetchFailures = response.matches.results.some(
+      (result) => result.status === "unavailable" && result.reason === "fetch-failed",
+    );
     this.config.store.setSnapshot({
       ...current,
-      seriesDetail: response,
-      seriesDetailStatus: ComponentLoaderStatus.LOADED,
-      seriesDetailError: null,
+      seriesDetail: hasFetchFailures ? (current.seriesDetail ?? response) : response,
+      seriesDetailStatus: hasFetchFailures ? ComponentLoaderStatus.ERROR : ComponentLoaderStatus.LOADED,
+      seriesDetailError: hasFetchFailures ? "Unable to load some match details" : null,
     });
   }
 
