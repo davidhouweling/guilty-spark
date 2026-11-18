@@ -121,6 +121,7 @@ export interface LiveTrackerNeatQueueStateData extends LiveTrackerNeatQueueSerie
   // The tracker start time, not the snapshot timestamp; legacy snapshots may omit it.
   readonly seriesStartedAt?: string | undefined;
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  // Empty in every frame on sockets opened with ?format=condensed; omitted format retains legacy data.
   readonly rawMatches: Record<string, unknown>;
 }
 
