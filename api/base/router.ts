@@ -11,8 +11,11 @@ const ALLOWED_ORIGINS = [
   "https://www.guilty-spark.app", // Production (www)
 ];
 
+// The prefix and "-guilty-spark-web" must fit a 63-character DNS label.
+const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9][a-z0-9-]{0,45}-guilty-spark-web\.howling-dev\.workers\.dev$/;
+
 const { preflight, corsify } = cors({
-  origin: ALLOWED_ORIGINS,
+  origin: (origin) => (ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN.test(origin) ? origin : undefined),
   credentials: true,
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type"],
