@@ -72,6 +72,40 @@ describe("Server", () => {
     });
   });
 
+  describe.each([
+    "https://feat-live-shared-condensed-content-guilty-spark-web.howling-dev.workers.dev",
+    "https://a1b2c3d4-guilty-spark-web.howling-dev.workers.dev",
+    `https://${"p".repeat(46)}-guilty-spark-web.howling-dev.workers.dev`,
+  ])("CORS from preview %s", (origin) => {
+    it.each(["GET", "OPTIONS"])("returns credentialed headers for %s", async (method) => {
+      const req = new Request("http://localhost/auth/session", { method, headers: { Origin: origin } });
+      const res = await server.router.fetch(req, env);
+
+      expect(res.status).toBe(method === "OPTIONS" ? 204 : 401);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+      expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    });
+  });
+
+  describe.each([
+    "https://pr-guilty-spark-web.other-account.workers.dev",
+    "https://pr-other-worker.howling-dev.workers.dev",
+    "https://pr-guilty-spark-web.howling-dev.workers.dev.evil.example",
+    "http://pr-guilty-spark-web.howling-dev.workers.dev",
+    "https://pr-guilty-spark-web.howling-dev.workers.dev:8443",
+    "https://pr-guilty-spark-web.howling-dev.workers.dev/path",
+    `https://${"p".repeat(47)}-guilty-spark-web.howling-dev.workers.dev`,
+    "null",
+  ])("CORS from disallowed origin %s", (origin) => {
+    it.each(["GET", "OPTIONS"])("omits the allow-origin header for %s", async (method) => {
+      const req = new Request("http://localhost/auth/session", { method, headers: { Origin: origin } });
+      const res = await server.router.fetch(req, env);
+
+      expect(res.status).toBe(method === "OPTIONS" ? 204 : 401);
+      expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    });
+  });
+
   describe("/proxy/halo-infinite/:operation", () => {
     let ctx: EventContext<Env, "", unknown>;
 
