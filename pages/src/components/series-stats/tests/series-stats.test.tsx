@@ -5,7 +5,10 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { aFakeSeriesDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import {
+  aFakeMatchDetailWith,
+  aFakeSeriesDetailResponseWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 import { SeriesStatsView } from "../series-stats";
@@ -27,6 +30,40 @@ vi.mock("../../icons/medal-icon", () => ({
 }));
 
 describe("SeriesStatsView analytics selection", () => {
+  it("places contextual content by match identity and after the final match", () => {
+    const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
+    const viewModel = presenter.present(
+      aFakeSeriesDetailResponseWith({
+        matches: {
+          matchIds: ["second", "first"],
+          results: ["second", "first"].map((matchId) => ({
+            status: "resolved",
+            matchId,
+            detail: aFakeMatchDetailWith({ matchId }),
+          })),
+        },
+      }),
+    );
+    render(
+      <SeriesStatsView
+        {...viewModel}
+        beforeMatchContent={
+          new Map([
+            ["first", <p key="first">Before first</p>],
+            ["second", <p key="second">Before second</p>],
+          ])
+        }
+        afterMatchesContent={<p>After matches</p>}
+      />,
+    );
+    const first = Preconditions.checkExists(document.getElementById("first"));
+    const second = Preconditions.checkExists(document.getElementById("second"));
+    expect(screen.getByText("Before second").compareDocumentPosition(second)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(second.compareDocumentPosition(screen.getByText("Before first"))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(screen.getByText("Before first").compareDocumentPosition(first)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(first.compareDocumentPosition(screen.getByText("After matches"))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("requests only selected analytics and forwards match identity for match-level tabs", () => {
     const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule, matchId?: string) => void>();
     const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());

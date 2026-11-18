@@ -14,6 +14,8 @@ export function createSeriesStatsContent(): (props: SeriesStatsContentProps) => 
     noGutter,
     wide,
     teamColors,
+    beforeMatchContent,
+    afterMatchesContent,
     onAnalyticsTabSelected,
   }: SeriesStatsContentProps): ReactElement {
     const statsDetailController = useMemo(() => new StatsDetailController(), []);
@@ -33,6 +35,8 @@ export function createSeriesStatsContent(): (props: SeriesStatsContentProps) => 
         showSeriesOverview={showSeriesOverview}
         noGutter={noGutter}
         wide={wide}
+        beforeMatchContent={beforeMatchContent}
+        afterMatchesContent={afterMatchesContent}
         onAnalyticsTabSelected={onAnalyticsTabSelected}
       />
     );

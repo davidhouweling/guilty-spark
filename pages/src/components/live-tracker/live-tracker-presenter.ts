@@ -1,6 +1,7 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStats } from "halo-infinite-api";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { isBefore, parseISO } from "date-fns";
 import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
@@ -25,6 +26,9 @@ import type {
   MatchKillMatrix,
   KillMatrixResult,
   LiveTrackerSeriesStatsData,
+  LiveTrackerMatchRenderModel,
+  LiveTrackerMatchSubstitutions,
+  LiveTrackerSubstitutionRenderModel,
 } from "./types";
 import { toLiveTrackerStateRenderModel } from "./state-render-model";
 
@@ -129,6 +133,7 @@ export class LiveTrackerPresenter {
       iconUrl,
       state,
       sortedSubstitutions,
+      matchSubstitutions: LiveTrackerPresenter.groupMatchSubstitutions(state?.matches ?? [], sortedSubstitutions),
       availablePlayers,
       params,
       allMatchStats,
@@ -137,6 +142,27 @@ export class LiveTrackerPresenter {
       allMatchKillMatrix,
       seriesKillMatrix,
     };
+  }
+
+  private static groupMatchSubstitutions(
+    matches: readonly LiveTrackerMatchRenderModel[],
+    substitutions: readonly LiveTrackerSubstitutionRenderModel[],
+  ): LiveTrackerMatchSubstitutions {
+    const byMatchId = new Map<string, readonly LiveTrackerSubstitutionRenderModel[]>();
+    let next = 0;
+    for (const match of matches) {
+      const before: LiveTrackerSubstitutionRenderModel[] = [];
+      while (next < substitutions.length) {
+        const substitution = substitutions[next];
+        if (isBefore(parseISO(match.endTime), parseISO(substitution.timestamp))) {
+          break;
+        }
+        before.push(substitution);
+        next += 1;
+      }
+      byMatchId.set(match.matchId, before);
+    }
+    return { byMatchId, trailing: substitutions.slice(next) };
   }
 
   private static computeAllMatchStats(

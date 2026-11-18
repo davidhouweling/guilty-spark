@@ -33,6 +33,7 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     statusText: "active",
     statusClassName: "status-active",
     sortedSubstitutions: [],
+    matchSubstitutions: { byMatchId: new Map(), trailing: [] },
     availablePlayers: [],
     params: defaultParams,
     allMatchStats: [],

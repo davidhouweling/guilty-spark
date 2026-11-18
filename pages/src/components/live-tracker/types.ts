@@ -58,6 +58,11 @@ export interface LiveTrackerSubstitutionRenderModel {
   readonly timestamp: string;
 }
 
+export interface LiveTrackerMatchSubstitutions {
+  readonly byMatchId: ReadonlyMap<string, readonly LiveTrackerSubstitutionRenderModel[]>;
+  readonly trailing: readonly LiveTrackerSubstitutionRenderModel[];
+}
+
 export interface LiveTrackerPlannedGameRenderModel {
   readonly gameNumber: number;
   readonly mode: string;
@@ -132,6 +137,7 @@ export interface LiveTrackerViewModel {
   readonly statusClassName: string;
   readonly state: LiveTrackerStateRenderModel | null;
   readonly sortedSubstitutions: readonly LiveTrackerSubstitutionRenderModel[];
+  readonly matchSubstitutions: LiveTrackerMatchSubstitutions;
   readonly availablePlayers: readonly LiveTrackerAvailablePlayer[];
   readonly params: LiveTrackerParams;
   readonly allMatchStats: readonly { matchId: string; data: MatchStatsData[] | null }[];

@@ -1,5 +1,6 @@
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { ReactNode } from "react";
 import type { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../controllers/stats/kill-matrix/types";
 import type { MatchStatsData } from "../../controllers/stats/types";
@@ -99,5 +100,7 @@ export interface SeriesStatsContentProps {
   readonly noGutter: boolean;
   readonly wide: boolean;
   readonly teamColors?: readonly TeamColor[] | undefined;
+  readonly beforeMatchContent?: ReadonlyMap<string, ReactNode> | undefined;
+  readonly afterMatchesContent?: ReactNode;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
 }

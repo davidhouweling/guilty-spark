@@ -111,6 +111,56 @@ class MockLiveTrackerStore {
   }
 }
 
+describe("LiveTrackerPresenter substitution framing", () => {
+  it.each([true, false])("groups chronological notices around completed matches (matches: %s)", (hasMatches) => {
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const timestamps = [
+      "2025-01-01T00:25:00.000Z",
+      "2025-01-01T00:05:00.000Z",
+      "2025-01-01T00:10:00.000Z",
+      "2025-01-01T00:15:00.000Z",
+    ];
+    const model = LiveTrackerPresenter.present({
+      ...new MockLiveTrackerStore().getSnapshot(),
+      lastStateMessage: {
+        ...sampleLiveTrackerStateMessage,
+        data: {
+          ...sampleLiveTrackerStateMessage.data,
+          players: [
+            { id: "out", discordUsername: "Original" },
+            { id: "in", discordUsername: "Replacement" },
+          ],
+          teams: [{ name: "Team", playerIds: ["in"] }],
+          substitutions: timestamps.map((timestamp) => ({
+            playerOutId: "out",
+            playerInId: "in",
+            teamIndex: 0,
+            teamName: "Team",
+            timestamp,
+          })),
+          matchSummaries: hasMatches
+            ? [
+                { ...summary, matchId: "second", endTime: "2025-01-01T00:20:00.000Z" },
+                { ...summary, matchId: "first", endTime: "2025-01-01T00:10:00.000Z" },
+              ]
+            : [],
+          rawMatches: {},
+          plannedMaps: [],
+        },
+      },
+    });
+    expect(model.matchSubstitutions.byMatchId.get("first")?.map((notice) => notice.timestamp)).toEqual(
+      hasMatches ? timestamps.slice(1, 3) : undefined,
+    );
+    expect(model.matchSubstitutions.byMatchId.get("second")?.map((notice) => notice.timestamp)).toEqual(
+      hasMatches ? timestamps.slice(3) : undefined,
+    );
+    expect(model.matchSubstitutions.trailing.map((notice) => notice.timestamp)).toEqual(
+      hasMatches ? timestamps.slice(0, 1) : [...timestamps].sort(),
+    );
+  });
+});
+
 describe("LiveTrackerPresenter - Analytics Fetch", () => {
   beforeEach((): void => {
     vi.useFakeTimers();
