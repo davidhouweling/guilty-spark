@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";
-import { MatchStats as MatchStatsView } from "../stats/match-stats";
-import { SeriesStats } from "../stats/series-stats";
 import { Container } from "../container/container";
 import { Alert } from "../alert/alert";
+import { ErrorState } from "../error-state/error-state";
+import { LoadingState } from "../loading-state/loading-state";
+import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { ViewMode } from "../view-mode/view-mode-selector";
 import { PlayerPreSeriesInfo } from "../player-pre-series-info/player-pre-series-info";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../team-colors/team-colors";
 import { gameModeIconSrc as gameModeIconFromVariantCategory } from "../individual-tracker/game-mode-icon";
 import { SeriesOverview } from "../series-overview/series-overview";
 import type { SeriesOverviewMatch, SeriesOverviewTeam } from "../series-overview/types";
+import { createSeriesStatsContent } from "../series-stats/create";
 import { SettingsTrigger } from "./settings/settings-trigger";
 import { SettingsDialog } from "./settings/settings-dialog";
 import { useStreamerSettings } from "./settings/use-streamer-settings";
@@ -20,17 +22,14 @@ import { StreamerOverlay } from "./streamer-overlay/streamer-overlay";
 import {
   useTrackerInfo,
   useTrackerState,
-  useAllMatchStats,
-  useSeriesStats,
   useHasMatches,
   useSubstitutions,
   useMatchSubstitutions,
   useAvailablePlayers,
-  useAllMatchKillMatrix,
-  useSeriesKillMatrix,
-  useAnalyticsStatus,
+  useSeriesDetailActions,
+  useSeriesDetailState,
 } from "./live-tracker-context";
-import type { LiveTrackerStateRenderModel } from "./types";
+import type { LiveTrackerStateRenderModel, LiveTrackerViewModel } from "./types";
 import styles from "./live-tracker.module.css";
 import { buildUrlWithSettings, parseSettingsFromUrl } from "./settings/settings-url-params";
 
@@ -52,24 +51,18 @@ function gameModeIconSrc(_gameMode: string, gameVariantCategory?: number): strin
 
 function toLiveSeriesOverviewMatches(
   state: LiveTrackerStateRenderModel,
-  team1Color: string,
-  team2Color: string,
+  detailMatches: LiveTrackerViewModel["detailViewModel"],
 ): readonly SeriesOverviewMatch[] {
+  const winners = new Map(
+    detailMatches?.matchSummaries.map((summary) => [summary.matchId, summary.winningTeamColorHex]) ?? [],
+  );
   const playedMatches = state.matches.map((match) => {
-    const winningTeam = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2);
-    const winningTeamIndex = winningTeam != null ? match.rawMatchStats?.Teams.indexOf(winningTeam) : -1;
-    const colorId = winningTeamIndex === 0 ? team1Color : team2Color;
-    const teamColorHex =
-      winningTeamIndex != null && winningTeamIndex >= 0 && winningTeamIndex < 2
-        ? getTeamColorOrDefault(colorId, winningTeamIndex).hex
-        : undefined;
-
     return {
       id: match.matchId,
       href: `#${match.matchId}`,
       mapBackgroundUrl: match.gameMapThumbnailUrl,
-      teamColorHex,
-      gameModeIconUrl: gameModeIconSrc(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+      teamColorHex: winners.get(match.matchId) ?? undefined,
+      gameModeIconUrl: gameModeIconSrc(match.gameType, match.gameInfo?.gameVariantCategory),
       gameModeAlt: match.gameType,
       score: match.gameScore,
       subScore: match.gameSubScore,
@@ -116,25 +109,40 @@ function toLiveSeriesOverviewTeams(
   });
 }
 
+function substitutionNotice(
+  substitution: LiveTrackerViewModel["sortedSubstitutions"][number],
+  className: string,
+): React.ReactElement {
+  return (
+    <Container key={substitution.timestamp} className={className}>
+      <Alert variant="info" icon="↔️">
+        <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+        <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+      </Alert>
+    </Container>
+  );
+}
+
 export function LiveTrackerView(): React.ReactElement {
   // Use selector hooks to get data from context
   const trackerInfo = useTrackerInfo();
   const state = useTrackerState();
   const hasMatches = useHasMatches();
-  const allMatchStats = useAllMatchStats();
-  const seriesStats = useSeriesStats();
-
   const sortedSubstitutionsList = useSubstitutions();
   const matchSubstitutions = useMatchSubstitutions();
   const availablePlayers = useAvailablePlayers();
-  const allMatchKillMatrix = useAllMatchKillMatrix();
-  const seriesKillMatrix = useSeriesKillMatrix();
-  const analyticsStatus = useAnalyticsStatus();
+  const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
+  const SeriesStatsContent = useMemo(() => createSeriesStatsContent(), []);
 
   const { settings, setSettings } = useStreamerSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [team1Color, setTeam1Color] = useState(DEFAULT_TEAM_COLORS[0]);
   const [team2Color, setTeam2Color] = useState(DEFAULT_TEAM_COLORS[1]);
+  const teamColorsArray = useMemo(
+    () => [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)],
+    [team1Color, team2Color],
+  );
+  const detailState = useSeriesDetailState(teamColorsArray);
 
   // State for view mode
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -260,8 +268,7 @@ export function LiveTrackerView(): React.ReactElement {
   }
   title.push("Live Tracker - Guilty Spark");
 
-  const teamColorsArray = [getTeamColorOrDefault(team1Color, 0), getTeamColorOrDefault(team2Color, 1)];
-  const seriesOverviewMatches = hasState(state) ? toLiveSeriesOverviewMatches(state, team1Color, team2Color) : [];
+  const seriesOverviewMatches = hasState(state) ? toLiveSeriesOverviewMatches(state, detailState.detailViewModel) : [];
   const seriesOverviewTeams = hasState(state) ? toLiveSeriesOverviewTeams(state, team1Color, team2Color) : [];
 
   const settingsTrigger = (
@@ -308,6 +315,14 @@ export function LiveTrackerView(): React.ReactElement {
   );
 
   const statsGutter = viewMode === "wide" ? "0" : undefined;
+  const contentClassName = classNames(styles.contentContainer, styles[viewMode]);
+  const beforeMatchContent = new Map<string, React.ReactNode>();
+  for (const [matchId, notices] of matchSubstitutions.byMatchId) {
+    beforeMatchContent.set(matchId, <>{notices.map((notice) => substitutionNotice(notice, contentClassName))}</>);
+  }
+  const afterMatchesContent = (
+    <>{matchSubstitutions.trailing.map((notice) => substitutionNotice(notice, contentClassName))}</>
+  );
 
   // Render streamer overlay if in streamer mode
   if (viewMode === "streamer" && state) {
@@ -379,119 +394,46 @@ export function LiveTrackerView(): React.ReactElement {
                 />
               </Container>
             )}
-            {hasState(state) && seriesStats && (
+            {hasState(state) && hasMatches && (
               <Container
                 mobileDown="0"
                 tabletUp={statsGutter}
                 desktopUp={statsGutter}
                 ultrawideUp={statsGutter}
-                className={classNames(styles.contentContainer, styles[viewMode])}
+                className={contentClassName}
               >
-                <SeriesStats
-                  teamData={seriesStats.teamData}
-                  playerData={seriesStats.playerData}
-                  title="Series Totals"
-                  metadata={seriesStats.metadata}
-                  teamColors={teamColorsArray}
-                  killMatrixPivotData={seriesKillMatrix?.pivotData}
-                  transposedKillMatrixPivotData={seriesKillMatrix?.transposedPivotData}
-                  crossTeamData={seriesKillMatrix?.crossTeamData}
-                  swappedCrossTeamData={seriesKillMatrix?.swappedCrossTeamData}
-                  killMatrixStatus={analyticsStatus}
-                />
+                {detailState.seriesDetail != null ? (
+                  <>
+                    {detailState.seriesDetailStatus === ComponentLoaderStatus.ERROR ? (
+                      <ErrorState
+                        message={detailState.seriesDetailError ?? "Unable to load series stats"}
+                        onRetry={onRetrySeriesDetails}
+                      />
+                    ) : null}
+                    <SeriesStatsContent
+                      data={detailState.seriesDetail}
+                      analyticsByMatchId={detailState.seriesAnalyticsByMatchId}
+                      showSeriesTitle={true}
+                      showSeriesOverview={false}
+                      noGutter={viewMode === "wide"}
+                      wide={false}
+                      teamColors={teamColorsArray}
+                      beforeMatchContent={beforeMatchContent}
+                      afterMatchesContent={afterMatchesContent}
+                      onAnalyticsTabSelected={onAnalyticsTabSelected}
+                    />
+                  </>
+                ) : detailState.seriesDetailStatus === ComponentLoaderStatus.ERROR ? (
+                  <ErrorState
+                    message={detailState.seriesDetailError ?? "Unable to load series stats"}
+                    onRetry={onRetrySeriesDetails}
+                  />
+                ) : detailState.seriesDetailStatus !== ComponentLoaderStatus.LOADED ? (
+                  <LoadingState text="Loading match details..." />
+                ) : (
+                  <Alert variant="warning">Series details are unavailable.</Alert>
+                )}
               </Container>
-            )}
-            {hasState(state) && hasMatches && (
-              <>
-                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                  <Heading tagName="h2" styleAs="h3">
-                    Matches
-                  </Heading>
-                </Container>
-                {((): React.ReactElement[] => {
-                  const elements: React.ReactElement[] = [];
-
-                  for (const [matchIndex, match] of state.matches.entries()) {
-                    for (const substitution of matchSubstitutions.byMatchId.get(match.matchId) ?? []) {
-                      elements.push(
-                        <Container
-                          key={`sub-${substitution.timestamp}`}
-                          className={classNames(styles.contentContainer, styles[viewMode])}
-                        >
-                          <Alert variant="info" icon="↔️">
-                            <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
-                            <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
-                          </Alert>
-                        </Container>,
-                      );
-                    }
-
-                    // Add match
-                    const matchStats = allMatchStats.find((stats) => stats.matchId === match.matchId);
-
-                    const matchKillMatrix = allMatchKillMatrix.find((km) => km.matchId === match.matchId);
-
-                    elements.push(
-                      matchStats?.data ? (
-                        <Container
-                          key={match.matchId}
-                          mobileDown="0"
-                          tabletUp={statsGutter}
-                          desktopUp={statsGutter}
-                          ultrawideUp={statsGutter}
-                          className={classNames(styles.contentContainer, styles[viewMode])}
-                        >
-                          <MatchStatsView
-                            data={matchStats.data}
-                            id={match.matchId}
-                            backgroundImageUrl={match.gameMapThumbnailUrl}
-                            gameModeIconUrl={gameModeIconSrc(
-                              match.gameType,
-                              match.rawMatchStats?.MatchInfo.GameVariantCategory,
-                            )}
-                            gameModeAlt={match.gameType}
-                            matchNumber={matchIndex + 1}
-                            gameTypeAndMap={match.gameTypeAndMap}
-                            duration={match.duration}
-                            score={match.gameScore}
-                            startTime={match.startTime}
-                            endTime={match.endTime}
-                            teamColors={teamColorsArray}
-                            killMatrixPivotData={matchKillMatrix?.pivotData}
-                            transposedKillMatrixPivotData={matchKillMatrix?.transposedPivotData}
-                            crossTeamData={matchKillMatrix?.crossTeamData}
-                            swappedCrossTeamData={matchKillMatrix?.swappedCrossTeamData}
-                            killMatrixStatus={analyticsStatus}
-                          />
-                        </Container>
-                      ) : (
-                        <Container
-                          key={match.matchId}
-                          className={classNames(styles.contentContainer, styles[viewMode])}
-                        >
-                          <Alert variant="warning">Match stats unavailable</Alert>
-                        </Container>
-                      ),
-                    );
-                  }
-
-                  for (const substitution of matchSubstitutions.trailing) {
-                    elements.push(
-                      <Container
-                        key={`sub-${substitution.timestamp}`}
-                        className={classNames(styles.contentContainer, styles[viewMode])}
-                      >
-                        <Alert variant="info" icon="↔️">
-                          <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
-                          <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
-                        </Alert>
-                      </Container>,
-                    );
-                  }
-
-                  return elements;
-                })()}
-              </>
             )}
             {hasState(state) && !hasMatches && state.playersAssociationData && (
               <PlayerPreSeriesInfo
@@ -501,16 +443,18 @@ export function LiveTrackerView(): React.ReactElement {
                 teamColors={teamColorsArray}
               />
             )}
-            {hasState(state) && !hasMatches && sortedSubstitutionsList.length > 0 && (
-              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                {sortedSubstitutionsList.map((substitution) => (
-                  <Alert key={substitution.timestamp} variant="info" icon="↔️">
-                    <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
-                    <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
-                  </Alert>
-                ))}
-              </Container>
-            )}
+            {hasState(state) &&
+              (!hasMatches || detailState.seriesDetail == null) &&
+              sortedSubstitutionsList.length > 0 && (
+                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                  {sortedSubstitutionsList.map((substitution) => (
+                    <Alert key={substitution.timestamp} variant="info" icon="↔️">
+                      <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                      <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                    </Alert>
+                  ))}
+                </Container>
+              )}
           </>
         ) : (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>

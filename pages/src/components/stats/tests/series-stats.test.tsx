@@ -11,6 +11,7 @@ import {
 } from "../../../controllers/stats/fakes/component-data";
 import type { SeriesMetadata } from "../../../controllers/stats/series-metadata";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 
 afterEach(() => {
   cleanup();
@@ -222,6 +223,30 @@ describe("SeriesStats", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
 
     expect(onAnalyticsTabSelected).toHaveBeenCalledWith("killMatrix");
+  });
+
+  it("loads newly pending analytics only while the series matrix remains selected", () => {
+    const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule) => void>();
+    const props = {
+      teamData: [aFakeMatchStatsDataWith({ teamId: 0 })],
+      playerData: [aFakeMatchStatsDataWith({ teamId: 0 })],
+      title: "Series Totals",
+      metadata: null,
+      onAnalyticsTabSelected,
+    };
+    const { rerender } = render(<SeriesStats {...props} killMatrixStatus={ComponentLoaderStatus.PENDING} />);
+    expect(onAnalyticsTabSelected).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+    expect(onAnalyticsTabSelected).toHaveBeenCalledExactlyOnceWith("killMatrix");
+    rerender(<SeriesStats {...props} killMatrixStatus={ComponentLoaderStatus.LOADED} />);
+    rerender(<SeriesStats {...props} killMatrixStatus={ComponentLoaderStatus.PENDING} />);
+    expect(screen.getByRole("tab", { name: "Kill Matrix" })).toHaveAttribute("aria-selected", "true");
+    expect(onAnalyticsTabSelected).toHaveBeenCalledTimes(2);
+    rerender(<SeriesStats {...props} killMatrixStatus={ComponentLoaderStatus.ERROR} />);
+    expect(onAnalyticsTabSelected).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole("tab", { name: "Accumulated Stats" }));
+    rerender(<SeriesStats {...props} killMatrixStatus={ComponentLoaderStatus.PENDING} />);
+    expect(onAnalyticsTabSelected).toHaveBeenCalledTimes(2);
   });
 
   it("renders the union of player stat columns across all players", () => {

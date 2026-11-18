@@ -1,12 +1,18 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { HaloInfiniteClient } from "halo-infinite-api";
+import { GameVariantCategory } from "halo-infinite-api";
+import { addMilliseconds, parseISO } from "date-fns";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import {
+  aFakeMatchDetailWith,
+  aFakeSeriesDetailResponseWith,
+  aFakeSeriesTeamWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { aFakeTeamWith } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
+import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
-import { aFakeHaloClientWith } from "../../../services/fakes/halo-client.fake";
-import { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
+import { SeriesAnalyticsController } from "../../../controllers/series-analytics/series-analytics-controller";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,
@@ -15,9 +21,14 @@ import type {
   LiveTrackerStatusListener,
 } from "../../../services/live-tracker/types";
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
+import type { LiveTrackerViewModel } from "../types";
+import { SeriesDetailStatsViewModelPresenter } from "../../series-stats/series-detail-stats-view-model-presenter";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
@@ -84,11 +95,10 @@ class MockLiveTrackerStore {
       lastStateMessage: null,
       hasConnection: false,
       hasReceivedInitialData: false,
-      analyticsByMatchId: new Map(),
-      analyticsStatus: ComponentLoaderStatus.LOADED,
-      medalMetadata: {},
-      allMatchStats: [],
-      seriesStatsData: null,
+      seriesDetail: null,
+      seriesDetailStatus: ComponentLoaderStatus.PENDING,
+      seriesDetailError: null,
+      seriesAnalyticsByMatchId: new Map(),
     };
   }
 
@@ -111,6 +121,50 @@ class MockLiveTrackerStore {
   }
 }
 
+interface PresenterFactoryOptions {
+  readonly getUrl: () => URL;
+  readonly liveTrackerService: LiveTrackerService;
+  readonly store: MockLiveTrackerStore;
+  readonly matchAnalyticsService?: MatchAnalyticsService;
+  readonly seriesMatchesService?: SeriesMatchesService;
+}
+
+function createPresenter({
+  getUrl,
+  liveTrackerService,
+  store,
+  matchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
+  seriesMatchesService = aFakeSeriesMatchesServiceWith(),
+}: PresenterFactoryOptions): LiveTrackerPresenter {
+  const target: { presenter?: LiveTrackerPresenter | undefined } = {};
+  const analyticsController = new SeriesAnalyticsController({
+    matchAnalyticsService,
+    onChange: (analyticsByMatchId): void => {
+      target.presenter?.setAnalytics(analyticsByMatchId);
+    },
+  });
+  const presenter = new LiveTrackerPresenter({
+    getUrl,
+    liveTrackerService,
+    store,
+    seriesMatchesService,
+    analyticsController,
+  });
+  target.presenter = presenter;
+  return presenter;
+}
+
+function presentSnapshot(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
+  const detailModel =
+    snapshot.seriesDetail == null
+      ? null
+      : new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
+          snapshot.seriesDetail,
+          snapshot.seriesAnalyticsByMatchId,
+        );
+  return LiveTrackerPresenter.present(snapshot, detailModel);
+}
+
 describe("LiveTrackerPresenter substitution framing", () => {
   it.each([true, false])("groups chronological notices around completed matches (matches: %s)", (hasMatches) => {
     const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
@@ -120,8 +174,16 @@ describe("LiveTrackerPresenter substitution framing", () => {
       "2025-01-01T00:10:00.000Z",
       "2025-01-01T00:15:00.000Z",
     ];
-    const model = LiveTrackerPresenter.present({
+    const model = presentSnapshot({
       ...new MockLiveTrackerStore().getSnapshot(),
+      seriesDetail: hasMatches
+        ? aFakeSeriesDetailResponseWith({
+            matches: {
+              matchIds: ["first", "second"],
+              results: ["first", "second"].map((matchId) => ({ status: "unavailable", matchId, reason: "not-found" })),
+            },
+          })
+        : null,
       lastStateMessage: {
         ...sampleLiveTrackerStateMessage,
         data: {
@@ -161,7 +223,7 @@ describe("LiveTrackerPresenter substitution framing", () => {
   });
 });
 
-describe("LiveTrackerPresenter - Analytics Fetch", () => {
+describe("LiveTrackerPresenter live detail integration", () => {
   beforeEach((): void => {
     vi.useFakeTimers();
   });
@@ -171,11 +233,42 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     vi.useRealTimers();
   });
 
-  it("transitions analyticsStatus LOADING then LOADED and calls getBatchMatchAnalytics once per batch", async (): Promise<void> => {
-    const mockStore = new MockLiveTrackerStore();
-    const analyticsService = aFakeMatchAnalyticsServiceWith();
-    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+  it("preserves broadcast match scores when resolved detail has no configured mapping", () => {
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const detail = aFakeMatchDetailWith({
+      matchId: summary.matchId,
+      teamCount: 2,
+      teams: [aFakeTeamWith({ seriesTeamId: null }), aFakeTeamWith({ matchTeamId: 3, seriesTeamId: null })],
+      score: {
+        primary: {
+          metric: "score",
+          teams: [
+            { matchTeamId: 3, seriesTeamId: null, value: 40 },
+            { matchTeamId: 7, seriesTeamId: null, value: 50 },
+          ],
+        },
+        secondary: null,
+      },
+    });
+    const model = presentSnapshot({
+      ...new MockLiveTrackerStore().getSnapshot(),
+      lastStateMessage: {
+        ...sampleLiveTrackerStateMessage,
+        data: {
+          ...sampleLiveTrackerStateMessage.data,
+          matchSummaries: [{ ...summary, gameScore: "50:40", gameSubScore: "2:1" }],
+        },
+      },
+      seriesDetail: aFakeSeriesDetailResponseWith({
+        matches: { matchIds: [summary.matchId], results: [{ status: "resolved", matchId: summary.matchId, detail }] },
+        aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
+      }),
+    });
+    expect(model.state?.matches[0]).toMatchObject({ gameScore: "50:40", gameSubScore: "2:1" });
+  });
 
+  it("loads condensed detail with the configured live display context and no credential hint", async (): Promise<void> => {
+    const mockStore = new MockLiveTrackerStore();
     const createdConnections: MockLiveTrackerConnection[] = [];
     const mockService = new MockLiveTrackerService();
     vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
@@ -183,13 +276,13 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       createdConnections.push(conn);
       return Promise.resolve(conn);
     });
-
-    const presenter = new LiveTrackerPresenter({
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore,
-      matchAnalyticsService: analyticsService,
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      seriesMatchesService,
     });
 
     presenter.start();
@@ -198,31 +291,35 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const connection = Preconditions.checkExists(createdConnections[0]);
     connection.emitStatus("connected");
     connection.emitMessage(sampleLiveTrackerStateMessage);
-
-    // Flush microtasks so the fake analytics Promise.resolve() completes
     await vi.runAllTimersAsync();
 
-    const rawMatchIds = Object.keys(sampleLiveTrackerStateMessage.data.rawMatches);
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADED);
-    // All 5 matches fit in one batch (ANALYTICS_BATCH_SIZE = 30)
-    expect(getBatchSpy).toHaveBeenCalledTimes(1);
-    expect(getBatchSpy).toHaveBeenCalledWith(expect.arrayContaining(rawMatchIds));
-    expect(getBatchSpy.mock.calls[0]).toHaveLength(1);
-    expect(
-      [...mockStore.getSnapshot().analyticsByMatchId.values()].every(
-        (analytics) => analytics.scoreProgression === null,
-      ),
-    ).toBe(true);
-    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(rawMatchIds.length);
+    const { data } = sampleLiveTrackerStateMessage;
+    expect(detailSpy).toHaveBeenCalledTimes(1);
+    expect(detailSpy).toHaveBeenCalledWith(
+      `guild:${data.guildId}/queue/${data.queueNumber.toString()}`,
+      data.matchSummaries.map((match) => match.matchId),
+      undefined,
+      undefined,
+      {
+        teams: data.teams.map(({ name, playerIds }) => ({ name, playerIds })),
+        playersAssociationData: Object.fromEntries(
+          Object.entries(data.playersAssociationData ?? {}).map(([id, value]) => [id, { xboxId: value.xboxId }]),
+        ),
+        substitutions: data.substitutions.map(({ playerOutId, playerInId, teamIndex, timestamp }) => ({
+          playerOutId,
+          playerInId,
+          teamIndex,
+          timestamp,
+        })),
+      },
+    );
+    expect(mockStore.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
 
     presenter.dispose();
   });
 
-  it("does not fetch analytics again when the same state message arrives a second time", async (): Promise<void> => {
+  it("does not refetch for heartbeat changes but refetches when match IDs or configured context changes", async (): Promise<void> => {
     const mockStore = new MockLiveTrackerStore();
-    const analyticsService = aFakeMatchAnalyticsServiceWith();
-    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
-
     const createdConnections: MockLiveTrackerConnection[] = [];
     const mockService = new MockLiveTrackerService();
     vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
@@ -230,13 +327,13 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
       createdConnections.push(conn);
       return Promise.resolve(conn);
     });
-
-    const presenter = new LiveTrackerPresenter({
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore,
-      matchAnalyticsService: analyticsService,
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
+      seriesMatchesService,
     });
 
     presenter.start();
@@ -247,14 +344,206 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     connection.emitMessage(sampleLiveTrackerStateMessage);
     await vi.runAllTimersAsync();
 
-    expect(getBatchSpy).toHaveBeenCalledTimes(1);
-
-    // Emit the same state message again (heartbeat with identical rawMatches)
-    connection.emitMessage(sampleLiveTrackerStateMessage);
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      timestamp: "2025-01-01T00:01:00.000Z",
+      data: { ...sampleLiveTrackerStateMessage.data, lastUpdateTime: "2025-01-01T00:01:00.000Z" },
+    });
     await vi.runAllTimersAsync();
+    expect(detailSpy).toHaveBeenCalledTimes(1);
 
-    expect(getBatchSpy).toHaveBeenCalledTimes(1);
+    const { data } = sampleLiveTrackerStateMessage;
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...data, matchSummaries: data.matchSummaries.slice(0, -1) },
+    });
+    await vi.runAllTimersAsync();
+    expect(detailSpy).toHaveBeenCalledTimes(2);
 
+    const latestData = {
+      ...data,
+      matchSummaries: data.matchSummaries.slice(0, -1),
+      teams: data.teams.map((team, index) => (index === 0 ? { ...team, name: "Updated" } : team)),
+    };
+    connection.emitMessage({ ...sampleLiveTrackerStateMessage, data: latestData });
+    await vi.runAllTimersAsync();
+    expect(detailSpy).toHaveBeenCalledTimes(3);
+
+    presenter.dispose();
+  });
+
+  it("retries failed detail requests and ignores responses from replaced sources", async (): Promise<void> => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    let resolveOld: ((value: Awaited<ReturnType<SeriesMatchesService["getSeriesDetail"]>>) => void) | undefined;
+    detailSpy.mockImplementationOnce(
+      async () =>
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    detailSpy.mockRejectedValueOnce(new Error("detail unavailable"));
+    const presenter = createPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+    const changedMessage = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        teams: sampleLiveTrackerStateMessage.data.teams.map((team, index) =>
+          index === 0 ? { ...team, name: "Changed team" } : team,
+        ),
+      },
+    };
+    connection.emitMessage(changedMessage);
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+
+    presenter.retrySeriesDetails();
+    await vi.runAllTimersAsync();
+    resolveOld?.(
+      await aFakeSeriesMatchesServiceWith().getSeriesDetail("old", ["old"], undefined, undefined, {
+        teams: [
+          { name: "one", playerIds: ["one"] },
+          { name: "two", playerIds: ["two"] },
+        ],
+        playersAssociationData: {},
+        substitutions: [],
+      }),
+    );
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
+    expect(store.getSnapshot().seriesDetail?.seriesId).toBe(
+      `guild:${sampleLiveTrackerStateMessage.data.guildId}/queue/${sampleLiveTrackerStateMessage.data.queueNumber.toString()}`,
+    );
+    presenter.dispose();
+  });
+
+  it("clears retained detail during an earlier insertion and after its refresh fails", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        matchSummaries: sampleLiveTrackerStateMessage.data.matchSummaries.slice(1),
+      },
+    });
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetail).not.toBeNull();
+    vi.spyOn(seriesMatchesService, "getSeriesDetail").mockImplementationOnce(
+      async () =>
+        new Promise((_resolve, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+    connection.emitMessage(sampleLiveTrackerStateMessage);
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(store.getSnapshot().seriesDetail).toBeNull();
+    Preconditions.checkExists(rejectRefresh)(new Error("insertion refresh failed"));
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+    expect(store.getSnapshot().seriesDetail).toBeNull();
+    presenter.dispose();
+  });
+
+  it("keeps the latest broadcast total while retained append detail is loading or failed", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        substitutions: [
+          {
+            playerOutId: Preconditions.checkExists(sampleLiveTrackerStateMessage.data.players[0]).id,
+            playerInId: Preconditions.checkExists(sampleLiveTrackerStateMessage.data.players[1]).id,
+            teamIndex: 0,
+            teamName: "Team 1",
+            timestamp: addMilliseconds(parseISO(summary.endTime), 1).toISOString(),
+          },
+        ],
+      },
+    };
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const retainedDetail = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: [summary.matchId],
+        results: [
+          { status: "resolved", matchId: summary.matchId, detail: aFakeMatchDetailWith({ matchId: summary.matchId }) },
+        ],
+      },
+      aggregation: {
+        status: "resolved",
+        gamesPlayed: 1,
+        completedGameCount: 1,
+        players: [],
+        teams: [aFakeSeriesTeamWith({ gamesWon: 1 }), aFakeSeriesTeamWith({ seriesTeamId: 1, gamesWon: 0 })],
+      },
+    });
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    vi.spyOn(seriesMatchesService, "getSeriesDetail")
+      .mockResolvedValueOnce(retainedDetail)
+      .mockImplementationOnce(
+        async () =>
+          new Promise((_resolve, reject) => {
+            rejectRefresh = reject;
+          }),
+      );
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage({
+      ...message,
+      data: { ...message.data, matchSummaries: [summary] },
+    });
+    await vi.runAllTimersAsync();
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("1:0");
+    connection.emitMessage({
+      ...message,
+      data: { ...message.data, seriesScore: "2:0" },
+    });
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(presentSnapshot(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
+    Preconditions.checkExists(rejectRefresh)(new Error("append refresh failed"));
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+    expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(presentSnapshot(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
     presenter.dispose();
   });
 
@@ -263,12 +552,10 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     const connection = new MockLiveTrackerConnection();
     const liveTrackerService = new MockLiveTrackerService();
     vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
-    const presenter = new LiveTrackerPresenter({
+    const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService,
       store,
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
     const first = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries.at(0));
     const second = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries.at(1));
@@ -291,7 +578,7 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
     presenter.start();
     await vi.runAllTimersAsync();
     connection.emitMessage(message);
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([]);
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toEqual([]);
 
     connection.emitMessage({
       ...message,
@@ -303,158 +590,118 @@ describe("LiveTrackerPresenter - Analytics Fetch", () => {
         ],
       },
     });
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toEqual([
       expect.objectContaining({ gameNumber: 2, map: "Next Map" }),
     ]);
     presenter.dispose();
   });
 
-  it("updates snapshot immediately before medal metadata resolution completes", async (): Promise<void> => {
-    const mockStore = new MockLiveTrackerStore();
-    const analyticsService = aFakeMatchAnalyticsServiceWith();
-    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
-
-    let resolveMetadataFile!: (value: Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>) => void;
-    const delayedMetadataFile = new Promise<Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>>(
-      (resolve) => {
-        resolveMetadataFile = resolve;
-      },
-    );
-    const haloClient = aFakeHaloClientWith({
-      getMedalsMetadataFile: vi.fn(async () => delayedMetadataFile),
+  it("updates legacy icons and planned slots when only raw metadata arrives without refetching detail", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
     });
-
-    const createdConnections: MockLiveTrackerConnection[] = [];
-    const mockService = new MockLiveTrackerService();
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      const conn = new MockLiveTrackerConnection();
-      createdConnections.push(conn);
-      return Promise.resolve(conn);
-    });
-
-    const presenter = new LiveTrackerPresenter({
-      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      liveTrackerService: mockService,
-      store: mockStore,
-      matchAnalyticsService: analyticsService,
-      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
-    });
-
-    presenter.start();
-    await vi.runAllTimersAsync();
-
-    const connection = Preconditions.checkExists(createdConnections[0]);
-    connection.emitStatus("connected");
-    connection.emitMessage(sampleLiveTrackerStateMessage);
-
-    const snapshotBeforeMetadataResolves = mockStore.getSnapshot();
-    expect(snapshotBeforeMetadataResolves.lastStateMessage).toEqual(sampleLiveTrackerStateMessage);
-    expect(snapshotBeforeMetadataResolves.hasReceivedInitialData).toBe(true);
-    expect(getBatchSpy).toHaveBeenCalledTimes(1);
-
-    resolveMetadataFile({ difficulties: [], types: [], sprites: {}, medals: [] });
-    await vi.runAllTimersAsync();
-
-    presenter.dispose();
-  });
-
-  it("skips metadata resolution when a state message has no valid raw matches", async (): Promise<void> => {
-    const mockStore = new MockLiveTrackerStore();
-    const analyticsService = aFakeMatchAnalyticsServiceWith();
-
-    const resolver = new HaloMedalMetadataResolver(aFakeHaloClientWith());
-    const getMedalMetadataForMatchesSpy = vi.spyOn(resolver, "getMedalMetadataForMatches");
-
-    const createdConnections: MockLiveTrackerConnection[] = [];
-    const mockService = new MockLiveTrackerService();
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      const conn = new MockLiveTrackerConnection();
-      createdConnections.push(conn);
-      return Promise.resolve(conn);
-    });
-
-    const presenter = new LiveTrackerPresenter({
-      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      liveTrackerService: mockService,
-      store: mockStore,
-      matchAnalyticsService: analyticsService,
-      medalMetadataResolver: resolver,
-    });
-
-    presenter.start();
-    await vi.runAllTimersAsync();
-
-    const connection = Preconditions.checkExists(createdConnections[0]);
-    connection.emitStatus("connected");
-    mockStore.setSnapshot({
-      ...mockStore.getSnapshot(),
-      medalMetadata: { 99: { name: "Existing", sortingWeight: 99 } },
-    });
-    connection.emitMessage({
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const message = {
       ...sampleLiveTrackerStateMessage,
-      data: { ...sampleLiveTrackerStateMessage.data, rawMatches: {} },
-    });
-    await vi.runAllTimersAsync();
-
-    expect(getMedalMetadataForMatchesSpy).not.toHaveBeenCalled();
-    expect(mockStore.getSnapshot().medalMetadata).toEqual({ 99: { name: "Existing", sortingWeight: 99 } });
-
-    presenter.dispose();
-  });
-
-  it("rolls back fetchedMatchIds and re-triggers fetch when lastStateMessage changes before the fetch resolves", async (): Promise<void> => {
-    const mockStore = new MockLiveTrackerStore();
-    const analyticsService = aFakeMatchAnalyticsServiceWith();
-
-    let resolveStaleFetch!: (value: Record<string, MatchAnalytics | null>) => void;
-    const staleFetch = new Promise<Record<string, MatchAnalytics | null>>((resolve) => {
-      resolveStaleFetch = resolve;
-    });
-    // First call returns a deferred promise; subsequent calls use the real fake (resolves immediately)
-    const getBatchSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics").mockReturnValueOnce(staleFetch);
-
-    const createdConnections: MockLiveTrackerConnection[] = [];
-    const mockService = new MockLiveTrackerService();
-    vi.spyOn(mockService, "connect").mockImplementation(async (): Promise<LiveTrackerConnection> => {
-      const conn = new MockLiveTrackerConnection();
-      createdConnections.push(conn);
-      return Promise.resolve(conn);
-    });
-
-    const presenter = new LiveTrackerPresenter({
-      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
-      liveTrackerService: mockService,
-      store: mockStore,
-      matchAnalyticsService: analyticsService,
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
-    });
-
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        rawMatches: {},
+        matchSummaries: [{ ...summary, gameInfo: undefined }],
+        plannedMaps: [{ mode: "Oddball", map: "Played" }],
+      },
+    };
     presenter.start();
     await vi.runAllTimersAsync();
-
-    const connection = Preconditions.checkExists(createdConnections[0]);
-    connection.emitStatus("connected");
-    connection.emitMessage(sampleLiveTrackerStateMessage);
-
+    connection.emitMessage(message);
     await vi.runAllTimersAsync();
-
-    // Simulate a new lastStateMessage arriving (different object reference) before the stale fetch resolves
-    const snapshotBeforeResolve = mockStore.getSnapshot();
-    const newStateMessage = { ...sampleLiveTrackerStateMessage };
-    mockStore.setSnapshot({ ...snapshotBeforeResolve, lastStateMessage: newStateMessage });
-
-    // Resolve the first (stale) fetch with empty results
-    resolveStaleFetch({});
-    await vi.runAllTimersAsync();
-
-    const rawMatchIds = Object.keys(sampleLiveTrackerStateMessage.data.rawMatches);
-    // Stale fetch result is discarded; fetchedMatchIds are rolled back and a re-triggered fetch runs
-    expect(getBatchSpy).toHaveBeenCalledTimes(2);
-    expect(mockStore.getSnapshot().analyticsStatus).toBe(ComponentLoaderStatus.LOADED);
-    expect(mockStore.getSnapshot().analyticsByMatchId.size).toBe(rawMatchIds.length);
-
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toHaveLength(1);
+    connection.emitMessage({
+      ...message,
+      data: {
+        ...message.data,
+        rawMatches: {
+          [summary.matchId]: {
+            MatchId: summary.matchId,
+            Teams: [],
+            Players: [],
+            MatchInfo: {
+              StartTime: summary.startTime,
+              EndTime: summary.endTime,
+              MapVariant: { AssetId: "map", VersionId: "v1" },
+              GameVariantCategory: GameVariantCategory.MultiplayerOddball,
+            },
+          },
+        },
+      },
+    });
+    const { state } = presentSnapshot(store.getSnapshot());
+    expect(state?.matches[0]?.gameInfo?.gameVariantCategory).toBe(GameVariantCategory.MultiplayerOddball);
+    expect(state?.plannedGames).toEqual([]);
+    expect(detailSpy).toHaveBeenCalledTimes(1);
     presenter.dispose();
   });
+
+  it.each([false, true])(
+    "shows Retry for partial fetch failures and retains usable detail (prior: %s)",
+    async (hasPrior) => {
+      const store = new MockLiveTrackerStore();
+      const connection = new MockLiveTrackerConnection();
+      const liveTrackerService = new MockLiveTrackerService();
+      vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const presenter = createPresenter({
+        getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+        liveTrackerService,
+        store,
+        seriesMatchesService,
+      });
+      presenter.start();
+      await vi.runAllTimersAsync();
+      const summaries = sampleLiveTrackerStateMessage.data.matchSummaries;
+      if (hasPrior) {
+        connection.emitMessage({
+          ...sampleLiveTrackerStateMessage,
+          data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: summaries.slice(0, 1) },
+        });
+        await vi.runAllTimersAsync();
+      }
+      const prior = store.getSnapshot().seriesDetail;
+      const partial = aFakeSeriesDetailResponseWith({
+        matches: {
+          matchIds: summaries.map((match) => match.matchId),
+          results: summaries.map(({ matchId }, index) =>
+            index === summaries.length - 1
+              ? { status: "unavailable", matchId, reason: "fetch-failed" }
+              : { status: "resolved", matchId, detail: aFakeMatchDetailWith({ matchId }) },
+          ),
+        },
+        aggregation: { status: "unavailable", reason: "incomplete-matches" },
+      });
+      const detailSpy = vi.spyOn(seriesMatchesService, "getSeriesDetail").mockResolvedValueOnce(partial);
+      connection.emitMessage(sampleLiveTrackerStateMessage);
+      await vi.runAllTimersAsync();
+      expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+      expect(store.getSnapshot().seriesDetailError).toBeTruthy();
+      expect(store.getSnapshot().seriesDetail).toEqual(prior ?? partial);
+      expect(presentSnapshot(store.getSnapshot()).allMatchStats.some((match) => match.data != null)).toBe(true);
+      presenter.retrySeriesDetails();
+      await vi.runAllTimersAsync();
+      expect(detailSpy).toHaveBeenCalledTimes(2);
+      expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADED);
+      expect(store.getSnapshot().seriesDetailError).toBeNull();
+      expect(store.getSnapshot().seriesDetail?.matches.matchIds).toEqual(partial.matches.matchIds);
+      presenter.dispose();
+    },
+  );
 });
 
 describe("LiveTrackerPresenter - Retry Behavior", () => {
@@ -479,12 +726,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       return Promise.resolve(conn);
     });
 
-    const presenter = new LiveTrackerPresenter({
+    const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore,
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -552,12 +797,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
       return Promise.resolve(conn);
     });
 
-    const presenter = new LiveTrackerPresenter({
+    const presenter = createPresenter({
       getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
       liveTrackerService: mockService,
       store: mockStore,
-      matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
     });
 
     // Start the connection
@@ -606,12 +849,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
           return Promise.resolve(conn);
         });
 
-      const presenter = new LiveTrackerPresenter({
+      const presenter = createPresenter({
         getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
         liveTrackerService: mockService,
         store: mockStore,
-        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
       });
 
       presenter.start();
@@ -654,12 +895,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
         return Promise.resolve(conn);
       });
 
-      const presenter = new LiveTrackerPresenter({
+      const presenter = createPresenter({
         getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
         liveTrackerService: mockService,
         store: mockStore,
-        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
       });
 
       presenter.start();
@@ -716,12 +955,10 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
         return Promise.resolve(conn);
       });
 
-      const presenter = new LiveTrackerPresenter({
+      const presenter = createPresenter({
         getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
         liveTrackerService: mockService,
         store: mockStore,
-        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-        medalMetadataResolver: new HaloMedalMetadataResolver(aFakeHaloClientWith()),
       });
 
       presenter.start();

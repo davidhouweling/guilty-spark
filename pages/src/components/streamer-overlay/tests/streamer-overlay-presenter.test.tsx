@@ -50,6 +50,14 @@ describe("StreamerOverlayPresenter", () => {
     presenter.syncLatestMatch({
       showTicker: true,
       matchesLength: 3,
+      tickerMatchGroups: tickerMatchGroups.slice(0, 2),
+    });
+    expect(store.getSnapshot().currentMatchIndex).toBe(0);
+    expect(store.getSnapshot().previousMatchCount).toBe(2);
+
+    presenter.syncLatestMatch({
+      showTicker: true,
+      matchesLength: 3,
       tickerMatchGroups,
     });
 

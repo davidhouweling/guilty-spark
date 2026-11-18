@@ -159,6 +159,11 @@ describe("/api/stats/series-details/:seriesId", () => {
     "duplicate association",
     "wrong roster",
     "inconsistent substitution",
+    "no teams",
+    "one team",
+    "three teams",
+    "empty roster",
+    "out-of-range substitution",
   ])("keeps raw detail but declines configured sides for %s without generic fallback", async (failure) => {
     const context = aFakeConfiguredTeamContextWith();
     if (failure === "missing association") {
@@ -169,6 +174,17 @@ describe("/api/stats/series-details/:seriesId", () => {
       context.playersAssociationData["d2"] = { xboxId: "0100000000000000" };
     } else if (failure === "inconsistent substitution") {
       context.substitutions = context.substitutions.map((substitution) => ({ ...substitution, teamIndex: 0 }));
+    } else if (failure === "no teams") {
+      context.teams = [];
+    } else if (failure === "one team") {
+      context.teams = context.teams.slice(0, 1);
+    } else if (failure === "three teams") {
+      context.teams.push({ name: "Third", playerIds: ["third"] });
+    } else if (failure === "empty roster") {
+      Preconditions.checkExists(context.teams[0]).playerIds = [];
+    } else if (failure === "out-of-range substitution") {
+      context.substitutions = context.substitutions.map((substitution) => ({ ...substitution, teamIndex: 2 }));
+      getMatchDetailsSpy.mockResolvedValue([{ ...aFakeSeriesDetailMatchWith(1, true, true), MatchId: "match-0" }]);
     } else {
       context.substitutions = [];
     }

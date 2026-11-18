@@ -82,9 +82,10 @@ export class StreamerOverlayPresenter {
       const latestMatchIndex = options.tickerMatchGroups.findIndex(
         (group) => group.matchIndex === currentMatchCount - 1,
       );
-      if (latestMatchIndex !== -1) {
-        nextCurrentMatchIndex = latestMatchIndex;
+      if (latestMatchIndex === -1) {
+        return;
       }
+      nextCurrentMatchIndex = latestMatchIndex;
     }
 
     this.config.store.batchUpdate({

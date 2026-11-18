@@ -1,43 +1,135 @@
-import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
-import type { MatchStats } from "halo-infinite-api";
-import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type {
+  LiveTrackerIdentity,
+  LiveTrackerMessage,
+  LiveTrackerStateMessage,
+} from "@guilty-spark/shared/live-tracker/types";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { ConfiguredTeamContext, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { isBefore, parseISO } from "date-fns";
-import type { HaloMedalMetadataResolver } from "../../services/halo/medal-metadata-resolver";
 import type {
   LiveTrackerConnection,
   LiveTrackerConnectionStatus,
   LiveTrackerService,
   LiveTrackerSubscription,
 } from "../../services/live-tracker/types";
-import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
-import type { MatchStatsData } from "../../controllers/stats/types";
-import { isMatchStats } from "../../controllers/stats/is-match-stats";
+import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
+import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../series-stats/types";
+import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
-import { StatsController } from "../../controllers/stats/stats-controller";
-import { calculateSeriesMetadata } from "../../controllers/stats/series-metadata";
-import { GAMES_SUFFIX_RE, KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
-import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
-import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStoreApi } from "./live-tracker-store";
 import type {
   LiveTrackerViewModel,
-  LiveTrackerStateRenderModel,
-  MatchKillMatrix,
-  KillMatrixResult,
-  LiveTrackerSeriesStatsData,
   LiveTrackerMatchRenderModel,
   LiveTrackerMatchSubstitutions,
   LiveTrackerSubstitutionRenderModel,
+  LiveTrackerStateRenderModel,
 } from "./types";
-import { toLiveTrackerStateRenderModel } from "./state-render-model";
+import { getMatchGameInfo, toLiveTrackerStateRenderModel } from "./state-render-model";
 
 interface Config {
   readonly liveTrackerService: LiveTrackerService;
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStoreApi;
-  readonly matchAnalyticsService: MatchAnalyticsService;
-  readonly medalMetadataResolver: HaloMedalMetadataResolver;
+  readonly seriesMatchesService: SeriesMatchesService;
+  readonly analyticsController: SeriesAnalyticsController;
+}
+
+interface SeriesDetailRequest {
+  readonly identityKey: string;
+  readonly sourceKey: string;
+  readonly seriesId: string;
+  readonly matchIds: readonly string[];
+  readonly teamContext: ConfiguredTeamContext;
+}
+
+function createSeriesDetailRequest(message: LiveTrackerStateMessage): SeriesDetailRequest {
+  const { data } = message;
+  const matchIds = [...data.matchSummaries]
+    .sort((left, right) => left.endTime.localeCompare(right.endTime))
+    .map((match) => match.matchId);
+  const teamContext: ConfiguredTeamContext = {
+    teams: data.teams.map((team) => ({ name: team.name, playerIds: [...team.playerIds] })),
+    playersAssociationData: Object.fromEntries(
+      Object.entries(data.playersAssociationData ?? {}).map(([playerId, association]) => [
+        playerId,
+        { xboxId: association.xboxId },
+      ]),
+    ),
+    substitutions: data.substitutions.map(({ playerOutId, playerInId, teamIndex, timestamp }) => ({
+      playerOutId,
+      playerInId,
+      teamIndex,
+      timestamp,
+    })),
+  };
+  const identityKey = `${data.guildId}:${data.queueNumber.toString()}`;
+  const sourceKey = JSON.stringify([identityKey, matchIds, teamContext]);
+
+  return {
+    identityKey,
+    sourceKey,
+    seriesId: `guild:${data.guildId}/queue/${data.queueNumber.toString()}`,
+    matchIds,
+    teamContext,
+  };
+}
+
+function getMedalMetadata(detail: SeriesDetailResponse | null): MedalMetadata {
+  const metadata: MedalMetadata = {};
+  for (const result of detail?.matches.results ?? []) {
+    if (result.status !== "resolved") {
+      continue;
+    }
+    const medals = result.detail.teams.flatMap((team) => [
+      ...team.medals,
+      ...result.detail.players.flatMap((player) =>
+        player.teamStats.filter((stats) => stats.matchTeamId === team.matchTeamId).flatMap((stats) => stats.medals),
+      ),
+    ]);
+    for (const medal of medals) {
+      metadata[medal.id] = {
+        name: medal.name ?? medal.id.toString(),
+        sortingWeight: medal.sortingWeight ?? 0,
+      };
+    }
+  }
+  return metadata;
+}
+
+function withDetailScores(
+  state: LiveTrackerStateRenderModel | null,
+  detail: SeriesStatsViewModel | null,
+  response: SeriesDetailResponse | null,
+): LiveTrackerStateRenderModel | null {
+  if (state == null || detail == null || response == null) {
+    return state;
+  }
+  const mappedIds = new Set(
+    response.matches.results
+      .filter(
+        (result) =>
+          result.status === "resolved" &&
+          result.detail.teams.length > 0 &&
+          result.detail.teams.every((team) => team.seriesTeamId != null),
+      )
+      .map((result) => result.matchId),
+  );
+  const scores = new Map(
+    detail.matchSummaries.filter((match) => mappedIds.has(match.matchId)).map((match) => [match.matchId, match]),
+  );
+  const hasCurrentMatches =
+    response.matches.matchIds.length === state.matches.length &&
+    response.matches.matchIds.every((matchId, index) => state.matches[index]?.matchId === matchId);
+  return {
+    ...state,
+    seriesScore: detail.seriesStats == null || !hasCurrentMatches ? state.seriesScore : detail.seriesScore,
+    matches: state.matches.map((match) => {
+      const score = scores.get(match.matchId);
+      return score == null ? match : { ...match, gameScore: score.gameScore, gameSubScore: score.gameSubScore };
+    }),
+  };
 }
 
 export class LiveTrackerPresenter {
@@ -53,19 +145,20 @@ export class LiveTrackerPresenter {
   private reconnectionTimer: NodeJS.Timeout | null = null;
   private firstReconnectionTimestamp: number | null = null;
   private reconnectionAttempt = 0;
+  private connectionGeneration = 0;
   private readonly maxReconnectionAttempts = 10;
   private readonly maxReconnectionDurationMs = 3 * 60 * 1000;
 
-  private readonly fetchedMatchIds = new Set<string>();
   private stateMessageVersion = 0;
-  private static readonly killMatrixFormatter = new KillMatrixFormatter();
-  private static readonly ANALYTICS_BATCH_SIZE = 30;
+  private detailRequestGeneration = 0;
+  private detailSourceKey: string | null = null;
+  private detailIdentityKey: string | null = null;
 
   public constructor(config: Config) {
     this.config = config;
   }
 
-  public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
+  public static present(snapshot: LiveTrackerSnapshot, detailModel: SeriesStatsViewModel | null): LiveTrackerViewModel {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
 
     const title =
@@ -97,33 +190,46 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
-    const state =
-      lastStateMessage?.type === "state"
-        ? toLiveTrackerStateRenderModel(lastStateMessage, snapshot.medalMetadata)
-        : null;
+    const medalMetadata = getMedalMetadata(snapshot.seriesDetail);
+    const state = withDetailScores(
+      lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage, medalMetadata) : null,
+      detailModel,
+      snapshot.seriesDetail,
+    );
     const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
+    const renderedMatchIds = new Set(detailModel?.matchDetails.map((match) => match.matchId));
     const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     const availablePlayers =
       state?.type === "neatqueue"
         ? state.teams.flatMap((team) => team.players.map((player) => ({ id: player.id, name: player.displayName })))
         : [];
-
-    const { allMatchStats, seriesStatsData } = snapshot;
-
+    const allMatchStats = detailModel?.matchDetails.map(({ matchId, data }) => ({ matchId, data })) ?? [];
     const seriesStats =
-      seriesStatsData != null
-        ? {
-            teamData: seriesStatsData.teamData,
-            playerData: seriesStatsData.playerData,
-            metadata: seriesStatsData.metadata,
-          }
-        : null;
-
-    const { allMatchKillMatrix, seriesKillMatrix } = LiveTrackerPresenter.computeKillMatrix(
-      state,
-      seriesStatsData,
-      snapshot.analyticsByMatchId,
-    );
+      detailModel?.seriesStats == null
+        ? null
+        : {
+            teamData: detailModel.seriesStats.teamData,
+            playerData: detailModel.seriesStats.playerData,
+            metadata: detailModel.seriesStats.metadata,
+          };
+    const allMatchKillMatrix =
+      detailModel?.matchDetails.map((detail) => ({
+        matchId: detail.matchId,
+        pivotData: detail.killMatrixPivotData,
+        transposedPivotData: detail.transposedKillMatrixPivotData,
+        crossTeamData: detail.crossTeamKillMatrixData,
+        swappedCrossTeamData: detail.swappedCrossTeamKillMatrixData,
+      })) ?? [];
+    const seriesKillMatrix =
+      detailModel?.seriesStats == null
+        ? null
+        : {
+            pivotData: detailModel.seriesStats.killMatrixPivotData,
+            transposedPivotData: detailModel.seriesStats.transposedKillMatrixPivotData,
+            crossTeamData: detailModel.seriesStats.crossTeamKillMatrixData,
+            swappedCrossTeamData: detailModel.seriesStats.swappedCrossTeamKillMatrixData,
+          };
+    const analyticsStatus = detailModel?.seriesStats?.killMatrixStatus ?? ComponentLoaderStatus.PENDING;
 
     return {
       title,
@@ -133,12 +239,20 @@ export class LiveTrackerPresenter {
       iconUrl,
       state,
       sortedSubstitutions,
-      matchSubstitutions: LiveTrackerPresenter.groupMatchSubstitutions(state?.matches ?? [], sortedSubstitutions),
+      matchSubstitutions: LiveTrackerPresenter.groupMatchSubstitutions(
+        state?.matches.filter((match) => renderedMatchIds.has(match.matchId)) ?? [],
+        sortedSubstitutions,
+      ),
       availablePlayers,
       params,
+      seriesDetail: snapshot.seriesDetail,
+      seriesDetailStatus: snapshot.seriesDetailStatus,
+      seriesDetailError: snapshot.seriesDetailError,
+      seriesAnalyticsByMatchId: snapshot.seriesAnalyticsByMatchId,
+      detailViewModel: detailModel,
       allMatchStats,
       seriesStats,
-      analyticsStatus: snapshot.analyticsStatus,
+      analyticsStatus,
       allMatchKillMatrix,
       seriesKillMatrix,
     };
@@ -165,125 +279,6 @@ export class LiveTrackerPresenter {
     return { byMatchId, trailing: substitutions.slice(next) };
   }
 
-  private static computeAllMatchStats(
-    state: LiveTrackerStateRenderModel | null,
-  ): readonly { matchId: string; data: MatchStatsData[] | null }[] {
-    if (state?.type !== "neatqueue") {
-      return [];
-    }
-
-    const { medalMetadata } = state;
-
-    return state.matches.map((match) => {
-      if (match.rawMatchStats == null) {
-        return { matchId: match.matchId, data: null };
-      }
-
-      try {
-        const controller = new StatsController();
-        const playerMap = new Map<string, string>(Object.entries(match.playerXuidToGametag));
-        controller.loadMatch(match.rawMatchStats, playerMap, medalMetadata);
-        return { matchId: match.matchId, data: controller.getMatchStats() };
-      } catch {
-        return { matchId: match.matchId, data: null };
-      }
-    });
-  }
-
-  private static computeLiveTrackerSeriesStatsData(
-    state: LiveTrackerStateRenderModel | null,
-  ): LiveTrackerSeriesStatsData | null {
-    if (state?.type !== "neatqueue" || state.matches.length === 0) {
-      return null;
-    }
-
-    const rawMatchStats = state.matches
-      .map((match) => match.rawMatchStats)
-      .filter((stats): stats is NonNullable<typeof stats> => stats != null);
-
-    if (rawMatchStats.length === 0) {
-      return null;
-    }
-
-    try {
-      const allPlayerXuidToGametag = new Map<string, string>();
-      for (const match of state.matches) {
-        for (const [xuid, gamertag] of Object.entries(match.playerXuidToGametag)) {
-          allPlayerXuidToGametag.set(xuid, gamertag);
-        }
-      }
-
-      const controller = new StatsController();
-      controller.loadSeries(rawMatchStats, allPlayerXuidToGametag, state.medalMetadata);
-      const { teamData, playerData } = controller.getSeriesStats();
-      const players = controller.getPlayers();
-      const playersByGamertag = new Map(players.map((p) => [p.gamertag, p]));
-      const resolvedPlayers = playerData
-        .flatMap((td) => td.players.map((p) => playersByGamertag.get(p.name.replace(GAMES_SUFFIX_RE, ""))))
-        .filter((p): p is KillMatrixPlayer => p != null);
-      const orderedPlayers = resolvedPlayers.length === players.length ? resolvedPlayers : players;
-      const playersByXuid = new Map(players.map((p) => [p.xuid, { gamertag: p.gamertag, teamId: p.teamId }]));
-      const metadata = calculateSeriesMetadata(state.matches, state.seriesScore);
-
-      return { teamData, playerData, metadata, orderedPlayers, playersByXuid };
-    } catch {
-      return null;
-    }
-  }
-
-  private static computeKillMatrix(
-    state: LiveTrackerStateRenderModel | null,
-    seriesStatsData: LiveTrackerSeriesStatsData | null,
-    analyticsByMatchId: ReadonlyMap<string, MatchAnalytics>,
-  ): { allMatchKillMatrix: readonly MatchKillMatrix[]; seriesKillMatrix: KillMatrixResult | null } {
-    if (state?.type !== "neatqueue" || seriesStatsData == null || analyticsByMatchId.size === 0) {
-      return { allMatchKillMatrix: [], seriesKillMatrix: null };
-    }
-
-    const { orderedPlayers: seriesPlayers, playersByXuid } = seriesStatsData;
-    const matchKillMatrixRows = new Map<string, ReturnType<KillMatrixFormatter["present"]>>();
-
-    const allMatchKillMatrix = state.matches.map((match) => {
-      const analytics = analyticsByMatchId.get(match.matchId);
-      if (analytics == null) {
-        return {
-          matchId: match.matchId,
-          pivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-          transposedPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
-          crossTeamData: null,
-          swappedCrossTeamData: null,
-        };
-      }
-      const rows = LiveTrackerPresenter.killMatrixFormatter.present({ analytics, playersByXuid });
-      matchKillMatrixRows.set(match.matchId, rows);
-      const crossTeam = KillMatrixFormatter.buildCrossTeam(rows, seriesPlayers ?? []);
-      return {
-        matchId: match.matchId,
-        pivotData: KillMatrixFormatter.pivot(rows, seriesPlayers),
-        transposedPivotData: KillMatrixFormatter.transpose(rows, seriesPlayers),
-        crossTeamData: crossTeam?.crossTeamData ?? null,
-        swappedCrossTeamData: crossTeam?.swappedCrossTeamData ?? null,
-      };
-    });
-
-    if (matchKillMatrixRows.size === 0) {
-      return { allMatchKillMatrix, seriesKillMatrix: null };
-    }
-
-    const aggregatedRows = KillMatrixFormatter.aggregate([...matchKillMatrixRows.values()].flatMap((rows) => rows));
-    const aggregatedCrossTeam = KillMatrixFormatter.buildCrossTeam(aggregatedRows, seriesPlayers ?? []);
-
-    return {
-      allMatchKillMatrix,
-      seriesKillMatrix: {
-        pivotData: KillMatrixFormatter.pivot(aggregatedRows, seriesPlayers),
-        transposedPivotData: KillMatrixFormatter.transpose(aggregatedRows, seriesPlayers),
-        crossTeamData: aggregatedCrossTeam?.crossTeamData ?? null,
-        swappedCrossTeamData: aggregatedCrossTeam?.swappedCrossTeamData ?? null,
-      },
-    };
-  }
-
   // Helper function to compare params
   public static areParamsEqual(prev: LiveTrackerParams, curr: LiveTrackerParams): boolean {
     return prev.server === curr.server && prev.queue === curr.queue;
@@ -305,13 +300,6 @@ export class LiveTrackerPresenter {
 
     // Common fields
     if (prevData.status !== currData.status) {
-      return false;
-    }
-
-    // Compare only rawMatches keys; this intentionally ignores raw match payload changes.
-    const prevMatchIds = Object.keys(prevData.rawMatches).sort();
-    const currMatchIds = Object.keys(currData.rawMatches).sort();
-    if (prevMatchIds.length !== currMatchIds.length || !prevMatchIds.every((id, idx) => id === currMatchIds[idx])) {
       return false;
     }
 
@@ -408,19 +396,31 @@ export class LiveTrackerPresenter {
     for (let i = 0; i < prevData.matchSummaries.length; i++) {
       const prevMatch = prevData.matchSummaries[i];
       const currMatch = currData.matchSummaries[i];
+      const prevGameInfo = getMatchGameInfo(prevMatch, prevData.rawMatches);
+      const currGameInfo = getMatchGameInfo(currMatch, currData.rawMatches);
       if (
         prevMatch.matchId !== currMatch.matchId ||
         prevMatch.gameTypeAndMap !== currMatch.gameTypeAndMap ||
+        prevMatch.gameType !== currMatch.gameType ||
+        prevMatch.gameMap !== currMatch.gameMap ||
+        prevMatch.gameMapThumbnailUrl !== currMatch.gameMapThumbnailUrl ||
         prevMatch.gameScore !== currMatch.gameScore ||
         prevMatch.duration !== currMatch.duration ||
         prevMatch.startTime !== currMatch.startTime ||
         prevMatch.endTime !== currMatch.endTime ||
-        prevMatch.gameInfo?.mapAssetId !== currMatch.gameInfo?.mapAssetId ||
-        prevMatch.gameInfo?.mapVersionId !== currMatch.gameInfo?.mapVersionId ||
-        prevMatch.gameInfo?.gameVariantCategory !== currMatch.gameInfo?.gameVariantCategory
+        prevGameInfo?.mapAssetId !== currGameInfo?.mapAssetId ||
+        prevGameInfo?.mapVersionId !== currGameInfo?.mapVersionId ||
+        prevGameInfo?.gameVariantCategory !== currGameInfo?.gameVariantCategory
       ) {
         return false;
       }
+    }
+
+    if (
+      JSON.stringify(prevData.matchSummaries.map((match) => match.playerXuidToGametag)) !==
+      JSON.stringify(currData.matchSummaries.map((match) => match.playerXuidToGametag))
+    ) {
+      return false;
     }
 
     return true;
@@ -450,6 +450,12 @@ export class LiveTrackerPresenter {
     const params = LiveTrackerPresenter.parseParamsFromUrl(this.config.getUrl());
 
     if (!LiveTrackerPresenter.canConnect(params)) {
+      this.connectionGeneration += 1;
+      this.cleanupConnection();
+      this.config.analyticsController.reset();
+      this.detailRequestGeneration += 1;
+      this.detailSourceKey = null;
+      this.detailIdentityKey = null;
       this.config.store.setSnapshot({
         params,
         connectionState: "idle",
@@ -457,52 +463,77 @@ export class LiveTrackerPresenter {
         lastStateMessage: null,
         hasConnection: false,
         hasReceivedInitialData: false,
-        analyticsByMatchId: new Map(),
-        analyticsStatus: ComponentLoaderStatus.LOADED,
-        medalMetadata: {},
-        allMatchStats: [],
-        seriesStatsData: null,
+        seriesDetail: null,
+        seriesDetailStatus: ComponentLoaderStatus.PENDING,
+        seriesDetailError: null,
+        seriesAnalyticsByMatchId: new Map(),
       });
       return;
     }
 
-    this.disconnect();
-
     const previous = this.config.store.getSnapshot();
+    const changedIdentity = !LiveTrackerPresenter.areParamsEqual(previous.params, params);
+    this.connectionGeneration += 1;
+    this.cleanupConnection();
+    this.stopReconnection();
+    if (changedIdentity) {
+      this.detailRequestGeneration += 1;
+      this.detailSourceKey = null;
+      this.detailIdentityKey = null;
+      this.config.analyticsController.reset();
+    }
+    const current = this.config.store.getSnapshot();
     this.config.store.setSnapshot({
-      ...previous,
+      ...current,
       params,
       connectionState: "connecting",
       statusText: "Connecting...",
       hasConnection: false,
+      ...(changedIdentity
+        ? {
+            lastStateMessage: null,
+            hasReceivedInitialData: false,
+            seriesDetail: null,
+            seriesDetailStatus: ComponentLoaderStatus.PENDING,
+            seriesDetailError: null,
+          }
+        : {}),
     });
 
-    void this.connectInternal(LiveTrackerPresenter.toIdentity(params));
+    void this.connectInternal(LiveTrackerPresenter.toIdentity(params), this.connectionGeneration);
   }
 
   public dispose(): void {
     this.isDisposed = true;
-    this.disconnect();
-  }
-
-  private disconnect(): void {
+    this.connectionGeneration += 1;
+    this.detailRequestGeneration += 1;
     this.stopReconnection();
     this.cleanupConnection();
+    this.config.analyticsController.dispose();
+  }
 
-    this.fetchedMatchIds.clear();
+  public loadAnalytics(module: AnalyticsModule, matchId?: string): void {
+    this.config.analyticsController.load(module, matchId);
+  }
 
+  public setAnalytics(analyticsByMatchId: SeriesMatchAnalyticsById): void {
+    if (this.isDisposed) {
+      return;
+    }
     const current = this.config.store.getSnapshot();
-    this.config.store.setSnapshot({
-      ...current,
-      hasConnection: false,
-      lastStateMessage: null,
-      hasReceivedInitialData: false,
-      analyticsByMatchId: new Map(),
-      analyticsStatus: ComponentLoaderStatus.LOADED,
-      medalMetadata: {},
-      allMatchStats: [],
-      seriesStatsData: null,
-    });
+    this.config.store.setSnapshot({ ...current, seriesAnalyticsByMatchId: analyticsByMatchId });
+  }
+
+  public retrySeriesDetails(): void {
+    const message = this.config.store.getSnapshot().lastStateMessage;
+    if (message?.type !== "state" || this.isDisposed) {
+      return;
+    }
+    const request = createSeriesDetailRequest(message);
+    this.detailSourceKey = request.sourceKey;
+    this.config.analyticsController.updateMatchIds(request.matchIds);
+    this.detailRequestGeneration += 1;
+    this.beginSeriesDetailRequest(request, this.config.store.getSnapshot().seriesDetail != null);
   }
 
   private stopReconnection(): void {
@@ -526,14 +557,18 @@ export class LiveTrackerPresenter {
     }
   }
 
-  private async connectInternal(identity: LiveTrackerIdentity): Promise<void> {
-    if (this.isDisposed) {
+  private async connectInternal(identity: LiveTrackerIdentity, generation: number): Promise<void> {
+    if (!this.isConnectionGenerationCurrent(generation)) {
       return;
     }
 
     this.cleanupConnection();
 
     const nextConnection = await this.config.liveTrackerService.connect(identity);
+    if (!this.isConnectionGenerationCurrent(generation)) {
+      nextConnection.disconnect();
+      return;
+    }
     this.connection = nextConnection;
 
     const current = this.config.store.getSnapshot();
@@ -544,7 +579,7 @@ export class LiveTrackerPresenter {
 
     this.statusSubscription = nextConnection.subscribeStatus(
       (status: LiveTrackerConnectionStatus, detail?: string): void => {
-        if (this.isDisposed) {
+        if (!this.isConnectionGenerationCurrent(generation)) {
           return;
         }
 
@@ -594,7 +629,7 @@ export class LiveTrackerPresenter {
     );
 
     this.messageSubscription = nextConnection.subscribe((message: LiveTrackerMessage): void => {
-      if (this.isDisposed) {
+      if (!this.isConnectionGenerationCurrent(generation)) {
         return;
       }
 
@@ -606,153 +641,111 @@ export class LiveTrackerPresenter {
 
       this.stateMessageVersion += 1;
       const version = this.stateMessageVersion;
-      void this.handleStateMessageAsync(message, version);
+      this.handleStateMessage(message, version);
     });
   }
 
-  private async handleStateMessageAsync(message: LiveTrackerMessage, version: number): Promise<void> {
-    const currentSnapshot = this.config.store.getSnapshot();
-    const stateWithCurrentMetadata = toLiveTrackerStateRenderModel(message, currentSnapshot.medalMetadata);
-    const allMatchStatsWithCurrentMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithCurrentMetadata);
-    const seriesStatsDataWithCurrentMetadata =
-      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithCurrentMetadata);
-
-    const snapshotWithCurrentMetadata: LiveTrackerSnapshot = {
-      ...currentSnapshot,
-      lastStateMessage: message,
-      hasReceivedInitialData: true,
-      allMatchStats: allMatchStatsWithCurrentMetadata,
-      seriesStatsData: seriesStatsDataWithCurrentMetadata,
-    };
-
-    this.config.store.setSnapshot(snapshotWithCurrentMetadata);
-    this.triggerAnalyticsFetch(snapshotWithCurrentMetadata);
-
-    const rawMatches = Object.values(message.data.rawMatches).filter((match): match is MatchStats =>
-      isMatchStats(match),
-    );
-    if (rawMatches.length === 0) {
-      return;
-    }
-
-    const medalMetadata = await this.config.medalMetadataResolver.getMedalMetadataForMatches(rawMatches);
-
+  private handleStateMessage(message: LiveTrackerStateMessage, version: number): void {
     if (this.isDisposed || version !== this.stateMessageVersion) {
       return;
     }
 
-    const snapshot = this.config.store.getSnapshot();
-    const stateWithResolvedMetadata = toLiveTrackerStateRenderModel(message, medalMetadata);
-    const allMatchStatsWithResolvedMetadata = LiveTrackerPresenter.computeAllMatchStats(stateWithResolvedMetadata);
-    const seriesStatsDataWithResolvedMetadata =
-      LiveTrackerPresenter.computeLiveTrackerSeriesStatsData(stateWithResolvedMetadata);
-
-    const newSnapshot: LiveTrackerSnapshot = {
-      ...snapshot,
+    const request = createSeriesDetailRequest(message);
+    const currentSnapshot = this.config.store.getSnapshot();
+    const previousMessage = currentSnapshot.lastStateMessage;
+    const previousRequest = previousMessage == null ? null : createSeriesDetailRequest(previousMessage);
+    const retainDetail =
+      currentSnapshot.seriesDetail != null &&
+      previousRequest?.identityKey === request.identityKey &&
+      JSON.stringify(previousRequest.teamContext) === JSON.stringify(request.teamContext) &&
+      previousRequest.matchIds.every((matchId, index) => request.matchIds[index] === matchId);
+    this.config.store.setSnapshot({
+      ...currentSnapshot,
       lastStateMessage: message,
       hasReceivedInitialData: true,
-      medalMetadata,
-      allMatchStats: allMatchStatsWithResolvedMetadata,
-      seriesStatsData: seriesStatsDataWithResolvedMetadata,
-    };
+    });
 
-    this.config.store.setSnapshot(newSnapshot);
-  }
-
-  private triggerAnalyticsFetch(snapshot: LiveTrackerSnapshot): void {
-    const { lastStateMessage } = snapshot;
-    if (lastStateMessage == null) {
+    if (request.sourceKey === this.detailSourceKey) {
       return;
     }
 
-    const rawMatchIds = Object.keys(lastStateMessage.data.rawMatches);
-    const newMatchIds = rawMatchIds.filter((id) => !this.fetchedMatchIds.has(id));
-
-    if (newMatchIds.length === 0) {
-      return;
+    const identityChanged = this.detailIdentityKey !== request.identityKey;
+    this.detailIdentityKey = request.identityKey;
+    this.detailSourceKey = request.sourceKey;
+    this.detailRequestGeneration += 1;
+    if (identityChanged) {
+      this.config.analyticsController.reset(request.matchIds);
+    } else {
+      this.config.analyticsController.updateMatchIds(request.matchIds);
     }
 
-    const isInitialFetch = this.fetchedMatchIds.size === 0;
-    void this.fetchAnalyticsAsync(newMatchIds, isInitialFetch, lastStateMessage);
-  }
-
-  private async fetchAnalyticsAsync(
-    newMatchIds: string[],
-    isInitialFetch: boolean,
-    stateMessage: LiveTrackerMessage,
-  ): Promise<void> {
-    for (const id of newMatchIds) {
-      this.fetchedMatchIds.add(id);
-    }
-
-    if (isInitialFetch) {
+    if (request.matchIds.length === 0) {
       const current = this.config.store.getSnapshot();
       this.config.store.setSnapshot({
         ...current,
-        analyticsStatus: ComponentLoaderStatus.LOADING,
+        seriesDetail: null,
+        seriesDetailStatus: ComponentLoaderStatus.PENDING,
+        seriesDetailError: null,
       });
+      return;
     }
 
-    const chunks: string[][] = [];
-    for (let i = 0; i < newMatchIds.length; i += LiveTrackerPresenter.ANALYTICS_BATCH_SIZE) {
-      chunks.push(newMatchIds.slice(i, i + LiveTrackerPresenter.ANALYTICS_BATCH_SIZE));
-    }
+    this.beginSeriesDetailRequest(request, retainDetail);
+  }
 
+  private isConnectionGenerationCurrent(generation: number): boolean {
+    return !this.isDisposed && generation === this.connectionGeneration;
+  }
+
+  private beginSeriesDetailRequest(request: SeriesDetailRequest, retainDetail = false): void {
+    const generation = this.detailRequestGeneration;
+    const current = this.config.store.getSnapshot();
+    this.config.store.setSnapshot({
+      ...current,
+      seriesDetail: retainDetail ? current.seriesDetail : null,
+      seriesDetailStatus: ComponentLoaderStatus.LOADING,
+      seriesDetailError: null,
+    });
+    void this.fetchSeriesDetailAsync(request, generation);
+  }
+
+  private async fetchSeriesDetailAsync(request: SeriesDetailRequest, generation: number): Promise<void> {
     try {
-      const allResults = await Promise.all(
-        chunks.map(async (chunk) => this.config.matchAnalyticsService.getBatchMatchAnalytics(chunk)),
+      const response = await this.config.seriesMatchesService.getSeriesDetail(
+        request.seriesId,
+        request.matchIds,
+        undefined,
+        undefined,
+        request.teamContext,
       );
-
-      if (this.isDisposed) {
+      if (this.isDisposed || generation !== this.detailRequestGeneration) {
         return;
       }
-
-      const newAnalytics = new Map<string, MatchAnalytics>();
-      for (const results of allResults) {
-        for (const [matchId, analytics] of Object.entries(results)) {
-          if (analytics != null) {
-            newAnalytics.set(matchId, analytics);
-          }
-        }
+      this.setSeriesDetail(response);
+    } catch (error) {
+      if (this.isDisposed || generation !== this.detailRequestGeneration) {
+        return;
       }
-
       const current = this.config.store.getSnapshot();
-      if (current.lastStateMessage !== stateMessage) {
-        for (const id of newMatchIds) {
-          this.fetchedMatchIds.delete(id);
-        }
-        this.triggerAnalyticsFetch(current);
-        return;
-      }
-      const map = new Map(current.analyticsByMatchId);
-      for (const [matchId, analytics] of newAnalytics) {
-        map.set(matchId, analytics);
-      }
       this.config.store.setSnapshot({
         ...current,
-        analyticsByMatchId: map,
-        analyticsStatus: ComponentLoaderStatus.LOADED,
+        seriesDetailStatus: ComponentLoaderStatus.ERROR,
+        seriesDetailError: error instanceof Error ? error.message : "Unable to load series stats",
       });
-    } catch {
-      if (this.isDisposed) {
-        return;
-      }
-
-      for (const id of newMatchIds) {
-        this.fetchedMatchIds.delete(id);
-      }
-
-      if (isInitialFetch) {
-        const current = this.config.store.getSnapshot();
-        if (current.lastStateMessage !== stateMessage) {
-          return;
-        }
-        this.config.store.setSnapshot({
-          ...current,
-          analyticsStatus: ComponentLoaderStatus.ERROR,
-        });
-      }
     }
+  }
+
+  private setSeriesDetail(response: SeriesDetailResponse): void {
+    const current = this.config.store.getSnapshot();
+    const hasFetchFailures = response.matches.results.some(
+      (result) => result.status === "unavailable" && result.reason === "fetch-failed",
+    );
+    this.config.store.setSnapshot({
+      ...current,
+      seriesDetail: hasFetchFailures ? (current.seriesDetail ?? response) : response,
+      seriesDetailStatus: hasFetchFailures ? ComponentLoaderStatus.ERROR : ComponentLoaderStatus.LOADED,
+      seriesDetailError: hasFetchFailures ? "Unable to load some match details" : null,
+    });
   }
 
   private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {
@@ -801,7 +794,7 @@ export class LiveTrackerPresenter {
       }
 
       this.reconnectionTimer = null;
-      void this.connectInternal(identity);
+      void this.connectInternal(identity, this.connectionGeneration);
       this.reconnectionAttempt++;
     }, totalDelay);
   }

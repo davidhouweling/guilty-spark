@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { LiveTrackerViewModel } from "../types";
@@ -36,6 +36,11 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
     matchSubstitutions: { byMatchId: new Map(), trailing: [] },
     availablePlayers: [],
     params: defaultParams,
+    seriesDetail: null,
+    seriesDetailStatus: ComponentLoaderStatus.PENDING,
+    seriesDetailError: null,
+    seriesAnalyticsByMatchId: new Map(),
+    detailViewModel: null,
     allMatchStats: [],
     seriesStats: null,
     analyticsStatus: ComponentLoaderStatus.LOADED,
@@ -72,8 +77,6 @@ function aFakeLiveTrackerViewModelWith(overrides?: Partial<LiveTrackerViewModel>
           gameSubScore: null,
           startTime: "2024-12-31T23:50:00.000Z",
           endTime: "2025-01-01T00:00:00.000Z",
-          rawMatchStats: null,
-          playerXuidToGametag: {},
         },
       ],
       substitutions: [],
@@ -94,6 +97,8 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
   analyticsStatus: ComponentLoaderStatus.LOADED,
   allMatchKillMatrix: [],
   seriesKillMatrix: null,
+  onAnalyticsTabSelected: vi.fn(),
+  onRetrySeriesDetails: vi.fn(),
 };
 
 describe("LiveTrackerContext", () => {

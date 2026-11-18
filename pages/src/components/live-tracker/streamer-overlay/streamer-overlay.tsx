@@ -17,6 +17,8 @@ import {
   useAllMatchKillMatrix,
   useSeriesKillMatrix,
   useAnalyticsStatus,
+  useSeriesDetailState,
+  useSeriesDetailActions,
 } from "../live-tracker-context";
 import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
@@ -24,6 +26,7 @@ import { TeamDetailsContent } from "../../streamer-overlay/team-details-content"
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import type { OverlayTab } from "../../streamer-overlay/types";
 import { timeAgo } from "../../../services/time-ago";
+import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { StatsPanelContent } from "./stats-panel";
 import styles from "./streamer-overlay.module.css";
 
@@ -90,6 +93,8 @@ function NeatQueueStreamerOverlay({
   const allMatchKillMatrix = useAllMatchKillMatrix();
   const seriesKillMatrix = useSeriesKillMatrix();
   const analyticsStatus = useAnalyticsStatus();
+  const { detailViewModel, seriesDetailStatus, seriesDetailError, seriesDetail } = useSeriesDetailState(teamColors);
+  const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
   const trackerInfo = useTrackerInfo();
 
   const title =
@@ -325,14 +330,22 @@ function NeatQueueStreamerOverlay({
 
       if (matchStat.data) {
         const rows: TickerStatRow[] = [];
+        const detail = seriesDetail?.matches.results.find((result) => result.matchId === matchStat.matchId);
+        const seriesTeamIds = new Map(
+          detail?.status === "resolved" ? detail.detail.teams.map((team) => [team.matchTeamId, team.seriesTeamId]) : [],
+        );
 
         for (const teamData of matchStat.data) {
           const { teamId, teamStats, teamMedals } = teamData;
-          const teamName = resolveTeamName(teamId, neatQueueState.teams, settings.series);
+          const seriesTeamId = seriesTeamIds.get(teamId);
+          const teamName =
+            seriesTeamId == null
+              ? getTeamName(teamId)
+              : resolveTeamName(seriesTeamId, neatQueueState.teams, settings.series);
 
           rows.push({
             type: "team",
-            teamId,
+            teamId: seriesTeamId ?? teamId,
             name: `${teamName} (Accumulated)`,
             stats: filterStats(teamStats),
             medals: filterMedals(teamMedals),
@@ -344,7 +357,7 @@ function NeatQueueStreamerOverlay({
           for (const player of teamData.players) {
             rows.push({
               type: "player",
-              teamId,
+              teamId: seriesTeamIds.get(teamId) ?? teamId,
               name: player.name,
               stats: filterStats(player.values),
               medals: filterMedals(player.medals),
@@ -363,25 +376,30 @@ function NeatQueueStreamerOverlay({
     neatQueueState,
     seriesStats,
     allMatchStats,
+    seriesDetail,
     clampedMaxPreviousGamesToShow,
     isPreSeriesMode,
     settings.global.ticker.selectedSlayerStats,
     settings.global.ticker.showObjectiveStats,
     settings.global.ticker.medalRarityFilter,
     settings.global.ticker.showPreSeriesInfo,
+    settings.series,
   ]);
 
   const hasPanelContent = useCallback(
     (tabIndex: number): boolean => {
+      if (seriesDetailStatus === ComponentLoaderStatus.LOADING || seriesDetailStatus === ComponentLoaderStatus.ERROR) {
+        return true;
+      }
       if (tabIndex === -1) {
         if (isPreSeriesMode && neatQueueState.playersAssociationData != null) {
           return true;
         }
-        return seriesStats != null && seriesMatchCount > 0;
+        return (seriesStats != null && seriesMatchCount > 0) || detailViewModel?.seriesStatsWarning != null;
       }
-      return allMatchStats[tabIndex]?.data != null && Boolean(neatQueueState.matches[tabIndex]);
+      return allMatchStats[tabIndex]?.data != null || Boolean(neatQueueState.matches[tabIndex]);
     },
-    [allMatchStats, isPreSeriesMode, neatQueueState, seriesMatchCount, seriesStats],
+    [allMatchStats, isPreSeriesMode, neatQueueState, seriesDetailStatus, seriesMatchCount, seriesStats],
   );
 
   const renderPanelContent = useCallback(
@@ -389,6 +407,7 @@ function NeatQueueStreamerOverlay({
       const selectedMatchStats = tabIndex >= 0 ? (allMatchStats[tabIndex]?.data ?? null) : null;
       const selectedMatch = tabIndex >= 0 ? (neatQueueState.matches[tabIndex] ?? null) : null;
       const matchKillMatrix = tabIndex >= 0 ? (allMatchKillMatrix[tabIndex] ?? null) : null;
+      const selectedMatchDetail = tabIndex >= 0 ? (detailViewModel?.matchDetails[tabIndex] ?? null) : null;
       return (
         <StatsPanelContent
           selectedTab={tabIndex}
@@ -398,11 +417,18 @@ function NeatQueueStreamerOverlay({
           seriesStats={seriesStats}
           selectedMatchStats={selectedMatchStats}
           selectedMatch={selectedMatch}
-          teamColors={teamColors}
+          teamColors={selectedMatchDetail?.teamColors ?? teamColors}
           gameModeIconUrl={gameModeIconUrl}
           matchKillMatrix={matchKillMatrix}
           seriesKillMatrix={seriesKillMatrix}
           analyticsStatus={analyticsStatus}
+          detailStatus={seriesDetailStatus}
+          hasRetainedDetail={detailViewModel != null}
+          detailError={seriesDetailError}
+          detailWarning={detailViewModel?.seriesStatsWarning}
+          onRetryDetails={onRetrySeriesDetails}
+          matchKillMatrixStatus={selectedMatchDetail?.killMatrixStatus ?? ComponentLoaderStatus.PENDING}
+          onAnalyticsTabSelected={onAnalyticsTabSelected}
         />
       );
     },
@@ -410,12 +436,17 @@ function NeatQueueStreamerOverlay({
       allMatchStats,
       allMatchKillMatrix,
       analyticsStatus,
+      detailViewModel,
       gameModeIconUrl,
       neatQueueState,
       seriesMatchCount,
       seriesKillMatrix,
       seriesStats,
+      seriesDetailError,
+      seriesDetailStatus,
       teamColors,
+      onAnalyticsTabSelected,
+      onRetrySeriesDetails,
     ],
   );
 
@@ -517,8 +548,9 @@ function NeatQueueStreamerOverlay({
 
   const tabs = useMemo<readonly OverlayTab[]>(() => {
     const allMatchTabs = neatQueueState.matches.map((match, idx): OverlayTab => {
-      const winningTeamId = match.rawMatchStats?.Teams.find((team) => team.Outcome === 2)?.TeamId ?? null;
-      const teamColor = winningTeamId !== null ? teamColors[winningTeamId]?.hex : undefined;
+      const teamColor =
+        detailViewModel?.matchSummaries.find((summary) => summary.matchId === match.matchId)?.winningTeamColorHex ??
+        undefined;
 
       return {
         type: "match" as const,
@@ -528,7 +560,7 @@ function NeatQueueStreamerOverlay({
         score: match.gameScore,
         icons: [
           {
-            src: gameModeIconUrl(match.gameType, match.rawMatchStats?.MatchInfo.GameVariantCategory),
+            src: gameModeIconUrl(match.gameType, match.gameInfo?.gameVariantCategory),
             dimmed: false,
           },
         ],
@@ -558,6 +590,7 @@ function NeatQueueStreamerOverlay({
     clampedMaxPreviousGamesToShow,
     gameModeIconUrl,
     neatQueueState.matches,
+    detailViewModel,
     neatQueueState.plannedGames,
     neatQueueState.seriesScore,
     settings.global.ticker.showTabs,
