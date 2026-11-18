@@ -77,13 +77,25 @@ function collectPlayerParticipation(matches: readonly MatchStats[]): Map<string,
   return participationByPlayerId;
 }
 
+function getTeamPlayerMatches(matches: readonly MatchStats[], teamId: number): MatchStats[] {
+  return matches.map((match) => ({
+    ...match,
+    Players: match.Players.flatMap((player) => {
+      const teamStats = player.PlayerTeamStats.filter((stats) => stats.TeamId === teamId);
+      return teamStats.length === 0 ? [] : [{ ...player, LastTeamId: teamId, PlayerTeamStats: teamStats }];
+    }),
+  }));
+}
+
 function collectCalculatedPlayersByTeam(
+  matches: readonly MatchStats[],
   calculated: ReturnType<typeof calculateSeriesPlayerStats>,
 ): Map<number, Map<string, CalculatedSeriesPlayer>> {
   const playersByTeam = new Map<number, Map<string, CalculatedSeriesPlayer>>();
   for (const team of calculated.teams) {
     const players = new Map<string, CalculatedSeriesPlayer>();
-    for (const player of team.players) {
+    const teamCalculated = calculateSeriesPlayerStats(getTeamPlayerMatches(matches, team.teamId));
+    for (const player of teamCalculated.teams.flatMap((entry) => entry.players)) {
       players.set(player.player.PlayerId, player);
     }
     playersByTeam.set(team.teamId, players);
@@ -227,7 +239,7 @@ export function mapSeriesDetailAggregation(
   const participationByPlayerId = collectPlayerParticipation(matches);
   const collapsedMatches = getCollapsedMatches(matches);
   const teamIds = calculatedTeams.teams.map(({ teamId }) => teamId);
-  const playersByTeam = collectCalculatedPlayersByTeam(calculatedPlayers);
+  const playersByTeam = collectCalculatedPlayersByTeam(matches, calculatedPlayers);
 
   return seriesAggregationSchema.parse({
     status: "resolved",

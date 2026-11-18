@@ -2,6 +2,7 @@ import type { MatchStats } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { MATCH_DETAIL_BATCH_LIMIT } from "@guilty-spark/shared/contracts/stats/detail";
 import type {
+  ConfiguredTeamContext,
   MatchDetailResult,
   SeriesDetailResponse,
   SeriesTeamMappingMode,
@@ -19,6 +20,7 @@ export async function prepareSeriesDetails(
   matchIds: string[],
   logService: LogService,
   teamMappingMode?: SeriesTeamMappingMode,
+  configuredTeamContext?: ConfiguredTeamContext,
 ): Promise<SeriesDetailResponse> {
   const uniqueIds = [...new Set(matchIds)];
   const rawMatches: MatchStats[] = [];
@@ -30,6 +32,7 @@ export async function prepareSeriesDetails(
       haloService,
       uniqueIds.slice(offset, offset + MATCH_DETAIL_BATCH_LIMIT),
       logService,
+      configuredTeamContext,
     );
     rawMatches.push(...prepared.rawMatches);
     for (const result of prepared.batch.results) {
@@ -51,5 +54,6 @@ export async function prepareSeriesDetails(
     ...rosterOptions,
     identitiesByPlayerId,
     teamMappingMode,
+    configuredTeamContext,
   });
 }

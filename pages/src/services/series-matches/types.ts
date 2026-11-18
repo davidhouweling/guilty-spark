@@ -3,6 +3,7 @@ import type {
   MatchDetailResponse,
   SeriesDetailResponse,
   SeriesTeamMappingMode,
+  ConfiguredTeamContext,
 } from "@guilty-spark/shared/contracts/stats/detail";
 
 export interface SeriesMatchesService {
@@ -17,5 +18,6 @@ export interface SeriesMatchesService {
     matchIds: readonly string[],
     trackerId?: string,
     teamMappingMode?: SeriesTeamMappingMode,
+    configuredTeamContext?: ConfiguredTeamContext,
   ): Promise<SeriesDetailResponse>;
 }

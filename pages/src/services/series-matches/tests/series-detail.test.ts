@@ -7,7 +7,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import { RealSeriesMatchesService } from "../series-matches";
-import { aFakeSeriesMatchesServiceWith } from "../fakes/series-matches.fake";
+import { aFakeConfiguredTeamContextWith, aFakeSeriesMatchesServiceWith } from "../fakes/series-matches.fake";
 
 describe("RealSeriesMatchesService.getSeriesDetail", () => {
   let fetchSpy: MockInstance<typeof globalThis.fetch>;
@@ -99,6 +99,33 @@ describe("RealSeriesMatchesService.getSeriesDetail", () => {
     );
   });
 
+  it.each([1, 31])("posts explicit configured-team context with %i matches", async (count) => {
+    const matchIds = Array.from({ length: count }, (_, index) => `match-${index.toString()}`);
+    const configuredTeamContext = aFakeConfiguredTeamContextWith();
+    const detail = await aFakeSeriesMatchesServiceWith().getSeriesDetail("series", matchIds);
+    fetchSpy.mockResolvedValueOnce(seriesDetailContract.toResponse(detail));
+
+    await expect(
+      service.getSeriesDetail("series", matchIds, " tracker-1 ", undefined, configuredTeamContext),
+    ).resolves.toEqual(detail);
+    expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+      "https://api.example.com/api/stats/series-details/series?trackerId=tracker-1",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchIds, configuredTeamContext }),
+      },
+    );
+  });
+
+  it("rejects mixed configured context and mapping mode before fetching", async () => {
+    await expect(
+      service.getSeriesDetail("series", ["match-1"], undefined, "substitution-aware", aFakeConfiguredTeamContextWith()),
+    ).rejects.toThrow();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it.each([30, 31])("handles a trailing slash in the API host for %i matches", async (count) => {
     const matchIds = Array.from({ length: count }, (_, index) => `match-${index.toString()}`);
     const detail = await aFakeSeriesMatchesServiceWith().getSeriesDetail("guild:queue/1", matchIds);
@@ -163,6 +190,17 @@ describe("RealSeriesMatchesService.getSeriesDetail", () => {
 });
 
 describe("FakeSeriesMatchesService", () => {
+  it("validates configured context and rejects mixed mapping semantics without fetching", async () => {
+    const configuredTeamContext = aFakeConfiguredTeamContextWith();
+    const service = aFakeSeriesMatchesServiceWith();
+    await expect(
+      service.getSeriesDetail("series", ["match-1"], undefined, undefined, configuredTeamContext),
+    ).resolves.toMatchObject({ seriesId: "series", matches: { matchIds: ["match-1"] } });
+    await expect(
+      service.getSeriesDetail("series", ["match-1"], undefined, "substitution-aware", configuredTeamContext),
+    ).rejects.toThrow();
+  });
+
   it.each<SeriesTeamMappingMode>(["exact-roster", "substitution-aware"])(
     "accepts explicit %s mode without changing fixture identity",
     async (teamMappingMode) => {

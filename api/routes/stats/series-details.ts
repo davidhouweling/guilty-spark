@@ -72,6 +72,7 @@ export const seriesDetailsRoute: RoutesRegisterHandler = (router, installService
         body.data.matchIds,
         logService,
         body.data.teamMappingMode,
+        body.data.configuredTeamContext,
       );
       return seriesDetailContract.toResponse(detail, { noStore: true });
     } catch (error) {

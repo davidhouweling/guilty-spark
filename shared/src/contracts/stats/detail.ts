@@ -2,6 +2,10 @@ import { compareAsc } from "date-fns";
 import { z } from "zod";
 import { defineContract } from "../base";
 import { liveTrackerMapSchema } from "../durable-objects/live-tracker/maps";
+import {
+  substitutionSchema,
+  teamMappingSchema as configuredTeamSchema,
+} from "../durable-objects/live-tracker/lifecycle";
 import { trackerMatchOutcomeSchema } from "../individual-tracker/view";
 import { medalSchema, playerSchema, statSchema, teamMappingSchema, teamSchema } from "./detail-primitives";
 
@@ -89,10 +93,29 @@ export const seriesDetailQuerySchema = matchDetailQuerySchema.extend({
   teamMappingMode: seriesTeamMappingModeSchema.optional(),
 });
 
-export const seriesDetailRequestSchema = z.object({
-  matchIds: seriesMatchIdsSchema,
-  teamMappingMode: seriesTeamMappingModeSchema.optional(),
+// Display-only roster projection; not authoritative series linkage or a credential hint.
+// Team order defines seriesTeamId values. Omit for generic/manual series.
+export const configuredTeamContextSchema = z.strictObject({
+  teams: z.array(configuredTeamSchema.extend({ playerIds: z.array(z.string().min(1)).min(1) }).strict()).length(2),
+  playersAssociationData: z.record(z.string().min(1), z.strictObject({ xboxId: z.string().min(1).nullable() })),
+  substitutions: z.array(
+    substitutionSchema
+      .omit({ teamName: true })
+      .extend({ teamIndex: z.number().int().min(0).max(1), timestamp: z.iso.datetime({ offset: true }) })
+      .strict(),
+  ),
 });
+export type ConfiguredTeamContext = z.infer<typeof configuredTeamContextSchema>;
+
+export const seriesDetailRequestSchema = z
+  .object({
+    matchIds: seriesMatchIdsSchema,
+    teamMappingMode: seriesTeamMappingModeSchema.optional(),
+    configuredTeamContext: configuredTeamContextSchema.optional(),
+  })
+  .refine((request) => request.configuredTeamContext == null || request.teamMappingMode == null, {
+    message: "Configured teams cannot be combined with a generic team mapping mode",
+  });
 
 export const seriesDetailParamsSchema = z.object({
   seriesId: z.string().min(1),
@@ -119,6 +142,7 @@ const seriesPlayerTeamTotalsSchema = totalsSchema.extend({
   seriesTeamId: z.number().int(),
   gamesPlayed: countSchema,
 });
+// Overall totals span all appearances; teamStats contains only each team's appearances.
 export const seriesPlayerSchema = playerSchema
   .pick({ playerId: true, xuid: true, discordUserId: true, gamertag: true, playerType: true })
   .extend({
@@ -155,6 +179,8 @@ export const seriesAggregationSchema = z.discriminatedUnion("status", [
 ]);
 export type SeriesAggregation = z.infer<typeof seriesAggregationSchema>;
 
+// Resolved configured orientation orders match teams by seriesTeamId without changing matchTeamId.
+// Unresolved configured orientation retains raw IDs/order and makes team-aligned aggregation unavailable.
 export const seriesDetailSchema = z.object({
   seriesId: z.string().min(1),
   matches: seriesMatchDetailBatchSchema,

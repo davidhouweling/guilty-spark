@@ -42,8 +42,12 @@ always supply specific files or folders; never lint the whole repository.
 ## Implementation
 
 - Keep README files focused on high-level capabilities and getting started.
-  Do not add feature implementation details or change history to READMEs; use
-  appropriate non-README guidance and PR descriptions instead.
+  Keep feature implementation details beside the relevant code/contracts and
+  change history in PR descriptions instead.
+- Keep agent guidance for durable contributor-wide architecture and workflow
+  rules, not feature descriptions, endpoint inventories, or change logs. Document
+  non-obvious consumer guarantees beside contracts; use implementation and
+  focused tests for internal behavior.
 - Understand the requirements and ask for clarification when uncertain. Follow
   the nearest applicable pattern, but do not replicate a known architectural
   violation. Keep changes scoped, preserve existing behavior, and surface errors.

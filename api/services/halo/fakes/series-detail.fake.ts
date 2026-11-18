@@ -1,8 +1,34 @@
 import { addHours, addMinutes, parseISO } from "date-fns";
 import { GameVariantCategory, MatchOutcome } from "halo-infinite-api";
 import type { MatchStats } from "halo-infinite-api";
+import type { ConfiguredTeamContext } from "@guilty-spark/shared/contracts/stats/detail";
 import { aFakeCoreStatsWith } from "@guilty-spark/shared/halo/fakes/data";
 import { aMatchWithSwappableRosters } from "./data";
+
+export function aFakeConfiguredTeamContextWith(overrides: Partial<ConfiguredTeamContext> = {}): ConfiguredTeamContext {
+  return {
+    teams: [
+      { name: "Configured A", playerIds: ["d4", "d8"] },
+      { name: "Configured B", playerIds: ["d1", "d9"] },
+    ],
+    playersAssociationData: {
+      d1: { xboxId: "xuid(0100000000000000)" },
+      d2: { xboxId: "0200000000000000" },
+      d4: { xboxId: "0400000000000000" },
+      d8: { xboxId: "0800000000000000" },
+      d9: { xboxId: "0900000000000000" },
+    },
+    substitutions: [
+      {
+        playerOutId: "d2",
+        playerInId: "d9",
+        teamIndex: 1,
+        timestamp: "2024-01-01T00:30:00Z",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 export function aFakeSeriesDetailMatchWith(index: number, swapped = false, substitute = false): MatchStats {
   const indexText = index.toString();
