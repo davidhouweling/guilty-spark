@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { GameVariantCategory } from "halo-infinite-api";
+import { addMilliseconds, parseISO } from "date-fns";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
@@ -161,6 +162,14 @@ describe("LiveTrackerPresenter substitution framing", () => {
     ];
     const model = LiveTrackerPresenter.present({
       ...new MockLiveTrackerStore().getSnapshot(),
+      seriesDetail: hasMatches
+        ? aFakeSeriesDetailResponseWith({
+            matches: {
+              matchIds: ["first", "second"],
+              results: ["first", "second"].map((matchId) => ({ status: "unavailable", matchId, reason: "not-found" })),
+            },
+          })
+        : null,
       lastStateMessage: {
         ...sampleLiveTrackerStateMessage,
         data: {
@@ -453,6 +462,21 @@ describe("LiveTrackerPresenter live detail integration", () => {
     const liveTrackerService = new MockLiveTrackerService();
     vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
     const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const message = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...sampleLiveTrackerStateMessage.data,
+        substitutions: [
+          {
+            playerOutId: Preconditions.checkExists(sampleLiveTrackerStateMessage.data.players[0]).id,
+            playerInId: Preconditions.checkExists(sampleLiveTrackerStateMessage.data.players[1]).id,
+            teamIndex: 0,
+            teamName: "Team 1",
+            timestamp: addMilliseconds(parseISO(summary.endTime), 1).toISOString(),
+          },
+        ],
+      },
+    };
     const seriesMatchesService = aFakeSeriesMatchesServiceWith();
     const retainedDetail = aFakeSeriesDetailResponseWith({
       matches: {
@@ -487,23 +511,25 @@ describe("LiveTrackerPresenter live detail integration", () => {
     presenter.start();
     await vi.runAllTimersAsync();
     connection.emitMessage({
-      ...sampleLiveTrackerStateMessage,
-      data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: [summary] },
+      ...message,
+      data: { ...message.data, matchSummaries: [summary] },
     });
     await vi.runAllTimersAsync();
     expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("1:0");
     connection.emitMessage({
-      ...sampleLiveTrackerStateMessage,
-      data: { ...sampleLiveTrackerStateMessage.data, seriesScore: "2:0" },
+      ...message,
+      data: { ...message.data, seriesScore: "2:0" },
     });
     expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
     expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
     expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
     Preconditions.checkExists(rejectRefresh)(new Error("append refresh failed"));
     await vi.runAllTimersAsync();
     expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
     expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
     expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
     presenter.dispose();
   });
 

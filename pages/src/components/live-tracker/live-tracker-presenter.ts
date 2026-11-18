@@ -206,6 +206,7 @@ export class LiveTrackerPresenter {
       snapshot.seriesDetail,
     );
     const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
+    const renderedMatchIds = new Set(detailModel?.matchDetails.map((match) => match.matchId));
     const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     const availablePlayers =
       state?.type === "neatqueue"
@@ -247,7 +248,10 @@ export class LiveTrackerPresenter {
       iconUrl,
       state,
       sortedSubstitutions,
-      matchSubstitutions: LiveTrackerPresenter.groupMatchSubstitutions(state?.matches ?? [], sortedSubstitutions),
+      matchSubstitutions: LiveTrackerPresenter.groupMatchSubstitutions(
+        state?.matches.filter((match) => renderedMatchIds.has(match.matchId)) ?? [],
+        sortedSubstitutions,
+      ),
       availablePlayers,
       params,
       seriesDetail: snapshot.seriesDetail,
