@@ -94,6 +94,7 @@ export const seriesDetailQuerySchema = matchDetailQuerySchema.extend({
 });
 
 // Display-only roster projection; not authoritative series linkage or a credential hint.
+// Team order defines seriesTeamId values. Omit for generic/manual series.
 export const configuredTeamContextSchema = z.strictObject({
   teams: z.array(configuredTeamSchema.extend({ playerIds: z.array(z.string().min(1)).min(1) }).strict()).length(2),
   playersAssociationData: z.record(z.string().min(1), z.strictObject({ xboxId: z.string().min(1).nullable() })),
@@ -141,6 +142,7 @@ const seriesPlayerTeamTotalsSchema = totalsSchema.extend({
   seriesTeamId: z.number().int(),
   gamesPlayed: countSchema,
 });
+// Overall totals span all appearances; teamStats contains only each team's appearances.
 export const seriesPlayerSchema = playerSchema
   .pick({ playerId: true, xuid: true, discordUserId: true, gamertag: true, playerType: true })
   .extend({
@@ -177,6 +179,8 @@ export const seriesAggregationSchema = z.discriminatedUnion("status", [
 ]);
 export type SeriesAggregation = z.infer<typeof seriesAggregationSchema>;
 
+// Resolved configured orientation orders match teams by seriesTeamId without changing matchTeamId.
+// Unresolved configured orientation retains raw IDs/order and makes team-aligned aggregation unavailable.
 export const seriesDetailSchema = z.object({
   seriesId: z.string().min(1),
   matches: seriesMatchDetailBatchSchema,
