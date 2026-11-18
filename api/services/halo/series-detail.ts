@@ -105,16 +105,22 @@ function mapDetailSeriesSides(
   mapping: ReadonlyMap<number, number> | undefined,
   teamNames?: ReadonlyMap<number, string>,
 ): MatchDetail {
+  const teams = detail.teams.map((team) => {
+    const seriesTeamId = mapping?.get(team.matchTeamId) ?? null;
+    return {
+      ...team,
+      seriesTeamId,
+      name: teamNames == null ? team.name : seriesTeamId == null ? null : (teamNames.get(seriesTeamId) ?? null),
+    };
+  });
+  if (teamNames != null && mapping != null) {
+    teams.sort(
+      (left, right) => Preconditions.checkExists(left.seriesTeamId) - Preconditions.checkExists(right.seriesTeamId),
+    );
+  }
   return {
     ...detail,
-    teams: detail.teams.map((team) => {
-      const seriesTeamId = mapping?.get(team.matchTeamId) ?? null;
-      return {
-        ...team,
-        seriesTeamId,
-        name: teamNames == null ? team.name : seriesTeamId == null ? null : (teamNames.get(seriesTeamId) ?? null),
-      };
-    }),
+    teams,
     players: detail.players.map((player) => ({
       ...player,
       teamStats: player.teamStats.map((stats) => ({

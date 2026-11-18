@@ -13,6 +13,9 @@
   display orientation, not authority or credentials. Omit it for generic/manual
   series; do not combine it with `teamMappingMode`. Unresolved orientation retains
   raw match identities and makes team-aligned aggregation explicitly unavailable.
+  Rewind trades using both roster slots; resolved match teams use configured order
+  without changing raw IDs. Keep player totals across all games separate from
+  per-team totals when a player changes configured teams.
 - `IndividualTrackerDO` uses WebSocket hibernation, alarms, and persisted state;
   its IDs derive from `${userId}:${trackerId}`. D1 schema is in
   `api/services/database/schema.sql`, with row types under `types/`.

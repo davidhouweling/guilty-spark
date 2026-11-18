@@ -7,14 +7,15 @@ import {
   resolveSeriesTeamMapping,
 } from "@guilty-spark/shared/halo/series-team-identity";
 import type { SeriesTeamRoster } from "@guilty-spark/shared/halo/series-team-identity";
+import { applyRosterSubstitution } from "../../base/roster-substitution";
 import type { ManualSeriesTeamMappings } from "./manual-series-team-mapping";
 
-function playerIdsAt(context: ConfiguredTeamContext, startTime: string): Set<string>[] | null {
-  const teams = context.teams.map((team) => new Set(team.playerIds));
-  if (teams.some((team, index) => team.size !== context.teams[index]?.playerIds.length)) {
+function playerIdsAt(context: ConfiguredTeamContext, startTime: string): string[][] | null {
+  const teams = context.teams.map((team) => [...team.playerIds]);
+  if (teams.some((team) => new Set(team).size !== team.length)) {
     return null;
   }
-  if (new Set(teams.flatMap((team) => [...team])).size !== teams.reduce((count, team) => count + team.size, 0)) {
+  if (new Set(teams.flat()).size !== teams.reduce((count, team) => count + team.length, 0)) {
     return null;
   }
   const substitutions = [...context.substitutions]
@@ -25,15 +26,15 @@ function playerIdsAt(context: ConfiguredTeamContext, startTime: string): Set<str
       continue;
     }
     const team = teams[substitution.teamIndex];
-    if (
-      team == null ||
-      !team.has(substitution.playerInId) ||
-      teams.some((roster) => roster.has(substitution.playerOutId))
-    ) {
+    if (team?.includes(substitution.playerInId) !== true) {
       return null;
     }
-    team.delete(substitution.playerInId);
-    team.add(substitution.playerOutId);
+    applyRosterSubstitution(teams, {
+      playerOutId: substitution.playerInId,
+      playerInId: substitution.playerOutId,
+      getId: (id) => id,
+      createPlayerIn: () => substitution.playerOutId,
+    });
   }
   return teams;
 }
