@@ -11,8 +11,6 @@
 - `IndividualTrackerDO` uses WebSocket hibernation, alarms, and persisted state;
   its IDs derive from `${userId}:${trackerId}`. D1 schema is in
   `api/services/database/schema.sql`, with row types under `types/`.
-- Live `seriesStartedAt` projects the existing tracker start time for captured
-  pre-series cache scope; legacy snapshots may omit it. Never invent a cache epoch.
 - The browser-facing `GET /proxy/halo-infinite/:operation` is allowlisted,
   GET-only, and edge-cached; its client is
   `@guilty-spark/shared/halo/halo-infinite-client-proxy`.
