@@ -443,16 +443,18 @@ export function LiveTrackerView(): React.ReactElement {
                 teamColors={teamColorsArray}
               />
             )}
-            {hasState(state) && !hasMatches && sortedSubstitutionsList.length > 0 && (
-              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
-                {sortedSubstitutionsList.map((substitution) => (
-                  <Alert key={substitution.timestamp} variant="info" icon="↔️">
-                    <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
-                    <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
-                  </Alert>
-                ))}
-              </Container>
-            )}
+            {hasState(state) &&
+              (!hasMatches || detailState.seriesDetail == null) &&
+              sortedSubstitutionsList.length > 0 && (
+                <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+                  {sortedSubstitutionsList.map((substitution) => (
+                    <Alert key={substitution.timestamp} variant="info" icon="↔️">
+                      <strong>{substitution.playerInDisplayName}</strong> subbed in for{" "}
+                      <strong>{substitution.playerOutDisplayName}</strong> ({substitution.teamName})
+                    </Alert>
+                  ))}
+                </Container>
+              )}
           </>
         ) : (
           <Container className={classNames(styles.contentContainer, styles[viewMode])}>

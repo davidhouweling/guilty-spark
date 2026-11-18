@@ -658,6 +658,60 @@ describe("LiveTracker", () => {
     );
   });
 
+  it("keeps substitution notices visible while changed-context details load, fail and recover", async () => {
+    const message = aStateMessage(["m1"]);
+    const substitutedMessage: LiveTrackerStateMessage = {
+      ...message,
+      data: {
+        ...message.data,
+        players: [...message.data.players, { id: "replacement", discordUsername: "Replacement" }],
+        teams: [{ name: "Team 1", playerIds: ["replacement"] }, Preconditions.checkExists(message.data.teams[1])],
+        substitutions: [
+          {
+            playerOutId: "team-1-player",
+            playerInId: "replacement",
+            teamIndex: 0,
+            teamName: "Team 1",
+            timestamp: "2025-01-01T00:01:00.000Z",
+          },
+        ],
+      },
+    };
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const getSeriesDetail = seriesMatchesService.getSeriesDetail.bind(seriesMatchesService);
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    const detailSpy = vi
+      .spyOn(seriesMatchesService, "getSeriesDetail")
+      .mockImplementationOnce(getSeriesDetail)
+      .mockImplementationOnce(
+        async () =>
+          new Promise((_resolve, reject) => {
+            rejectRefresh = reject;
+          }),
+      );
+    const connection = await renderLiveTrackerWith(message, aFakeMatchAnalyticsServiceWith(), "?server=1&queue=3", {
+      additionalMessages: [substitutedMessage],
+      seriesMatchesService,
+    });
+    connection.step();
+    await waitFor(() => {
+      expect(document.getElementById("m1")).not.toBeNull();
+    });
+    connection.step();
+    await screen.findByText("Loading match details...");
+    expect(document.getElementById("m1")).toBeNull();
+    expect(screen.getAllByText(/subbed in for/)).toHaveLength(1);
+    Preconditions.checkExists(rejectRefresh)(new Error("context refresh failed"));
+    await screen.findByText("context refresh failed");
+    expect(screen.getAllByText(/subbed in for/)).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(document.getElementById("m1")).not.toBeNull();
+    });
+    expect(detailSpy).toHaveBeenCalledTimes(3);
+    expect(screen.getAllByText(/subbed in for/)).toHaveLength(1);
+  });
+
   it("shows an error state when the tracker is not found", async () => {
     window.history.pushState({}, "", "/tracker?server=1&queue=3");
 
