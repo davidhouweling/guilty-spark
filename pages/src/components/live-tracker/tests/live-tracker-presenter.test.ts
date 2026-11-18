@@ -26,6 +26,9 @@ import type { SeriesMatchesService } from "../../../services/series-matches/type
 import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
+import type { LiveTrackerViewModel } from "../types";
+import { SeriesDetailStatsViewModelPresenter } from "../../series-stats/series-detail-stats-view-model-presenter";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 
 class MockLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
@@ -151,6 +154,17 @@ function createPresenter({
   return presenter;
 }
 
+function presentSnapshot(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
+  const detailModel =
+    snapshot.seriesDetail == null
+      ? null
+      : new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
+          snapshot.seriesDetail,
+          snapshot.seriesAnalyticsByMatchId,
+        );
+  return LiveTrackerPresenter.present(snapshot, detailModel);
+}
+
 describe("LiveTrackerPresenter substitution framing", () => {
   it.each([true, false])("groups chronological notices around completed matches (matches: %s)", (hasMatches) => {
     const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
@@ -160,7 +174,7 @@ describe("LiveTrackerPresenter substitution framing", () => {
       "2025-01-01T00:10:00.000Z",
       "2025-01-01T00:15:00.000Z",
     ];
-    const model = LiveTrackerPresenter.present({
+    const model = presentSnapshot({
       ...new MockLiveTrackerStore().getSnapshot(),
       seriesDetail: hasMatches
         ? aFakeSeriesDetailResponseWith({
@@ -236,7 +250,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
         secondary: null,
       },
     });
-    const model = LiveTrackerPresenter.present({
+    const model = presentSnapshot({
       ...new MockLiveTrackerStore().getSnapshot(),
       lastStateMessage: {
         ...sampleLiveTrackerStateMessage,
@@ -515,21 +529,21 @@ describe("LiveTrackerPresenter live detail integration", () => {
       data: { ...message.data, matchSummaries: [summary] },
     });
     await vi.runAllTimersAsync();
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("1:0");
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("1:0");
     connection.emitMessage({
       ...message,
       data: { ...message.data, seriesScore: "2:0" },
     });
     expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
     expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(presentSnapshot(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
     Preconditions.checkExists(rejectRefresh)(new Error("append refresh failed"));
     await vi.runAllTimersAsync();
     expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
     expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
+    expect(presentSnapshot(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    expect(presentSnapshot(store.getSnapshot()).matchSubstitutions.trailing).toHaveLength(1);
     presenter.dispose();
   });
 
@@ -564,7 +578,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
     presenter.start();
     await vi.runAllTimersAsync();
     connection.emitMessage(message);
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([]);
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toEqual([]);
 
     connection.emitMessage({
       ...message,
@@ -576,7 +590,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
         ],
       },
     });
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toEqual([
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toEqual([
       expect.objectContaining({ gameNumber: 2, map: "Next Map" }),
     ]);
     presenter.dispose();
@@ -609,7 +623,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
     await vi.runAllTimersAsync();
     connection.emitMessage(message);
     await vi.runAllTimersAsync();
-    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.plannedGames).toHaveLength(1);
+    expect(presentSnapshot(store.getSnapshot()).state?.plannedGames).toHaveLength(1);
     connection.emitMessage({
       ...message,
       data: {
@@ -629,7 +643,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
         },
       },
     });
-    const { state } = LiveTrackerPresenter.present(store.getSnapshot());
+    const { state } = presentSnapshot(store.getSnapshot());
     expect(state?.matches[0]?.gameInfo?.gameVariantCategory).toBe(GameVariantCategory.MultiplayerOddball);
     expect(state?.plannedGames).toEqual([]);
     expect(detailSpy).toHaveBeenCalledTimes(1);
@@ -678,9 +692,7 @@ describe("LiveTrackerPresenter live detail integration", () => {
       expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
       expect(store.getSnapshot().seriesDetailError).toBeTruthy();
       expect(store.getSnapshot().seriesDetail).toEqual(prior ?? partial);
-      expect(LiveTrackerPresenter.present(store.getSnapshot()).allMatchStats.some((match) => match.data != null)).toBe(
-        true,
-      );
+      expect(presentSnapshot(store.getSnapshot()).allMatchStats.some((match) => match.data != null)).toBe(true);
       presenter.retrySeriesDetails();
       await vi.runAllTimersAsync();
       expect(detailSpy).toHaveBeenCalledTimes(2);

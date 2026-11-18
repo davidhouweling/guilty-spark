@@ -8,6 +8,8 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import type { LiveTrackerService } from "../../services/live-tracker/types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
+import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
+import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
 import { LiveTrackerPresenter } from "./live-tracker-presenter";
 import { LiveTrackerStore } from "./live-tracker-store";
 import { LiveTrackerView } from "./live-tracker";
@@ -26,6 +28,7 @@ interface LiveTrackerInternalProps {
 function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactElement {
   const { liveTrackerService, matchAnalyticsService, seriesMatchesService } = config;
   const store = useMemo(() => new LiveTrackerStore(), []);
+  const seriesDetailPresenter = useMemo(() => new SeriesDetailStatsViewModelPresenter(new StatsDetailController()), []);
 
   const presenter = useMemo(() => {
     const target: { presenter?: LiveTrackerPresenter | undefined } = {};
@@ -70,7 +73,13 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
       ? ComponentLoaderStatus.ERROR
       : ComponentLoaderStatus.LOADING;
 
-  const model = useMemo(() => LiveTrackerPresenter.present(snapshot), [snapshot]);
+  const model = useMemo(() => {
+    const detailModel =
+      snapshot.seriesDetail == null
+        ? null
+        : seriesDetailPresenter.present(snapshot.seriesDetail, snapshot.seriesAnalyticsByMatchId);
+    return LiveTrackerPresenter.present(snapshot, detailModel);
+  }, [snapshot, seriesDetailPresenter]);
   const onAnalyticsTabSelected = useCallback(
     (module: AnalyticsModule, matchId?: string): void => {
       presenter.loadAnalytics(module, matchId);

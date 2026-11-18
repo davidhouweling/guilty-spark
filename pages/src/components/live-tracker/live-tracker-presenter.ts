@@ -16,8 +16,6 @@ import type {
 import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../series-stats/types";
-import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
-import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStoreApi } from "./live-tracker-store";
@@ -160,7 +158,7 @@ export class LiveTrackerPresenter {
     this.config = config;
   }
 
-  public static present(snapshot: LiveTrackerSnapshot): LiveTrackerViewModel {
+  public static present(snapshot: LiveTrackerSnapshot, detailModel: SeriesStatsViewModel | null): LiveTrackerViewModel {
     const { connectionState, lastStateMessage, params, statusText: initialStatusText } = snapshot;
 
     const title =
@@ -192,13 +190,6 @@ export class LiveTrackerPresenter {
       statusText = initialStatusText;
     }
 
-    const detailModel =
-      snapshot.seriesDetail == null
-        ? null
-        : new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
-            snapshot.seriesDetail,
-            snapshot.seriesAnalyticsByMatchId,
-          );
     const medalMetadata = getMedalMetadata(snapshot.seriesDetail);
     const state = withDetailScores(
       lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage, medalMetadata) : null,
