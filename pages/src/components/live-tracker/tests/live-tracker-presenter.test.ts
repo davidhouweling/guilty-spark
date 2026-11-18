@@ -2,6 +2,12 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import {
+  aFakeMatchDetailWith,
+  aFakeSeriesDetailResponseWith,
+  aFakeSeriesTeamWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { aFakeTeamWith } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
 import { LiveTrackerPresenter } from "../live-tracker-presenter";
 import { SeriesAnalyticsController } from "../../../controllers/series-analytics/series-analytics-controller";
@@ -201,6 +207,40 @@ describe("LiveTrackerPresenter live detail integration", () => {
   afterEach((): void => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("preserves broadcast match scores when resolved detail has no configured mapping", () => {
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const detail = aFakeMatchDetailWith({
+      matchId: summary.matchId,
+      teamCount: 2,
+      teams: [aFakeTeamWith({ seriesTeamId: null }), aFakeTeamWith({ matchTeamId: 3, seriesTeamId: null })],
+      score: {
+        primary: {
+          metric: "score",
+          teams: [
+            { matchTeamId: 3, seriesTeamId: null, value: 40 },
+            { matchTeamId: 7, seriesTeamId: null, value: 50 },
+          ],
+        },
+        secondary: null,
+      },
+    });
+    const model = LiveTrackerPresenter.present({
+      ...new MockLiveTrackerStore().getSnapshot(),
+      lastStateMessage: {
+        ...sampleLiveTrackerStateMessage,
+        data: {
+          ...sampleLiveTrackerStateMessage.data,
+          matchSummaries: [{ ...summary, gameScore: "50:40", gameSubScore: "2:1" }],
+        },
+      },
+      seriesDetail: aFakeSeriesDetailResponseWith({
+        matches: { matchIds: [summary.matchId], results: [{ status: "resolved", matchId: summary.matchId, detail }] },
+        aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
+      }),
+    });
+    expect(model.state?.matches[0]).toMatchObject({ gameScore: "50:40", gameSubScore: "2:1" });
   });
 
   it("loads condensed detail with the configured live display context and no credential hint", async (): Promise<void> => {
@@ -403,6 +443,66 @@ describe("LiveTrackerPresenter live detail integration", () => {
     await vi.runAllTimersAsync();
     expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
     expect(store.getSnapshot().seriesDetail).toBeNull();
+    presenter.dispose();
+  });
+
+  it("keeps the latest broadcast total while retained append detail is loading or failed", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const summary = Preconditions.checkExists(sampleLiveTrackerStateMessage.data.matchSummaries[0]);
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const retainedDetail = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: [summary.matchId],
+        results: [
+          { status: "resolved", matchId: summary.matchId, detail: aFakeMatchDetailWith({ matchId: summary.matchId }) },
+        ],
+      },
+      aggregation: {
+        status: "resolved",
+        gamesPlayed: 1,
+        completedGameCount: 1,
+        players: [],
+        teams: [aFakeSeriesTeamWith({ gamesWon: 1 }), aFakeSeriesTeamWith({ seriesTeamId: 1, gamesWon: 0 })],
+      },
+    });
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    vi.spyOn(seriesMatchesService, "getSeriesDetail")
+      .mockResolvedValueOnce(retainedDetail)
+      .mockImplementationOnce(
+        async () =>
+          new Promise((_resolve, reject) => {
+            rejectRefresh = reject;
+          }),
+      );
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      seriesMatchesService,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, matchSummaries: [summary] },
+    });
+    await vi.runAllTimersAsync();
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("1:0");
+    connection.emitMessage({
+      ...sampleLiveTrackerStateMessage,
+      data: { ...sampleLiveTrackerStateMessage.data, seriesScore: "2:0" },
+    });
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
+    Preconditions.checkExists(rejectRefresh)(new Error("append refresh failed"));
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().seriesDetailStatus).toBe(ComponentLoaderStatus.ERROR);
+    expect(store.getSnapshot().seriesDetail).toEqual(retainedDetail);
+    expect(LiveTrackerPresenter.present(store.getSnapshot()).state?.seriesScore).toBe("2:0");
     presenter.dispose();
   });
 

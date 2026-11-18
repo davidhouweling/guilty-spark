@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import { GameVariantCategory } from "halo-infinite-api";
 import { toLiveTrackerStateRenderModel } from "../state-render-model";
 
 describe("toLiveTrackerStateRenderModel", () => {
@@ -57,7 +58,7 @@ describe("toLiveTrackerStateRenderModel", () => {
     expect(model.seriesData?.seriesScore).toBe("0:0");
   });
 
-  it("shows only unplayed planned slots after collapsing resumed matches", () => {
+  it("restores legacy mode metadata and collapses resumed matches for planned slots", () => {
     const first = sampleLiveTrackerStateMessage.data.matchSummaries.at(0);
     const second = sampleLiveTrackerStateMessage.data.matchSummaries.at(1);
     if (first == null || second == null) {
@@ -80,7 +81,7 @@ describe("toLiveTrackerStateRenderModel", () => {
               StartTime: first.startTime,
               EndTime: first.endTime,
               MapVariant: { AssetId: "map-a", VersionId: "v1" },
-              GameVariantCategory: 1,
+              GameVariantCategory: GameVariantCategory.MultiplayerOddball,
             },
           },
           [second.matchId]: {
@@ -91,7 +92,7 @@ describe("toLiveTrackerStateRenderModel", () => {
               StartTime: second.startTime,
               EndTime: second.endTime,
               MapVariant: { AssetId: "map-a", VersionId: "v1" },
-              GameVariantCategory: 1,
+              GameVariantCategory: GameVariantCategory.MultiplayerOddball,
             },
           },
         },
@@ -104,6 +105,10 @@ describe("toLiveTrackerStateRenderModel", () => {
 
     const model = toLiveTrackerStateRenderModel(message, {});
 
+    expect(model.matches.map((match) => match.gameInfo?.gameVariantCategory)).toEqual([
+      GameVariantCategory.MultiplayerOddball,
+      GameVariantCategory.MultiplayerOddball,
+    ]);
     expect(model.plannedGames).toEqual([
       {
         gameNumber: 2,

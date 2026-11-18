@@ -140,6 +140,7 @@ async function renderLiveTrackerWith(
 describe("LiveTracker", () => {
   afterEach(() => {
     cleanup();
+    localStorage.clear();
   });
 
   it.each(["normal", "streamer"])(
@@ -484,6 +485,41 @@ describe("LiveTracker", () => {
   });
 
   describe("selected analytics", () => {
+    it("preserves overlay matrix selection on append but resets to Players when switching matches", async () => {
+      const analyticsService = aFakeMatchAnalyticsServiceWith();
+      const analyticsSpy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");
+      const connection = await renderLiveTrackerWith(
+        aStateMessage(["m1", "m2"]),
+        analyticsService,
+        "?server=1&queue=3&viewMode=streamer&showTabs=true",
+        { additionalMessages: [aStateMessage(["m1", "m2", "m3"])] },
+      );
+      connection.step();
+      const matchTabs = await screen.findAllByRole("button", { name: /Aquarius/ });
+      fireEvent.click(Preconditions.checkExists(matchTabs[0]));
+      const matrixTab = await screen.findByRole("tab", { name: "Kill Matrix" });
+      fireEvent.click(matrixTab);
+      await waitFor(() => {
+        expect(analyticsSpy).toHaveBeenCalledWith(["m1"], ["killMatrix"]);
+      });
+
+      connection.step();
+      await waitFor(() => {
+        expect(screen.getAllByRole("button", { name: /Aquarius/ })).toHaveLength(3);
+      });
+      expect(matrixTab).toBeInTheDocument();
+      expect(matrixTab).toHaveAttribute("aria-selected", "true");
+      expect(analyticsSpy).toHaveBeenCalledTimes(1);
+      fireEvent.click(Preconditions.checkExists(matchTabs[1]));
+      expect(screen.getByRole("tab", { name: "Players" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: "Kill Matrix" })).toHaveAttribute("aria-selected", "false");
+      expect(analyticsSpy).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole("tab", { name: "Kill Matrix" }));
+      await waitFor(() => {
+        expect(analyticsSpy).toHaveBeenNthCalledWith(2, ["m2"], ["killMatrix"]);
+      });
+    });
+
     it("loads Timeline only after selecting its tab, without eager hidden-module requests", async () => {
       const analyticsService = aFakeMatchAnalyticsServiceWith();
       const spy = vi.spyOn(analyticsService, "getBatchMatchAnalytics");

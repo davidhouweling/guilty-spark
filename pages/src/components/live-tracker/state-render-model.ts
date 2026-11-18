@@ -23,7 +23,25 @@ function normalizeSeriesScore(score: string): string {
   return "0:0";
 }
 
-function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchRenderModel {
+function getMatchGameInfo(
+  summary: LiveTrackerMatchSummary,
+  rawMatches: LiveTrackerStateMessage["data"]["rawMatches"],
+): LiveTrackerMatchSummary["gameInfo"] {
+  const raw = rawMatches[summary.matchId];
+  if (summary.gameInfo != null || !isMatchStats(raw)) {
+    return summary.gameInfo;
+  }
+  return {
+    mapAssetId: raw.MatchInfo.MapVariant.AssetId,
+    mapVersionId: raw.MatchInfo.MapVariant.VersionId,
+    gameVariantCategory: raw.MatchInfo.GameVariantCategory,
+  };
+}
+
+function toMatchRenderModel(
+  summary: LiveTrackerMatchSummary,
+  rawMatches: LiveTrackerStateMessage["data"]["rawMatches"],
+): LiveTrackerMatchRenderModel {
   return {
     matchId: summary.matchId,
     gameTypeAndMap: summary.gameTypeAndMap,
@@ -35,11 +53,11 @@ function toMatchRenderModel(summary: LiveTrackerMatchSummary): LiveTrackerMatchR
     gameSubScore: summary.gameSubScore,
     startTime: summary.startTime,
     endTime: summary.endTime,
-    gameInfo: summary.gameInfo,
+    gameInfo: getMatchGameInfo(summary, rawMatches),
   };
 }
 
-function transformNeatQueueData(seriesData: LiveTrackerNeatQueueSeriesData): {
+function transformNeatQueueData(seriesData: LiveTrackerStateMessage["data"]): {
   matches: readonly LiveTrackerMatchRenderModel[];
   teams: readonly {
     name: string;
@@ -48,7 +66,7 @@ function transformNeatQueueData(seriesData: LiveTrackerNeatQueueSeriesData): {
   substitutions: readonly LiveTrackerSubstitutionRenderModel[];
 } {
   const matches = seriesData.matchSummaries
-    .map((match) => toMatchRenderModel(match))
+    .map((match) => toMatchRenderModel(match, seriesData.rawMatches))
     .sort((a, b) => a.endTime.localeCompare(b.endTime));
 
   const playersById = new Map(seriesData.players.map((player) => [player.id, player] as const));
@@ -101,26 +119,11 @@ function transformNeatQueueData(seriesData: LiveTrackerNeatQueueSeriesData): {
 function toPlannedGames(
   matches: readonly LiveTrackerMatchRenderModel[],
   plannedMaps: LiveTrackerNeatQueueSeriesData["plannedMaps"],
-  rawMatches: Record<string, unknown>,
 ): readonly LiveTrackerPlannedGameRenderModel[] {
   const completedGames = collapseSequentialSeriesEntries(
-    matches.flatMap((match) => {
-      if (match.gameInfo != null) {
-        return [{ startTime: match.startTime, ...match.gameInfo, match }];
-      }
-      const raw = rawMatches[match.matchId];
-      return !isMatchStats(raw)
-        ? []
-        : [
-            {
-              startTime: raw.MatchInfo.StartTime,
-              mapAssetId: raw.MatchInfo.MapVariant.AssetId,
-              mapVersionId: raw.MatchInfo.MapVariant.VersionId,
-              gameVariantCategory: raw.MatchInfo.GameVariantCategory,
-              match,
-            },
-          ];
-    }),
+    matches.flatMap((match) =>
+      match.gameInfo == null ? [] : [{ startTime: match.startTime, ...match.gameInfo, match }],
+    ),
   );
 
   const completedGameCount = completedGames.length;
@@ -152,7 +155,7 @@ export function toLiveTrackerStateRenderModel(
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
-    plannedGames: toPlannedGames(matches, message.data.plannedMaps, message.data.rawMatches),
+    plannedGames: toPlannedGames(matches, message.data.plannedMaps),
     substitutions,
     seriesScore: normalizeSeriesScore(message.data.seriesScore),
     medalMetadata,

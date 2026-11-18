@@ -103,17 +103,30 @@ function getMedalMetadata(detail: SeriesDetailResponse | null): MedalMetadata {
 function withDetailScores(
   state: LiveTrackerStateRenderModel | null,
   detail: SeriesStatsViewModel | null,
+  response: SeriesDetailResponse | null,
 ): LiveTrackerStateRenderModel | null {
-  if (state == null || detail == null) {
+  if (state == null || detail == null || response == null) {
     return state;
   }
-  const resolvedIds = new Set(detail.matchDetails.filter((match) => match.data != null).map((match) => match.matchId));
-  const scores = new Map(
-    detail.matchSummaries.filter((match) => resolvedIds.has(match.matchId)).map((match) => [match.matchId, match]),
+  const mappedIds = new Set(
+    response.matches.results
+      .filter(
+        (result) =>
+          result.status === "resolved" &&
+          result.detail.teams.length > 0 &&
+          result.detail.teams.every((team) => team.seriesTeamId != null),
+      )
+      .map((result) => result.matchId),
   );
+  const scores = new Map(
+    detail.matchSummaries.filter((match) => mappedIds.has(match.matchId)).map((match) => [match.matchId, match]),
+  );
+  const hasCurrentMatches =
+    response.matches.matchIds.length === state.matches.length &&
+    response.matches.matchIds.every((matchId, index) => state.matches[index]?.matchId === matchId);
   return {
     ...state,
-    seriesScore: detail.seriesStats == null ? state.seriesScore : detail.seriesScore,
+    seriesScore: detail.seriesStats == null || !hasCurrentMatches ? state.seriesScore : detail.seriesScore,
     matches: state.matches.map((match) => {
       const score = scores.get(match.matchId);
       return score == null ? match : { ...match, gameScore: score.gameScore, gameSubScore: score.gameSubScore };
@@ -190,6 +203,7 @@ export class LiveTrackerPresenter {
     const state = withDetailScores(
       lastStateMessage?.type === "state" ? toLiveTrackerStateRenderModel(lastStateMessage, medalMetadata) : null,
       detailModel,
+      snapshot.seriesDetail,
     );
     const substitutions = state?.type === "neatqueue" ? state.substitutions : [];
     const sortedSubstitutions = [...substitutions].sort((a, b) => a.timestamp.localeCompare(b.timestamp));

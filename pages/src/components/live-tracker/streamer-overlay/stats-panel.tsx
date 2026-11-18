@@ -128,6 +128,7 @@ function StatsPanelContentComponent({
   if (selectedTab >= 0 && selectedMatchStats != null && selectedMatch != null) {
     return withDetailError(
       <MatchStatsView
+        key={selectedMatch.matchId}
         data={selectedMatchStats}
         id={selectedMatch.matchId}
         backgroundImageUrl={selectedMatch.gameMapThumbnailUrl}
