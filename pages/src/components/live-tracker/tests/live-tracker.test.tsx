@@ -9,6 +9,7 @@ import type {
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -29,7 +30,14 @@ import { aFakeLiveTrackerServiceWith } from "../../../services/live-tracker/fake
 import { aFakeMatchAnalyticsServiceWith } from "../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/fakes/series-matches.fake";
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
+import {
+  aFakeLivePreSeriesResponseWith,
+  aFakeLivePreSeriesServiceWith,
+} from "../../../services/live-pre-series/fakes/live-pre-series.fake";
+import type { LivePreSeriesService } from "../../../services/live-pre-series/types";
 import { createLiveTracker } from "../create";
+import containerStyles from "../../container/container.module.css";
+import seriesStatsStyles from "../../series-stats/series-stats.module.css";
 
 vi.mock("../../icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
@@ -111,6 +119,7 @@ async function renderLiveTrackerWith(
   options: {
     readonly additionalMessages?: readonly LiveTrackerMessage[];
     readonly seriesMatchesService?: SeriesMatchesService;
+    readonly livePreSeriesService?: LivePreSeriesService;
   } = {},
 ): Promise<SteppableLiveTrackerConnection> {
   window.history.pushState({}, "", `/tracker${search}`);
@@ -126,6 +135,7 @@ async function renderLiveTrackerWith(
     liveTrackerService,
     matchAnalyticsService: analyticsService,
     seriesMatchesService: options.seriesMatchesService ?? aFakeSeriesMatchesServiceWith(),
+    livePreSeriesService: options.livePreSeriesService ?? aFakeLivePreSeriesServiceWith(),
   });
 
   render(<LiveTracker />);
@@ -299,6 +309,84 @@ describe("LiveTracker", () => {
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });
 
+  it("retries captured data, renders captured and unavailable rows without changing broadcasts, and retains them after stop", async () => {
+    const source = aStateMessage([]);
+    const broadcast = aFakePlayerAssociationDataWith({
+      discordName: "Team 2 player",
+      gamertag: "Broadcast gamertag",
+      currentRank: 1900,
+    });
+    const message = {
+      ...source,
+      data: {
+        ...source.data,
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+        playersAssociationData: { "team-2-player": broadcast },
+      },
+    };
+    const originalAssociations = structuredClone(message.data.playersAssociationData);
+    const response = aFakeLivePreSeriesResponseWith({
+      guildId: message.data.guildId,
+      queueNumber: message.data.queueNumber,
+      seriesStartedAt: message.data.seriesStartedAt,
+      players: [
+        {
+          playerId: "team-1-player",
+          teamIndex: 0,
+          rosterJoinedAt: message.data.seriesStartedAt,
+          captured: null,
+        },
+        {
+          playerId: "team-2-player",
+          teamIndex: 1,
+          rosterJoinedAt: message.data.seriesStartedAt,
+          captured: { ...broadcast, gamertag: "Captured gamertag", currentRank: 1200 },
+        },
+      ],
+    });
+    const service = aFakeLivePreSeriesServiceWith({ status: "not-found" });
+    const loadSpy = vi
+      .spyOn(service, "getCapturedRoster")
+      .mockResolvedValueOnce({ status: "not-found" })
+      .mockResolvedValue(response);
+    const heartbeat = {
+      ...message,
+      timestamp: "2026-11-06T00:01:00.000Z",
+      data: { ...message.data, lastUpdateTime: "2026-11-06T00:01:00.000Z" },
+    };
+    const stopped = { ...message, data: { ...message.data, status: "stopped" as const } };
+    const connection = await renderLiveTrackerWith(message, undefined, "?server=1&queue=3", {
+      livePreSeriesService: service,
+      additionalMessages: [heartbeat, stopped],
+    });
+    connection.step();
+    expect(await screen.findByText("Captured player info is not available for this live series.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByRole("heading", { name: "Player Info" })).toBeInTheDocument();
+    expect(screen.getAllByText("Team 1 player")).toHaveLength(2);
+    expect(screen.getAllByText("Team 2 player")).toHaveLength(2);
+    const table = screen.getByRole("table", { name: "Player information" });
+    const playerContainer = table.closest(`.${containerStyles.container}`);
+    const overviewContainer = screen
+      .getByRole("heading", { name: "Series overview" })
+      .closest(`.${containerStyles.container}`);
+    expect(playerContainer?.className).toBe(overviewContainer?.className);
+    expect(playerContainer?.parentElement).toBe(overviewContainer?.parentElement);
+    expect(within(table).getByText("Not connected")).toBeInTheDocument();
+    expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
+    expect(within(table).getByText("1,200")).toBeInTheDocument();
+    expect(within(table).queryByText("Broadcast gamertag")).not.toBeInTheDocument();
+    expect(within(table).queryByText("1,900")).not.toBeInTheDocument();
+    expect(screen.queryByText("1500")).not.toBeInTheDocument();
+    connection.step();
+    connection.step();
+    expect(screen.getByRole("heading", { name: "Player Info" })).toBeInTheDocument();
+    expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
+    expect(message.data.playersAssociationData).toEqual(originalAssociations);
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("renders a wide default layout when no viewMode is provided and preserves standard compatibility", async () => {
     const renderTracker = async (search: string, expectedMode: "wide" | "standard"): Promise<void> => {
       window.history.pushState({}, "", `/tracker${search}`);
@@ -362,6 +450,7 @@ describe("LiveTracker", () => {
         liveTrackerService,
         matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
         seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+        livePreSeriesService: aFakeLivePreSeriesServiceWith(),
       });
 
       render(<LiveTracker />);
@@ -379,6 +468,17 @@ describe("LiveTracker", () => {
         expect(screen.getByRole("heading", { name: "Queue #3 Live Tracker" })).toBeInTheDocument();
       });
       expect(document.body.dataset.viewMode).toBe(expectedMode);
+      const matchesHeading = await screen.findByRole("heading", { name: "Matches" });
+      const seriesContent = Preconditions.checkExists(
+        matchesHeading.closest(`.${containerStyles.container}`)?.parentElement,
+        "Expected shared series content",
+      );
+      const statsContainers = seriesContent.querySelectorAll(`.${containerStyles.container}`);
+      expect(statsContainers.length).toBeGreaterThanOrEqual(3);
+      for (const container of statsContainers) {
+        expect(container.classList.contains(containerStyles.wide)).toBe(expectedMode === "wide");
+        expect(container).toHaveClass(seriesStatsStyles.noGutter);
+      }
       cleanup();
     };
 
@@ -453,6 +553,7 @@ describe("LiveTracker", () => {
       liveTrackerService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      livePreSeriesService: aFakeLivePreSeriesServiceWith(),
     });
 
     render(<LiveTracker />);
@@ -732,6 +833,7 @@ describe("LiveTracker", () => {
       liveTrackerService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
       seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      livePreSeriesService: aFakeLivePreSeriesServiceWith(),
     });
 
     render(<LiveTracker />);

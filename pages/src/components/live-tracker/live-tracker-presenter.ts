@@ -2,9 +2,12 @@ import type {
   LiveTrackerIdentity,
   LiveTrackerMessage,
   LiveTrackerStateMessage,
+  PlayerAssociationData,
 } from "@guilty-spark/shared/live-tracker/types";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { ConfiguredTeamContext, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type { LivePreSeriesResponse } from "@guilty-spark/shared/contracts/stats/pre-series";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { isBefore, parseISO } from "date-fns";
 import type {
@@ -17,6 +20,8 @@ import { getReconnectDelayMs } from "../../services/base/reconnect-policy";
 import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { SeriesMatchAnalyticsById, SeriesStatsViewModel } from "../series-stats/types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
+import type { LivePreSeriesCache } from "../../services/live-pre-series/cache";
+import type { LivePreSeriesScope } from "../../services/live-pre-series/types";
 import { ComponentLoaderStatus } from "../component-loader/component-loader";
 import type { LiveTrackerParams, LiveTrackerSnapshot, LiveTrackerStoreApi } from "./live-tracker-store";
 import type {
@@ -33,6 +38,7 @@ interface Config {
   readonly getUrl: () => URL;
   readonly store: LiveTrackerStoreApi;
   readonly seriesMatchesService: SeriesMatchesService;
+  readonly livePreSeriesCache: LivePreSeriesCache;
   readonly analyticsController: SeriesAnalyticsController;
 }
 
@@ -132,6 +138,77 @@ function withDetailScores(
   };
 }
 
+function toCapturedPreSeriesPlayers(
+  message: LiveTrackerStateMessage,
+  response: LivePreSeriesResponse | null,
+): Record<string, PlayerAssociationData> | null {
+  const { data } = message;
+  if (
+    response?.status !== "resolved" ||
+    response.guildId !== data.guildId ||
+    response.queueNumber !== data.queueNumber ||
+    response.seriesStartedAt !== data.seriesStartedAt
+  ) {
+    return null;
+  }
+
+  const capturedPlayers = new Map(response.players.map((player) => [player.playerId, player] as const));
+  const playersAssociationData: Record<string, PlayerAssociationData> = {};
+  for (const [teamIndex, team] of data.teams.entries()) {
+    for (const playerId of team.playerIds) {
+      const currentPlayer = Preconditions.checkExists(
+        data.players.find((player) => player.id === playerId),
+        `Missing player '${playerId}' from state players list`,
+      );
+      const player = capturedPlayers.get(playerId);
+      const rosterJoinedAt =
+        data.substitutions.findLast((entry) => entry.playerInId === playerId)?.timestamp ?? data.seriesStartedAt;
+      const captured =
+        player?.teamIndex === teamIndex && player.rosterJoinedAt === rosterJoinedAt ? player.captured : null;
+      if (captured != null) {
+        playersAssociationData[playerId] = captured;
+      } else {
+        playersAssociationData[playerId] = {
+          discordId: data.playersAssociationData?.[playerId]?.discordId ?? "",
+          discordName: currentPlayer.discordUsername,
+          xboxId: null,
+          gamertag: null,
+          currentRank: null,
+          currentRankTier: null,
+          currentRankSubTier: null,
+          currentRankMeasurementMatchesRemaining: null,
+          currentRankInitialMeasurementMatches: null,
+          allTimePeakRank: null,
+          esra: null,
+          lastRankedGamePlayed: null,
+        };
+      }
+    }
+  }
+  return playersAssociationData;
+}
+
+function createLivePreSeriesScope(message: LiveTrackerStateMessage): LivePreSeriesScope | null {
+  const { data } = message;
+  if (data.seriesStartedAt == null) {
+    return null;
+  }
+  const rosterIdentity = {
+    players: data.players.map(({ id, discordUsername }) => [id, discordUsername]),
+    teams: data.teams.map(({ name, playerIds }) => [name, playerIds]),
+    substitutions: data.substitutions,
+    associations: Object.entries(data.playersAssociationData ?? {})
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([playerId, association]) => [playerId, association.discordId, association.xboxId]),
+  };
+  return {
+    guildId: data.guildId,
+    queueNumber: data.queueNumber.toString(),
+    seriesStartedAt: data.seriesStartedAt,
+    rosterRevision: JSON.stringify(rosterIdentity),
+  };
+}
+
 export class LiveTrackerPresenter {
   public static readonly usageText = "Usage: /tracker?server=123&queue=1";
 
@@ -153,6 +230,9 @@ export class LiveTrackerPresenter {
   private detailRequestGeneration = 0;
   private detailSourceKey: string | null = null;
   private detailIdentityKey: string | null = null;
+  private livePreSeriesSourceKey: string | null = null;
+  private livePreSeriesSubstitutionsKey: string | null = null;
+  private livePreSeriesRequestGeneration = 0;
 
   public constructor(config: Config) {
     this.config = config;
@@ -255,6 +335,12 @@ export class LiveTrackerPresenter {
       analyticsStatus,
       allMatchKillMatrix,
       seriesKillMatrix,
+      livePreSeriesPlayersAssociationData:
+        lastStateMessage?.type === "state"
+          ? toCapturedPreSeriesPlayers(lastStateMessage, snapshot.livePreSeriesResponse)
+          : null,
+      livePreSeriesStatus: snapshot.livePreSeriesStatus,
+      livePreSeriesError: snapshot.livePreSeriesError,
     };
   }
 
@@ -300,6 +386,9 @@ export class LiveTrackerPresenter {
 
     // Common fields
     if (prevData.status !== currData.status) {
+      return false;
+    }
+    if (prevData.seriesStartedAt !== currData.seriesStartedAt) {
       return false;
     }
 
@@ -456,6 +545,10 @@ export class LiveTrackerPresenter {
       this.detailRequestGeneration += 1;
       this.detailSourceKey = null;
       this.detailIdentityKey = null;
+      this.livePreSeriesRequestGeneration += 1;
+      this.livePreSeriesSourceKey = null;
+      this.livePreSeriesSubstitutionsKey = null;
+      this.config.livePreSeriesCache.invalidateRoster();
       this.config.store.setSnapshot({
         params,
         connectionState: "idle",
@@ -466,6 +559,9 @@ export class LiveTrackerPresenter {
         seriesDetail: null,
         seriesDetailStatus: ComponentLoaderStatus.PENDING,
         seriesDetailError: null,
+        livePreSeriesResponse: null,
+        livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+        livePreSeriesError: null,
         seriesAnalyticsByMatchId: new Map(),
       });
       return;
@@ -480,6 +576,10 @@ export class LiveTrackerPresenter {
       this.detailRequestGeneration += 1;
       this.detailSourceKey = null;
       this.detailIdentityKey = null;
+      this.livePreSeriesRequestGeneration += 1;
+      this.livePreSeriesSourceKey = null;
+      this.livePreSeriesSubstitutionsKey = null;
+      this.config.livePreSeriesCache.invalidateRoster();
       this.config.analyticsController.reset();
     }
     const current = this.config.store.getSnapshot();
@@ -496,6 +596,9 @@ export class LiveTrackerPresenter {
             seriesDetail: null,
             seriesDetailStatus: ComponentLoaderStatus.PENDING,
             seriesDetailError: null,
+            livePreSeriesResponse: null,
+            livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+            livePreSeriesError: null,
           }
         : {}),
     });
@@ -507,6 +610,7 @@ export class LiveTrackerPresenter {
     this.isDisposed = true;
     this.connectionGeneration += 1;
     this.detailRequestGeneration += 1;
+    this.livePreSeriesRequestGeneration += 1;
     this.stopReconnection();
     this.cleanupConnection();
     this.config.analyticsController.dispose();
@@ -534,6 +638,139 @@ export class LiveTrackerPresenter {
     this.config.analyticsController.updateMatchIds(request.matchIds);
     this.detailRequestGeneration += 1;
     this.beginSeriesDetailRequest(request, this.config.store.getSnapshot().seriesDetail != null);
+  }
+
+  public retryLivePreSeries(): void {
+    const message = this.config.store.getSnapshot().lastStateMessage;
+    const scope = message?.type === "state" ? createLivePreSeriesScope(message) : null;
+    if (scope == null || this.isDisposed) {
+      return;
+    }
+    const key = JSON.stringify([scope.guildId, scope.queueNumber, scope.seriesStartedAt, scope.rosterRevision]);
+    this.livePreSeriesSourceKey = key;
+    this.config.livePreSeriesCache.invalidateRoster();
+    this.loadLivePreSeries(scope, key);
+  }
+
+  private updateLivePreSeries(message: LiveTrackerStateMessage): void {
+    const scope = createLivePreSeriesScope(message);
+    if (scope == null) {
+      if (this.livePreSeriesSourceKey != null) {
+        this.livePreSeriesRequestGeneration += 1;
+        this.livePreSeriesSourceKey = null;
+        this.livePreSeriesSubstitutionsKey = null;
+        const current = this.config.store.getSnapshot();
+        this.config.store.setSnapshot({
+          ...current,
+          livePreSeriesResponse: null,
+          livePreSeriesStatus: ComponentLoaderStatus.PENDING,
+          livePreSeriesError: null,
+        });
+      }
+      return;
+    }
+
+    const key = JSON.stringify([scope.guildId, scope.queueNumber, scope.seriesStartedAt, scope.rosterRevision]);
+    const substitutionsKey = JSON.stringify(message.data.substitutions);
+    if (key === this.livePreSeriesSourceKey && substitutionsKey === this.livePreSeriesSubstitutionsKey) {
+      return;
+    }
+
+    const substitutionsChanged =
+      this.livePreSeriesSubstitutionsKey != null && substitutionsKey !== this.livePreSeriesSubstitutionsKey;
+    this.livePreSeriesSourceKey = key;
+    this.livePreSeriesSubstitutionsKey = substitutionsKey;
+    if (substitutionsChanged && message.data.status !== "stopped") {
+      this.config.livePreSeriesCache.invalidateRoster();
+    }
+
+    if (message.data.status === "stopped") {
+      this.livePreSeriesRequestGeneration += 1;
+      const current = this.config.store.getSnapshot();
+      const retainedResponse = this.getRetainedPreSeriesResponse(current.livePreSeriesResponse, scope);
+      const hasRetainedResponse = retainedResponse != null;
+      this.config.store.setSnapshot({
+        ...current,
+        livePreSeriesResponse: retainedResponse,
+        livePreSeriesStatus: hasRetainedResponse ? ComponentLoaderStatus.LOADED : ComponentLoaderStatus.ERROR,
+        livePreSeriesError: hasRetainedResponse
+          ? null
+          : "Captured player info was not loaded before the series stopped.",
+      });
+      return;
+    }
+
+    this.loadLivePreSeries(scope, key);
+  }
+
+  private getRetainedPreSeriesResponse(
+    response: LivePreSeriesResponse | null,
+    scope: LivePreSeriesScope,
+  ): LivePreSeriesResponse | null {
+    if (
+      response?.status === "resolved" &&
+      response.guildId === scope.guildId &&
+      response.queueNumber.toString() === scope.queueNumber &&
+      response.seriesStartedAt === scope.seriesStartedAt
+    ) {
+      return response;
+    }
+    return null;
+  }
+
+  private loadLivePreSeries(scope: LivePreSeriesScope, key: string): void {
+    this.livePreSeriesRequestGeneration += 1;
+    const generation = this.livePreSeriesRequestGeneration;
+    const current = this.config.store.getSnapshot();
+    this.config.store.setSnapshot({
+      ...current,
+      livePreSeriesResponse: this.getRetainedPreSeriesResponse(current.livePreSeriesResponse, scope),
+      livePreSeriesStatus: ComponentLoaderStatus.LOADING,
+      livePreSeriesError: null,
+    });
+    void this.fetchLivePreSeriesAsync(scope, key, generation);
+  }
+
+  private async fetchLivePreSeriesAsync(scope: LivePreSeriesScope, key: string, generation: number): Promise<void> {
+    try {
+      const response = await this.config.livePreSeriesCache.load(scope);
+      if (response.status !== "resolved") {
+        throw new Error("Captured player info is not available for this live series.");
+      }
+      if (
+        response.guildId !== scope.guildId ||
+        response.queueNumber.toString() !== scope.queueNumber ||
+        response.seriesStartedAt !== scope.seriesStartedAt
+      ) {
+        throw new Error("Captured player info belongs to a different live series.");
+      }
+      if (!this.isLivePreSeriesRequestCurrent(key, generation)) {
+        return;
+      }
+      const current = this.config.store.getSnapshot();
+      this.config.store.setSnapshot({
+        ...current,
+        livePreSeriesResponse: response,
+        livePreSeriesStatus: ComponentLoaderStatus.LOADED,
+        livePreSeriesError: null,
+      });
+    } catch (error) {
+      if (!this.isLivePreSeriesRequestCurrent(key, generation)) {
+        return;
+      }
+      const current = this.config.store.getSnapshot();
+      this.config.store.setSnapshot({
+        ...current,
+        livePreSeriesStatus: ComponentLoaderStatus.ERROR,
+        livePreSeriesError: error instanceof Error ? error.message : "Unable to load captured player info",
+      });
+    }
+  }
+
+  private isLivePreSeriesRequestCurrent(key: string, generation: number): boolean {
+    return (
+      !this.isDisposed && generation === this.livePreSeriesRequestGeneration && key === this.livePreSeriesSourceKey
+    );
   }
 
   private stopReconnection(): void {
@@ -664,6 +901,7 @@ export class LiveTrackerPresenter {
       lastStateMessage: message,
       hasReceivedInitialData: true,
     });
+    this.updateLivePreSeries(message);
 
     if (request.sourceKey === this.detailSourceKey) {
       return;

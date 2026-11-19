@@ -28,6 +28,8 @@ import {
   useAvailablePlayers,
   useSeriesDetailActions,
   useSeriesDetailState,
+  useLivePreSeriesState,
+  useLivePreSeriesActions,
 } from "./live-tracker-context";
 import type { LiveTrackerStateRenderModel, LiveTrackerViewModel } from "./types";
 import styles from "./live-tracker.module.css";
@@ -132,6 +134,8 @@ export function LiveTrackerView(): React.ReactElement {
   const matchSubstitutions = useMatchSubstitutions();
   const availablePlayers = useAvailablePlayers();
   const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
+  const livePreSeriesState = useLivePreSeriesState();
+  const { onRetryLivePreSeries } = useLivePreSeriesActions();
   const SeriesStatsContent = useMemo(() => createSeriesStatsContent(), []);
 
   const { settings, setSettings } = useStreamerSettings();
@@ -415,8 +419,8 @@ export function LiveTrackerView(): React.ReactElement {
                       analyticsByMatchId={detailState.seriesAnalyticsByMatchId}
                       showSeriesTitle={true}
                       showSeriesOverview={false}
-                      noGutter={viewMode === "wide"}
-                      wide={false}
+                      noGutter={true}
+                      wide={viewMode === "wide"}
                       teamColors={teamColorsArray}
                       beforeMatchContent={beforeMatchContent}
                       afterMatchesContent={afterMatchesContent}
@@ -435,13 +439,39 @@ export function LiveTrackerView(): React.ReactElement {
                 )}
               </Container>
             )}
-            {hasState(state) && !hasMatches && state.playersAssociationData && (
+            {hasState(state) && !hasMatches && state.seriesStartedAt == null && state.playersAssociationData && (
               <PlayerPreSeriesInfo
                 className={classNames(styles.contentContainer, styles[viewMode])}
                 teams={state.teams}
                 playersAssociationData={state.playersAssociationData}
                 teamColors={teamColorsArray}
               />
+            )}
+            {hasState(state) && !hasMatches && state.seriesStartedAt != null && (
+              <>
+                {livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.ERROR ||
+                (livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.LOADED &&
+                  livePreSeriesState.livePreSeriesPlayersAssociationData == null) ? (
+                  <Container className={contentClassName}>
+                    <ErrorState
+                      message={livePreSeriesState.livePreSeriesError ?? "Captured player info is unavailable."}
+                      onRetry={onRetryLivePreSeries}
+                    />
+                  </Container>
+                ) : livePreSeriesState.livePreSeriesStatus !== ComponentLoaderStatus.LOADED ? (
+                  <Container className={contentClassName}>
+                    <LoadingState text="Loading captured player info..." />
+                  </Container>
+                ) : null}
+                {livePreSeriesState.livePreSeriesPlayersAssociationData != null && (
+                  <PlayerPreSeriesInfo
+                    className={contentClassName}
+                    teams={state.teams}
+                    playersAssociationData={livePreSeriesState.livePreSeriesPlayersAssociationData}
+                    teamColors={teamColorsArray}
+                  />
+                )}
+              </>
             )}
             {hasState(state) &&
               (!hasMatches || detailState.seriesDetail == null) &&

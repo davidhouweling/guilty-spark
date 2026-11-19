@@ -152,6 +152,7 @@ export function toLiveTrackerStateRenderModel(
     guildIcon: message.data.guildIcon,
     queueNumber: message.data.queueNumber,
     status: message.data.status,
+    seriesStartedAt: message.data.seriesStartedAt,
     lastUpdateTime: message.data.lastUpdateTime,
     teams,
     matches,
