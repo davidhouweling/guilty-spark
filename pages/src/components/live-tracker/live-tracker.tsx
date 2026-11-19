@@ -420,7 +420,7 @@ export function LiveTrackerView(): React.ReactElement {
                       showSeriesTitle={true}
                       showSeriesOverview={false}
                       noGutter={viewMode === "wide"}
-                      wide={false}
+                      wide={viewMode === "wide"}
                       teamColors={teamColorsArray}
                       beforeMatchContent={beforeMatchContent}
                       afterMatchesContent={afterMatchesContent}

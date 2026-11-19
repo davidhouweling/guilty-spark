@@ -36,6 +36,7 @@ import {
 } from "../../../services/live-pre-series/fakes/live-pre-series.fake";
 import type { LivePreSeriesService } from "../../../services/live-pre-series/types";
 import { createLiveTracker } from "../create";
+import containerStyles from "../../container/container.module.css";
 
 vi.mock("../../icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
@@ -460,6 +461,16 @@ describe("LiveTracker", () => {
         expect(screen.getByRole("heading", { name: "Queue #3 Live Tracker" })).toBeInTheDocument();
       });
       expect(document.body.dataset.viewMode).toBe(expectedMode);
+      const matchesHeading = await screen.findByRole("heading", { name: "Matches" });
+      const seriesContent = Preconditions.checkExists(
+        matchesHeading.closest(`.${containerStyles.container}`)?.parentElement,
+        "Expected shared series content",
+      );
+      const statsContainers = seriesContent.querySelectorAll(`.${containerStyles.container}`);
+      expect(statsContainers.length).toBeGreaterThanOrEqual(3);
+      for (const container of statsContainers) {
+        expect(container.classList.contains(containerStyles.wide)).toBe(expectedMode === "wide");
+      }
       cleanup();
     };
 
