@@ -366,6 +366,12 @@ describe("LiveTracker", () => {
     expect(screen.getAllByText("Team 1 player")).toHaveLength(2);
     expect(screen.getAllByText("Team 2 player")).toHaveLength(2);
     const table = screen.getByRole("table", { name: "Player information" });
+    const playerContainer = table.closest(`.${containerStyles.container}`);
+    const overviewContainer = screen
+      .getByRole("heading", { name: "Series overview" })
+      .closest(`.${containerStyles.container}`);
+    expect(playerContainer?.className).toBe(overviewContainer?.className);
+    expect(playerContainer?.parentElement).toBe(overviewContainer?.parentElement);
     expect(within(table).getByText("Not connected")).toBeInTheDocument();
     expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
     expect(within(table).getByText("1,200")).toBeInTheDocument();

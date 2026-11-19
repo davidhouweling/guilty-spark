@@ -448,25 +448,30 @@ export function LiveTrackerView(): React.ReactElement {
               />
             )}
             {hasState(state) && !hasMatches && state.seriesStartedAt != null && (
-              <Container className={classNames(styles.contentContainer, styles[viewMode])}>
+              <>
                 {livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.ERROR ||
                 (livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.LOADED &&
                   livePreSeriesState.livePreSeriesPlayersAssociationData == null) ? (
-                  <ErrorState
-                    message={livePreSeriesState.livePreSeriesError ?? "Captured player info is unavailable."}
-                    onRetry={onRetryLivePreSeries}
-                  />
+                  <Container className={contentClassName}>
+                    <ErrorState
+                      message={livePreSeriesState.livePreSeriesError ?? "Captured player info is unavailable."}
+                      onRetry={onRetryLivePreSeries}
+                    />
+                  </Container>
                 ) : livePreSeriesState.livePreSeriesStatus !== ComponentLoaderStatus.LOADED ? (
-                  <LoadingState text="Loading captured player info..." />
+                  <Container className={contentClassName}>
+                    <LoadingState text="Loading captured player info..." />
+                  </Container>
                 ) : null}
                 {livePreSeriesState.livePreSeriesPlayersAssociationData != null && (
                   <PlayerPreSeriesInfo
+                    className={contentClassName}
                     teams={state.teams}
                     playersAssociationData={livePreSeriesState.livePreSeriesPlayersAssociationData}
                     teamColors={teamColorsArray}
                   />
                 )}
-              </Container>
+              </>
             )}
             {hasState(state) &&
               (!hasMatches || detailState.seriesDetail == null) &&
