@@ -419,7 +419,7 @@ export function LiveTrackerView(): React.ReactElement {
                       analyticsByMatchId={detailState.seriesAnalyticsByMatchId}
                       showSeriesTitle={true}
                       showSeriesOverview={false}
-                      noGutter={viewMode === "wide"}
+                      noGutter={true}
                       wide={viewMode === "wide"}
                       teamColors={teamColorsArray}
                       beforeMatchContent={beforeMatchContent}

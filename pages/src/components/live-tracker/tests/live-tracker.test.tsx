@@ -37,6 +37,7 @@ import {
 import type { LivePreSeriesService } from "../../../services/live-pre-series/types";
 import { createLiveTracker } from "../create";
 import containerStyles from "../../container/container.module.css";
+import seriesStatsStyles from "../../series-stats/series-stats.module.css";
 
 vi.mock("../../icons/team-icon", () => ({
   TeamIcon: (): React.ReactNode => <div data-testid="team-icon">Team</div>,
@@ -476,6 +477,7 @@ describe("LiveTracker", () => {
       expect(statsContainers.length).toBeGreaterThanOrEqual(3);
       for (const container of statsContainers) {
         expect(container.classList.contains(containerStyles.wide)).toBe(expectedMode === "wide");
+        expect(container).toHaveClass(seriesStatsStyles.noGutter);
       }
       cleanup();
     };
