@@ -152,15 +152,19 @@ function toCapturedPreSeriesPlayers(
     return null;
   }
 
-  const capturedPlayers = new Map(response.players.map((player) => [player.playerId, player.captured] as const));
+  const capturedPlayers = new Map(response.players.map((player) => [player.playerId, player] as const));
   const playersAssociationData: Record<string, PlayerAssociationData> = {};
-  for (const team of data.teams) {
+  for (const [teamIndex, team] of data.teams.entries()) {
     for (const playerId of team.playerIds) {
       const currentPlayer = Preconditions.checkExists(
         data.players.find((player) => player.id === playerId),
         `Missing player '${playerId}' from state players list`,
       );
-      const captured = capturedPlayers.get(playerId);
+      const player = capturedPlayers.get(playerId);
+      const rosterJoinedAt =
+        data.substitutions.findLast((entry) => entry.playerInId === playerId)?.timestamp ?? data.seriesStartedAt;
+      const captured =
+        player?.teamIndex === teamIndex && player.rosterJoinedAt === rosterJoinedAt ? player.captured : null;
       if (captured != null) {
         playersAssociationData[playerId] = captured;
       } else {

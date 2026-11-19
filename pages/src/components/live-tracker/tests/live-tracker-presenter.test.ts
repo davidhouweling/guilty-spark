@@ -3,7 +3,10 @@ import { GameVariantCategory } from "halo-infinite-api";
 import { addMilliseconds, parseISO } from "date-fns";
 import type { LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
-import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
+import {
+  aFakePlayerAssociationDataWith,
+  sampleLiveTrackerStateMessage,
+} from "@guilty-spark/shared/live-tracker/fakes/data";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -25,7 +28,10 @@ import { aFakeSeriesMatchesServiceWith } from "../../../services/series-matches/
 import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import { LivePreSeriesCache } from "../../../services/live-pre-series/cache";
 import type { LivePreSeriesService } from "../../../services/live-pre-series/types";
-import { aFakeLivePreSeriesServiceWith } from "../../../services/live-pre-series/fakes/live-pre-series.fake";
+import {
+  aFakeLivePreSeriesResponseWith,
+  aFakeLivePreSeriesServiceWith,
+} from "../../../services/live-pre-series/fakes/live-pre-series.fake";
 import * as reconnectPolicy from "../../../services/base/reconnect-policy";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import type { LiveTrackerSnapshot } from "../live-tracker-store";
@@ -240,6 +246,110 @@ describe("LiveTrackerPresenter captured pre-series data", () => {
   afterEach((): void => {
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("does not reuse a returning player's earlier capture during loading, failure or stop", async () => {
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const liveTrackerService = new MockLiveTrackerService();
+    vi.spyOn(liveTrackerService, "connect").mockResolvedValue(connection);
+    const { data } = sampleLiveTrackerStateMessage;
+    const team = Preconditions.checkExists(data.teams[0]);
+    const playerId = Preconditions.checkExists(team.playerIds[0]);
+    const captured = aFakePlayerAssociationDataWith({ gamertag: "Captured player", currentRank: 1300 });
+    const first = {
+      ...sampleLiveTrackerStateMessage,
+      data: {
+        ...data,
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+        substitutions: [],
+        matchSummaries: [],
+        players: [...data.players, { id: "replacement", discordUsername: "Replacement" }],
+        playersAssociationData: { [playerId]: { ...captured, gamertag: "Broadcast player", currentRank: 1900 } },
+      },
+    };
+    const response = aFakeLivePreSeriesResponseWith({
+      guildId: data.guildId,
+      queueNumber: data.queueNumber,
+      seriesStartedAt: first.data.seriesStartedAt,
+      players: [{ playerId, teamIndex: 0, rosterJoinedAt: first.data.seriesStartedAt, captured }],
+    });
+    const service = aFakeLivePreSeriesServiceWith(response);
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    vi.spyOn(service, "getCapturedRoster")
+      .mockResolvedValueOnce(response)
+      .mockResolvedValueOnce(response)
+      .mockImplementationOnce(
+        async () =>
+          new Promise((_resolve, reject) => {
+            rejectRefresh = reject;
+          }),
+      );
+    const presenter = createPresenter({
+      getUrl: (): URL => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService,
+      store,
+      livePreSeriesService: service,
+    });
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitMessage(first);
+    await vi.runAllTimersAsync();
+    expect(presentSnapshot(store.getSnapshot()).livePreSeriesPlayersAssociationData?.[playerId]).toBe(captured);
+    const wrongTeamModel = presentSnapshot({
+      ...store.getSnapshot(),
+      livePreSeriesResponse: {
+        ...response,
+        players: response.players.map((player) => ({ ...player, teamIndex: 1 })),
+      },
+    });
+    expect(wrongTeamModel.livePreSeriesPlayersAssociationData?.[playerId]?.gamertag).toBeNull();
+    const substitution = {
+      playerOutId: playerId,
+      playerInId: "replacement",
+      teamIndex: 0,
+      teamName: team.name,
+      timestamp: "2026-11-06T00:01:00.000Z",
+    };
+    connection.emitMessage({
+      ...first,
+      data: {
+        ...first.data,
+        players: [...data.players, { id: "replacement", discordUsername: "Replacement" }],
+        teams: data.teams.map((entry) => ({
+          ...entry,
+          playerIds: entry.playerIds.map((id) => (id === playerId ? "replacement" : id)),
+        })),
+        substitutions: [substitution],
+      },
+    });
+    await vi.runAllTimersAsync();
+    const rejoined = {
+      ...first,
+      data: {
+        ...first.data,
+        substitutions: [
+          substitution,
+          { ...substitution, playerOutId: "replacement", playerInId: playerId, timestamp: "2026-11-06T00:02:00.000Z" },
+        ],
+      },
+    };
+    connection.emitMessage(rejoined);
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().livePreSeriesStatus).toBe(ComponentLoaderStatus.LOADING);
+    expect(presentSnapshot(store.getSnapshot()).livePreSeriesPlayersAssociationData?.[playerId]?.gamertag).toBeNull();
+    Preconditions.checkExists(rejectRefresh)(new Error("capture refresh failed"));
+    await vi.runAllTimersAsync();
+    expect(store.getSnapshot().livePreSeriesStatus).toBe(ComponentLoaderStatus.ERROR);
+    expect(
+      presentSnapshot(store.getSnapshot()).livePreSeriesPlayersAssociationData?.[playerId]?.currentRank,
+    ).toBeNull();
+    connection.emitMessage({ ...rejoined, data: { ...rejoined.data, status: "stopped" } });
+    const model = presentSnapshot(store.getSnapshot());
+    expect(model.livePreSeriesPlayersAssociationData?.[playerId]?.gamertag).toBeNull();
+    expect(model.state?.playersAssociationData).toBe(first.data.playersAssociationData);
+    expect(model.state?.playersAssociationData?.[playerId]?.currentRank).toBe(1900);
+    presenter.dispose();
   });
 
   it("reloads captured data when substitutions and series scope change", async () => {

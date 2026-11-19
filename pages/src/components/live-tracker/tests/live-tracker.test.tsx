@@ -9,6 +9,7 @@ import type {
   LiveTrackerStateMessage,
 } from "@guilty-spark/shared/live-tracker/types";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -306,9 +307,22 @@ describe("LiveTracker", () => {
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });
 
-  it("retries missing captured data, preserves null-capture rows and retains them after stop", async () => {
+  it("retries captured data, renders captured and unavailable rows without changing broadcasts, and retains them after stop", async () => {
     const source = aStateMessage([]);
-    const message = { ...source, data: { ...source.data, seriesStartedAt: "2026-11-06T00:00:00.000Z" } };
+    const broadcast = aFakePlayerAssociationDataWith({
+      discordName: "Team 2 player",
+      gamertag: "Broadcast gamertag",
+      currentRank: 1900,
+    });
+    const message = {
+      ...source,
+      data: {
+        ...source.data,
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+        playersAssociationData: { "team-2-player": broadcast },
+      },
+    };
+    const originalAssociations = structuredClone(message.data.playersAssociationData);
     const response = aFakeLivePreSeriesResponseWith({
       guildId: message.data.guildId,
       queueNumber: message.data.queueNumber,
@@ -324,7 +338,7 @@ describe("LiveTracker", () => {
           playerId: "team-2-player",
           teamIndex: 1,
           rosterJoinedAt: message.data.seriesStartedAt,
-          captured: null,
+          captured: { ...broadcast, gamertag: "Captured gamertag", currentRank: 1200 },
         },
       ],
     });
@@ -350,11 +364,18 @@ describe("LiveTracker", () => {
     expect(await screen.findByRole("heading", { name: "Player Info" })).toBeInTheDocument();
     expect(screen.getAllByText("Team 1 player")).toHaveLength(2);
     expect(screen.getAllByText("Team 2 player")).toHaveLength(2);
-    expect(screen.getAllByText("Not connected")).toHaveLength(2);
+    const table = screen.getByRole("table", { name: "Player information" });
+    expect(within(table).getByText("Not connected")).toBeInTheDocument();
+    expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
+    expect(within(table).getByText("1,200")).toBeInTheDocument();
+    expect(within(table).queryByText("Broadcast gamertag")).not.toBeInTheDocument();
+    expect(within(table).queryByText("1,900")).not.toBeInTheDocument();
     expect(screen.queryByText("1500")).not.toBeInTheDocument();
     connection.step();
     connection.step();
     expect(screen.getByRole("heading", { name: "Player Info" })).toBeInTheDocument();
+    expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
+    expect(message.data.playersAssociationData).toEqual(originalAssociations);
     expect(loadSpy).toHaveBeenCalledTimes(2);
   });
 
