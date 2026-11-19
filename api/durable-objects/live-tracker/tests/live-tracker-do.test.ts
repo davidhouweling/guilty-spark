@@ -5,6 +5,7 @@ import { ChannelType, Locale } from "discord-api-types/v10";
 import type { MatchStats } from "halo-infinite-api";
 import { MatchOutcome } from "halo-infinite-api";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
+import { tryParseLiveTrackerMessage } from "@guilty-spark/shared/live-tracker/parse";
 import * as haloDuration from "@guilty-spark/shared/halo/duration";
 import type { LiveTrackerStartRequest } from "@guilty-spark/shared/contracts/durable-objects/live-tracker/lifecycle";
 import {
@@ -4427,8 +4428,9 @@ describe("LiveTrackerDO", () => {
       expect(fakeWebSocketAdapter.initialMessages).toHaveLength(1);
       const [initialMessage] = fakeWebSocketAdapter.initialMessages;
       expect(initialMessage).toBeDefined();
-      const parsed = JSON.parse(initialMessage ?? "") as { type: string };
-      expect(parsed.type).toBe("state");
+      const parsed = tryParseLiveTrackerMessage(Preconditions.checkExists(initialMessage));
+      expect(parsed?.type).toBe("state");
+      expect(parsed?.data.seriesStartedAt).toBe(trackerState.startTime);
     });
 
     it("includes confirmed maps in the initial WebSocket state", async () => {
@@ -4517,8 +4519,9 @@ describe("LiveTrackerDO", () => {
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
       const [broadcast] = fakeWebSocketAdapter.broadcasts;
-      const parsed = JSON.parse(broadcast ?? "") as { data: { status: string } };
-      expect(parsed.data.status).toBe("stopped");
+      const parsed = tryParseLiveTrackerMessage(Preconditions.checkExists(broadcast));
+      expect(parsed?.data.status).toBe("stopped");
+      expect(parsed?.data.seriesStartedAt).toBe(trackerState.startTime);
     });
 
     it("does not persist state after disposal when finally block runs", async () => {
