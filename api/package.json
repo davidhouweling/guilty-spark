@@ -24,9 +24,9 @@
     "@guilty-spark/shared": "file:../shared",
     "@xboxreplay/xboxlive-auth": "^5.1.0",
     "date-fns": "^4.4.0",
-    "discord-api-types": "^0.38.58",
+    "discord-api-types": "^0.38.59",
     "discord-interactions": "^4.4.0",
-    "halo-infinite-api": "^14.4.0",
+    "halo-infinite-api": "^14.4.1",
     "itty-router": "^5.0.24",
     "luxon": "^3.7.2",
     "tinyduration": "^3.4.1",
@@ -34,9 +34,9 @@
   },
   "devDependencies": {
     "@sentry/cli": "^3.8.2",
-    "@sentry/cloudflare": "^11.12.0",
+    "@sentry/cloudflare": "^11.14.0",
     "@types/luxon": "^3.7.6",
     "dotenv": "^18.0.10",
-    "wrangler": "^4.160.0"
+    "wrangler": "^4.164.0"
   }
 }
