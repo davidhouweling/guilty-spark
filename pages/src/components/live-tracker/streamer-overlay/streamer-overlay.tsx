@@ -19,6 +19,8 @@ import {
   useAnalyticsStatus,
   useSeriesDetailState,
   useSeriesDetailActions,
+  useLivePreSeriesState,
+  useLivePreSeriesActions,
 } from "../live-tracker-context";
 import type { LiveTrackerNeatQueueStateRenderModel } from "../types";
 import { TopSection } from "../../streamer-overlay/top-section";
@@ -95,7 +97,13 @@ function NeatQueueStreamerOverlay({
   const analyticsStatus = useAnalyticsStatus();
   const { detailViewModel, seriesDetailStatus, seriesDetailError, seriesDetail } = useSeriesDetailState(teamColors);
   const { onAnalyticsTabSelected, onRetrySeriesDetails } = useSeriesDetailActions();
+  const livePreSeriesState = useLivePreSeriesState();
+  const { onRetryLivePreSeries } = useLivePreSeriesActions();
   const trackerInfo = useTrackerInfo();
+  const preSeriesPlayersAssociationData =
+    neatQueueState.seriesStartedAt == null
+      ? neatQueueState.playersAssociationData
+      : livePreSeriesState.livePreSeriesPlayersAssociationData;
 
   const title =
     settings.series.titleOverride !== null && settings.series.titleOverride !== ""
@@ -144,8 +152,14 @@ function NeatQueueStreamerOverlay({
       });
     };
 
-    if (settings.global.ticker.showPreSeriesInfo && isPreSeriesMode && neatQueueState.playersAssociationData) {
-      const playersAssociationData = new Map(Object.entries(neatQueueState.playersAssociationData));
+    if (
+      settings.global.ticker.showPreSeriesInfo &&
+      isPreSeriesMode &&
+      (preSeriesPlayersAssociationData != null ||
+        (neatQueueState.seriesStartedAt != null &&
+          livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.ERROR))
+    ) {
+      const playersAssociationData = new Map(Object.entries(preSeriesPlayersAssociationData ?? {}));
       const rows: TickerStatRow[] = [];
 
       for (const [teamIndex, team] of neatQueueState.teams.entries()) {
@@ -165,6 +179,13 @@ function NeatQueueStreamerOverlay({
               bestInTeam: false,
               bestInMatch: false,
               display: "No data",
+            });
+            rows.push({
+              type: "player",
+              teamId: teamIndex,
+              name: playerName,
+              stats: playerStats,
+              medals: [],
             });
 
             continue;
@@ -284,6 +305,19 @@ function NeatQueueStreamerOverlay({
         }
       }
 
+      if (
+        neatQueueState.seriesStartedAt != null &&
+        livePreSeriesState.livePreSeriesStatus === ComponentLoaderStatus.ERROR
+      ) {
+        rows.push({
+          type: "player",
+          teamId: 0,
+          name: "Captured player info unavailable — open series panel to retry",
+          stats: [],
+          medals: [],
+        });
+      }
+
       if (rows.length > 0) {
         groups.push({ matchIndex: -1, label: "Player Info", rows });
       }
@@ -379,6 +413,7 @@ function NeatQueueStreamerOverlay({
     seriesDetail,
     clampedMaxPreviousGamesToShow,
     isPreSeriesMode,
+    preSeriesPlayersAssociationData,
     settings.global.ticker.selectedSlayerStats,
     settings.global.ticker.showObjectiveStats,
     settings.global.ticker.medalRarityFilter,
@@ -392,14 +427,27 @@ function NeatQueueStreamerOverlay({
         return true;
       }
       if (tabIndex === -1) {
-        if (isPreSeriesMode && neatQueueState.playersAssociationData != null) {
+        if (
+          isPreSeriesMode &&
+          (neatQueueState.seriesStartedAt == null
+            ? neatQueueState.playersAssociationData != null
+            : livePreSeriesState.livePreSeriesStatus !== ComponentLoaderStatus.PENDING)
+        ) {
           return true;
         }
         return (seriesStats != null && seriesMatchCount > 0) || detailViewModel?.seriesStatsWarning != null;
       }
       return allMatchStats[tabIndex]?.data != null || Boolean(neatQueueState.matches[tabIndex]);
     },
-    [allMatchStats, isPreSeriesMode, neatQueueState, seriesDetailStatus, seriesMatchCount, seriesStats],
+    [
+      allMatchStats,
+      isPreSeriesMode,
+      livePreSeriesState.livePreSeriesStatus,
+      neatQueueState,
+      seriesDetailStatus,
+      seriesMatchCount,
+      seriesStats,
+    ],
   );
 
   const renderPanelContent = useCallback(
@@ -412,7 +460,11 @@ function NeatQueueStreamerOverlay({
         <StatsPanelContent
           selectedTab={tabIndex}
           teams={neatQueueState.teams}
-          playersAssociationData={neatQueueState.playersAssociationData}
+          playersAssociationData={preSeriesPlayersAssociationData}
+          isCapturedPreSeries={neatQueueState.seriesStartedAt != null}
+          preSeriesStatus={livePreSeriesState.livePreSeriesStatus}
+          preSeriesError={livePreSeriesState.livePreSeriesError}
+          onRetryPreSeries={onRetryLivePreSeries}
           seriesMatchCount={seriesMatchCount}
           seriesStats={seriesStats}
           selectedMatchStats={selectedMatchStats}
@@ -447,6 +499,10 @@ function NeatQueueStreamerOverlay({
       teamColors,
       onAnalyticsTabSelected,
       onRetrySeriesDetails,
+      onRetryLivePreSeries,
+      preSeriesPlayersAssociationData,
+      livePreSeriesState.livePreSeriesError,
+      livePreSeriesState.livePreSeriesStatus,
     ],
   );
 

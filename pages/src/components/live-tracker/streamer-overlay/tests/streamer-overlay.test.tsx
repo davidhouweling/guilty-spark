@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { TeamColor } from "../../../team-colors/team-colors";
 import type { StreamerOverlayProps } from "../streamer-overlay";
 import { LiveTrackerProvider } from "../../live-tracker-context";
@@ -26,7 +26,27 @@ vi.mock("../../../stats/series-stats", () => ({
 }));
 
 vi.mock("../../../information-ticker/information-ticker", () => ({
-  InformationTicker: (): React.ReactNode => <div data-testid="information-ticker">Information Ticker</div>,
+  InformationTicker: ({
+    currentMatchGroup,
+  }: {
+    readonly currentMatchGroup: {
+      readonly label: string;
+      readonly rows: readonly {
+        readonly name: string | null;
+        readonly stats: readonly { readonly name: string; readonly display: string }[];
+      }[];
+    };
+  }): React.ReactNode => (
+    <div data-testid="information-ticker">
+      {currentMatchGroup.label}{" "}
+      {JSON.stringify(
+        currentMatchGroup.rows.map(({ name, stats }) => ({
+          name,
+          stats: stats.map(({ name: statName, display }) => ({ name: statName, display })),
+        })),
+      )}
+    </div>
+  ),
 }));
 
 vi.mock("../../../player-pre-series-info/player-pre-series-info", () => ({
@@ -119,6 +139,10 @@ const defaultProviderProps: Omit<LiveTrackerProviderProps, "children"> = {
 };
 
 describe("StreamerOverlay", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   const teamColors: TeamColor[] = [
     { id: "eagle", name: "Eagle", hex: "#0066CC" },
     { id: "cobra", name: "Cobra", hex: "#CC0000" },
@@ -132,6 +156,130 @@ describe("StreamerOverlay", () => {
     settings: DEFAULT_ALL_SETTINGS,
     settingsUi: <div>Settings UI</div>,
   };
+
+  it("uses captured pre-series values for the ticker instead of broadcast profile values", () => {
+    const capturedPlayer = {
+      discordId: "captured-id",
+      discordName: "Captured Discord",
+      xboxId: "captured-xbox",
+      gamertag: "Captured Xbox",
+      currentRank: 1500,
+      currentRankTier: "Onyx",
+      currentRankSubTier: null,
+      currentRankMeasurementMatchesRemaining: null,
+      currentRankInitialMeasurementMatches: null,
+      allTimePeakRank: null,
+      esra: null,
+      lastRankedGamePlayed: null,
+    };
+    const model = aFakeLiveTrackerViewModelWith({
+      livePreSeriesPlayersAssociationData: { one: capturedPlayer, two: capturedPlayer },
+      state: {
+        type: "neatqueue",
+        guildName: "Test Guild",
+        guildId: "test-guild-id",
+        guildIcon: "data:,",
+        queueNumber: 5,
+        status: "active",
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+        lastUpdateTime: "2025-01-01T00:00:00.000Z",
+        teams: [
+          { name: "Team 1", players: [{ id: "one", displayName: "One" }] },
+          { name: "Team 2", players: [{ id: "two", displayName: "Two" }] },
+        ],
+        matches: [],
+        plannedGames: [],
+        substitutions: [],
+        seriesScore: "0:0",
+        medalMetadata: {},
+        playersAssociationData: {
+          one: { ...capturedPlayer, discordName: "Legacy Discord", gamertag: "Legacy Xbox", currentRank: 9999 },
+          two: { ...capturedPlayer, discordName: "Legacy Discord", gamertag: "Legacy Xbox", currentRank: 9999 },
+        },
+      },
+    });
+
+    render(
+      <LiveTrackerProvider {...defaultProviderProps} model={model}>
+        <StreamerOverlay {...defaultProps} />
+      </LiveTrackerProvider>,
+    );
+
+    const ticker = screen.getByTestId("information-ticker");
+    expect(ticker).toHaveTextContent("Captured Xbox");
+    expect(ticker).toHaveTextContent("1,500");
+    expect(ticker).not.toHaveTextContent("Legacy Xbox");
+    expect(ticker).not.toHaveTextContent("9999");
+  });
+
+  it.each([
+    { roster: "mixed captured/null", currentRank: 1500, unavailableCount: 1 },
+    { roster: "all-null", currentRank: null, unavailableCount: 2 },
+  ])("keeps unavailable players visible in a $roster pre-series ticker", ({ currentRank, unavailableCount }) => {
+    const { state } = aFakeLiveTrackerViewModelWith();
+    if (state == null) {
+      throw new Error("Expected NeatQueue state");
+    }
+    const unavailablePlayer = {
+      discordId: "",
+      discordName: "Player Two",
+      xboxId: null,
+      gamertag: null,
+      currentRank: null,
+      currentRankTier: null,
+      currentRankSubTier: null,
+      currentRankMeasurementMatchesRemaining: null,
+      currentRankInitialMeasurementMatches: null,
+      allTimePeakRank: null,
+      esra: null,
+      lastRankedGamePlayed: null,
+    };
+    const model = aFakeLiveTrackerViewModelWith({
+      livePreSeriesStatus: ComponentLoaderStatus.LOADED,
+      livePreSeriesPlayersAssociationData: {
+        player1: { ...unavailablePlayer, discordName: "Player One", currentRank },
+        player2: unavailablePlayer,
+      },
+      state: { ...state, seriesStartedAt: "2026-11-06T00:00:00.000Z" },
+    });
+
+    render(
+      <LiveTrackerProvider {...defaultProviderProps} model={model}>
+        <StreamerOverlay {...defaultProps} />
+      </LiveTrackerProvider>,
+    );
+
+    const ticker = screen.getByTestId("information-ticker");
+    expect(ticker).toHaveTextContent("Player One");
+    expect(ticker).toHaveTextContent("Player Two");
+    expect(ticker.textContent.match(/"display":"No data"/g)).toHaveLength(unavailableCount);
+    expect(ticker).toHaveTextContent(currentRank == null ? "No data" : "1,500");
+  });
+
+  it("shows failed captured data in the pre-series ticker", () => {
+    const { state } = aFakeLiveTrackerViewModelWith();
+    if (state == null) {
+      throw new Error("Expected NeatQueue state");
+    }
+    const model = aFakeLiveTrackerViewModelWith({
+      livePreSeriesStatus: ComponentLoaderStatus.ERROR,
+      livePreSeriesError: "Captured player info is unavailable",
+      state: {
+        ...state,
+        seriesStartedAt: "2026-11-06T00:00:00.000Z",
+      },
+    });
+
+    render(
+      <LiveTrackerProvider {...defaultProviderProps} model={model}>
+        <StreamerOverlay {...defaultProps} />
+      </LiveTrackerProvider>,
+    );
+
+    expect(screen.getByTestId("information-ticker")).toHaveTextContent(
+      "Captured player info unavailable — open series panel to retry",
+    );
+  });
 
   it("renders no data message when state is null", () => {
     const model = aFakeLiveTrackerViewModelWith({ state: null });

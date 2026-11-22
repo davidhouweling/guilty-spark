@@ -6,6 +6,7 @@ import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/ty
 
 import { PlayerPreSeriesInfo } from "../player-pre-series-info";
 import type { TeamColor } from "../../team-colors/team-colors";
+import containerStyles from "../../container/container.module.css";
 
 afterEach(() => {
   cleanup();
@@ -76,6 +77,23 @@ describe("PlayerPreSeriesInfo", () => {
     );
 
     expect(screen.getByText("Player Info")).toBeInTheDocument();
+  });
+
+  it("uses a full-width, gutterless container only when requested", () => {
+    const { rerender } = render(
+      <PlayerPreSeriesInfo playersAssociationData={{}} teams={teams} teamColors={teamColors} />,
+    );
+    const container = screen.getByRole("heading", { name: "Player Info" }).parentElement?.parentElement;
+    expect(container).not.toHaveClass(containerStyles.wide);
+
+    rerender(<PlayerPreSeriesInfo playersAssociationData={{}} teams={teams} teamColors={teamColors} fullWidth />);
+    expect(container).toHaveClass(containerStyles.wide);
+    expect(container).toHaveStyle({
+      "--gutter-mobile-down": "0",
+      "--gutter-tablet-up": "0",
+      "--gutter-desktop-up": "0",
+      "--gutter-ultrawide-up": "0",
+    });
   });
 
   it("renders player table with data", () => {

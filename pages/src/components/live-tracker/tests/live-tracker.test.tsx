@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { fireEvent, render, screen, waitFor, cleanup, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 
 import type {
   LiveTrackerMatchSummary,
@@ -309,7 +309,7 @@ describe("LiveTracker", () => {
     expect(screen.queryByText("Map plan")).not.toBeInTheDocument();
   });
 
-  it("retries captured data, renders captured and unavailable rows without changing broadcasts, and retains them after stop", async () => {
+  it.each(["normal", "streamer"])("retries and retains captured player information in %s mode", async (viewMode) => {
     const source = aStateMessage([]);
     const broadcast = aFakePlayerAssociationDataWith({
       discordName: "Team 2 player",
@@ -345,36 +345,54 @@ describe("LiveTracker", () => {
       ],
     });
     const service = aFakeLivePreSeriesServiceWith({ status: "not-found" });
+    const retry = Promise.withResolvers<Awaited<ReturnType<LivePreSeriesService["getCapturedRoster"]>>>();
     const loadSpy = vi
       .spyOn(service, "getCapturedRoster")
       .mockResolvedValueOnce({ status: "not-found" })
-      .mockResolvedValue(response);
+      .mockReturnValueOnce(retry.promise);
     const heartbeat = {
       ...message,
       timestamp: "2026-11-06T00:01:00.000Z",
       data: { ...message.data, lastUpdateTime: "2026-11-06T00:01:00.000Z" },
     };
     const stopped = { ...message, data: { ...message.data, status: "stopped" as const } };
-    const connection = await renderLiveTrackerWith(message, undefined, "?server=1&queue=3", {
-      livePreSeriesService: service,
-      additionalMessages: [heartbeat, stopped],
-    });
+    const connection = await renderLiveTrackerWith(
+      message,
+      undefined,
+      `?server=1&queue=3&viewMode=${viewMode}&showTabs=true`,
+      { livePreSeriesService: service, additionalMessages: [heartbeat, stopped] },
+    );
     connection.step();
+    if (viewMode === "streamer") {
+      await waitFor(() => {
+        expect(loadSpy).toHaveBeenCalledOnce();
+      });
+      fireEvent.click(await screen.findByRole("button", { name: /Series score/ }));
+    }
     expect(await screen.findByText("Captured player info is not available for this live series.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Loading captured player info...")).toBeInTheDocument();
+    await act(async () => {
+      retry.resolve(response);
+      await retry.promise;
+    });
 
     expect(await screen.findByRole("heading", { name: "Player Info" })).toBeInTheDocument();
-    expect(screen.getAllByText("Team 1 player")).toHaveLength(2);
-    expect(screen.getAllByText("Team 2 player")).toHaveLength(2);
     const table = screen.getByRole("table", { name: "Player information" });
-    const playerContainer = table.closest(`.${containerStyles.container}`);
-    const overviewContainer = screen
-      .getByRole("heading", { name: "Series overview" })
-      .closest(`.${containerStyles.container}`);
-    expect(playerContainer?.className).toBe(overviewContainer?.className);
-    expect(playerContainer?.parentElement).toBe(overviewContainer?.parentElement);
-    expect(within(table).getByText("Not connected")).toBeInTheDocument();
-    expect(within(table).getByText("Captured gamertag")).toBeInTheDocument();
+    if (viewMode === "normal") {
+      const playerContainer = table.closest(`.${containerStyles.container}`);
+      const overviewContainer = screen
+        .getByRole("heading", { name: "Series overview" })
+        .closest(`.${containerStyles.container}`);
+      expect(playerContainer?.className).toBe(overviewContainer?.className);
+      expect(playerContainer?.parentElement).toBe(overviewContainer?.parentElement);
+    }
+    expect(
+      within(within(table).getByRole("row", { name: /Team 1 player/ })).getByText("Not connected"),
+    ).toBeInTheDocument();
+    expect(
+      within(within(table).getByRole("row", { name: /Team 2 player/ })).getByText("Captured gamertag"),
+    ).toBeInTheDocument();
     expect(within(table).getByText("1,200")).toBeInTheDocument();
     expect(within(table).queryByText("Broadcast gamertag")).not.toBeInTheDocument();
     expect(within(table).queryByText("1,900")).not.toBeInTheDocument();

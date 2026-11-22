@@ -52,7 +52,6 @@
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: 0 -4px 40px rgb(0 0 0 / 60%);
   max-height: 95vh;
-  max-width: 1400px;
   overflow-y: auto;
   padding: var(--space-6);
   position: relative;

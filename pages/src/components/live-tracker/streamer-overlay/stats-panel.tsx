@@ -10,6 +10,7 @@ import type { SeriesMetadata } from "../../../controllers/stats/series-metadata"
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import { Alert } from "../../alert/alert";
+import { Button } from "../../button/button";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
@@ -25,6 +26,10 @@ interface StatsPanelContentProps {
   readonly selectedTab: number;
   readonly teams: readonly LiveTrackerTeamRenderModel[];
   readonly playersAssociationData: Record<string, PlayerAssociationData> | null;
+  readonly isCapturedPreSeries: boolean;
+  readonly preSeriesStatus: ComponentLoaderStatus;
+  readonly preSeriesError: string | null;
+  readonly onRetryPreSeries: () => void;
   readonly seriesMatchCount: number;
   readonly seriesStats: {
     teamData: MatchStatsData[];
@@ -51,6 +56,10 @@ function StatsPanelContentComponent({
   selectedTab,
   teams,
   playersAssociationData,
+  isCapturedPreSeries,
+  preSeriesStatus,
+  preSeriesError,
+  onRetryPreSeries,
   seriesMatchCount,
   seriesStats,
   selectedMatchStats,
@@ -68,13 +77,73 @@ function StatsPanelContentComponent({
   matchKillMatrixStatus,
   onAnalyticsTabSelected,
 }: StatsPanelContentProps): React.ReactElement | null {
+  if (selectedTab === -1 && seriesMatchCount === 0 && isCapturedPreSeries) {
+    if (preSeriesStatus === ComponentLoaderStatus.ERROR) {
+      const error = (
+        <Alert variant="warning">
+          {preSeriesError ?? "Captured player info is unavailable."}{" "}
+          <Button variant="secondary" size="small" onClick={onRetryPreSeries}>
+            Retry
+          </Button>
+        </Alert>
+      );
+      return playersAssociationData == null ? (
+        error
+      ) : (
+        <>
+          {error}
+          <PlayerPreSeriesInfo
+            teams={teams}
+            playersAssociationData={playersAssociationData}
+            teamColors={teamColors}
+            fullWidth
+          />
+        </>
+      );
+    }
+    if (preSeriesStatus !== ComponentLoaderStatus.LOADED) {
+      const loading = <LoadingState text="Loading captured player info..." />;
+      return playersAssociationData == null ? (
+        loading
+      ) : (
+        <>
+          {loading}
+          <PlayerPreSeriesInfo
+            teams={teams}
+            playersAssociationData={playersAssociationData}
+            teamColors={teamColors}
+            fullWidth
+          />
+        </>
+      );
+    }
+    if (playersAssociationData == null) {
+      return (
+        <Alert variant="warning">
+          Captured player info is unavailable.{" "}
+          <Button variant="secondary" size="small" onClick={onRetryPreSeries}>
+            Retry
+          </Button>
+        </Alert>
+      );
+    }
+    return (
+      <PlayerPreSeriesInfo
+        teams={teams}
+        playersAssociationData={playersAssociationData}
+        teamColors={teamColors}
+        fullWidth
+      />
+    );
+  }
+
   if (detailStatus === ComponentLoaderStatus.ERROR && !hasRetainedDetail) {
     return (
       <Alert variant="warning">
         {detailError ?? "Unable to load series stats"}{" "}
-        <button type="button" onClick={onRetryDetails}>
+        <Button variant="secondary" size="small" onClick={onRetryDetails}>
           Retry
-        </button>
+        </Button>
       </Alert>
     );
   }
@@ -85,9 +154,9 @@ function StatsPanelContentComponent({
     detailStatus === ComponentLoaderStatus.ERROR ? (
       <Alert variant="warning">
         {detailError ?? "Unable to load series stats"}{" "}
-        <button type="button" onClick={onRetryDetails}>
+        <Button variant="secondary" size="small" onClick={onRetryDetails}>
           Retry
-        </button>
+        </Button>
       </Alert>
     ) : null;
   const withDetailError = (content: React.ReactElement): React.ReactElement => (
@@ -99,7 +168,12 @@ function StatsPanelContentComponent({
 
   if (selectedTab === -1 && seriesMatchCount === 0 && playersAssociationData != null) {
     return withDetailError(
-      <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />,
+      <PlayerPreSeriesInfo
+        teams={teams}
+        playersAssociationData={playersAssociationData}
+        teamColors={teamColors}
+        fullWidth
+      />,
     );
   }
 
