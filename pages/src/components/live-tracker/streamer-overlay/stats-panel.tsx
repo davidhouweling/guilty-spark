@@ -10,6 +10,7 @@ import type { SeriesMetadata } from "../../../controllers/stats/series-metadata"
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "../../../controllers/stats/kill-matrix/types";
 import { PlayerPreSeriesInfo } from "../../player-pre-series-info/player-pre-series-info";
 import { Alert } from "../../alert/alert";
+import { Button } from "../../button/button";
 import { LoadingState } from "../../loading-state/loading-state";
 import type { LiveTrackerMatchRenderModel, LiveTrackerTeamRenderModel } from "../types";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
@@ -81,9 +82,9 @@ function StatsPanelContentComponent({
       const error = (
         <Alert variant="warning">
           {preSeriesError ?? "Captured player info is unavailable."}{" "}
-          <button type="button" onClick={onRetryPreSeries}>
+          <Button variant="secondary" size="small" onClick={onRetryPreSeries}>
             Retry
-          </button>
+          </Button>
         </Alert>
       );
       return playersAssociationData == null ? (
@@ -120,9 +121,9 @@ function StatsPanelContentComponent({
       return (
         <Alert variant="warning">
           Captured player info is unavailable.{" "}
-          <button type="button" onClick={onRetryPreSeries}>
+          <Button variant="secondary" size="small" onClick={onRetryPreSeries}>
             Retry
-          </button>
+          </Button>
         </Alert>
       );
     }
@@ -140,9 +141,9 @@ function StatsPanelContentComponent({
     return (
       <Alert variant="warning">
         {detailError ?? "Unable to load series stats"}{" "}
-        <button type="button" onClick={onRetryDetails}>
+        <Button variant="secondary" size="small" onClick={onRetryDetails}>
           Retry
-        </button>
+        </Button>
       </Alert>
     );
   }
@@ -153,9 +154,9 @@ function StatsPanelContentComponent({
     detailStatus === ComponentLoaderStatus.ERROR ? (
       <Alert variant="warning">
         {detailError ?? "Unable to load series stats"}{" "}
-        <button type="button" onClick={onRetryDetails}>
+        <Button variant="secondary" size="small" onClick={onRetryDetails}>
           Retry
-        </button>
+        </Button>
       </Alert>
     ) : null;
   const withDetailError = (content: React.ReactElement): React.ReactElement => (
