@@ -17,6 +17,7 @@ interface PlayerPreSeriesInfoProps {
   readonly playersAssociationData: Record<string, PlayerAssociationData>;
   readonly teams: readonly { name: string; players: readonly { id: string; displayName: string }[] }[];
   readonly teamColors: readonly TeamColor[];
+  readonly fullWidth?: boolean;
 }
 
 interface PlayerRow {
@@ -70,7 +71,9 @@ export function PlayerPreSeriesInfo({
   playersAssociationData,
   teams,
   teamColors,
+  fullWidth = false,
 }: PlayerPreSeriesInfoProps): React.ReactElement {
+  const gutter = fullWidth ? "0" : undefined;
   // Flatten player data with team information
   const playerRows = useMemo<PlayerRow[]>(() => {
     const rows: PlayerRow[] = [];
@@ -218,7 +221,14 @@ export function PlayerPreSeriesInfo({
   );
 
   return (
-    <Container className={className}>
+    <Container
+      className={className}
+      wide={fullWidth}
+      mobileDown={gutter}
+      tabletUp={gutter}
+      desktopUp={gutter}
+      ultrawideUp={gutter}
+    >
       <div className={styles.container}>
         <Heading tagName="h2" styleAs="h3" spacing={4}>
           Player Info

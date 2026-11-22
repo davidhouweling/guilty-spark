@@ -24,6 +24,7 @@ import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
 import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
 import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
+import containerStyles from "../../../container/container.module.css";
 
 function aRenderModel(
   overrides?: Parameters<typeof aFakeTrackerViewStateWith>[0],
@@ -247,6 +248,34 @@ describe("IndividualTrackerOverlay", () => {
     );
 
     expect(screen.getByText("Loading series stats...")).toBeInTheDocument();
+  });
+
+  it("uses the available panel width for series content", () => {
+    render(
+      <IndividualTrackerOverlay
+        {...aPropsWith({
+          renderModel: aRenderModel({
+            matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1", isMatchmaking: true })],
+          }),
+          selectedSeriesId: "series-1",
+          seriesStatsPanelState: {
+            status: "loaded",
+            seriesId: "series-1",
+            viewModel: {
+              title: "Series",
+              subtitle: "",
+              seriesScore: "0:0",
+              matchSummaries: [],
+              teams: [],
+              seriesStats: null,
+              matchDetails: [],
+            },
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Series overview" }).parentElement).toHaveClass(containerStyles.wide);
   });
 
   it("deselects when clicking the matchmaking summary tab", async () => {

@@ -91,7 +91,12 @@ function StatsPanelContentComponent({
       ) : (
         <>
           {error}
-          <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+          <PlayerPreSeriesInfo
+            teams={teams}
+            playersAssociationData={playersAssociationData}
+            teamColors={teamColors}
+            fullWidth
+          />
         </>
       );
     }
@@ -102,7 +107,12 @@ function StatsPanelContentComponent({
       ) : (
         <>
           {loading}
-          <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+          <PlayerPreSeriesInfo
+            teams={teams}
+            playersAssociationData={playersAssociationData}
+            teamColors={teamColors}
+            fullWidth
+          />
         </>
       );
     }
@@ -117,7 +127,12 @@ function StatsPanelContentComponent({
       );
     }
     return (
-      <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />
+      <PlayerPreSeriesInfo
+        teams={teams}
+        playersAssociationData={playersAssociationData}
+        teamColors={teamColors}
+        fullWidth
+      />
     );
   }
 
@@ -152,7 +167,12 @@ function StatsPanelContentComponent({
 
   if (selectedTab === -1 && seriesMatchCount === 0 && playersAssociationData != null) {
     return withDetailError(
-      <PlayerPreSeriesInfo teams={teams} playersAssociationData={playersAssociationData} teamColors={teamColors} />,
+      <PlayerPreSeriesInfo
+        teams={teams}
+        playersAssociationData={playersAssociationData}
+        teamColors={teamColors}
+        fullWidth
+      />,
     );
   }
 

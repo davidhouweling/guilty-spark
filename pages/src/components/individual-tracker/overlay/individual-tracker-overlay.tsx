@@ -182,7 +182,7 @@ export function IndividualTrackerOverlay({
             break;
           }
           case "loaded": {
-            seriesBody = <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} />;
+            seriesBody = <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} wide={true} />;
             break;
           }
           default: {
