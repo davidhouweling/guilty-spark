@@ -4447,6 +4447,42 @@ describe("LiveTrackerDO", () => {
       expect(parsed?.data.seriesStartedAt).toBe(trackerState.startTime);
     });
 
+    it.each(["", "?format=condensed"])("rejects an upgrade that finishes during disposal (%s)", async (query) => {
+      storageGetSpy.mockResolvedValue(aFakeStateWith({ status: "active" }));
+      const socket = aFakeWebSocket();
+      configureWebSocketRecipients([socket], []);
+      const initialStarted = Promise.withResolvers<boolean>();
+      const finalStarted = Promise.withResolvers<boolean>();
+      const initialGuild = Promise.withResolvers<typeof guild>();
+      const finalGuild = Promise.withResolvers<typeof guild>();
+      vi.spyOn(services.discordService, "getGuild")
+        .mockImplementationOnce(async () => {
+          initialStarted.resolve(true);
+          return initialGuild.promise;
+        })
+        .mockImplementationOnce(async () => {
+          finalStarted.resolve(true);
+          return finalGuild.promise;
+        });
+
+      const upgrade = liveTrackerDO.fetch(
+        new Request(`http://do/websocket${query}`, { headers: { Upgrade: "websocket" } }),
+      );
+      await initialStarted.promise;
+      const stop = liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
+      await finalStarted.promise;
+      initialGuild.resolve(guild);
+      const response = await upgrade;
+      const closesBeforeFinal = fakeWebSocketAdapter.closes.length;
+      finalGuild.resolve(guild);
+      await stop;
+      expect(response.status).toBe(404);
+      expect(fakeWebSocketAdapter.initialMessages).toHaveLength(0);
+      expect(closesBeforeFinal).toBe(0);
+      expect(tryParseLiveTrackerMessage(messageBroadcastTo(socket))?.data.status).toBe("stopped");
+      expect(fakeWebSocketAdapter.closes).toHaveLength(1);
+    });
+
     it.each(["?format=legacy", "?format=", "?format=condensed&format=condensed"])(
       "rejects an invalid supplied format (%s)",
       async (query) => {

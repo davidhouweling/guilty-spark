@@ -1732,6 +1732,9 @@ export class LiveTrackerDO implements DurableObject, Rpc.DurableObjectBranded {
 
     try {
       const data = await this.stateToContractData(trackerState, !isCondensed);
+      if (this.disposed) {
+        return new Response("Tracker stopped", { status: 404 });
+      }
       const initialMessage = JSON.stringify({
         type: "state",
         data,
