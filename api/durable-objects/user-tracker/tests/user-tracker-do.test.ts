@@ -13,6 +13,7 @@ import {
   aFakeDurableObjectNamespaceWith,
   aFakeDurableObjectStateWith,
   aFakeDurableObjectStorageWith,
+  aFakeWebSocket,
 } from "../../../base/fakes/do.fake";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../../services/log/fakes/log.fake";
@@ -1331,7 +1332,7 @@ describe("UserTrackerDO", () => {
   it("deletes the scheduled alarm when the last websocket closes", async () => {
     vi.spyOn(mockState, "getWebSockets").mockReturnValue([]);
 
-    await userTrackerDO.webSocketClose({} as WebSocket, 1000, "bye", true);
+    await userTrackerDO.webSocketClose(aFakeWebSocket(), 1000, "bye", true);
 
     expect(deleteAlarmMock).toHaveBeenCalledOnce();
   });
@@ -1366,7 +1367,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
         aFakeIndividualTrackersRow({
@@ -1432,7 +1433,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
         aFakeIndividualTrackersRow({
@@ -1491,7 +1492,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
@@ -1549,7 +1550,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     const findByUserIdSpy = vi
       .spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([])
@@ -1618,7 +1619,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
@@ -1682,7 +1683,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([]);
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
     Object.assign(localUserTrackerDO, {
@@ -1864,7 +1865,7 @@ describe("UserTrackerDO", () => {
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
     const transientFailure = new Error("transient reconcile failure");
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
         aFakeIndividualTrackersRow({
@@ -1936,7 +1937,7 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
@@ -1994,7 +1995,7 @@ describe("UserTrackerDO", () => {
     const errorSpy = vi.spyOn(logService, "error");
     const warnSpy = vi.spyOn(logService, "warn");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
     const alarmFailure = new Error("alarm queue failure");
     vi.spyOn(
@@ -2066,7 +2067,7 @@ describe("UserTrackerDO", () => {
     const logService = aFakeLogServiceWith();
     const errorSpy = vi.spyOn(logService, "error");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId").mockResolvedValue([
       aFakeIndividualTrackersRow({
         TrackerId: "t1",
@@ -2140,7 +2141,7 @@ describe("UserTrackerDO", () => {
     const errorSpy = vi.spyOn(logService, "error");
     const warnSpy = vi.spyOn(logService, "warn");
     const services = installFakeServicesWith({ env: localEnv, logService });
-    vi.spyOn(localState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(localState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     const localUserTrackerDO = new UserTrackerDO(localState, localEnv, () => services, webSocketAdapter);
 
     await localUserTrackerDO.alarm();
@@ -2169,9 +2170,7 @@ describe("UserTrackerDO", () => {
   });
 
   it("does not re-arm follow alarm when the last websocket disconnects during a tick", async () => {
-    vi.spyOn(mockState, "getWebSockets")
-      .mockReturnValueOnce([{} as WebSocket])
-      .mockReturnValue([]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValueOnce([aFakeWebSocket()]).mockReturnValue([]);
 
     await userTrackerDO.alarm();
 
@@ -2204,7 +2203,7 @@ describe("UserTrackerDO", () => {
       persistedStorage.set(key, value);
       await Promise.resolve();
     }) as DurableObjectStorage["put"];
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     vi.spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockResolvedValueOnce([
         aFakeIndividualTrackersRow({
@@ -2241,7 +2240,7 @@ describe("UserTrackerDO", () => {
     const localEnv = aFakeEnvWith();
     const services = installFakeServicesWith({ env: localEnv });
     const subscriptionError = new Error("transient subscription failure");
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     const findTrackersSpy = vi
       .spyOn(services.databaseService, "findIndividualTrackersByUserId")
       .mockRejectedValueOnce(subscriptionError)
@@ -2312,7 +2311,7 @@ describe("UserTrackerDO", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValue([trackerRow]);
     const createTrackerSpy = vi.spyOn(services.individualTrackerService, "createTracker").mockResolvedValue(trackerRow);
-    vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
     const localUserTrackerDO = new UserTrackerDO(mockState, localEnv, () => services, webSocketAdapter);
 
     await localUserTrackerDO.fetch(
@@ -2356,7 +2355,7 @@ describe("UserTrackerDO", () => {
     const localEnv = aFakeEnvWith({ INDIVIDUAL_TRACKER_DO: aFakeDurableObjectNamespaceWith(trackerDo) });
     const services = installFakeServicesWith({ env: localEnv });
     const harness = aPersistentStateHarness();
-    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([{} as WebSocket]);
+    vi.spyOn(harness.state, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
 
     let resolveInitialDirectory: (() => void) | undefined;
     const initialDirectoryBlocked = new Promise<void>((resolve) => {

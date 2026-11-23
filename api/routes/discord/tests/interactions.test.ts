@@ -10,6 +10,7 @@ import type { LogService } from "../../../services/log/types";
 import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { discordInteractionsRoute } from "../interactions";
 import { pingInteraction } from "../../../services/discord/fakes/data";
+import { JsonResponse } from "../../../services/discord/json-response";
 
 describe("POST /interactions", () => {
   let env: Env;
@@ -129,7 +130,7 @@ describe("POST /interactions", () => {
         rawBody: JSON.stringify(pingInteraction),
       });
       vi.spyOn(services.discordService, "handleInteraction").mockReturnValue({
-        response: new Response(JSON.stringify({ type: InteractionType.PING })),
+        response: new JsonResponse({ type: InteractionType.PING }),
         jobToComplete: jobToCompleteMock,
       });
       return services;
@@ -170,7 +171,7 @@ describe("POST /interactions", () => {
           rawBody: JSON.stringify(pingInteraction),
         });
         vi.spyOn(services.discordService, "handleInteraction").mockReturnValue({
-          response: new Response(JSON.stringify({ type: InteractionType.PING })),
+          response: new JsonResponse({ type: InteractionType.PING }),
           jobToComplete: job,
         });
         return services;

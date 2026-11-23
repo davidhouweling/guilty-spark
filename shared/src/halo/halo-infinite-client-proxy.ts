@@ -140,6 +140,8 @@ export function createHaloInfiniteClientProxy({
   const endpoint = resolveProxyEndpoint(proxyBaseUrl, proxyPath);
   const requestSemaphore = resolveRequestSemaphore(maxConcurrentRequests);
 
+  // The proxy intentionally implements the SDK surface without constructing an authenticated client.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-class-instance-assignment
   return new Proxy(
     {},
     {

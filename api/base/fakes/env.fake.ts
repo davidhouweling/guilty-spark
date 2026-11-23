@@ -1,3 +1,4 @@
+import { mock } from "vitest-mock-extended";
 import { aFakeLiveTrackerDOWith } from "../../durable-objects/live-tracker/fakes/live-tracker-do.fake";
 import { aFakeIndividualTrackerDOWith } from "../../durable-objects/individual-tracker/fakes/individual-tracker-do.fake";
 import { aFakeUserTrackerDOWith } from "../../durable-objects/user-tracker/fakes/user-tracker-do.fake";
@@ -26,8 +27,8 @@ export const fakeD1Response: D1Response = {
   },
 };
 
-export class FakePreparedStatement<T> /* extends D1PreparedStatement */ {
-  bind(): D1PreparedStatement {
+class FakePreparedStatement<T> {
+  bind(): this {
     return this;
   }
   async first(): Promise<T> {
@@ -47,18 +48,25 @@ export class FakePreparedStatement<T> /* extends D1PreparedStatement */ {
   }
 }
 
-const fakeDb = (): D1Database => ({
-  prepare: () => new FakePreparedStatement(),
-  batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
-  exec: async () => Promise.resolve({ count: 1, duration: 1 }),
+// Cloudflare's D1PreparedStatement is unavailable in Node; expose this fake's structural type.
+export function aFakePreparedStatement<T>(): Pick<FakePreparedStatement<T>, keyof FakePreparedStatement<T>> {
+  return new FakePreparedStatement<T>();
+}
+
+const fakeDb = (): D1Database => {
+  const database = mock<D1Database>();
+  const session = mock<D1DatabaseSession>();
+  database.prepare.mockImplementation(() => aFakePreparedStatement());
+  database.batch.mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+  database.exec.mockResolvedValue({ count: 1, duration: 1 });
   // eslint-disable-next-line @typescript-eslint/no-deprecated -- Still required by the D1Database interface.
-  dump: async () => Promise.resolve(new ArrayBuffer(1)),
-  withSession: () => ({
-    prepare: () => new FakePreparedStatement(),
-    batch: async () => Promise.resolve([{ ...fakeD1Response, results: [] }]),
-    getBookmark: () => null,
-  }),
-});
+  database.dump.mockResolvedValue(new ArrayBuffer(1));
+  database.withSession.mockReturnValue(session);
+  session.prepare.mockImplementation(() => aFakePreparedStatement());
+  session.batch.mockResolvedValue([{ ...fakeD1Response, results: [] }]);
+  session.getBookmark.mockReturnValue(null);
+  return database;
+};
 
 export function aFakeEnvWith(env: Partial<Env> = {}): Env {
   const liveTrackerGet = aFakeLiveTrackerDOWith();

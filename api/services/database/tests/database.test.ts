@@ -6,7 +6,7 @@ import {
 } from "@guilty-spark/shared/halo/leaderboard";
 import { LeaderboardPlayerRelationshipMetric } from "@guilty-spark/shared/halo/leaderboard-formatting";
 import { getPlayerStatsMetricsForAggregation } from "../../../embeds/stats/player-stats-embed";
-import { aFakeEnvWith, fakeD1Response, FakePreparedStatement } from "../../../base/fakes/env.fake";
+import { aFakeEnvWith, fakeD1Response, aFakePreparedStatement } from "../../../base/fakes/env.fake";
 import { SESSION_COOKIE_MAX_AGE_SECONDS } from "../../auth/session-manager";
 import { DatabaseService, MAX_RANK_METRICS_PER_QUERY } from "../database";
 import {
@@ -56,7 +56,7 @@ describe("Database Service", () => {
       const association1 = aFakeDiscordAssociationsRow({ DiscordId: "discordId1", XboxId: "xboxId1" });
       const association2 = aFakeDiscordAssociationsRow({ DiscordId: "discordId2", XboxId: "xboxId2" });
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const allSpy = vi
@@ -87,7 +87,7 @@ describe("Database Service", () => {
       const association1 = aFakeDiscordAssociationsRow({ DiscordId: "discordId1", XboxId: "xboxId1" });
       const association2 = aFakeDiscordAssociationsRow({ DiscordId: "discordId2", XboxId: "xboxId2" });
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const allSpy = vi
@@ -115,7 +115,7 @@ describe("Database Service", () => {
 
   describe("getLatestGamertagSnapshotsByXuids()", () => {
     it("returns the latest gamertag snapshot for each xuid", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
@@ -136,7 +136,7 @@ describe("Database Service", () => {
 
     it("chunks xuids to stay within the D1 bound parameter limit", async () => {
       const xuids = Array.from({ length: 150 }, (_, index) => `xuid${index.toString()}`);
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
 
@@ -170,7 +170,7 @@ describe("Database Service", () => {
         AssociationDate: new Date("2025-01-01T07:00:00.000Z").getTime(),
       });
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -200,7 +200,7 @@ describe("Database Service", () => {
     });
 
     it("does nothing when empty array is provided", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
 
       await databaseService.upsertDiscordAssociations([]);
@@ -211,7 +211,7 @@ describe("Database Service", () => {
 
   describe("deleteDiscordAssociations()", () => {
     it("deletes Discord associations from the database", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -238,7 +238,7 @@ describe("Database Service", () => {
 
     it("returns default GuildConfig with NeatQueueInformerPlayerConnections when not found", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -262,7 +262,7 @@ describe("Database Service", () => {
 
     it("auto-creates GuildConfig with NeatQueueInformerPlayerConnections when requested", async () => {
       const guildId = "guild-456";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -282,7 +282,7 @@ describe("Database Service", () => {
         ...aFakeGuildConfigRow({ GuildId: guildId }),
         NeatQueueInformerMapsPlaylist: "L" as const,
       };
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(legacyConfig);
@@ -307,7 +307,7 @@ describe("Database Service", () => {
 
     it("updates NeatQueueInformerPlayerConnections only", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const runSpy = vi
@@ -325,7 +325,7 @@ describe("Database Service", () => {
 
     it("updates StatsReturn only", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const runSpy = vi
@@ -341,7 +341,7 @@ describe("Database Service", () => {
 
     it("updates Medals only", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const runSpy = vi
@@ -357,7 +357,7 @@ describe("Database Service", () => {
 
     it("updates multiple fields", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const runSpy = vi
@@ -379,7 +379,7 @@ describe("Database Service", () => {
 
     it("does nothing if no updates provided", async () => {
       const guildId = "guild-123";
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -392,7 +392,7 @@ describe("Database Service", () => {
     });
 
     it("updates the guildConfigCache after DB update", async () => {
-      const fakeGetPreparedStatement = new FakePreparedStatement<GuildConfigRow>();
+      const fakeGetPreparedStatement = aFakePreparedStatement<GuildConfigRow>();
       const guildId = "guild-789";
       const initialConfig: GuildConfigRow = {
         GuildId: guildId,
@@ -410,7 +410,7 @@ describe("Database Service", () => {
       await databaseService.getGuildConfig(guildId);
 
       // Setup spies for update
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "run").mockResolvedValue({ results: [], success: true, meta: fakeD1Meta });
@@ -445,7 +445,7 @@ describe("Database Service", () => {
         PostSeriesChannelId: null,
       };
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(config);
@@ -456,7 +456,7 @@ describe("Database Service", () => {
     });
 
     it("throws error when NeatQueueConfig not found", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -478,7 +478,7 @@ describe("Database Service", () => {
         PostSeriesChannelId: null,
       };
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [config1] });
@@ -500,7 +500,7 @@ describe("Database Service", () => {
       const config1 = aFakeNeatQueueConfigRow({ GuildId: "guild-1", ChannelId: "channel-1" });
       const config2 = aFakeNeatQueueConfigRow({ GuildId: "guild-2", ChannelId: "channel-2" });
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [config1, config2] });
 
@@ -522,7 +522,7 @@ describe("Database Service", () => {
         PostSeriesChannelId: null,
       };
 
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -544,7 +544,7 @@ describe("Database Service", () => {
 
   describe("deleteNeatQueueConfig()", () => {
     it("deletes NeatQueueConfig", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -559,7 +559,7 @@ describe("Database Service", () => {
 
   describe("Leaderboard persistence", () => {
     it("returns default leaderboard config when not found", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -576,7 +576,7 @@ describe("Database Service", () => {
     });
 
     it("auto-creates leaderboard config when requested", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -590,7 +590,7 @@ describe("Database Service", () => {
 
     it("upserts leaderboard config", async () => {
       const config = aFakeLeaderboardConfigRow({ GuildId: "guild-123" });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -611,7 +611,7 @@ describe("Database Service", () => {
 
     it("upserts leaderboard series", async () => {
       const series = aFakeLeaderboardSeriesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -640,11 +640,11 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const deleteSeriesPlayersStatement = new FakePreparedStatement();
-      const insertSeriesPlayersStatement = new FakePreparedStatement();
-      const deleteGamesStatement = new FakePreparedStatement();
-      const upsertGamesStatement = new FakePreparedStatement();
-      const gamePlayersStatement = new FakePreparedStatement();
+      const deleteSeriesPlayersStatement = aFakePreparedStatement();
+      const insertSeriesPlayersStatement = aFakePreparedStatement();
+      const deleteGamesStatement = aFakePreparedStatement();
+      const upsertGamesStatement = aFakePreparedStatement();
+      const gamePlayersStatement = aFakePreparedStatement();
 
       vi.spyOn(deleteSeriesPlayersStatement, "bind").mockReturnThis();
       vi.spyOn(insertSeriesPlayersStatement, "bind").mockReturnThis();
@@ -697,12 +697,12 @@ describe("Database Service", () => {
           XboxXuid: `xuid-${index.toString()}`,
         }),
       );
-      const chunkStatements = Array.from({ length: 14 }, () => new FakePreparedStatement());
+      const chunkStatements = Array.from({ length: 14 }, () => aFakePreparedStatement());
       let prepareCallCount = 0;
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockImplementation(() => {
         const statement = chunkStatements[prepareCallCount];
         prepareCallCount += 1;
-        return statement ?? new FakePreparedStatement();
+        return statement ?? aFakePreparedStatement();
       });
       const bindSpies = chunkStatements.map((statement) => vi.spyOn(statement, "bind").mockReturnThis());
       const batchSpy = vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
@@ -721,15 +721,15 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const existingGamesStmt = new FakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
-      const existingGamePlayersStmt = new FakePreparedStatement<{
+      const existingGamesStmt = aFakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
+      const existingGamePlayersStmt = aFakePreparedStatement<{
         MatchId: string;
         XboxXuid: string;
         CreatedAt: number;
       }>();
-      const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
-      const gameWonTableInfoStmt = new FakePreparedStatement<{ name: string }>();
-      const batchedStatements = Array.from({ length: 6 }, () => new FakePreparedStatement());
+      const existingSeriesPlayersStmt = aFakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+      const gameWonTableInfoStmt = aFakePreparedStatement<{ name: string }>();
+      const batchedStatements = Array.from({ length: 6 }, () => aFakePreparedStatement());
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(gameWonTableInfoStmt)
@@ -800,20 +800,20 @@ describe("Database Service", () => {
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
 
-      const existingGamesStmt = new FakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
-      const existingGamePlayersStmt = new FakePreparedStatement<{
+      const existingGamesStmt = aFakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
+      const existingGamePlayersStmt = aFakePreparedStatement<{
         MatchId: string;
         XboxXuid: string;
         CreatedAt: number;
       }>();
-      const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+      const existingSeriesPlayersStmt = aFakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
 
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(existingGamesStmt)
         .mockReturnValueOnce(existingGamePlayersStmt)
         .mockReturnValueOnce(existingSeriesPlayersStmt)
-        .mockImplementation(() => new FakePreparedStatement());
+        .mockImplementation(() => aFakePreparedStatement());
 
       vi.spyOn(existingGamesStmt, "bind").mockReturnThis();
       vi.spyOn(existingGamePlayersStmt, "bind").mockReturnThis();
@@ -863,20 +863,20 @@ describe("Database Service", () => {
         }),
       );
 
-      const existingGamesStmt = new FakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
-      const existingGamePlayersStmt = new FakePreparedStatement<{
+      const existingGamesStmt = aFakePreparedStatement<{ MatchId: string; CreatedAt: number }>();
+      const existingGamePlayersStmt = aFakePreparedStatement<{
         MatchId: string;
         XboxXuid: string;
         CreatedAt: number;
       }>();
-      const existingSeriesPlayersStmt = new FakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
+      const existingSeriesPlayersStmt = aFakePreparedStatement<{ XboxXuid: string; CreatedAt: number }>();
 
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(existingGamesStmt)
         .mockReturnValueOnce(existingGamePlayersStmt)
         .mockReturnValueOnce(existingSeriesPlayersStmt)
-        .mockImplementation(() => new FakePreparedStatement());
+        .mockImplementation(() => aFakePreparedStatement());
 
       vi.spyOn(existingGamesStmt, "bind").mockReturnThis();
       vi.spyOn(existingGamePlayersStmt, "bind").mockReturnThis();
@@ -920,7 +920,7 @@ describe("Database Service", () => {
       const seriesPlayers = [aFakeLeaderboardSeriesPlayersRow()];
       const games = [aFakeLeaderboardGamesRow()];
       const gamePlayers = [aFakeLeaderboardGamePlayersRow()];
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "run");
@@ -960,7 +960,7 @@ describe("Database Service", () => {
     });
 
     it("deletes leaderboard data by guild and queue", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -979,7 +979,7 @@ describe("Database Service", () => {
     });
 
     it("deletes expired leaderboard data and unlinked kill matrices in one batch", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const batchSpy = vi.spyOn(env.DB, "batch");
@@ -1002,7 +1002,7 @@ describe("Database Service", () => {
 
     it("upserts a leaderboard post registration", async () => {
       const post = aFakeLeaderboardPostRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -1021,7 +1021,7 @@ describe("Database Service", () => {
         MessageId: "leaderboard-message-2",
         QueueChannelId: "queue-channel-1",
       });
-      const fakePreparedStatement = new FakePreparedStatement<typeof guildWidePost>();
+      const fakePreparedStatement = aFakePreparedStatement<typeof guildWidePost>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
@@ -1040,7 +1040,7 @@ describe("Database Service", () => {
 
     it("finds every leaderboard post for a guild reset", async () => {
       const post = aFakeLeaderboardPostRow();
-      const fakePreparedStatement = new FakePreparedStatement<typeof post>();
+      const fakePreparedStatement = aFakePreparedStatement<typeof post>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [post] });
@@ -1054,7 +1054,7 @@ describe("Database Service", () => {
 
     it("gets every leaderboard post for reaping", async () => {
       const post = aFakeLeaderboardPostRow();
-      const fakePreparedStatement = new FakePreparedStatement<typeof post>();
+      const fakePreparedStatement = aFakePreparedStatement<typeof post>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [post] });
 
@@ -1072,7 +1072,7 @@ describe("Database Service", () => {
         CreatedAt: 1_723_600_000,
         UpdatedAt: 1_723_600_000,
       };
-      const statement = new FakePreparedStatement<typeof marker>();
+      const statement = aFakePreparedStatement<typeof marker>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(statement);
       const bindSpy = vi.spyOn(statement, "bind");
       vi.spyOn(statement, "first").mockResolvedValue(marker);
@@ -1093,7 +1093,7 @@ describe("Database Service", () => {
         CreatedAt: 1_723_600_000,
         UpdatedAt: 1_723_600_000,
       };
-      const statement = new FakePreparedStatement<typeof marker>();
+      const statement = aFakePreparedStatement<typeof marker>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(statement);
       const bindSpy = vi.spyOn(statement, "bind");
       vi.spyOn(statement, "first").mockResolvedValue(marker);
@@ -1107,7 +1107,7 @@ describe("Database Service", () => {
     });
 
     it("aggregates headshot kills and ranks all deaths metrics lowest first", async () => {
-      const rowsStatement = new FakePreparedStatement();
+      const rowsStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1193,7 +1193,7 @@ describe("Database Service", () => {
       const queries: string[] = [];
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
-        const statement = new FakePreparedStatement();
+        const statement = aFakePreparedStatement();
         if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1221,7 +1221,7 @@ describe("Database Service", () => {
       const queries: string[] = [];
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
-        const statement = new FakePreparedStatement();
+        const statement = aFakePreparedStatement();
         if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1246,7 +1246,7 @@ describe("Database Service", () => {
     });
 
     it("clamps objective metric minimum games to one when configured to zero", async () => {
-      const rowsStatement = new FakePreparedStatement();
+      const rowsStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       const rowsBindSpy = vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1267,7 +1267,7 @@ describe("Database Service", () => {
     });
 
     it("keeps non-objective metric minimum games unchanged", async () => {
-      const rowsStatement = new FakePreparedStatement();
+      const rowsStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       const rowsBindSpy = vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1310,7 +1310,7 @@ describe("Database Service", () => {
       };
 
       it("returns the page and its total from a single query", async () => {
-        const rowsStatement = new FakePreparedStatement();
+        const rowsStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
         vi.spyOn(rowsStatement, "bind").mockReturnThis();
         vi.spyOn(rowsStatement, "all").mockResolvedValue({
@@ -1326,7 +1326,7 @@ describe("Database Service", () => {
       });
 
       it("returns an empty first page without a separate count query", async () => {
-        const rowsStatement = new FakePreparedStatement();
+        const rowsStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
         vi.spyOn(rowsStatement, "bind").mockReturnThis();
         vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1338,8 +1338,8 @@ describe("Database Service", () => {
       });
 
       it("counts separately when a page past the end is empty", async () => {
-        const rowsStatement = new FakePreparedStatement();
-        const countStatement = new FakePreparedStatement<{ Total: number }>();
+        const rowsStatement = aFakePreparedStatement();
+        const countStatement = aFakePreparedStatement<{ Total: number }>();
         const prepareSpy = vi
           .spyOn(env.DB, "prepare")
           .mockReturnValueOnce(rowsStatement)
@@ -1361,7 +1361,7 @@ describe("Database Service", () => {
       const queries: string[] = [];
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
-        const statement = new FakePreparedStatement();
+        const statement = aFakePreparedStatement();
         if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1399,7 +1399,7 @@ describe("Database Service", () => {
       const queries: string[] = [];
       vi.spyOn(env.DB, "prepare").mockImplementation((query) => {
         queries.push(query);
-        const statement = new FakePreparedStatement();
+        const statement = aFakePreparedStatement();
         if (query.startsWith("SELECT COUNT(*)")) {
           vi.spyOn(statement, "first").mockResolvedValue({ Total: 0 });
         } else {
@@ -1425,8 +1425,8 @@ describe("Database Service", () => {
     });
 
     it("aligns game-win window filtering with series completion window", async () => {
-      const countStatement = new FakePreparedStatement<{ Total: number }>();
-      const rowsStatement = new FakePreparedStatement();
+      const countStatement = aFakePreparedStatement<{ Total: number }>();
+      const rowsStatement = aFakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(countStatement)
@@ -1464,7 +1464,7 @@ describe("Database Service", () => {
         "CASE WHEN stats.GamesPlayed = 0 THEN 0 ELSE CAST(stats.GameWins AS REAL) / stats.GamesPlayed END",
       ],
     ] as const)("builds the expected outcome SQL for %s", async (metric, expectedSql) => {
-      const rowsStatement = new FakePreparedStatement();
+      const rowsStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(rowsStatement);
       vi.spyOn(rowsStatement, "bind").mockReturnThis();
       vi.spyOn(rowsStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [] });
@@ -1486,7 +1486,7 @@ describe("Database Service", () => {
     });
 
     it("deletes a leaderboard post registration by Discord message identity", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -1499,7 +1499,7 @@ describe("Database Service", () => {
     });
 
     it("deletes leaderboard series by guild and queue number", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -1513,7 +1513,7 @@ describe("Database Service", () => {
 
     it("gets leaderboard series by guild and queue number", async () => {
       const series = aFakeLeaderboardSeriesRow();
-      const fakePreparedStatement = new FakePreparedStatement<typeof series>();
+      const fakePreparedStatement = aFakePreparedStatement<typeof series>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(series);
@@ -1527,7 +1527,7 @@ describe("Database Service", () => {
     });
 
     it("gets distinct leaderboard queue channel IDs for a guild", async () => {
-      const fakePreparedStatement = new FakePreparedStatement<{ QueueChannelId: string }>();
+      const fakePreparedStatement = aFakePreparedStatement<{ QueueChannelId: string }>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
@@ -1555,7 +1555,7 @@ describe("Database Service", () => {
     });
 
     it("checks whether leaderboard data exists for a guild and queue scope", async () => {
-      const fakePreparedStatement = new FakePreparedStatement<{ "1": number }>();
+      const fakePreparedStatement = aFakePreparedStatement<{ "1": number }>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({ "1": 1 });
@@ -1571,7 +1571,7 @@ describe("Database Service", () => {
     });
 
     it("gets leaderboard guilds for a player ordered by completed games", async () => {
-      const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerGuildStatsRow>();
+      const fakePreparedStatement = aFakePreparedStatement<LeaderboardPlayerGuildStatsRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({
@@ -1603,7 +1603,7 @@ describe("Database Service", () => {
     });
 
     it("finds XboxXuid by GamertagSnapshot in game players", async () => {
-      const fakePreparedStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      const fakePreparedStatement = aFakePreparedStatement<{ XboxXuid: string } | null>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       const firstSpy = vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({ XboxXuid: "xuid-soundman" });
@@ -1617,8 +1617,8 @@ describe("Database Service", () => {
     });
 
     it("falls back to series players when no game-player GamertagSnapshot matches", async () => {
-      const gamePlayersStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
-      const seriesPlayersStatement = new FakePreparedStatement<{ XboxXuid: string } | null>();
+      const gamePlayersStatement = aFakePreparedStatement<{ XboxXuid: string } | null>();
+      const seriesPlayersStatement = aFakePreparedStatement<{ XboxXuid: string } | null>();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(gamePlayersStatement)
@@ -1636,7 +1636,7 @@ describe("Database Service", () => {
     });
 
     it("returns false when no leaderboard data exists", async () => {
-      const fakePreparedStatement = new FakePreparedStatement<{ "1": number } | null>();
+      const fakePreparedStatement = aFakePreparedStatement<{ "1": number } | null>();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
 
@@ -1649,7 +1649,7 @@ describe("Database Service", () => {
       // The D1 result is an unchecked generic cast, so drift between the query and the row type
       // only surfaces at render time as an undefined column.
       it.each(Object.keys(aFakeLeaderboardPlayerStatsRow()))("selects the %s column", async (column) => {
-        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const fakePreparedStatement = aFakePreparedStatement<LeaderboardPlayerStatsRow | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1666,7 +1666,7 @@ describe("Database Service", () => {
       });
 
       it("does not select XboxXuid from both identity and gameStats, avoiding a duplicate column", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const fakePreparedStatement = aFakePreparedStatement<LeaderboardPlayerStatsRow | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1700,7 +1700,7 @@ describe("Database Service", () => {
       });
 
       it("scopes the query to the supplied configured queue channels", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const fakePreparedStatement = aFakePreparedStatement<LeaderboardPlayerStatsRow | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1737,7 +1737,7 @@ describe("Database Service", () => {
       });
 
       it("computes DamageRatio as a ratio-of-sums, matching the DamageRatio rank aggregation", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<LeaderboardPlayerStatsRow | null>();
+        const fakePreparedStatement = aFakePreparedStatement<LeaderboardPlayerStatsRow | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1761,7 +1761,7 @@ describe("Database Service", () => {
       it.each(Object.values(LeaderboardMetricAggregation))(
         "builds rank queries for every player-stats metric of an aggregation without throwing (%s)",
         async (aggregation) => {
-          const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+          const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
           vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
           vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
           vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1783,7 +1783,7 @@ describe("Database Service", () => {
       );
 
       it("issues one stat-metric query and one outcome-metric query, not one per metric", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1806,7 +1806,7 @@ describe("Database Service", () => {
       });
 
       it("splits a large stat metric aggregation into bounded query batches", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1825,7 +1825,7 @@ describe("Database Service", () => {
       });
 
       it("skips the outcome-metric query entirely when only stat metrics are requested", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1883,7 +1883,7 @@ describe("Database Service", () => {
       ] as const)(
         "scopes the %s rank population to players with qualifying objective games, not overall games played",
         async (metric, expectedGamesPlayedSql) => {
-          const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+          const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
           const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
           vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
           vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1903,7 +1903,7 @@ describe("Database Service", () => {
       );
 
       it("uses the leaderboard Gamertag tie-break without correlated identity lookups", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1927,7 +1927,7 @@ describe("Database Service", () => {
       });
 
       it("groups the identity CTE by player instead of ranking every game row, so it joins through an index", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -1951,7 +1951,7 @@ describe("Database Service", () => {
       });
 
       it("maps each metric to null when ineligible, even when other requested metrics are eligible", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({
@@ -1976,7 +1976,7 @@ describe("Database Service", () => {
       });
 
       it("maps outcome metric ranks from a single shared query result", async () => {
-        const fakePreparedStatement = new FakePreparedStatement<Record<string, number | string | null> | null>();
+        const fakePreparedStatement = aFakePreparedStatement<Record<string, number | string | null> | null>();
         vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first").mockResolvedValue({
@@ -2003,7 +2003,7 @@ describe("Database Service", () => {
 
     describe("getLeaderboardPlayerRelationships()", () => {
       it("uses directional kill matrix facts for total head-to-head kills", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
 
@@ -2033,7 +2033,7 @@ describe("Database Service", () => {
       });
 
       it("uses a grouped latest-identity join instead of windowed or correlated row lookups", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
 
@@ -2055,7 +2055,7 @@ describe("Database Service", () => {
       });
 
       it("reverses kill matrix direction and averages over shared games for head-to-head deaths", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
 
@@ -2074,7 +2074,7 @@ describe("Database Service", () => {
       });
 
       it("filters series win rate relationships to three shared series", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
 
@@ -2106,7 +2106,7 @@ describe("Database Service", () => {
       });
 
       it("filters game win rate relationships to five shared games against opponents", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
 
@@ -2140,7 +2140,7 @@ describe("Database Service", () => {
 
     describe("getLeaderboardPlayerPairRelationship()", () => {
       it("runs series, game, and head-to-head aggregates filtered to the related player", async () => {
-        const fakePreparedStatement = new FakePreparedStatement();
+        const fakePreparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
         const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
         vi.spyOn(fakePreparedStatement, "first")
@@ -2247,7 +2247,7 @@ describe("Database Service", () => {
   describe("getUserSession()", () => {
     it("gets a user session by session id", async () => {
       const session: UserSessionsRow = aFakeUserSessionsRow();
-      const fakePreparedStatement = new FakePreparedStatement<UserSessionsRow>();
+      const fakePreparedStatement = aFakePreparedStatement<UserSessionsRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(session);
@@ -2263,7 +2263,7 @@ describe("Database Service", () => {
   describe("upsertUserSession()", () => {
     it("upserts user session", async () => {
       const session = aFakeUserSessionsRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2287,7 +2287,7 @@ describe("Database Service", () => {
 
   describe("deleteUserSession()", () => {
     it("deletes user session by session id", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2302,7 +2302,7 @@ describe("Database Service", () => {
 
   describe("deleteExpiredUserSessions()", () => {
     it("deletes sessions older than the server-side session max age", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2318,7 +2318,7 @@ describe("Database Service", () => {
   describe("getUserCredentials()", () => {
     it("returns user credentials by user id", async () => {
       const credentials = aFakeUserCredentialsRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(credentials);
@@ -2331,7 +2331,7 @@ describe("Database Service", () => {
     });
 
     it("returns null when no credentials exist for the user", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -2345,7 +2345,7 @@ describe("Database Service", () => {
   describe("upsertUserCredentials()", () => {
     it("upserts user credentials", async () => {
       const credentials = aFakeUserCredentialsRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2364,8 +2364,8 @@ describe("Database Service", () => {
 
     it("round-trips the upserted credentials via get", async () => {
       const credentials = aFakeUserCredentialsRow({ RefreshToken: "encrypted-1", UpdatedAt: 1000 });
-      const upsertStatement = new FakePreparedStatement();
-      const getStatement = new FakePreparedStatement();
+      const upsertStatement = aFakePreparedStatement();
+      const getStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValueOnce(upsertStatement).mockReturnValueOnce(getStatement);
       vi.spyOn(upsertStatement, "bind").mockReturnThis();
       vi.spyOn(getStatement, "bind").mockReturnThis();
@@ -2379,7 +2379,7 @@ describe("Database Service", () => {
 
     it("updates the token and UpdatedAt on conflict", async () => {
       const updated = aFakeUserCredentialsRow({ RefreshToken: "encrypted-2", UpdatedAt: 2000 });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
 
@@ -2391,7 +2391,7 @@ describe("Database Service", () => {
 
   describe("deleteUserCredentials()", () => {
     it("deletes user credentials by user id", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2407,7 +2407,7 @@ describe("Database Service", () => {
   describe("findLinkedIdentitiesByUserId()", () => {
     it("returns linked identities for a user", async () => {
       const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [identity] });
@@ -2425,7 +2425,7 @@ describe("Database Service", () => {
   describe("getLinkedIdentityByProvider()", () => {
     it("returns linked identity by provider and provider user id", async () => {
       const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow();
-      const fakePreparedStatement = new FakePreparedStatement<LinkedIdentitiesRow>();
+      const fakePreparedStatement = aFakePreparedStatement<LinkedIdentitiesRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(identity);
@@ -2443,7 +2443,7 @@ describe("Database Service", () => {
   describe("findActiveXboxIdentityByGamertag()", () => {
     it("returns the active xbox identity matching the gamertag", async () => {
       const identity: LinkedIdentitiesRow = aFakeLinkedIdentitiesRow({ Gamertag: "OwnerGamertag" });
-      const fakePreparedStatement = new FakePreparedStatement<LinkedIdentitiesRow>();
+      const fakePreparedStatement = aFakePreparedStatement<LinkedIdentitiesRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(identity);
@@ -2458,7 +2458,7 @@ describe("Database Service", () => {
     });
 
     it("returns null when no active xbox identity matches (inactive or non-xbox filtered by the query)", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(null);
@@ -2472,7 +2472,7 @@ describe("Database Service", () => {
   describe("upsertLinkedIdentity()", () => {
     it("upserts linked identity", async () => {
       const identity = aFakeLinkedIdentitiesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2503,7 +2503,7 @@ describe("Database Service", () => {
   describe("createIndividualTrackerProfile()", () => {
     it("creates individual tracker profile", async () => {
       const profile = aFakeIndividualTrackerProfilesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2528,7 +2528,7 @@ describe("Database Service", () => {
   describe("getIndividualTrackerProfile()", () => {
     it("returns individual tracker profile by profile id", async () => {
       const profile: IndividualTrackerProfilesRow = aFakeIndividualTrackerProfilesRow();
-      const fakePreparedStatement = new FakePreparedStatement<IndividualTrackerProfilesRow>();
+      const fakePreparedStatement = aFakePreparedStatement<IndividualTrackerProfilesRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(profile);
@@ -2544,7 +2544,7 @@ describe("Database Service", () => {
   describe("findIndividualTrackerProfilesByUserId()", () => {
     it("returns individual tracker profiles by user id", async () => {
       const profile: IndividualTrackerProfilesRow = aFakeIndividualTrackerProfilesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [profile] });
@@ -2561,7 +2561,7 @@ describe("Database Service", () => {
 
   describe("updateIndividualTrackerProfile()", () => {
     it("updates selected fields for individual tracker profile", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2579,7 +2579,7 @@ describe("Database Service", () => {
     });
 
     it("does nothing when no updates are provided", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
 
       await databaseService.updateIndividualTrackerProfile("profile-1", {});
@@ -2591,7 +2591,7 @@ describe("Database Service", () => {
   describe("getIndividualTrackerGames()", () => {
     it("returns games ordered by position", async () => {
       const game: IndividualTrackerGamesRow = aFakeIndividualTrackerGamesRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [game] });
@@ -2609,8 +2609,8 @@ describe("Database Service", () => {
   describe("replaceIndividualTrackerGames()", () => {
     it("replaces games by deleting existing rows then inserting new rows", async () => {
       const game = aFakeIndividualTrackerGamesRow();
-      const deleteStatement = new FakePreparedStatement();
-      const insertStatement = new FakePreparedStatement();
+      const deleteStatement = aFakePreparedStatement();
+      const insertStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare");
       prepareSpy.mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
       const deleteBindSpy = vi.spyOn(deleteStatement, "bind");
@@ -2637,8 +2637,8 @@ describe("Database Service", () => {
     describe("replaceMatchKillMatrix()", () => {
       it("replaces rows atomically using one batch", async () => {
         const row = aFakeMatchKillMatrixRow();
-        const deleteStatement = new FakePreparedStatement();
-        const insertStatement = new FakePreparedStatement();
+        const deleteStatement = aFakePreparedStatement();
+        const insertStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare");
         prepareSpy.mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
         const deleteBindSpy = vi.spyOn(deleteStatement, "bind");
@@ -2663,7 +2663,7 @@ describe("Database Service", () => {
       });
 
       it("only deletes rows when replacement list is empty", async () => {
-        const deleteStatement = new FakePreparedStatement();
+        const deleteStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(deleteStatement);
         const runSpy = vi.spyOn(deleteStatement, "run");
         const batchSpy = vi.spyOn(env.DB, "batch");
@@ -2680,7 +2680,7 @@ describe("Database Service", () => {
     describe("upsertMatchKillMatrix()", () => {
       it("upserts rows with the expected sql and bindings", async () => {
         const row = aFakeMatchKillMatrixRow();
-        const preparedStatement = new FakePreparedStatement();
+        const preparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
         const bindSpy = vi.spyOn(preparedStatement, "bind");
         const runSpy = vi.spyOn(preparedStatement, "run");
@@ -2708,7 +2708,7 @@ describe("Database Service", () => {
             VictimXuid: `victim-${index.toString()}`,
           }),
         );
-        const preparedStatement = new FakePreparedStatement();
+        const preparedStatement = aFakePreparedStatement();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
         const bindSpy = vi.spyOn(preparedStatement, "bind");
         const runSpy = vi.spyOn(preparedStatement, "run");
@@ -2728,7 +2728,7 @@ describe("Database Service", () => {
     describe("getMatchKillMatrix()", () => {
       it("queries match kill matrix rows by match id", async () => {
         const row = aFakeMatchKillMatrixRow();
-        const preparedStatement = new FakePreparedStatement<MatchKillMatrixRow>();
+        const preparedStatement = aFakePreparedStatement<MatchKillMatrixRow>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
         const bindSpy = vi.spyOn(preparedStatement, "bind").mockReturnThis();
         const allSpy = vi.spyOn(preparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [row] });
@@ -2745,7 +2745,7 @@ describe("Database Service", () => {
     describe("getMatchKillMatrices()", () => {
       it("queries match kill matrix rows by match ids", async () => {
         const row = aFakeMatchKillMatrixRow({ MatchId: "match-1" });
-        const preparedStatement = new FakePreparedStatement<MatchKillMatrixRow>();
+        const preparedStatement = aFakePreparedStatement<MatchKillMatrixRow>();
         const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(preparedStatement);
         const bindSpy = vi.spyOn(preparedStatement, "bind").mockReturnThis();
         const allSpy = vi.spyOn(preparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [row] });
@@ -2770,8 +2770,8 @@ describe("Database Service", () => {
 
     it("uses the method profile id for inserted rows", async () => {
       const game = aFakeIndividualTrackerGamesRow({ ProfileId: "other-profile" });
-      const deleteStatement = new FakePreparedStatement();
-      const insertStatement = new FakePreparedStatement();
+      const deleteStatement = aFakePreparedStatement();
+      const insertStatement = aFakePreparedStatement();
       vi.spyOn(env.DB, "prepare").mockReturnValueOnce(deleteStatement).mockReturnValueOnce(insertStatement);
       const insertBindSpy = vi.spyOn(insertStatement, "bind");
       vi.spyOn(env.DB, "batch").mockResolvedValue([{ ...fakeD1Response, results: [] }]);
@@ -2790,7 +2790,7 @@ describe("Database Service", () => {
     });
 
     it("only deletes rows when replacement list is empty", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
       const batchSpy = vi.spyOn(env.DB, "batch");
@@ -2807,7 +2807,7 @@ describe("Database Service", () => {
   describe("getStreamerViewSettings()", () => {
     it("returns streamer view settings by profile id", async () => {
       const settings: StreamerViewSettingsRow = aFakeStreamerViewSettingsRow();
-      const fakePreparedStatement = new FakePreparedStatement<StreamerViewSettingsRow>();
+      const fakePreparedStatement = aFakePreparedStatement<StreamerViewSettingsRow>();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind").mockReturnThis();
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(settings);
@@ -2823,7 +2823,7 @@ describe("Database Service", () => {
   describe("upsertStreamerViewSettings()", () => {
     it("upserts streamer view settings", async () => {
       const settings = aFakeStreamerViewSettingsRow();
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2845,7 +2845,7 @@ describe("Database Service", () => {
   describe("IndividualTrackers", () => {
     it("finds individual trackers by user id", async () => {
       const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1" });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [tracker] });
@@ -2861,7 +2861,7 @@ describe("Database Service", () => {
 
     it("gets an individual tracker by id", async () => {
       const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1" });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(tracker);
@@ -2875,7 +2875,7 @@ describe("Database Service", () => {
 
     it("finds individual trackers by xuids", async () => {
       const tracker = aFakeIndividualTrackersRow({ Xuid: "111" });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "all").mockResolvedValue({ ...fakeD1Response, results: [tracker] });
@@ -2898,7 +2898,7 @@ describe("Database Service", () => {
 
     it("finds the live individual tracker for a user", async () => {
       const tracker = aFakeIndividualTrackersRow({ UserId: "user-1", IsLive: 1 });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       vi.spyOn(fakePreparedStatement, "first").mockResolvedValue(tracker);
@@ -2912,7 +2912,7 @@ describe("Database Service", () => {
 
     it("upserts an individual tracker", async () => {
       const tracker = aFakeIndividualTrackersRow({ TrackerId: "t1", UserId: "user-1", Gamertag: "GT", Xuid: "111" });
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2934,7 +2934,7 @@ describe("Database Service", () => {
     });
 
     it("deletes an individual tracker", async () => {
-      const fakePreparedStatement = new FakePreparedStatement();
+      const fakePreparedStatement = aFakePreparedStatement();
       const prepareSpy = vi.spyOn(env.DB, "prepare").mockReturnValue(fakePreparedStatement);
       const bindSpy = vi.spyOn(fakePreparedStatement, "bind");
       const runSpy = vi.spyOn(fakePreparedStatement, "run");
@@ -2947,8 +2947,8 @@ describe("Database Service", () => {
     });
 
     it("sets one tracker live and clears the others in a batch", async () => {
-      const clearStatement = new FakePreparedStatement();
-      const setStatement = new FakePreparedStatement();
+      const clearStatement = aFakePreparedStatement();
+      const setStatement = aFakePreparedStatement();
       const prepareSpy = vi
         .spyOn(env.DB, "prepare")
         .mockReturnValueOnce(clearStatement)

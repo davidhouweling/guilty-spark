@@ -331,7 +331,7 @@ describe("/api/stats/match-analytics (batch)", () => {
     });
     expect(userGetMatchStatsSpy).toHaveBeenCalledWith(matchId, expect.any(Object));
     expect(userSpectateMatchSpy).toHaveBeenCalledWith(matchId);
-    expect(userGetFilmChunkSpy).toHaveBeenCalledWith("https://blob.example/", 7);
+    expect(userGetFilmChunkSpy).toHaveBeenCalledWith("https://blob.example/", "/filmChunk7");
     expect(botGetMatchStatsSpy).not.toHaveBeenCalled();
     expect(botSpectateMatchSpy).not.toHaveBeenCalled();
   });

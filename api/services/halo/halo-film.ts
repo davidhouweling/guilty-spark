@@ -397,7 +397,7 @@ export class HaloFilmService {
     if (cached != null) {
       return cached;
     }
-    const bytes = new Uint8Array(await this.client.getFilmChunk(blobStoragePathPrefix, chunk.Index));
+    const bytes = new Uint8Array(await this.client.getFilmChunk(blobStoragePathPrefix, chunk.FileRelativePath));
     await this.putCachedChunk(cacheRequest, bytes);
     return bytes;
   }
@@ -483,7 +483,7 @@ export class HaloFilmService {
     }
 
     const downloadedChunk = new Uint8Array(
-      await this.client.getFilmChunk(filmMetadata.BlobStoragePathPrefix, highlightChunk.Index),
+      await this.client.getFilmChunk(filmMetadata.BlobStoragePathPrefix, highlightChunk.FileRelativePath),
     );
     await this.putCachedChunk(chunkCacheRequest, downloadedChunk);
     return downloadedChunk;

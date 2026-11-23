@@ -632,7 +632,7 @@ describe("LiveTrackerDO", () => {
           key === "trackerState" ? trackerState : key === "plannedMaps" ? { maps, token: "token" } : null,
         ),
       );
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
 
       const response = await liveTrackerDO.fetch(
@@ -667,7 +667,7 @@ describe("LiveTrackerDO", () => {
         }
         return Promise.resolve(1);
       });
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
 
       const response = await liveTrackerDO.fetch(
@@ -685,7 +685,7 @@ describe("LiveTrackerDO", () => {
 
     it("keeps map confirmation successful if live viewer broadcast fails", async () => {
       storageGetSpy.mockResolvedValue(createMockTrackerState());
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
       vi.spyOn(services.discordService, "getGuild").mockRejectedValue(new Error("Discord unavailable"));
 
       const response = await liveTrackerDO.fetch(
@@ -4598,7 +4598,7 @@ describe("LiveTrackerDO", () => {
     it("broadcasts state to connected clients when state is saved", async () => {
       const trackerState = createMockTrackerState();
       storageGetSpy.mockResolvedValue(trackerState);
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
       vi.spyOn(services.haloService, "getSeriesFromDiscordQueue").mockResolvedValue([]);
       vi.spyOn(services.haloService, "getSeriesScore").mockReturnValue("0:0");
@@ -4681,7 +4681,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -4693,7 +4693,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
@@ -4707,7 +4707,7 @@ describe("LiveTrackerDO", () => {
       const trackerState = aFakeStateWith({ status: "active" });
       storageGetSpy.mockResolvedValue(trackerState);
       vi.spyOn(services.discordService, "getGuild").mockResolvedValue(guild);
-      vi.spyOn(mockState, "getWebSockets").mockReturnValue([{} as WebSocket]);
+      vi.spyOn(mockState, "getWebSockets").mockReturnValue([aFakeWebSocket()]);
 
       await liveTrackerDO.fetch(new Request("http://do/stop", { method: "POST" }));
 
