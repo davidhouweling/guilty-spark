@@ -1075,6 +1075,33 @@ describe("LiveTrackerPresenter - Retry Behavior", () => {
     presenter.dispose();
   });
 
+  it("reports preflight and initial socket failures as errors rather than absence", async () => {
+    const service = new MockLiveTrackerService();
+    const store = new MockLiveTrackerStore();
+    const connection = new MockLiveTrackerConnection();
+    const error = new Error("forbidden");
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(service, "connect").mockRejectedValueOnce(error).mockResolvedValueOnce(connection);
+    const presenter = createPresenter({
+      getUrl: () => new URL("http://localhost/tracker?server=1&queue=3"),
+      liveTrackerService: service,
+      store,
+    });
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+    expect(logError).toHaveBeenCalledWith("Failed to connect to live tracker:", error);
+    expect(store.getSnapshot().connectionState).toBe("error");
+    expect(store.getSnapshot().statusText).toBe("Unable to connect to tracker");
+
+    presenter.start();
+    await vi.runAllTimersAsync();
+    connection.emitStatus("error", "Socket failed");
+    expect(store.getSnapshot().connectionState).toBe("error");
+    expect(store.getSnapshot().statusText).toBe("Socket failed");
+    presenter.dispose();
+  });
+
   it("uses shared reconnect delay and ignores duplicate error events while a retry is pending", async (): Promise<void> => {
     const reconnectDelaySpy = vi.spyOn(reconnectPolicy, "getReconnectDelayMs").mockReturnValue(1_000);
 

@@ -42,10 +42,12 @@ describe("RealLiveTrackerService", () => {
     originalWebSocket = global.WebSocket;
     global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     MockWebSocket.reset();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));
   });
 
   afterEach(() => {
     global.WebSocket = originalWebSocket;
+    vi.restoreAllMocks();
   });
 
   it("creates WebSocket connection with correct URL for https protocol", async () => {
@@ -422,5 +424,41 @@ describe("RealLiveTrackerService", () => {
 
     connection.disconnect();
     global.fetch = originalFetch;
+  });
+
+  it.each([403, 500])("surfaces status %i without reporting tracker absence", async (status) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status }));
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    await expect(service.connect({ type: "team", guildId: "123", queueNumber: "5" })).rejects.toThrow(
+      `Tracker status request failed (${status.toString()})`,
+    );
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
+  it("surfaces a preflight transport failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    await expect(service.connect({ type: "team", guildId: "123", queueNumber: "5" })).rejects.toThrow("offline");
+    expect(MockWebSocket.instances).toHaveLength(0);
+  });
+
+  it("reports a stopped preflight for canonical connections without changing legacy behavior", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ state: { status: "stopped" } }));
+    const identity: LiveTrackerIdentity = { type: "team", guildId: "123", queueNumber: "5" };
+    const canonical = new RealLiveTrackerService({ apiHost: "https://api.example.com", detectStopped: true });
+    const connection = await canonical.connect(identity);
+    const listener = vi.fn<LiveTrackerStatusListener>();
+    connection.subscribeStatus(listener);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(listener).toHaveBeenCalledWith("stopped", undefined);
+    connection.disconnect();
+
+    const legacy = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    const legacyConnection = await legacy.connect(identity);
+    const legacyListener = vi.fn<LiveTrackerStatusListener>();
+    legacyConnection.subscribeStatus(legacyListener);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(legacyListener).not.toHaveBeenCalledWith("stopped", undefined);
+    legacyConnection.disconnect();
   });
 });
