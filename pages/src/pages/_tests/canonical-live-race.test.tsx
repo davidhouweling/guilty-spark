@@ -28,6 +28,7 @@ const apiHost = "http://example.local";
 class TestWebSocket {
   public static current: TestWebSocket | null = null;
   public onerror?: (event: Event) => void;
+  public onclose?: (event: CloseEvent) => void;
   public constructor() {
     TestWebSocket.current = this;
   }
@@ -113,6 +114,51 @@ describe("canonical live-to-archive race", () => {
     const archive = vi.spyOn(archiveServices, "installServices");
     render(<LiveTrackerApp apiHost={apiHost} identity={identity} />);
     await waitFor((): void => {
+      expect(TestWebSocket.current?.onerror).toBeDefined();
+    });
+    TestWebSocket.current?.onerror?.(new Event("error"));
+    expect(await screen.findByText("Unable to connect to tracker")).toBeInTheDocument();
+    expect(archive).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["absent after error and close", new Response(null, { status: 404 }), true],
+    ["stopped after close", Response.json({ state: { status: "stopped" } }), false],
+  ])("falls back when the recheck finds %s", async (_label, status, emitError) => {
+    await installRealTracker();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ state: { status: "active" } }))
+      .mockResolvedValueOnce(status);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const archive = aFakeDiscordSeriesStatsAppServicesWith();
+    const getDetail = vi.spyOn(archive.discordSeriesStatsService, "getDetail");
+    vi.spyOn(archiveServices, "installServices").mockResolvedValue(archive);
+    render(<LiveTrackerApp apiHost={apiHost} identity={identity} />);
+    await waitFor(() => {
+      expect(TestWebSocket.current?.onerror).toBeDefined();
+    });
+    if (emitError) {
+      TestWebSocket.current?.onerror?.(new Event("error"));
+    }
+    TestWebSocket.current?.onclose?.(new CloseEvent("close", { code: 1006 }));
+    expect(await screen.findByRole("heading", { name: "Series overview" })).toBeInTheDocument();
+    expect(getDetail).toHaveBeenCalledWith("123", "5");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+  it.each([403, 500, "transport"])("does not fall back when a socket failure recheck fails: %s", async (failure) => {
+    await installRealTracker();
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ state: { status: "active" } }));
+    if (typeof failure === "number") {
+      fetchSpy.mockResolvedValueOnce(new Response(null, { status: failure }));
+    } else {
+      fetchSpy.mockRejectedValueOnce(new Error("offline"));
+    }
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const archive = vi.spyOn(archiveServices, "installServices");
+    render(<LiveTrackerApp apiHost={apiHost} identity={identity} />);
+    await waitFor(() => {
       expect(TestWebSocket.current?.onerror).toBeDefined();
     });
     TestWebSocket.current?.onerror?.(new Event("error"));

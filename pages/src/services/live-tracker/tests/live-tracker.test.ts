@@ -461,4 +461,52 @@ describe("RealLiveTrackerService", () => {
     expect(legacyListener).not.toHaveBeenCalledWith("stopped", undefined);
     legacyConnection.disconnect();
   });
+
+  it.each(["snapshot", "disconnect"])("ignores a recheck result after %s", async (action) => {
+    let finishRecheck: ((response: Response) => void) | undefined;
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ state: { status: "active" } }))
+      .mockImplementationOnce(
+        async () =>
+          await new Promise((resolve) => {
+            finishRecheck = resolve;
+          }),
+      );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com", detectStopped: true });
+    const connection = await service.connect({ type: "team", guildId: "123", queueNumber: "5" });
+    const listener = vi.fn<LiveTrackerStatusListener>();
+    connection.subscribeStatus(listener);
+    const [ws] = MockWebSocket.instances;
+    ws.onerror?.(new Event("error"));
+    await vi.waitFor(() => {
+      expect(finishRecheck).toBeDefined();
+    });
+    if (action === "snapshot") {
+      ws.onmessage?.(new MessageEvent("message", { data: JSON.stringify(sampleLiveTrackerStateMessage) }));
+    } else {
+      connection.disconnect();
+    }
+    finishRecheck?.(new Response(null, { status: 404 }));
+    await vi.waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(listener).not.toHaveBeenCalledWith("not_found", undefined);
+    expect(listener).not.toHaveBeenCalledWith("stopped", undefined);
+    connection.disconnect();
+  });
+
+  it("does not recheck after a legacy WebSocket failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = new RealLiveTrackerService({ apiHost: "https://api.example.com" });
+    const connection = await service.connect({ type: "team", guildId: "123", queueNumber: "5" });
+    const listener = vi.fn<LiveTrackerStatusListener>();
+    connection.subscribeStatus(listener);
+    const [ws] = MockWebSocket.instances;
+    ws.onerror?.(new Event("error"));
+    expect(listener).toHaveBeenCalledWith("error", undefined);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    connection.disconnect();
+  });
 });

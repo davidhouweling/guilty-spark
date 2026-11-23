@@ -20,6 +20,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
   private ws: WebSocket | null;
   private readonly onOffline: () => void;
+  private receivedInitialData = false;
 
   public constructor(ws: WebSocket) {
     this.ws = ws;
@@ -51,8 +52,9 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
     window.removeEventListener("offline", this.onOffline);
 
     if (this.ws) {
-      this.ws.close();
+      const { ws } = this;
       this.ws = null;
+      ws.close();
     }
 
     this.listeners.clear();
@@ -69,6 +71,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   }
 
   public handleMessage(message: LiveTrackerMessage): void {
+    this.receivedInitialData = true;
     for (const listener of this.listeners) {
       listener(message);
     }
@@ -77,6 +80,10 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
       this.handleStatus("stopped");
       this.disconnect();
     }
+  }
+
+  public isAwaitingInitialData(): boolean {
+    return this.ws !== null && !this.receivedInitialData;
   }
 }
 
@@ -105,6 +112,24 @@ export class RealLiveTrackerService implements LiveTrackerService {
     return "available";
   }
 
+  private async recheckAfterFailure(
+    identity: LiveTrackerIdentity,
+    connection: RealLiveTrackerConnection,
+    detail?: string,
+  ): Promise<void> {
+    try {
+      const status = await this.checkTrackerExists(identity);
+      if (connection.isAwaitingInitialData()) {
+        connection.handleStatus(status === "available" ? "error" : status, detail);
+      }
+    } catch (error) {
+      console.error("Failed to recheck live tracker status:", error);
+      if (connection.isAwaitingInitialData()) {
+        connection.handleStatus("error", detail);
+      }
+    }
+  }
+
   public async connect(identity: LiveTrackerIdentity): Promise<LiveTrackerConnection> {
     const wsUrl = new URL(`/ws/tracker/${identity.guildId}/${identity.queueNumber}`, this.config.apiHost);
     wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
@@ -130,6 +155,18 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
     const ws = new WebSocket(wsUrl.toString());
     const connection = new RealLiveTrackerConnection(ws);
+    let initialFailureHandled = false;
+
+    const handleFailure = (detail?: string): void => {
+      if (this.config.detectStopped === true && connection.isAwaitingInitialData()) {
+        if (!initialFailureHandled) {
+          initialFailureHandled = true;
+          void this.recheckAfterFailure(identity, connection, detail);
+        }
+        return;
+      }
+      connection.handleStatus("error", detail);
+    };
 
     connection.handleStatus("connecting");
 
@@ -150,7 +187,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
     ws.onerror = (ev): void => {
       console.error("WebSocket error", ev);
-      connection.handleStatus("error");
+      handleFailure();
     };
 
     ws.onclose = (event: CloseEvent): void => {
@@ -164,7 +201,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
         return;
       }
 
-      connection.handleStatus("error", event.reason || undefined);
+      handleFailure(event.reason || undefined);
     };
 
     return connection;
