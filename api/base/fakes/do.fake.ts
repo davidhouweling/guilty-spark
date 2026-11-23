@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { mock } from "vitest-mock-extended";
 
 export function aFakeDurableObjectId(value = "fake-do-id"): DurableObjectId {
   return {
@@ -11,14 +12,14 @@ export function aFakeDurableObjectNamespaceWith<T extends Rpc.DurableObjectBrand
   stub: DurableObjectStub<T>,
 ): DurableObjectNamespace<T> {
   const id = aFakeDurableObjectId();
-  return {
-    idFromName: () => id,
-    idFromString: () => id,
-    newUniqueId: () => id,
-    getByName: () => stub,
-    get: () => stub,
-    jurisdiction: () => ({}) as DurableObjectNamespace<T>,
-  };
+  const namespace = mock<DurableObjectNamespace<T>>();
+  namespace.idFromName.mockReturnValue(id);
+  namespace.idFromString.mockReturnValue(id);
+  namespace.newUniqueId.mockReturnValue(id);
+  namespace.getByName.mockReturnValue(stub);
+  namespace.get.mockReturnValue(stub);
+  namespace.jurisdiction.mockReturnValue(namespace);
+  return namespace;
 }
 
 export function aFakeSqlStorage(opts: Partial<SqlStorage> = {}): SqlStorage {
@@ -54,8 +55,7 @@ export function aFakeDurableObjectStorageWith(opts: Partial<DurableObjectStorage
 }
 
 export function aFakeWebSocket(): WebSocket {
-  // The hibernation handlers ignore the socket argument; a minimal object suffices.
-  return {} as WebSocket;
+  return mock<WebSocket>();
 }
 
 export function aFakeDurableObjectStateWith(

@@ -1,5 +1,6 @@
 import type { MockInstance, MockedFunction } from "vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { mock } from "vitest-mock-extended";
 import type { APIGuildMember, APIMessageComponentButtonInteraction } from "discord-api-types/v10";
 import { GuildMemberFlags } from "discord-api-types/v10";
 import { aFakePlayerAssociationDataWith } from "@guilty-spark/shared/live-tracker/fakes/data";
@@ -31,7 +32,7 @@ import { aFakeEnvWith } from "../../../base/fakes/env.fake";
 import { aFakeLogServiceWith } from "../../log/fakes/log.fake";
 import { aFakeDiscordServiceWith } from "../../discord/fakes/discord.fake";
 import { apiMessage, fakeButtonClickInteraction } from "../../discord/fakes/data";
-import { aFakeDurableObjectId } from "../../../base/fakes/do.fake";
+import { aFakeDurableObjectId, aFakeDurableObjectNamespaceWith } from "../../../base/fakes/do.fake";
 
 describe("LiveTrackerService", () => {
   let service: LiveTrackerService;
@@ -104,7 +105,7 @@ describe("LiveTrackerService", () => {
   };
 
   const aFakeResponseWith = (response: Partial<Response> = {}): Response => {
-    return {
+    return mock<Response>({
       ok: true,
       clone: function (): Response {
         throw new Error("Function not implemented.");
@@ -140,7 +141,7 @@ describe("LiveTrackerService", () => {
       },
       /* eslint-enable @typescript-eslint/require-await */
       ...response,
-    };
+    });
   };
 
   beforeEach(() => {
@@ -153,17 +154,8 @@ describe("LiveTrackerService", () => {
       connect: vi.fn(),
     };
 
-    const liveTrackerDOId = aFakeDurableObjectId();
-    const liveTrackerGet = vi.fn().mockReturnValue(doStub);
     env = aFakeEnvWith({
-      LIVE_TRACKER_DO: {
-        idFromName: () => liveTrackerDOId,
-        idFromString: () => liveTrackerDOId,
-        newUniqueId: () => liveTrackerDOId,
-        getByName: liveTrackerGet,
-        get: liveTrackerGet,
-        jurisdiction: () => ({}) as DurableObjectNamespace<LiveTrackerDO>,
-      },
+      LIVE_TRACKER_DO: aFakeDurableObjectNamespaceWith(doStub),
     });
 
     logService = aFakeLogServiceWith();

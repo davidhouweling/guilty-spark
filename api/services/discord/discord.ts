@@ -1,7 +1,6 @@
 import { inspect } from "node:util";
 import { getUnixTime } from "date-fns";
 import type { verifyKey as discordInteractionsVerifyKey } from "discord-interactions";
-import type { Headers as fHeaders } from "undici-types/fetch.d.ts";
 import type {
   APIApplicationCommandInteraction,
   APIApplicationCommandInteractionDataBasicOption,
@@ -1989,7 +1988,7 @@ export class DiscordService {
             ["rateLimit", JSON.stringify(rateLimitFromResponse)],
           ]),
         );
-        this.logService.info("Response headers", new Map(Array.from((response.headers as fHeaders).entries())));
+        this.logService.info("Response headers", new Map(response.headers.entries()));
 
         if (rateLimitFromResponse.reset != null) {
           this.setRateLimitInAppConfig(rateLimitPath, rateLimitFromResponse);
