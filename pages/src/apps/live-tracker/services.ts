@@ -15,7 +15,7 @@ export interface Services {
   readonly livePreSeriesService: LivePreSeriesService;
 }
 
-export async function installServices(apiHost: string): Promise<Services> {
+export async function installServices(apiHost: string, detectStopped = false): Promise<Services> {
   const mode = getMode();
   const [matchAnalyticsService, seriesMatchesService, livePreSeriesService] = await Promise.all([
     installMatchAnalyticsService(apiHost),
@@ -36,7 +36,7 @@ export async function installServices(apiHost: string): Promise<Services> {
   }
 
   return {
-    liveTrackerService: new RealLiveTrackerService({ apiHost }),
+    liveTrackerService: new RealLiveTrackerService({ apiHost, detectStopped }),
     matchAnalyticsService,
     seriesMatchesService,
     livePreSeriesService,

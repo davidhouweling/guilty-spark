@@ -1,6 +1,7 @@
 import type { LiveTrackerIdentity, LiveTrackerMessage } from "@guilty-spark/shared/live-tracker/types";
 import { tryParseLiveTrackerMessage } from "@guilty-spark/shared/live-tracker/parse";
 import { createApiUrl } from "../api-url";
+import { trackerStatusSchema } from "./resolve-series-source";
 import type {
   LiveTrackerConnection,
   LiveTrackerListener,
@@ -11,6 +12,7 @@ import type {
 
 interface Config {
   readonly apiHost: string;
+  readonly detectStopped?: boolean | undefined;
 }
 
 class RealLiveTrackerConnection implements LiveTrackerConnection {
@@ -18,6 +20,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   private readonly statusListeners = new Set<LiveTrackerStatusListener>();
   private ws: WebSocket | null;
   private readonly onOffline: () => void;
+  private receivedInitialData = false;
 
   public constructor(ws: WebSocket) {
     this.ws = ws;
@@ -49,8 +52,9 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
     window.removeEventListener("offline", this.onOffline);
 
     if (this.ws) {
-      this.ws.close();
+      const { ws } = this;
       this.ws = null;
+      ws.close();
     }
 
     this.listeners.clear();
@@ -67,6 +71,7 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
   }
 
   public handleMessage(message: LiveTrackerMessage): void {
+    this.receivedInitialData = true;
     for (const listener of this.listeners) {
       listener(message);
     }
@@ -75,6 +80,10 @@ class RealLiveTrackerConnection implements LiveTrackerConnection {
       this.handleStatus("stopped");
       this.disconnect();
     }
+  }
+
+  public isAwaitingInitialData(): boolean {
+    return this.ws !== null && !this.receivedInitialData;
   }
 }
 
@@ -85,19 +94,39 @@ export class RealLiveTrackerService implements LiveTrackerService {
     this.config = config;
   }
 
-  /**
-   * Performs a preflight check to see if the tracker exists before establishing WebSocket
-   * @returns true if tracker exists, false if 404 (not found)
-   */
-  private async checkTrackerExists(identity: LiveTrackerIdentity): Promise<boolean> {
+  private async checkTrackerExists(identity: LiveTrackerIdentity): Promise<"available" | "not_found" | "stopped"> {
     const statusUrl = createApiUrl(this.config.apiHost, `/tracker/${identity.guildId}/${identity.queueNumber}/status`);
+    const response = await fetch(statusUrl.toString(), { cache: "no-store" });
+    if (response.status === 404) {
+      return "not_found";
+    }
+    if (!response.ok) {
+      throw new Error(`Tracker status request failed (${response.status.toString()})`);
+    }
+    if (this.config.detectStopped === true && response.status === 200) {
+      const { state } = trackerStatusSchema.parse(await response.json());
+      if (state.status === "stopped") {
+        return "stopped";
+      }
+    }
+    return "available";
+  }
 
+  private async recheckAfterFailure(
+    identity: LiveTrackerIdentity,
+    connection: RealLiveTrackerConnection,
+    detail?: string,
+  ): Promise<void> {
     try {
-      const response = await fetch(statusUrl.toString());
-      return response.ok; // Returns true for 2xx, false for 404/other errors
-    } catch {
-      // Network error - assume tracker might exist but we can't verify
-      return true;
+      const status = await this.checkTrackerExists(identity);
+      if (connection.isAwaitingInitialData()) {
+        connection.handleStatus(status === "available" ? "error" : status, detail);
+      }
+    } catch (error) {
+      console.error("Failed to recheck live tracker status:", error);
+      if (connection.isAwaitingInitialData()) {
+        connection.handleStatus("error", detail);
+      }
     }
   }
 
@@ -107,8 +136,8 @@ export class RealLiveTrackerService implements LiveTrackerService {
     wsUrl.searchParams.set("format", "condensed");
 
     // Preflight check to detect 404 before attempting WebSocket
-    const trackerExists = await this.checkTrackerExists(identity);
-    if (!trackerExists) {
+    const trackerStatus = await this.checkTrackerExists(identity);
+    if (trackerStatus !== "available") {
       // Create a dummy connection that immediately reports "not_found"
       const ws = new WebSocket(wsUrl.toString()); // Still create WS to maintain API contract
       const connection = new RealLiveTrackerConnection(ws);
@@ -118,7 +147,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
       // Report not found status
       setTimeout(() => {
-        connection.handleStatus("not_found");
+        connection.handleStatus(trackerStatus);
       }, 0);
 
       return connection;
@@ -126,6 +155,18 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
     const ws = new WebSocket(wsUrl.toString());
     const connection = new RealLiveTrackerConnection(ws);
+    let initialFailureHandled = false;
+
+    const handleFailure = (detail?: string): void => {
+      if (this.config.detectStopped === true && connection.isAwaitingInitialData()) {
+        if (!initialFailureHandled) {
+          initialFailureHandled = true;
+          void this.recheckAfterFailure(identity, connection, detail);
+        }
+        return;
+      }
+      connection.handleStatus("error", detail);
+    };
 
     connection.handleStatus("connecting");
 
@@ -146,7 +187,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
 
     ws.onerror = (ev): void => {
       console.error("WebSocket error", ev);
-      connection.handleStatus("error");
+      handleFailure();
     };
 
     ws.onclose = (event: CloseEvent): void => {
@@ -160,7 +201,7 @@ export class RealLiveTrackerService implements LiveTrackerService {
         return;
       }
 
-      connection.handleStatus("error", event.reason || undefined);
+      handleFailure(event.reason || undefined);
     };
 
     return connection;

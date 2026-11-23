@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { LiveTrackerIdentity } from "@guilty-spark/shared/live-tracker/types";
 import { ComponentLoader, ComponentLoaderStatus } from "../component-loader/component-loader";
 import { ErrorState } from "../error-state/error-state";
 import { LoadingState } from "../loading-state/loading-state";
@@ -22,6 +23,8 @@ export interface CreateLiveTrackerConfig {
   readonly matchAnalyticsService: MatchAnalyticsService;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly livePreSeriesService: LivePreSeriesService;
+  readonly identity?: LiveTrackerIdentity | undefined;
+  readonly onUnavailable?: (() => void) | undefined;
 }
 
 interface LiveTrackerInternalProps {
@@ -47,6 +50,7 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
     const instance = new LiveTrackerPresenter({
       liveTrackerService,
       getUrl: (): URL => new URL(window.location.href),
+      identity: config.identity,
       store,
       seriesMatchesService,
       livePreSeriesCache,
@@ -54,7 +58,7 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
     });
     target.presenter = instance;
     return instance;
-  }, [liveTrackerService, matchAnalyticsService, seriesMatchesService, livePreSeriesCache, store]);
+  }, [liveTrackerService, matchAnalyticsService, seriesMatchesService, livePreSeriesCache, store, config.identity]);
 
   useEffect(() => {
     presenter.start();
@@ -69,6 +73,16 @@ function LiveTrackerInternal({ config }: LiveTrackerInternalProps): React.ReactE
     () => store.getSnapshot(),
     () => store.getSnapshot(),
   );
+
+  useEffect(() => {
+    const current = store.getSnapshot();
+    if (
+      !current.hasReceivedInitialData &&
+      (current.connectionState === "not_found" || current.connectionState === "stopped")
+    ) {
+      config.onUnavailable?.();
+    }
+  }, [config.onUnavailable, snapshot.connectionState, snapshot.hasReceivedInitialData, store]);
 
   const loaderStatus = snapshot.hasReceivedInitialData
     ? ComponentLoaderStatus.LOADED

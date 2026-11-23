@@ -36,6 +36,7 @@ import { getMatchGameInfo, toLiveTrackerStateRenderModel } from "./state-render-
 interface Config {
   readonly liveTrackerService: LiveTrackerService;
   readonly getUrl: () => URL;
+  readonly identity?: LiveTrackerIdentity | undefined;
   readonly store: LiveTrackerStoreApi;
   readonly seriesMatchesService: SeriesMatchesService;
   readonly livePreSeriesCache: LivePreSeriesCache;
@@ -536,7 +537,11 @@ export class LiveTrackerPresenter {
   }
 
   public start(): void {
-    const params = LiveTrackerPresenter.parseParamsFromUrl(this.config.getUrl());
+    const { identity } = this.config;
+    const params: LiveTrackerParams =
+      identity == null
+        ? LiveTrackerPresenter.parseParamsFromUrl(this.config.getUrl())
+        : { type: "team", server: identity.guildId, queue: identity.queueNumber };
 
     if (!LiveTrackerPresenter.canConnect(params)) {
       this.connectionGeneration += 1;
@@ -801,7 +806,16 @@ export class LiveTrackerPresenter {
 
     this.cleanupConnection();
 
-    const nextConnection = await this.config.liveTrackerService.connect(identity);
+    let nextConnection: LiveTrackerConnection;
+    try {
+      nextConnection = await this.config.liveTrackerService.connect(identity);
+    } catch (error) {
+      console.error("Failed to connect to live tracker:", error);
+      if (this.isConnectionGenerationCurrent(generation)) {
+        this.handleConnectionLost(identity);
+      }
+      return;
+    }
     if (!this.isConnectionGenerationCurrent(generation)) {
       nextConnection.disconnect();
       return;
@@ -989,13 +1003,12 @@ export class LiveTrackerPresenter {
   private handleConnectionLost(identity: LiveTrackerIdentity, detail?: string): void {
     const snapshot = this.config.store.getSnapshot();
 
-    // If we've never received initial data, this is likely a "tracker not found" scenario
-    // Don't retry in this case
+    // A failed connection without initial data is not evidence that the tracker is absent.
     if (!snapshot.hasReceivedInitialData && this.reconnectionAttempt === 0) {
       this.config.store.setSnapshot({
         ...snapshot,
-        connectionState: "not_found",
-        statusText: "No active tracker found for this queue. Start a tracker first.",
+        connectionState: "error",
+        statusText: detail ?? "Unable to connect to tracker",
       });
       this.stopReconnection();
       return;

@@ -4,9 +4,11 @@ export const prerender = false;
 import { API_HOST } from "../../../../constants";
 import Layout from "../../../../layouts/layout.astro";
 import { DiscordSeriesStatsApp } from "../../../../apps/discord-series-stats/create";
+import { LiveTrackerApp } from "../../../../apps/live-tracker/create";
 import LoadingState from "../../../../components/loading-state/loading-state.astro";
 import ErrorState from "../../../../components/error-state/error-state.astro";
 import { installDiscordSeriesStatsService } from "../../../../services/stats/install";
+import { resolveSeriesSource } from "../../../../services/live-tracker/resolve-series-source";
 
 const { guildId = "", queueNumber = "" } = Astro.params;
 
@@ -17,6 +19,9 @@ const isSafeQueueNumber = Number.isSafeInteger(parsedQueueNumber) && parsedQueue
 const hasInvalidParams = !isSnowflake || !isStrictPositiveInteger || !isSafeQueueNumber;
 let lookupStatus = hasInvalidParams ? 404 : 500;
 let retryAfterSeconds = 2;
+let isLive = false;
+let trackerErrorStatus: number | null = null;
+Astro.response.headers.set("Cache-Control", "no-store");
 
 function getPendingRetryAfterSeconds(responseRetryAfterSeconds: number | null): number {
   if (responseRetryAfterSeconds == null) {
@@ -30,19 +35,21 @@ if (hasInvalidParams) {
   Astro.response.status = 404;
 } else {
   try {
-    const statsService = await installDiscordSeriesStatsService(String(API_HOST));
-    const response = await statsService.getLookup(guildId, queueNumber);
-    lookupStatus = response.status;
+    const source = await resolveSeriesSource(String(API_HOST), guildId, queueNumber, async () => {
+      const statsService = await installDiscordSeriesStatsService(String(API_HOST));
+      return statsService.getLookup(guildId, queueNumber);
+    });
+    isLive = source.source === "live";
+    trackerErrorStatus = source.source === "error" ? source.status : null;
+    lookupStatus = source.source === "live" ? 200 : source.source === "error" ? source.status : source.lookup.status;
     Astro.response.status = lookupStatus;
 
-    if (lookupStatus === 503) {
-      retryAfterSeconds = getPendingRetryAfterSeconds(response.retryAfterSeconds);
-      Astro.response.headers.set("Cache-Control", "no-store");
+    if (source.source === "archive" && lookupStatus === 503) {
+      retryAfterSeconds = getPendingRetryAfterSeconds(source.lookup.retryAfterSeconds);
       Astro.response.headers.set("Retry-After", retryAfterSeconds.toString());
-    } else if (lookupStatus >= 500) {
-      Astro.response.headers.set("Cache-Control", "no-store");
     }
-  } catch {
+  } catch (error) {
+    console.error("Failed to resolve series source:", error);
     Astro.response.status = 500;
     lookupStatus = 500;
     Astro.response.headers.set("Cache-Control", "no-store");
@@ -50,12 +57,21 @@ if (hasInvalidParams) {
 }
 ---
 
-<Layout title={`Queue #${queueNumber} Stats - Guilty Spark`} description="Series stats for a completed queue">
+<Layout title={`Queue #${queueNumber} Stats - Guilty Spark`} description="Series stats for a queue">
   {hasInvalidParams || lookupStatus === 404 ? (
     <ErrorState title="Queue not found" message="No matching queue was found for this guild." />
+  ) : trackerErrorStatus !== null ? (
+    <ErrorState
+      title="Unable to check tracker"
+      message={`Tracker status request failed (HTTP ${trackerErrorStatus.toString()}).`}
+    />
   ) : lookupStatus === 200 ? (
-    <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
-  ) : lookupStatus === 503 ? (
+    isLive ? (
+      <LiveTrackerApp client:only="react" apiHost={API_HOST} identity={{ type: "team", guildId, queueNumber }} />
+    ) : (
+      <DiscordSeriesStatsApp client:only="react" apiHost={API_HOST} guildId={guildId} queueNumber={queueNumber} />
+    )
+  ) : lookupStatus === 503 && Astro.response.headers.has("Retry-After") ? (
     <LoadingState text={`Stats are still indexing. Retry in ${retryAfterSeconds.toString()}s.`} />
   ) : lookupStatus === 403 ? (
     <ErrorState title="Access forbidden" message="Missing Discord permissions or message content access" />
