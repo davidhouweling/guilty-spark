@@ -812,12 +812,7 @@ export class LiveTrackerPresenter {
     } catch (error) {
       console.error("Failed to connect to live tracker:", error);
       if (this.isConnectionGenerationCurrent(generation)) {
-        const snapshot = this.config.store.getSnapshot();
-        this.config.store.setSnapshot({
-          ...snapshot,
-          connectionState: "error",
-          statusText: "Unable to connect to tracker",
-        });
+        this.handleConnectionLost(identity);
       }
       return;
     }
