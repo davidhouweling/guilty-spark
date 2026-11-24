@@ -4,6 +4,7 @@ import { Select } from "../../select/select";
 import { HALO_TEAM_COLORS, getTeamColor } from "../../team-colors/team-colors";
 import { TeamColorPicker } from "../../team-colors/team-color-picker";
 import type { ColorMode } from "./types";
+import { ObserverColorSettings } from "./observer-color-settings";
 import styles from "./color-settings-section.module.css";
 
 interface ColorSettingsSectionProps {
@@ -34,8 +35,6 @@ export function ColorSettingsSection({
 }: ColorSettingsSectionProps): React.ReactElement {
   const teamColorObj = getTeamColor(playerView.teamColor) ?? HALO_TEAM_COLORS[1];
   const enemyColorObj = getTeamColor(playerView.enemyColor) ?? HALO_TEAM_COLORS[0];
-  const eagleColorObj = getTeamColor(observerView.eagleColor) ?? HALO_TEAM_COLORS[0];
-  const cobraColorObj = getTeamColor(observerView.cobraColor) ?? HALO_TEAM_COLORS[1];
 
   return (
     <div className={styles.container}>
@@ -121,36 +120,7 @@ export function ColorSettingsSection({
       )}
 
       {/* Observer View Settings */}
-      {mode === "observer" && (
-        <div className={styles.viewSettings}>
-          {/* Team Colors Grid */}
-          <div className={styles.colorFieldsGrid}>
-            {/* Eagle Color */}
-            <div className={styles.field}>
-              <label className={styles.fieldLabel}>Eagle Team Color</label>
-              <TeamColorPicker
-                selectedColor={eagleColorObj}
-                onColorSelect={(colorId): void => {
-                  onObserverViewChange({ eagleColor: colorId });
-                }}
-                label="Eagle Team Color"
-              />
-            </div>
-
-            {/* Cobra Color */}
-            <div className={styles.field}>
-              <label className={styles.fieldLabel}>Cobra Team Color</label>
-              <TeamColorPicker
-                selectedColor={cobraColorObj}
-                onColorSelect={(colorId): void => {
-                  onObserverViewChange({ cobraColor: colorId });
-                }}
-                label="Cobra Team Color"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {mode === "observer" && <ObserverColorSettings settings={observerView} onChange={onObserverViewChange} />}
     </div>
   );
 }

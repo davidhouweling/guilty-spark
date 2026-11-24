@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { DiscordSeriesStatsApp } from "../create";
 import containerStyles from "../../../components/container/container.module.css";
+import { aFakeSeriesDetailWithTeamSwap } from "../../../components/series-stats/fakes/series-detail-team-swap.fake";
 import {
   aFakeDiscordSeriesStatsAppServicesWith,
   aFakeForbiddenDiscordSeriesStatsDetailResultWith,
@@ -41,6 +42,145 @@ afterEach(() => {
 });
 
 describe("DiscordSeriesStatsApp", () => {
+  function installSwappedSeries(): void {
+    mockInstallServices.mockResolvedValue(
+      aFakeDiscordSeriesStatsAppServicesWith({
+        ...aFakeResolvedDiscordSeriesStatsDetailResultWith(),
+        data: aFakeSeriesDetailWithTeamSwap(),
+      }),
+    );
+  }
+
+  it("uses default observer colors across swapped match sides", async () => {
+    installSwappedSeries();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    const rowColors = ["match-one", "match-two"].map((id) => {
+      const match = document.getElementById(id);
+      if (match == null) {
+        throw new Error("Missing match");
+      }
+      const players = within(match).getByRole("table", { name: "Player statistics" });
+      return within(players).getByText("Charlie").closest("tr")?.style.getPropertyValue("--row-color");
+    });
+    expect(rowColors).toEqual(["#3B9DFF", "#3B9DFF"]);
+    expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
+    expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #3B9DFF");
+  });
+
+  it("uses URL observer overrides before stored preferences and preserves player settings when editing", async () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    try {
+      localStorage.setItem(
+        "live-tracker-streamer-settings-global",
+        JSON.stringify({
+          colors: {
+            mode: "player",
+            playerView: { selectedPlayerId: "12345", teamColor: "mint", enemyColor: "sky" },
+            observerView: { eagleColor: "jade", cobraColor: "lavender" },
+          },
+        }),
+      );
+      window.history.replaceState(
+        { marker: "kept" },
+        "",
+        "/?eagleColor=carrot&colorMode=player&selectedPlayerId=url-player&campaign=summer#match-one",
+      );
+      installSwappedSeries();
+      const app = (
+        <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />
+      );
+      const { unmount } = render(app);
+
+      expect(await screen.findByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #DC5839");
+      expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #8F67AA");
+      fireEvent.click(screen.getByText("Team color settings"));
+      expect(screen.queryByRole("button", { name: "Player View" })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Select Your Player")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Select Second series team color" }));
+      fireEvent.click(screen.getByRole("button", { name: "Sky" }));
+
+      expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #49B8FE");
+      const rowColors = ["match-one", "match-two"].map((id) => {
+        const match = document.getElementById(id);
+        if (match == null) {
+          throw new Error("Missing match");
+        }
+        const players = within(match).getByRole("table", { name: "Player statistics" });
+        return within(players).getByText("Charlie").closest("tr")?.style.getPropertyValue("--row-color");
+      });
+      expect(rowColors).toEqual(["#49B8FE", "#49B8FE"]);
+      const saved = JSON.parse(localStorage.getItem("live-tracker-streamer-settings-global") ?? "{}");
+      expect(saved).toMatchObject({
+        colors: {
+          mode: "player",
+          playerView: { selectedPlayerId: "12345", teamColor: "mint", enemyColor: "sky" },
+          observerView: { eagleColor: "jade", cobraColor: "sky" },
+        },
+      });
+      const url = new URL(window.location.href);
+      expect(url.searchParams.get("eagleColor")).toBe("carrot");
+      expect(url.searchParams.get("cobraColor")).toBe("sky");
+      expect(url.searchParams.get("colorMode")).toBe("player");
+      expect(url.searchParams.get("selectedPlayerId")).toBe("url-player");
+      expect(url.searchParams.get("campaign")).toBe("summer");
+      expect(url.hash).toBe("#match-one");
+      expect(window.history.state).toEqual({ marker: "kept" });
+      unmount();
+      render(app);
+      expect((await screen.findByRole("heading", { name: "Cobra" })).closest("section")).toHaveStyle(
+        "--team-color: #49B8FE",
+      );
+    } finally {
+      if (scrollDescriptor == null) {
+        Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+      } else {
+        Object.defineProperty(Element.prototype, "scrollIntoView", scrollDescriptor);
+      }
+    }
+  });
+
+  it("retains default colors and hides unsupported controls when series sides are ambiguous", async () => {
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const results = data.matches.results.map((result) =>
+      result.status === "resolved"
+        ? {
+            ...result,
+            detail: { ...result.detail, teams: result.detail.teams.map((team) => ({ ...team, seriesTeamId: null })) },
+          }
+        : result,
+    );
+    window.history.replaceState({}, "", "/?eagleColor=jade");
+    mockInstallServices.mockResolvedValue(
+      aFakeDiscordSeriesStatsAppServicesWith({
+        ...aFakeResolvedDiscordSeriesStatsDetailResultWith(),
+        data: {
+          ...data,
+          matches: { ...data.matches, results },
+          aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
+        },
+      }),
+    );
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(
+      await screen.findByText("Series totals are unavailable because team identities could not be matched reliably."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #FE3939");
+    fireEvent.click(screen.getByText("Team color settings"));
+    expect(
+      screen.getByText("Team colors cannot be customized because stable series teams are unavailable."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select First series team color" })).not.toBeInTheDocument();
+  });
+
   it("loads and renders resolved queue stats", async () => {
     mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
 

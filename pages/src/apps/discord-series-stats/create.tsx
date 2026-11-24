@@ -11,7 +11,7 @@ import type { DiscordSeriesStatsService } from "../../services/stats/discord-ser
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import { DEFAULT_VIEW_MODE } from "../../components/live-tracker/settings/types";
-import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
 import {
   buildUrlWithViewMode,
@@ -41,13 +41,18 @@ function DiscordSeriesStatsData({
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
-  const { settings } = useStreamerSettings();
+  const { settings, updateGlobalSettings } = useStreamerSettings();
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
   const [seriesSettings, setSeriesSettings] = useState<SeriesStreamerSettings>(() =>
     typeof window === "undefined"
       ? settings.series
       : parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).series,
+  );
+  const [observerColors, setObserverColors] = useState<ObserverViewColorSettings>(() =>
+    typeof window === "undefined"
+      ? settings.global.colors.observerView
+      : parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).global.colors.observerView,
   );
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") {
@@ -130,6 +135,28 @@ function DiscordSeriesStatsData({
     },
     [seriesSettings, settings],
   );
+  const onObserverColorsChange = useCallback(
+    (updates: Partial<ObserverViewColorSettings>): void => {
+      setObserverColors((previous) => ({ ...previous, ...updates }));
+      updateGlobalSettings({
+        colors: {
+          ...settings.global.colors,
+          observerView: { ...settings.global.colors.observerView, ...updates },
+        },
+      });
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (updates.eagleColor != null) {
+          url.searchParams.set("eagleColor", updates.eagleColor);
+        }
+        if (updates.cobraColor != null) {
+          url.searchParams.set("cobraColor", updates.cobraColor);
+        }
+        window.history.replaceState(window.history.state, "", url.toString());
+      }
+    },
+    [settings.global.colors, updateGlobalSettings],
+  );
 
   const loaderStatus =
     model.state === "loading"
@@ -150,6 +177,8 @@ function DiscordSeriesStatsData({
             analyticsByMatchId={snapshot.analyticsByMatchId}
             viewMode={viewMode}
             seriesSettings={seriesSettings}
+            observerColors={observerColors}
+            onObserverColorsChange={onObserverColorsChange}
             onSeriesSettingsChange={onSeriesSettingsChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}

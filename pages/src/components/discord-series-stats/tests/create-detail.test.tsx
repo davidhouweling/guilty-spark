@@ -4,13 +4,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   aFakeSeriesDetailResponseWith,
   aFakeSeriesPlayerWith,
   aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { createDiscordSeriesDetailStats } from "../create-detail";
-import { DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
+import { DEFAULT_COLOR_SETTINGS, DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
+import { aFakeSeriesDetailWithTeamSwap } from "../../series-stats/fakes/series-detail-team-swap.fake";
 
 afterEach(() => {
   cleanup();
@@ -51,6 +53,8 @@ describe("DiscordSeriesDetailStats", () => {
         analyticsByMatchId={new Map()}
         viewMode="wide"
         seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onObserverColorsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={vi.fn()}
@@ -73,6 +77,8 @@ describe("DiscordSeriesDetailStats", () => {
         analyticsByMatchId={new Map()}
         viewMode="wide"
         seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onObserverColorsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={onAnalyticsTabSelected}
@@ -101,6 +107,8 @@ describe("DiscordSeriesDetailStats", () => {
         analyticsByMatchId={new Map()}
         viewMode="wide"
         seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onObserverColorsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={vi.fn()}
@@ -111,5 +119,36 @@ describe("DiscordSeriesDetailStats", () => {
       screen.getByText("Series totals are unavailable because some match details could not be resolved."),
     ).toBeInTheDocument();
     expect(screen.getByText("Failed to load detailed stats for match missing.")).toBeInTheDocument();
+  });
+
+  it("does not apply observer overrides when a match is missing", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const first = Preconditions.checkExists(data.matches.results[0]);
+    render(
+      <DiscordSeriesStats
+        data={{
+          ...data,
+          matches: {
+            matchIds: [first.matchId, "missing"],
+            results: [first, { status: "unavailable", matchId: "missing", reason: "not-found" }],
+          },
+          aggregation: { status: "unavailable", reason: "incomplete-matches" },
+        }}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
+        onObserverColorsChange={vi.fn()}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Failed to load detailed stats for match missing.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
+    fireEvent.click(screen.getByText("Team color settings"));
+    expect(screen.queryByRole("button", { name: "Select First series team color" })).not.toBeInTheDocument();
   });
 });

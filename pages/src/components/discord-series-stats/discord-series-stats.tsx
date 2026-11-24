@@ -7,15 +7,19 @@ import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../ser
 import type { ViewMode } from "../view-mode/view-mode-selector";
 import { ViewModeSelector } from "../view-mode/view-mode-selector";
 import { SeriesTitleSection } from "../live-tracker/settings/series-title-section";
-import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
+import { ObserverColorSettings } from "../live-tracker/settings/observer-color-settings";
+import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../live-tracker/settings/types";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
   readonly seriesSettings: SeriesStreamerSettings;
+  readonly observerColors: ObserverViewColorSettings;
+  readonly colorSettingsAvailable: boolean;
   readonly defaultTitle: string | null;
   readonly defaultSubtitle: string | null;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
@@ -39,9 +43,12 @@ export function DiscordSeriesStatsView({
   subtitle,
   viewMode,
   seriesSettings,
+  observerColors,
+  colorSettingsAvailable,
   defaultTitle,
   defaultSubtitle,
   onSeriesSettingsChange,
+  onObserverColorsChange,
   onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
@@ -75,6 +82,22 @@ export function DiscordSeriesStatsView({
             defaultSubtitle={defaultSubtitle}
             onChange={onSeriesSettingsChange}
           />
+        </details>
+        <details className={styles.titleSettings}>
+          <summary>Team color settings</summary>
+          {colorSettingsAvailable ? (
+            <>
+              <p>Archived series use observer colors in stable series-team order.</p>
+              <ObserverColorSettings
+                settings={observerColors}
+                firstLabel="First series team color"
+                secondLabel="Second series team color"
+                onChange={onObserverColorsChange}
+              />
+            </>
+          ) : (
+            <p>Team colors cannot be customized because stable series teams are unavailable.</p>
+          )}
         </details>
       </Container>
       <div className={styles.content}>
