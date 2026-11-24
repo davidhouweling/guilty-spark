@@ -18,7 +18,9 @@ import { createIndividualTrackerOverlayPage } from "../create";
 
 vi.mock("../individual-tracker-overlay", () => ({
   IndividualTrackerOverlay: (props: {
-    viewModel: object;
+    viewModel: {
+      tickerMatchGroups: readonly { label: string; rows: readonly { name: string | null }[] }[];
+    };
     isPanelOpen: boolean;
     matchesLength: number;
     selectedMatchId: string | null;
@@ -37,6 +39,10 @@ vi.mock("../individual-tracker-overlay", () => ({
         <div data-testid="selected-match">{props.selectedMatchId ?? "none"}</div>
         <div data-testid="selected-series">{props.selectedSeriesId ?? "none"}</div>
         <div data-testid="panel-state">{props.matchStatsPanelState?.status ?? "none"}</div>
+        <div data-testid="ticker-players">
+          {props.viewModel.tickerMatchGroups.flatMap((group) => group.rows.map((row) => row.name)).join(",")}
+        </div>
+        <div data-testid="ticker-data">{JSON.stringify(props.viewModel.tickerMatchGroups)}</div>
         <button
           type="button"
           onClick={(): void => {
@@ -60,11 +66,15 @@ describe("IndividualTrackerOverlayPage", () => {
 
   it("loads match stats on select and reuses cached state", async () => {
     const individualTrackerViewService = aFakeIndividualTrackerViewServiceWith({
-      view: aFakeTrackerViewStateWith({
-        trackerId: "tracker-1",
-        status: "active",
-        matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
-      }),
+      view: {
+        ...aFakeTrackerViewStateWith({
+          trackerId: "tracker-1",
+          gamertag: "Spartan One",
+          status: "active",
+          matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
+        }),
+        streamerSettings: { styleFlags: { matchmakingMyStatsOnly: true, medalRarityFilter: [0] } },
+      },
     });
 
     const getMatchStats = vi.fn(async (): Promise<ReturnType<typeof aFakeMatchStatsWith>> =>
@@ -83,10 +93,12 @@ describe("IndividualTrackerOverlayPage", () => {
 
     const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
     const getBatchMatchAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
       individualTrackerViewService,
       matchAnalyticsService,
-      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      seriesMatchesService,
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
@@ -95,6 +107,10 @@ describe("IndividualTrackerOverlayPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
+      expect(screen.getByTestId("ticker-players")).toHaveTextContent("Spartan One");
+      expect(screen.getByTestId("ticker-data")).toHaveTextContent("Kills");
+      expect(screen.getByTestId("ticker-data")).toHaveTextContent("Double Kill");
+      expect(screen.getByTestId("ticker-data")).not.toHaveTextContent('"type":"team"');
     });
 
     await userEvent.click(screen.getByText("select"));
@@ -115,7 +131,9 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
-    expect(getMatchStats).toHaveBeenCalledTimes(1);
+    expect(getMatchStats).not.toHaveBeenCalled();
+    expect(getMatchDetails).toHaveBeenCalledTimes(1);
+    expect(getMatchDetails).toHaveBeenCalledWith(["match-1"], "tracker-1");
     expect(getBatchMatchAnalytics).toHaveBeenCalledTimes(1);
   });
 
@@ -128,13 +146,13 @@ describe("IndividualTrackerOverlayPage", () => {
       }),
     });
 
-    const haloClient = aFakeHaloClientWith({
-      getMatchStats: vi.fn(async () => Promise.reject(new Error("boom"))),
-    });
+    const haloClient = aFakeHaloClientWith();
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    vi.spyOn(seriesMatchesService, "getMatchDetails").mockRejectedValue(new Error("boom"));
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
       individualTrackerViewService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      seriesMatchesService,
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
@@ -167,10 +185,12 @@ describe("IndividualTrackerOverlayPage", () => {
       Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const haloClient = aFakeHaloClientWith({ getMatchStats });
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
       individualTrackerViewService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      seriesMatchesService,
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
@@ -188,7 +208,16 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
-    rerender(<IndividualTrackerOverlayPage trackerId="tracker-2" />);
+    rerender(
+      <IndividualTrackerOverlayPage
+        trackerId="tracker-2"
+        externalView={aFakeTrackerViewStateWith({
+          trackerId: "tracker-2",
+          status: "active",
+          matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
+        })}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("select")).toBeInTheDocument();
@@ -201,7 +230,9 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
-    expect(getMatchStats).toHaveBeenCalledTimes(2);
+    expect(getMatchStats).not.toHaveBeenCalled();
+    expect(getMatchDetails).toHaveBeenCalledTimes(2);
+    expect(getMatchDetails).toHaveBeenLastCalledWith(["match-1"], "tracker-2");
   });
 
   it("loads match stats after remounting the created component", async () => {
@@ -216,10 +247,12 @@ describe("IndividualTrackerOverlayPage", () => {
       Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })),
     );
     const haloClient = aFakeHaloClientWith({ getMatchStats });
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
     const IndividualTrackerOverlayPage = createIndividualTrackerOverlayPage({
       individualTrackerViewService,
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
-      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      seriesMatchesService,
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     });
@@ -248,6 +281,7 @@ describe("IndividualTrackerOverlayPage", () => {
       expect(screen.getByTestId("panel-state")).toHaveTextContent("loaded");
     });
 
-    expect(getMatchStats).toHaveBeenCalledTimes(2);
+    expect(getMatchStats).not.toHaveBeenCalled();
+    expect(getMatchDetails).toHaveBeenCalledTimes(2);
   });
 });

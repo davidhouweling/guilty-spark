@@ -268,7 +268,7 @@ export function MatchStats({
               <SortableTable
                 data={playerData}
                 columns={playerColumns}
-                getRowKey={(row) => `${row.teamId.toString()}-${row.player.name}`}
+                getRowKey={(row) => `${row.teamId.toString()}-${row.player.playerId ?? row.player.name}`}
                 ariaLabel="Player statistics"
                 getRowStyle={
                   teamColors

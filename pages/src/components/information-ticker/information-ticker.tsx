@@ -24,6 +24,7 @@ interface TickerMatchGroup {
   readonly matchIndex: number; // -1 for series
   readonly label: string;
   readonly rows: TickerStatRow[];
+  readonly hasUnavailableMedals?: boolean;
 }
 
 interface InformationTickerProps {

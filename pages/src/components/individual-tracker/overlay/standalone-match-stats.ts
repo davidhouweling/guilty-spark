@@ -7,8 +7,9 @@ import type { OverlayStandaloneMatchStats } from "./types";
 export function projectStandaloneMatchStats(
   detail: MatchDetail,
   controller: StatsDetailController,
+  mode: "ticker" | "panel" = "ticker",
 ): OverlayStandaloneMatchStats {
-  const medals = projectStandaloneMatchMedals(detail);
+  const medals = projectStandaloneMatchMedals(detail, mode);
   const medalsByTeamId = new Map(medals.teams.map((team) => [team.teamId, team]));
   const eligibleDetail: MatchDetail = {
     ...detail,
