@@ -106,6 +106,25 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #3B9DFF");
   });
 
+  it("renders a transparent archived overlay from the serialized streamer view mode", async () => {
+    window.history.replaceState(
+      { marker: "kept" },
+      "",
+      "/stats/discord/123456789012345678/7777?viewMode=streamer&title=Hidden+Title&showTitle=false&campaign=summer#match-one",
+    );
+    installSwappedSeries();
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
+    expect(screen.queryByText("Hidden Title")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Series/ })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
+    expect(window.location.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+  });
+
   it("uses URL observer overrides before stored preferences and preserves player settings when editing", async () => {
     const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
     Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
@@ -397,7 +416,7 @@ describe("DiscordSeriesStatsApp", () => {
   it("keeps the existing wide default and does not restore or rewrite legacy stored view modes", async () => {
     const legacySettings = JSON.stringify({ viewMode: "standard", colors: { mode: "player" } });
     localStorage.setItem("live-tracker-streamer-settings-global", legacySettings);
-    window.history.replaceState({}, "", "/stats/discord/123456789012345678/7777?viewMode=streamer");
+    window.history.replaceState({}, "", "/stats/discord/123456789012345678/7777");
     mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
 
     render(

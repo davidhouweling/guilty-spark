@@ -10,8 +10,15 @@ import {
   aFakeSeriesPlayerWith,
   aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { createDiscordSeriesDetailStats } from "../create-detail";
-import { DEFAULT_COLOR_SETTINGS, DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
+import { ArchiveSeriesOverlayPresenter } from "../archive-series-overlay-presenter";
+import { SeriesDetailStatsViewModelPresenter } from "../../series-stats/series-detail-stats-view-model-presenter";
+import {
+  DEFAULT_ALL_SETTINGS,
+  DEFAULT_COLOR_SETTINGS,
+  DEFAULT_SERIES_SETTINGS,
+} from "../../live-tracker/settings/types";
 import { aFakeSeriesDetailWithTeamSwap } from "../../series-stats/fakes/series-detail-team-swap.fake";
 import { presentArchiveSeriesColors } from "../archive-series-colors";
 
@@ -34,6 +41,7 @@ describe("DiscordSeriesDetailStats", () => {
       data: aFakeSeriesDetailWithTeamSwap(),
       analyticsByMatchId: new Map(),
       viewMode: "wide" as const,
+      streamerSettings: DEFAULT_ALL_SETTINGS,
       observerColors: DEFAULT_COLOR_SETTINGS.observerView,
       onObserverColorsChange: vi.fn(),
       onSeriesSettingsChange: vi.fn(),
@@ -80,6 +88,7 @@ describe("DiscordSeriesDetailStats", () => {
       data: aFakeSeriesDetailWithTeamSwap(),
       analyticsByMatchId: new Map(),
       viewMode: "wide" as const,
+      streamerSettings: DEFAULT_ALL_SETTINGS,
       observerColors: DEFAULT_COLOR_SETTINGS.observerView,
       onObserverColorsChange: vi.fn(),
       onSeriesSettingsChange: vi.fn(),
@@ -136,6 +145,7 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
@@ -160,6 +170,7 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
@@ -190,6 +201,7 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
@@ -220,6 +232,7 @@ describe("DiscordSeriesDetailStats", () => {
         }}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
         onObserverColorsChange={vi.fn()}
@@ -274,6 +287,7 @@ describe("DiscordSeriesDetailStats", () => {
         data={aFakeSeriesDetailWithTeamSwap()}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={{ eagleColor: "invalid", cobraColor: "invalid" }}
         onObserverColorsChange={vi.fn()}
@@ -308,6 +322,7 @@ describe("DiscordSeriesDetailStats", () => {
           data={{ ...data, aggregation: { ...data.aggregation, teams: teams.reverse() } }}
           analyticsByMatchId={new Map()}
           viewMode="wide"
+          streamerSettings={DEFAULT_ALL_SETTINGS}
           seriesSettings={DEFAULT_SERIES_SETTINGS}
           observerColors={DEFAULT_COLOR_SETTINGS.observerView}
           onObserverColorsChange={onObserverColorsChange}
@@ -336,5 +351,114 @@ describe("DiscordSeriesDetailStats", () => {
         Object.defineProperty(Element.prototype, "scrollIntoView", scrollDescriptor);
       }
     }
+  });
+
+  it("renders archived match details inside the transparent streamer overlay", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const data = aFakeSeriesDetailResponseWith({
+      context: { title: "Queue #7777 Series Stats", subtitle: "Guild 123456789012345678" },
+    });
+
+    render(
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="streamer"
+        streamerSettings={{ ...DEFAULT_ALL_SETTINGS, global: { ...DEFAULT_ALL_SETTINGS.global, viewMode: "streamer" } }}
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onObserverColorsChange={vi.fn()}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("archive-streamer-overlay")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Series overview" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Series/ }));
+    expect(screen.getByRole("heading", { name: "Series overview" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Live Fire/ }));
+    expect(screen.queryByRole("heading", { name: "Series overview" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Match 1: Slayer: Live Fire" })).toBeInTheDocument();
+  });
+
+  it("keeps available match panels when archived series totals are unavailable", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const data = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: ["match-one", "missing-match"],
+        results: [
+          Preconditions.checkExists(aFakeSeriesDetailResponseWith().matches.results[0], "Expected fake match detail"),
+          { status: "unavailable", matchId: "missing-match", reason: "not-found" },
+        ],
+      },
+      aggregation: { status: "unavailable", reason: "incomplete-matches" },
+    });
+
+    render(
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="streamer"
+        streamerSettings={{ ...DEFAULT_ALL_SETTINGS, global: { ...DEFAULT_ALL_SETTINGS.global, viewMode: "streamer" } }}
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onObserverColorsChange={vi.fn()}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Series/ }));
+    expect(
+      screen.getByText("Series totals are unavailable because some match details could not be resolved."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Live Fire/ }));
+    expect(screen.getByRole("heading", { name: "Match 1: Slayer: Live Fire" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Unknown map/ }));
+    expect(screen.getByText("Failed to load detailed stats for match missing-match.")).toBeInTheDocument();
+  });
+
+  it("uses the latest substituted lineup and the presenter's bot label in the overlay", () => {
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const customNames = ["Custom Eagles", "Custom Cobras"];
+    const controller = new StatsDetailController();
+    const model = new SeriesDetailStatsViewModelPresenter(controller).present(data);
+    const aggregation = Preconditions.checkExists(
+      data.aggregation.status === "resolved" ? data.aggregation : null,
+      "Expected resolved series aggregation",
+    );
+    const overlayData: ReturnType<typeof aFakeSeriesDetailResponseWith> = {
+      ...data,
+      matches: { matchIds: ["missing"], results: [{ status: "unavailable", matchId: "missing", reason: "not-found" }] },
+      aggregation: {
+        ...aggregation,
+        teams: aggregation.teams.map((team, index) => ({
+          ...team,
+          seriesTeamId: index + 2,
+          name: index === 0 ? null : team.name,
+        })),
+      },
+    };
+    const latestLineupModel = {
+      ...model,
+      teams: model.teams.map((team, index) => ({
+        ...team,
+        seriesTeamId: index + 2,
+        name: customNames[index] ?? team.name,
+        players: index === 0 ? ["Bravo", "Substitute"] : ["Alpha", "Charlie", "Bot"],
+      })),
+    };
+    const overlayPresenter = new ArchiveSeriesOverlayPresenter(controller);
+    const overlayModel = overlayPresenter.present(overlayData, latestLineupModel, DEFAULT_ALL_SETTINGS, [], true);
+    const modelWithoutTeamCards = { ...latestLineupModel, teams: [] };
+    const fallbackModel = overlayPresenter.present(overlayData, modelWithoutTeamCards, DEFAULT_ALL_SETTINGS, [], true);
+
+    expect(overlayModel.tickerMatchGroups[0]?.rows.slice(0, 2).map((row) => row.name)).toEqual(customNames);
+    expect(fallbackModel.tickerMatchGroups[0]?.rows.slice(0, 2).map((row) => row.name)).toEqual(["Team 2", "Cobra"]);
+    expect(overlayModel.teamLeft?.players.map((player) => player.displayName)).toEqual(["Bravo", "Substitute"]);
+    expect(overlayModel.teamRight?.players.map((player) => player.displayName)).toEqual(["Alpha", "Charlie", "Bot"]);
   });
 });

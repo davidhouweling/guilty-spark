@@ -187,9 +187,10 @@ export class DiscordSeriesStatsPresenter {
         ? this.settings
         : parseSettingsFromUrl(new URLSearchParams(window.location.search), this.settings);
     this.store.update({
+      urlSettings: settings,
       seriesSettings: settings.series,
       observerColors: settings.global.colors.observerView,
-      viewMode: settings.global.viewMode === "standard" ? "standard" : "wide",
+      viewMode: settings.global.viewMode,
     });
   }
 

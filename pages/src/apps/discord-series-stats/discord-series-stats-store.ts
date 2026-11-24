@@ -9,6 +9,7 @@ export class DiscordSeriesStatsStore {
     errorMessage: null,
     analyticsByMatchId: new Map(),
     viewMode: "wide",
+    urlSettings: DEFAULT_ALL_SETTINGS,
     seriesSettings: DEFAULT_ALL_SETTINGS.series,
     observerColors: DEFAULT_ALL_SETTINGS.global.colors.observerView,
   };
