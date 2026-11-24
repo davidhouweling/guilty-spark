@@ -346,3 +346,9 @@ export function buildUrlWithSettings({
 
   return url.toString();
 }
+
+export function buildUrlWithViewMode(baseUrl: string, viewMode: ViewMode): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set("viewMode", viewMode);
+  return url.toString();
+}

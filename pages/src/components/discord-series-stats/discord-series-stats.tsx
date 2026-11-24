@@ -4,9 +4,13 @@ import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
+import type { ViewMode } from "../view-mode/view-mode-selector";
+import { ViewModeSelector } from "../view-mode/view-mode-selector";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
+  readonly viewMode: ViewMode;
+  readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
@@ -27,6 +31,8 @@ function getQueueTitle(title: string): string {
 export function DiscordSeriesStatsView({
   title,
   subtitle,
+  viewMode,
+  onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
 }: DiscordSeriesStatsViewProps): ReactElement {
@@ -43,6 +49,13 @@ export function DiscordSeriesStatsView({
             </Heading>
             <div className={styles.headerSubtitle}>{subtitle}</div>
           </div>
+          <ViewModeSelector
+            currentMode={viewMode}
+            availableModes={["standard", "wide"]}
+            inline
+            onModeSelect={onViewModeSelect}
+            showCurrentModeLabel
+          />
         </div>
       </Container>
       <div className={styles.content}>
@@ -50,7 +63,7 @@ export function DiscordSeriesStatsView({
           title={title}
           subtitle={subtitle}
           showSeriesTitle={true}
-          wide={true}
+          wide={viewMode === "wide"}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
           {...stats}
         />

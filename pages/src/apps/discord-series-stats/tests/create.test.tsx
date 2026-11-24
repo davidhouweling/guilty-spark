@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { DiscordSeriesStatsApp } from "../create";
+import containerStyles from "../../../components/container/container.module.css";
 import {
   aFakeDiscordSeriesStatsAppServicesWith,
   aFakeForbiddenDiscordSeriesStatsDetailResultWith,
@@ -35,6 +36,8 @@ vi.mock("../../../components/icons/medal-icon", () => ({
 afterEach(() => {
   cleanup();
   mockInstallServices.mockReset();
+  localStorage.clear();
+  window.history.replaceState({}, "", "/");
 });
 
 describe("DiscordSeriesStatsApp", () => {
@@ -46,7 +49,57 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Series overview" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
+    const matchesHeading = screen.getByRole("heading", { name: "Matches" });
+    expect(matchesHeading).toBeInTheDocument();
+    expect(matchesHeading.closest(`.${containerStyles.container}`)).toHaveClass(containerStyles.wide);
+  });
+
+  it("applies the URL-selected narrow layout and changes only the view mode URL parameter", async () => {
+    const legacySettings = JSON.stringify({ viewMode: "wide" });
+    localStorage.setItem("live-tracker-streamer-settings-global", legacySettings);
+    window.history.replaceState(
+      {},
+      "",
+      "/stats/discord/123456789012345678/7777?viewMode=standard&campaign=summer#match-one",
+    );
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    const matchesHeading = await screen.findByRole("heading", { name: "Matches" });
+    const matchesContainer = matchesHeading.closest(`.${containerStyles.container}`);
+    expect(matchesContainer).not.toHaveClass(containerStyles.wide);
+
+    fireEvent.click(screen.getByRole("button", { name: "Change view mode" }));
+    expect(screen.getByRole("button", { name: "Narrow View" })).toHaveAttribute("data-selected", "true");
+    expect(screen.queryByRole("button", { name: /Streamer View/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
+
+    expect(matchesContainer).toHaveClass(containerStyles.wide);
+    expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("wide");
+    expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
+    expect(window.location.hash).toBe("#match-one");
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(legacySettings);
+  });
+
+  it("keeps the existing wide default and does not restore or rewrite legacy stored view modes", async () => {
+    const legacySettings = JSON.stringify({ viewMode: "standard", colors: { mode: "player" } });
+    localStorage.setItem("live-tracker-streamer-settings-global", legacySettings);
+    window.history.replaceState({}, "", "/stats/discord/123456789012345678/7777?viewMode=streamer");
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    const matchesHeading = await screen.findByRole("heading", { name: "Matches" });
+    expect(matchesHeading.closest(`.${containerStyles.container}`)).toHaveClass(containerStyles.wide);
+    fireEvent.click(screen.getByRole("button", { name: "Change view mode" }));
+    expect(screen.getByRole("button", { name: "Wide View" })).toHaveAttribute("data-selected", "true");
+    expect(screen.queryByRole("button", { name: /Streamer View/ })).not.toBeInTheDocument();
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(legacySettings);
   });
 
   it("renders pending message when stats are indexing", async () => {

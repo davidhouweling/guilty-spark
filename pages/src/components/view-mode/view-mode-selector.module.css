@@ -11,11 +11,23 @@
   z-index: var(--z-overlay);
 }
 
+.inline {
+  position: relative;
+  right: auto;
+  top: auto;
+}
+
 .triggerButton {
   align-items: center;
   display: flex;
   gap: var(--space-1);
   padding: var(--space-1);
+}
+
+.triggerModeLabel {
+  color: var(--halo-white);
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 
 .triggerIcon {
