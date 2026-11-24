@@ -69,6 +69,11 @@ export interface IdentifiedMatchStatsData extends Omit<MatchStatsData, "players"
   players: IdentifiedMatchStatsPlayerData[];
 }
 
+export interface IdentifiedSeriesStatsData {
+  readonly teamData: IdentifiedMatchStatsData[];
+  readonly playerData: IdentifiedMatchStatsData[];
+}
+
 export interface MatchStatsValues {
   key?: string | undefined;
   name: string;
