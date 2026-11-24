@@ -59,7 +59,7 @@ export class StatsDetailController {
 
   mapMatchDetailToAnalytics(
     detail: MatchDetail,
-    { killMatrix, scoreProgression, teamColors, teamSize }: MatchDetailAnalyticsInput,
+    { killMatrix, scoreProgression, teamColors, teamSize, teamNameByTeamId }: MatchDetailAnalyticsInput,
   ): MatchDetailAnalyticsData {
     const players = this.getMatchKillMatrixPlayers(detail);
     const playersByXuid = new Map(players.map((player) => [player.xuid, player]));
@@ -81,7 +81,12 @@ export class StatsDetailController {
       scoreProgressionViewData:
         scoreProgression == null
           ? null
-          : formatScoreProgression(scoreProgression, this.getScoreProgressionTeamColors(detail, teamColors), teamSize),
+          : formatScoreProgression(
+              scoreProgression,
+              this.getScoreProgressionTeamColors(detail, teamColors),
+              teamSize,
+              teamNameByTeamId,
+            ),
     };
   }
 

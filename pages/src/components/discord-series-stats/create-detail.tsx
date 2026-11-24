@@ -41,26 +41,12 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     );
     const colorModel = useMemo(() => presentArchiveSeriesColors(data, observerColors), [data, observerColors]);
     const model = useMemo(() => {
-      const presented = presenter.present(data, analyticsByMatchId, { teamColors: colorModel.teamColors });
-      if (!colorModel.available) {
-        return presented;
-      }
-
-      return {
-        ...presented,
-        teams: presented.teams.map((team, index) => {
-          const nameOverride =
-            index === 0
-              ? seriesSettings.eagleTeamNameOverride
-              : index === 1
-                ? seriesSettings.cobraTeamNameOverride
-                : null;
-          return {
-            ...team,
-            name: nameOverride != null && nameOverride !== "" ? nameOverride : team.name,
-          };
-        }),
-      };
+      return presenter.present(data, analyticsByMatchId, {
+        teamColors: colorModel.teamColors,
+        teamNameOverrides: colorModel.available
+          ? [seriesSettings.eagleTeamNameOverride, seriesSettings.cobraTeamNameOverride]
+          : [],
+      });
     }, [
       analyticsByMatchId,
       colorModel,

@@ -1,8 +1,8 @@
 import type { CtfFlagRun, CtfFlagRunEvent, CtfTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { FLAG_ADVANTAGE_KEY, TICK_FILL, roundPercent } from "../../chart-constants";
 import { interpolateSeriesAt, stepSeriesAt } from "../../interpolate-series";
+import { getTeamNameWithOverride } from "../../team-name";
 import type {
   FlagAdvantageOverlay,
   FlagRunData,
@@ -113,6 +113,7 @@ export function buildFlagRuns(
   teamIds: readonly [number, number],
   teamColorByTeamId: ReadonlyMap<number, string>,
   durationMs: number,
+  teamNameByTeamId: ReadonlyMap<number, string> = new Map(),
 ): FlagRunData[] {
   const [firstTeamId] = teamIds;
   const runs: FlagRunData[] = [];
@@ -133,7 +134,7 @@ export function buildFlagRuns(
     runs.push({
       runIndex,
       seriesKey: `run${String(runIndex)}`,
-      seriesName: `${getTeamName(run.flagTeamId)} flag · ${getTeamName(run.carrierTeamId)} carrying`,
+      seriesName: `${getTeamNameWithOverride(run.flagTeamId, teamNameByTeamId)} flag · ${getTeamNameWithOverride(run.carrierTeamId, teamNameByTeamId)} carrying`,
       color: carrierColorOf(teamColorByTeamId, run.carrierTeamId),
       points,
       markers: buildRunMarkers(run, points, endMs),
@@ -146,6 +147,7 @@ export function buildFlagRuns(
 export function buildFlagRunLegend(
   teamIds: readonly [number, number],
   teamColorByTeamId: ReadonlyMap<number, string>,
+  teamNameByTeamId: ReadonlyMap<number, string> = new Map(),
 ): FlagRunLegendEntry[] {
   const [firstTeamId, secondTeamId] = teamIds;
   const carrierAndFlag: readonly (readonly [number, number])[] = [
@@ -155,7 +157,7 @@ export function buildFlagRunLegend(
   return carrierAndFlag.map(([carrierTeamId, flagTeamId]) => ({
     key: `carrier-${String(carrierTeamId)}`,
     color: carrierColorOf(teamColorByTeamId, carrierTeamId),
-    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamName(flagTeamId)}'s flag, carried by ${getTeamName(carrierTeamId)}`,
+    text: `${SIDE_LABEL[runDirection(carrierTeamId, firstTeamId)]} ${getTeamNameWithOverride(flagTeamId, teamNameByTeamId)}'s flag, carried by ${getTeamNameWithOverride(carrierTeamId, teamNameByTeamId)}`,
   }));
 }
 
