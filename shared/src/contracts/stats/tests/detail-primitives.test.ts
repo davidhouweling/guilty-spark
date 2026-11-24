@@ -205,6 +205,13 @@ describe("medal primitives", () => {
     expect(medalSchema.parse(medal)).toEqual(medal);
   });
 
+  it("accepts older medals without a fallback score and preserves new scores including zero", () => {
+    const oldMedal = aFakeMedalWith({ name: null, sortingWeight: null, difficultyIndex: null, difficulty: null });
+    expect(medalSchema.parse(oldMedal)).not.toHaveProperty("totalPersonalScoreAwarded");
+    const newMedal = { ...oldMedal, totalPersonalScoreAwarded: 0 };
+    expect(medalSchema.parse(newMedal)).toEqual(newMedal);
+  });
+
   it.each([NaN, Infinity, -Infinity])("rejects non-finite medal sorting weights (%s)", (sortingWeight) => {
     expect(medalSchema.safeParse(aFakeMedalWith({ sortingWeight })).success).toBe(false);
   });

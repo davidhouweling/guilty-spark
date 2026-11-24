@@ -21,6 +21,7 @@ export function serializeMedalDetails(
       count: medal.Count,
       name: metadata == null ? null : metadata.name.value,
       sortingWeight: metadata == null ? null : metadata.sortingWeight,
+      ...(metadata == null ? { totalPersonalScoreAwarded: medal.TotalPersonalScoreAwarded } : {}),
       difficultyIndex: metadata == null ? null : metadata.difficultyIndex,
       difficulty: metadata == null ? null : (difficulties[metadata.difficultyIndex] ?? null),
     });

@@ -120,6 +120,7 @@ describe("mapMatchDetailRosters", () => {
       expect.objectContaining({ value: 8 }),
     ]);
     expect(player.teamStats.map((row) => row.medals[0]?.id)).toEqual([2, 1]);
+    expect(player.teamStats.map((row) => row.medals[0]?.totalPersonalScoreAwarded)).toEqual([200, 100]);
     expect(result.teams.map((team) => team.playerIds)).toEqual([[player.playerId], [player.playerId]]);
     expect(result.teams.map((team) => team.seriesTeamId)).toEqual([null, null]);
   });

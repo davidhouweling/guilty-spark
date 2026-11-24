@@ -8,7 +8,7 @@ import { serializeMedalDetails } from "../medal-detail-serialization";
 type MetadataFile = Awaited<ReturnType<HaloInfiniteClient["getMedalsMetadataFile"]>>;
 
 describe("serializeMedalDetails", () => {
-  it("preserves nonsequential IDs, order, counts and duplicate entries without leaking raw fields", () => {
+  it("preserves IDs, order, counts and metadata weights without including fallback scores", () => {
     const medals = aFakeCoreStatsWith({
       Medals: [
         { NameId: 622331684, Count: 6, TotalPersonalScoreAwarded: 120 },
@@ -20,7 +20,7 @@ describe("serializeMedalDetails", () => {
       1169571763: aFakeMedalMetadataWith({
         nameId: 1169571763,
         name: { value: "Double Kill", translations: {} },
-        sortingWeight: 50.5,
+        sortingWeight: 0,
         difficultyIndex: 0,
       }),
       622331684: aFakeMedalMetadataWith(),
@@ -30,9 +30,30 @@ describe("serializeMedalDetails", () => {
     const metadataBefore = structuredClone(metadata);
     const difficultiesBefore = structuredClone(difficulties);
     const expected = [
-      { id: 622331684, count: 6, name: "Killing Spree", sortingWeight: 100, difficultyIndex: 1, difficulty: "Heroic" },
-      { id: 1169571763, count: 0, name: "Double Kill", sortingWeight: 50.5, difficultyIndex: 0, difficulty: "Normal" },
-      { id: 622331684, count: 2, name: "Killing Spree", sortingWeight: 100, difficultyIndex: 1, difficulty: "Heroic" },
+      {
+        id: 622331684,
+        count: 6,
+        name: "Killing Spree",
+        sortingWeight: 100,
+        difficultyIndex: 1,
+        difficulty: "Heroic",
+      },
+      {
+        id: 1169571763,
+        count: 0,
+        name: "Double Kill",
+        sortingWeight: 0,
+        difficultyIndex: 0,
+        difficulty: "Normal",
+      },
+      {
+        id: 622331684,
+        count: 2,
+        name: "Killing Spree",
+        sortingWeight: 100,
+        difficultyIndex: 1,
+        difficulty: "Heroic",
+      },
     ];
 
     const result = serializeMedalDetails(medals, metadata, difficulties);
@@ -53,10 +74,36 @@ describe("serializeMedalDetails", () => {
       }).Medals;
 
       expect(serializeMedalDetails(medals, metadata, ["Heroic"])).toEqual([
-        { id: 622331684, count: 0, name: null, sortingWeight: null, difficultyIndex: null, difficulty: null },
+        {
+          id: 622331684,
+          count: 0,
+          name: null,
+          sortingWeight: null,
+          totalPersonalScoreAwarded: 120,
+          difficultyIndex: null,
+          difficulty: null,
+        },
       ]);
     },
   );
+
+  it("retains a zero fallback score when metadata is missing", () => {
+    const medals = aFakeCoreStatsWith({
+      Medals: [{ NameId: 17, Count: 1, TotalPersonalScoreAwarded: 0 }],
+    }).Medals;
+
+    expect(serializeMedalDetails(medals, {}, [])).toEqual([
+      {
+        id: 17,
+        count: 1,
+        name: null,
+        sortingWeight: null,
+        totalPersonalScoreAwarded: 0,
+        difficultyIndex: null,
+        difficulty: null,
+      },
+    ]);
+  });
 
   it("keeps resolved metadata when its difficulty is unavailable", () => {
     const medals = aFakeCoreStatsWith().Medals;
@@ -96,6 +143,13 @@ describe("serializeMedalDetails", () => {
     const metadata = { 622331684: aFakeMedalMetadataWith({ sortingWeight }) };
 
     expect(() => serializeMedalDetails(aFakeCoreStatsWith().Medals, metadata, [])).toThrow();
+  });
+
+  it.each([NaN, Infinity, -Infinity])("rejects nonfinite raw medal score %s", (TotalPersonalScoreAwarded) => {
+    const medals = aFakeCoreStatsWith({
+      Medals: [{ NameId: 1, Count: 1, TotalPersonalScoreAwarded }],
+    }).Medals;
+    expect(() => serializeMedalDetails(medals, {}, [])).toThrow();
   });
 
   it.each([-1, 1.5, NaN, Infinity])("rejects invalid metadata difficultyIndex %s", (difficultyIndex) => {
