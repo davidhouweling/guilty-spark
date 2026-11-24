@@ -19,6 +19,15 @@
   font-family: var(--font-body);
 }
 
+.titleSettings {
+  margin-bottom: var(--space-6);
+}
+
+.titleSettings summary {
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+
 .content {
   padding-bottom: var(--space-8);
   padding-top: var(--space-4);

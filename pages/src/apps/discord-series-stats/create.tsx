@@ -11,8 +11,13 @@ import type { DiscordSeriesStatsService } from "../../services/stats/discord-ser
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import { DEFAULT_VIEW_MODE } from "../../components/live-tracker/settings/types";
+import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
-import { buildUrlWithViewMode, parseSettingsFromUrl } from "../../components/live-tracker/settings/settings-url-params";
+import {
+  buildUrlWithViewMode,
+  encodeSettingsToUrlParams,
+  parseSettingsFromUrl,
+} from "../../components/live-tracker/settings/settings-url-params";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -39,6 +44,11 @@ function DiscordSeriesStatsData({
   const { settings } = useStreamerSettings();
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
+  const [seriesSettings, setSeriesSettings] = useState<SeriesStreamerSettings>(() =>
+    typeof window === "undefined"
+      ? settings.series
+      : parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).series,
+  );
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window === "undefined") {
       return DEFAULT_VIEW_MODE;
@@ -101,6 +111,25 @@ function DiscordSeriesStatsData({
       );
     }
   }, []);
+  const onSeriesSettingsChange = useCallback(
+    (updates: Partial<SeriesStreamerSettings>): void => {
+      const next = { ...seriesSettings, ...updates };
+      setSeriesSettings(next);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        const params = encodeSettingsToUrlParams({ ...settings, series: next });
+        for (const key of ["title", "subtitle"]) {
+          if (Object.hasOwn(params, key)) {
+            url.searchParams.set(key, params[key]);
+          } else {
+            url.searchParams.delete(key);
+          }
+        }
+        window.history.replaceState(window.history.state, "", url.toString());
+      }
+    },
+    [seriesSettings, settings],
+  );
 
   const loaderStatus =
     model.state === "loading"
@@ -120,6 +149,8 @@ function DiscordSeriesStatsData({
             data={model.data}
             analyticsByMatchId={snapshot.analyticsByMatchId}
             viewMode={viewMode}
+            seriesSettings={seriesSettings}
+            onSeriesSettingsChange={onSeriesSettingsChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}
           />
