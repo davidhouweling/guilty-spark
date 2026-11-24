@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { aFakeSeriesDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith, aFakeMedalMetadata } from "../../../../controllers/stats/fakes/data";
 import { gameModeIconSrc } from "../../game-mode-icon";
 import type {
   IndividualTrackerViewerRenderModel,
   ViewerMatchTab,
+  ViewerSeriesDetailsState,
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "../../viewer/types";
@@ -98,6 +100,13 @@ function aLoadedMatchStatsWith(matchId: string): Extract<MatchStatsState, { stat
     analytics: null,
     analyticsStatus: ComponentLoaderStatus.LOADED,
   };
+}
+
+function aLoadedSeriesDetailsWith(
+  seriesId: string,
+  data = aFakeSeriesDetailResponseWith({ seriesId }),
+): ViewerSeriesDetailsState {
+  return { status: "loaded", seriesId, data, analyticsByMatchId: new Map() };
 }
 
 describe("individual-tracker-overlay-presenter", () => {
@@ -340,7 +349,7 @@ describe("individual-tracker-overlay-presenter", () => {
             : `upcoming:${tab.index.toString()}`,
       ),
     ).toEqual(["series:-1", "match:1", "upcoming:2", "upcoming:3"]);
-    expect(model.tickerMatchGroups.map((group) => group.matchIndex)).toEqual([-1, 1]);
+    expect(model.tickerMatchGroups.map((group) => group.matchIndex)).toEqual([1]);
   });
 
   it("respects per-state show tabs toggles", () => {
@@ -1135,104 +1144,67 @@ describe("individual-tracker-overlay-presenter", () => {
     expect(model.statsHighlights).toEqual([]);
   });
 
-  it("includes a series stats ticker group ahead of match groups when in an active series", () => {
+  it("builds the active-series ticker group from condensed aggregation", () => {
     const matchId = "series-match-1";
     const activeSeries = aSeriesWith({
       id: "series-active",
       isActive: true,
       matches: [aMatchWith({ matchId })],
     });
-
-    const model = presenter.present({
-      renderModel: aRenderModelWith({
-        hasActiveSeries: true,
-        activeSeriesContext: {
-          title: "Series",
-          subtitle: "Bo3",
-          teams: [],
-        },
-        timeline: [{ type: "series", series: activeSeries }],
-      }),
-      streamerSettings: undefined,
-      matchStatsByMatchId: new Map([
-        [
-          matchId,
-          {
-            status: "loaded" as const,
-            stats: aFakeMatchStatsWith({ MatchId: matchId }),
-            playerMap: new Map<string, string>([
-              ["1111111111", "TrackedPlayer"],
-              ["2222222222", "PlayerTwo"],
-              ["3333333333", "PlayerThree"],
-              ["4444444444", "PlayerFour"],
-            ]),
-            medalMetadata: aFakeMedalMetadata(),
-            analytics: null,
-            analyticsStatus: ComponentLoaderStatus.LOADED,
-          },
-        ],
-      ]),
-      selectedMatchId: null,
+    const renderModel = aRenderModelWith({
+      hasActiveSeries: true,
+      activeSeriesContext: { title: "Series", subtitle: "Bo3", teams: [] },
+      timeline: [{ type: "series", series: activeSeries }],
     });
+    const options = {
+      renderModel,
+      matchStatsByMatchId: new Map(),
+      seriesDetailsById: new Map([["series-active", aLoadedSeriesDetailsWith("series-active")]]),
+      selectedMatchId: null,
+    };
 
-    expect(model.tickerMatchGroups.length).toBeGreaterThanOrEqual(2);
-    const [seriesGroup, matchGroup] = model.tickerMatchGroups;
+    const model = presenter.present({ ...options, streamerSettings: undefined });
+
+    expect(model.tickerMatchGroups).toHaveLength(1);
+    const [seriesGroup] = model.tickerMatchGroups;
     expect(seriesGroup.label).toBe("Series Stats");
     expect(seriesGroup.matchIndex).toBe(-1);
     expect(seriesGroup.rows.some((row) => row.type === "team")).toBe(true);
     expect(seriesGroup.rows.some((row) => row.type === "player")).toBe(true);
-    expect(matchGroup.matchIndex).not.toBe(-1);
+
+    const filtered = presenter.present({
+      ...options,
+      renderModel: { ...renderModel, gamertag: "Spartan One" },
+      streamerSettings: {
+        styleFlags: { inSeriesMyStatsOnly: true },
+      } satisfies StreamerViewSettings,
+    });
+    const [filteredSeriesGroup] = filtered.tickerMatchGroups;
+    expect(filteredSeriesGroup.rows).toHaveLength(1);
+    expect(filteredSeriesGroup.rows[0]).toMatchObject({
+      type: "player",
+      name: "Spartan One",
+    });
   });
 
-  it("shows only the tracked player row in the series stats group when inSeriesMyStatsOnly is enabled", () => {
-    const matchId = "series-match-1";
-    const activeSeries = aSeriesWith({
-      id: "series-active",
-      isActive: true,
-      matches: [aMatchWith({ matchId })],
+  it("omits unavailable aggregation from series ticker totals", () => {
+    const activeSeries = aSeriesWith({ id: "series-active", isActive: true });
+    const response = aFakeSeriesDetailResponseWith({
+      seriesId: "series-active",
+      aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
     });
-
     const model = presenter.present({
       renderModel: aRenderModelWith({
         hasActiveSeries: true,
-        activeSeriesContext: {
-          title: "Series",
-          subtitle: "Bo3",
-          teams: [],
-        },
         timeline: [{ type: "series", series: activeSeries }],
       }),
-      streamerSettings: {
-        styleFlags: {
-          inSeriesMyStatsOnly: true,
-        },
-      } satisfies StreamerViewSettings,
-      matchStatsByMatchId: new Map([
-        [
-          matchId,
-          {
-            status: "loaded" as const,
-            stats: aFakeMatchStatsWith({ MatchId: matchId }),
-            playerMap: new Map<string, string>([
-              ["1111111111", "TrackedPlayer"],
-              ["2222222222", "PlayerTwo"],
-              ["3333333333", "PlayerThree"],
-              ["4444444444", "PlayerFour"],
-            ]),
-            medalMetadata: aFakeMedalMetadata(),
-            analytics: null,
-            analyticsStatus: ComponentLoaderStatus.LOADED,
-          },
-        ],
-      ]),
+      streamerSettings: undefined,
+      matchStatsByMatchId: new Map(),
+      seriesDetailsById: new Map([["series-active", aLoadedSeriesDetailsWith("series-active", response)]]),
       selectedMatchId: null,
     });
 
-    const [seriesGroup] = model.tickerMatchGroups;
-    expect(seriesGroup.label).toBe("Series Stats");
-    expect(seriesGroup.rows).toHaveLength(1);
-    expect(seriesGroup.rows[0].type).toBe("player");
-    expect(seriesGroup.rows[0].name).toBe("TrackedPlayer");
+    expect(model.tickerMatchGroups.some((group) => group.label === "Series Stats")).toBe(false);
   });
 
   it("omits the series stats group when no series match stats are loaded", () => {
