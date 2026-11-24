@@ -6,6 +6,7 @@ import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
 import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
 import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
 import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
@@ -122,6 +123,7 @@ function aPresenter(): OverlayPagePresenter {
     haloClient,
     medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
     matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+    seriesMatchesService: aFakeSeriesMatchesServiceWith(),
   });
 }
 
@@ -139,6 +141,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.selectMatch("match-1");
@@ -168,6 +171,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService,
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
     const matchIds = Array.from({ length: 12 }, (_, index) => `match-${index.toString()}`);
 
@@ -180,7 +184,7 @@ describe("OverlayPagePresenter", () => {
       );
     });
     expect(getBatchMatchAnalytics).toHaveBeenCalledOnce();
-    expect(getBatchMatchAnalytics).toHaveBeenCalledWith(matchIds, ["killMatrix", "scoreProgression"]);
+    expect(getBatchMatchAnalytics).toHaveBeenCalledWith(matchIds, ["killMatrix", "scoreProgression"], undefined);
   });
 
   it("maps load failures to error states", async () => {
@@ -194,6 +198,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.selectMatch("match-1");
@@ -224,6 +229,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService,
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.selectMatch("match-1");
@@ -256,6 +262,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService,
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.selectMatch("match-1");
@@ -293,6 +300,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.preloadMatchStats(["match-1", "match-2"]);
@@ -330,6 +338,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.preloadMatchStats(["match-1", "match-2", "match-3"]);
@@ -354,6 +363,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
 
     presenter.selectSeries("series-1");
@@ -371,6 +381,7 @@ describe("OverlayPagePresenter", () => {
       haloClient,
       medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
       matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+      seriesMatchesService: aFakeSeriesMatchesServiceWith(),
     });
     const listener = vi.fn<() => void>();
     const unsubscribe = store.subscribe(listener);
@@ -396,14 +407,18 @@ describe("OverlayPagePresenter", () => {
         getMatchStats,
         getUsers: vi.fn(async (xuids: string[]) => Promise.resolve(aUsersFor(xuids))),
       });
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
       const presenter = new OverlayPagePresenter({
         store,
         haloClient,
         medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
         matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        seriesMatchesService,
       });
       const timeline: readonly ViewerTimelineItem[] = [
         { type: "match", match: aMatchTabWith({ matchId: "standalone-1" }) },
+        { type: "match", match: aMatchTabWith({ matchId: "series-match-1" }) },
         {
           type: "series",
           series: aSeriesTabWith({
@@ -413,13 +428,192 @@ describe("OverlayPagePresenter", () => {
       ];
 
       presenter.preloadTimelineMatchStats(timeline);
+      presenter.selectMatch("series-match-1", timeline);
 
       await waitFor(() => {
-        expect(store.getSnapshot().matchStatsByMatchId.get("standalone-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("standalone-1")?.status).toBe("condensed");
         expect(store.getSnapshot().matchStatsByMatchId.get("series-match-1")?.status).toBe("loaded");
         expect(store.getSnapshot().matchStatsByMatchId.get("series-match-2")?.status).toBe("loaded");
       });
-      expect(getMatchStats).toHaveBeenCalledTimes(3);
+      expect(getMatchStats).toHaveBeenCalledTimes(2);
+      expect(getMatchStats).not.toHaveBeenCalledWith("standalone-1");
+      expect(getMatchDetails).toHaveBeenCalledOnce();
+      expect(getMatchDetails).toHaveBeenCalledWith(["standalone-1"], undefined);
+      const series = timeline.find((item) => item.type === "series");
+      expect(
+        series?.type === "series" &&
+          presenter.buildSeriesStatsPanelState(series.series, store.getSnapshot().matchStatsByMatchId)?.status,
+      ).toBe("loaded");
+    });
+
+    it("keeps standalone tables and ticker data available when analytics fails", async () => {
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith();
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
+      const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+      const getAnalytics = vi
+        .spyOn(matchAnalyticsService, "getBatchMatchAnalytics")
+        .mockRejectedValue(new Error("analytics down"));
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService,
+        seriesMatchesService,
+        trackerId: "tracker-1",
+      });
+
+      const timeline: readonly ViewerTimelineItem[] = [
+        { type: "match", match: aMatchTabWith() },
+        { type: "match", match: aMatchTabWith({ matchId: "match-2" }) },
+      ];
+      presenter.preloadTimelineMatchStats(timeline);
+      await waitFor(() => {
+        expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("condensed");
+        expect(store.getSnapshot().matchStatsByMatchId.get("match-2")?.status).toBe("condensed");
+      });
+      expect(getAnalytics).not.toHaveBeenCalled();
+      presenter.selectMatch("match-1", timeline);
+      presenter.selectMatch("match-1", timeline);
+      await waitFor(() => {
+        const panel = presenter.present(store.getSnapshot()).matchStatsPanelState;
+        if (panel?.status !== "loaded") {
+          throw new Error("expected loaded panel");
+        }
+        expect(panel.data[0]?.players[0]?.name).toBe("Spartan One");
+        expect(panel.killMatrixStatus).toBe(ComponentLoaderStatus.ERROR);
+        expect(panel.scoreProgressionStatus).toBe(ComponentLoaderStatus.ERROR);
+      });
+      expect(getMatchDetails).toHaveBeenCalledTimes(2);
+      expect(getMatchDetails).toHaveBeenCalledWith(["match-1"], "tracker-1");
+      expect(getAnalytics).toHaveBeenCalledOnce();
+      expect(getAnalytics).toHaveBeenCalledWith(["match-1"], ["killMatrix", "scoreProgression"], "tracker-1");
+    });
+
+    it("ignores a stale standalone response after a match joins a series", async () => {
+      const store = new OverlayPageStore();
+      const getMatchStats = vi.fn(async () => Promise.resolve(aFakeMatchStatsWith({ MatchId: "match-1" })));
+      const haloClient = aFakeHaloClientWith({ getMatchStats });
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const response = await seriesMatchesService.getMatchDetails(["match-1"]);
+      let resolveDetails: ((value: typeof response) => void) | undefined;
+      vi.spyOn(seriesMatchesService, "getMatchDetails").mockImplementation(
+        async () =>
+          new Promise((resolve) => {
+            resolveDetails = resolve;
+          }),
+      );
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        seriesMatchesService,
+      });
+      const match = aMatchTabWith();
+      presenter.preloadTimelineMatchStats([{ type: "match", match }]);
+      presenter.preloadTimelineMatchStats([{ type: "series", series: aSeriesTabWith({ matches: [match] }) }]);
+      await waitFor(() => {
+        expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+      });
+      resolveDetails?.(response);
+      await Promise.resolve();
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+      expect(getMatchStats).toHaveBeenCalledOnce();
+    });
+
+    it("does not load analytics when selection closes before detail resolves", async () => {
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith();
+      const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+      const getAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      const response = await seriesMatchesService.getMatchDetails(["match-1"]);
+      let resolveDetails: ((value: typeof response) => void) | undefined;
+      vi.spyOn(seriesMatchesService, "getMatchDetails").mockImplementation(
+        async () =>
+          new Promise((resolve) => {
+            resolveDetails = resolve;
+          }),
+      );
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService,
+        seriesMatchesService,
+      });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "match", match: aMatchTabWith() }];
+      presenter.preloadTimelineMatchStats(timeline);
+      presenter.selectMatch("match-1", timeline);
+      presenter.deselect();
+      resolveDetails?.(response);
+      await waitFor(() => {
+        expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("condensed");
+      });
+      expect(getAnalytics).not.toHaveBeenCalled();
+    });
+
+    it("reports unavailable standalone details as an error without a raw fallback", async () => {
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith();
+      const rawFetch = vi.spyOn(haloClient, "getMatchStats");
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      vi.spyOn(seriesMatchesService, "getMatchDetails").mockResolvedValue({
+        matchIds: ["match-1"],
+        results: [{ status: "unavailable", matchId: "match-1", reason: "forbidden" }],
+      });
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        seriesMatchesService,
+      });
+
+      presenter.selectMatch("match-1", [{ type: "match", match: aMatchTabWith() }]);
+      await waitFor(() => {
+        expect(presenter.present(store.getSnapshot()).matchStatsPanelState).toEqual({
+          status: "error",
+          message: "Failed to load match stats",
+        });
+      });
+      expect(rawFetch).not.toHaveBeenCalled();
+    });
+
+    it("renders standalone tables before analytics and ignores analytics after reset", async () => {
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith();
+      const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+      let resolveAnalytics: ((value: Record<string, null>) => void) | undefined;
+      vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics").mockImplementation(
+        async () =>
+          new Promise((resolve) => {
+            resolveAnalytics = resolve;
+          }),
+      );
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService,
+        seriesMatchesService: aFakeSeriesMatchesServiceWith(),
+      });
+
+      presenter.selectMatch("match-1", [{ type: "match", match: aMatchTabWith() }]);
+      await waitFor(() => {
+        const panel = presenter.present(store.getSnapshot()).matchStatsPanelState;
+        if (panel?.status !== "loaded") {
+          throw new Error("expected loaded panel");
+        }
+        expect(panel.data[0]?.players[0]?.name).toBe("Spartan One");
+        expect(panel.scoreProgressionStatus).toBe(ComponentLoaderStatus.LOADING);
+      });
+      presenter.reset();
+      resolveAnalytics?.({ "match-1": null });
+      await Promise.resolve();
+      expect(store.getSnapshot().matchStatsByMatchId.size).toBe(0);
     });
   });
 

@@ -55,8 +55,10 @@ function IndividualTrackerOverlayPageInternal({
         haloClient,
         medalMetadataResolver,
         matchAnalyticsService,
+        seriesMatchesService,
+        trackerId,
       }),
-    [haloClient, medalMetadataResolver, matchAnalyticsService, store],
+    [haloClient, medalMetadataResolver, matchAnalyticsService, seriesMatchesService, store, trackerId],
   );
 
   const { snapshot, model, onRetry } = useIndividualTrackerViewer({
@@ -79,12 +81,12 @@ function IndividualTrackerOverlayPageInternal({
   }, [presenter, trackerId]);
 
   useEffect(() => {
-    if (model.renderModel == null) {
+    if (model.renderModel?.trackerId !== trackerId) {
       return;
     }
 
     presenter.preloadTimelineMatchStats(model.renderModel.timeline);
-  }, [model.renderModel, presenter]);
+  }, [model.renderModel, presenter, trackerId]);
 
   const overlaySnapshot = useSyncExternalStore(
     (listener) => store.subscribe(listener),
@@ -155,7 +157,7 @@ function IndividualTrackerOverlayPageInternal({
       loading={<LoadingState text="Loading tracker..." />}
       error={<ErrorState message={snapshot.errorMessage ?? "Failed to load tracker"} onRetry={onRetry} />}
       loaded={
-        model.renderModel != null && overlayViewModel != null ? (
+        model.renderModel?.trackerId === trackerId && overlayViewModel != null ? (
           <IndividualTrackerOverlay
             viewModel={overlayViewModel}
             isPanelOpen={isPanelOpen}
@@ -169,7 +171,7 @@ function IndividualTrackerOverlayPageInternal({
             showPreview={showPreview}
             previewMode={previewMode}
             onSelectMatch={(matchId): void => {
-              presenter.selectMatch(matchId);
+              presenter.selectMatch(matchId, model.renderModel?.timeline);
             }}
             onSelectSeries={(seriesId): void => {
               presenter.selectSeries(seriesId);

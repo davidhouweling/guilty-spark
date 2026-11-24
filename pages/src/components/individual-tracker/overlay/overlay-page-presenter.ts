@@ -1,8 +1,11 @@
 import type { HaloInfiniteClient } from "halo-infinite-api";
+import { getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
+import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import { getPlayerXuid } from "@guilty-spark/shared/halo/match-stats";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import { StatsController } from "../../../controllers/stats/stats-controller";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { KillMatrixFormatter } from "../../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../controllers/stats/kill-matrix/types";
 import type { KillMatrixPlayer } from "../../../controllers/stats/kill-matrix/types";
@@ -10,6 +13,7 @@ import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { HaloMedalMetadataResolver } from "../../../services/halo/medal-metadata-resolver";
 import type { MatchAnalyticsService } from "../../../services/stats/match-analytics-types";
+import type { SeriesMatchesService } from "../../../services/series-matches/types";
 import type {
   MatchDetailsState,
   SeriesDetailsState,
@@ -22,6 +26,7 @@ import { buildSeriesViewModel } from "../../series-stats/build-series-view-model
 import type { ResolvedSeriesMatch } from "../../series-stats/build-series-view-model";
 import type { SeriesStatsViewModel } from "../../series-stats/types";
 import { buildMatchHeaderTitle } from "../stats-panel-header";
+import { projectStandaloneMatchStats } from "./standalone-match-stats";
 import type { MatchStatsState } from "./individual-tracker-overlay-presenter";
 import type { OverlayPageSnapshot, OverlayPageStore } from "./overlay-page-store";
 
@@ -35,6 +40,8 @@ interface OverlayPagePresenterConfig {
   readonly haloClient: HaloInfiniteClient;
   readonly medalMetadataResolver: HaloMedalMetadataResolver;
   readonly matchAnalyticsService: MatchAnalyticsService;
+  readonly seriesMatchesService: SeriesMatchesService;
+  readonly trackerId?: string;
 }
 
 interface OverlayAnalyticsLoadResult {
@@ -51,6 +58,8 @@ export interface OverlayPageViewModel {
 
 export class OverlayPagePresenter {
   private readonly config: OverlayPagePresenterConfig;
+  private readonly statsDetailController = new StatsDetailController();
+  private readonly loads = new Map<string, { token: symbol; source: "raw" | "detail" }>();
   private isDisposed = false;
 
   private shouldAbort(): boolean {
@@ -66,6 +75,7 @@ export class OverlayPagePresenter {
   }
 
   public reset(): void {
+    this.loads.clear();
     this.config.store.reset();
   }
 
@@ -73,7 +83,10 @@ export class OverlayPagePresenter {
     const matchIdsToLoad: string[] = [];
     for (const matchId of matchIds) {
       const existingState = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
-      if (existingState?.status === "loaded" || existingState?.status === "loading") {
+      if (
+        existingState?.status === "loaded" ||
+        (existingState?.status === "loading" && this.loads.get(matchId)?.source === "raw")
+      ) {
         continue;
       }
 
@@ -85,12 +98,38 @@ export class OverlayPagePresenter {
 
     const analyticsPromise = this.loadMatchAnalyticsAsync(matchIdsToLoad);
     for (const matchId of matchIdsToLoad) {
-      void this.loadMatchStatsAsync(matchId, analyticsPromise);
+      const token = Symbol();
+      this.loads.set(matchId, { token, source: "raw" });
+      void this.loadMatchStatsAsync(matchId, token, analyticsPromise);
     }
   }
 
   public preloadTimelineMatchStats(timeline: readonly ViewerTimelineItem[]): void {
-    this.preloadMatchStats(this.collectTimelineMatchIds(timeline));
+    const seriesIds = new Set(
+      timeline.flatMap((item) => (item.type === "series" ? item.series.matches.map((match) => match.matchId) : [])),
+    );
+    this.preloadMatchStats([...seriesIds]);
+    const standaloneIds = timeline.flatMap((item) =>
+      item.type === "match" && !seriesIds.has(item.match.matchId) ? [item.match.matchId] : [],
+    );
+    this.preloadStandaloneMatchStats(standaloneIds);
+  }
+
+  private preloadStandaloneMatchStats(matchIds: readonly string[]): void {
+    const pending = [...new Set(matchIds)].filter((matchId) => {
+      const state = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
+      return (
+        state?.status !== "condensed" && !(state?.status === "loading" && this.loads.get(matchId)?.source === "detail")
+      );
+    });
+    if (pending.length === 0) {
+      return;
+    }
+    for (const matchId of pending) {
+      const token = Symbol();
+      this.loads.set(matchId, { token, source: "detail" });
+      void this.loadStandaloneMatchStatsAsync(matchId, token);
+    }
   }
 
   public findSelectedMatch(
@@ -134,15 +173,31 @@ export class OverlayPagePresenter {
     return null;
   }
 
-  public selectMatch(matchId: string): void {
+  public selectMatch(matchId: string, timeline: readonly ViewerTimelineItem[] = []): void {
+    const standalone =
+      timeline.some((item) => item.type === "match" && item.match.matchId === matchId) &&
+      !timeline.some(
+        (item) => item.type === "series" && item.series.matches.some((match) => match.matchId === matchId),
+      );
     this.config.store.setSelectedMatchId(matchId);
 
     const existingState = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
-    if (existingState?.status === "loaded" || existingState?.status === "loading") {
+    if (standalone && existingState?.status === "condensed") {
+      this.loadStandaloneAnalytics(matchId, existingState);
+      return;
+    }
+    if (
+      (!standalone && existingState?.status === "loaded") ||
+      (existingState?.status === "loading" && this.loads.get(matchId)?.source === (standalone ? "detail" : "raw"))
+    ) {
       return;
     }
 
-    void this.loadMatchStatsAsync(matchId);
+    if (standalone) {
+      this.preloadStandaloneMatchStats([matchId]);
+    } else {
+      this.preloadMatchStats([matchId]);
+    }
   }
 
   public selectSeries(seriesId: string): void {
@@ -178,22 +233,6 @@ export class OverlayPagePresenter {
       seriesId: series.id,
       viewModel: this.buildSeriesViewModelFromCache(series, loadedMatches),
     };
-  }
-
-  private collectTimelineMatchIds(timeline: readonly ViewerTimelineItem[]): readonly string[] {
-    const matchIds = new Set<string>();
-    for (const item of timeline) {
-      if (item.type === "match") {
-        matchIds.add(item.match.matchId);
-        continue;
-      }
-
-      for (const match of item.series.matches) {
-        matchIds.add(match.matchId);
-      }
-    }
-
-    return [...matchIds];
   }
 
   private toLoadedSeriesMatches(
@@ -281,13 +320,14 @@ export class OverlayPagePresenter {
 
   private async loadMatchStatsAsync(
     matchId: string,
+    token: symbol,
     analyticsPromise: Promise<OverlayAnalyticsLoadResult> = this.loadMatchAnalyticsAsync([matchId]),
   ): Promise<void> {
     this.config.store.setMatchStatsState(matchId, { status: "loading" });
 
     try {
       const stats = await this.config.haloClient.getMatchStats(matchId);
-      if (this.shouldAbort()) {
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
         return;
       }
 
@@ -298,7 +338,7 @@ export class OverlayPagePresenter {
         this.config.medalMetadataResolver.getMedalMetadataForMatch(stats),
       ]);
 
-      if (this.shouldAbort()) {
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
         return;
       }
 
@@ -319,7 +359,7 @@ export class OverlayPagePresenter {
       });
 
       const analyticsResult = await analyticsPromise;
-      if (this.shouldAbort()) {
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
         return;
       }
 
@@ -332,7 +372,7 @@ export class OverlayPagePresenter {
         analyticsStatus: analyticsResult.status,
       });
     } catch {
-      if (this.shouldAbort()) {
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
         return;
       }
 
@@ -343,12 +383,93 @@ export class OverlayPagePresenter {
     }
   }
 
-  private async loadMatchAnalyticsAsync(matchIds: readonly string[]): Promise<OverlayAnalyticsLoadResult> {
+  private async loadStandaloneMatchStatsAsync(matchId: string, token: symbol): Promise<void> {
+    this.config.store.setMatchStatsState(matchId, { status: "loading" });
     try {
-      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(matchIds, [
-        "killMatrix",
-        "scoreProgression",
-      ]);
+      const response = await this.config.seriesMatchesService.getMatchDetails([matchId], this.config.trackerId);
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
+        return;
+      }
+      const result = response.results.find((item) => item.matchId === matchId);
+      if (result?.status !== "resolved") {
+        throw new Error("Failed to load match stats");
+      }
+      this.setStandaloneMatchState(matchId, result.detail, null, ComponentLoaderStatus.PENDING);
+      const state = this.config.store.getSnapshot().matchStatsByMatchId.get(matchId);
+      if (this.config.store.getSnapshot().selectedMatchId === matchId && state?.status === "condensed") {
+        this.loadStandaloneAnalytics(matchId, state);
+      }
+    } catch {
+      if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
+        return;
+      }
+      this.config.store.setMatchStatsState(matchId, { status: "error", message: "Failed to load match stats" });
+    }
+  }
+
+  private loadStandaloneAnalytics(matchId: string, state: Extract<MatchStatsState, { status: "condensed" }>): void {
+    const token = this.loads.get(matchId)?.token;
+    if (token == null || state.panel.scoreProgressionStatus !== ComponentLoaderStatus.PENDING) {
+      return;
+    }
+    this.setStandaloneMatchState(matchId, state.detail, null, ComponentLoaderStatus.LOADING);
+    void this.loadStandaloneAnalyticsAsync(matchId, state.detail, token);
+  }
+
+  private async loadStandaloneAnalyticsAsync(matchId: string, detail: MatchDetail, token: symbol): Promise<void> {
+    const analytics = await this.loadMatchAnalyticsAsync([matchId], this.config.trackerId);
+    if (this.shouldAbort() || this.loads.get(matchId)?.token !== token) {
+      return;
+    }
+    this.setStandaloneMatchState(matchId, detail, analytics.analyticsByMatchId[matchId] ?? null, analytics.status);
+  }
+
+  private setStandaloneMatchState(
+    matchId: string,
+    detail: MatchDetail,
+    analytics: MatchAnalytics | null,
+    status: ComponentLoaderStatus,
+  ): void {
+    const projection = projectStandaloneMatchStats(detail, this.statsDetailController);
+    const data = projection.hasUnknownRarity
+      ? projectStandaloneMatchStats(detail, this.statsDetailController, "panel").teams
+      : projection.teams;
+    const teamColors = [getTeamColorOrDefault(undefined, 0), getTeamColorOrDefault(undefined, 1)];
+    this.config.store.setMatchStatsState(matchId, {
+      status: "condensed",
+      detail,
+      tickerData: projection.teams,
+      panel: {
+        status: "loaded",
+        matchId,
+        gameVariantCategory: detail.mode.gameVariantCategory,
+        gameMapThumbnailUrl: detail.map.thumbnailUrl ?? "",
+        duration: getDurationInIsoString(Math.floor(detail.durationSeconds)),
+        startTime: detail.startTime,
+        endTime: detail.endTime,
+        data,
+        ...this.statsDetailController.mapMatchDetailToAnalytics(detail, {
+          killMatrix: analytics?.killMatrix ?? null,
+          scoreProgression: analytics?.scoreProgression ?? null,
+          teamColors,
+          teamSize: data[0]?.players.length ?? null,
+        }),
+        killMatrixStatus: status,
+        scoreProgressionStatus: status,
+      },
+    });
+  }
+
+  private async loadMatchAnalyticsAsync(
+    matchIds: readonly string[],
+    trackerId?: string,
+  ): Promise<OverlayAnalyticsLoadResult> {
+    try {
+      const analyticsByMatchId = await this.config.matchAnalyticsService.getBatchMatchAnalytics(
+        matchIds,
+        ["killMatrix", "scoreProgression"],
+        trackerId,
+      );
 
       return {
         status: ComponentLoaderStatus.LOADED,
@@ -376,6 +497,10 @@ export class OverlayPagePresenter {
 
     if (matchStatsState.status === "error") {
       return { status: "error", message: matchStatsState.message };
+    }
+
+    if (matchStatsState.status === "condensed") {
+      return matchStatsState.panel;
     }
 
     const { stats, playerMap, medalMetadata, analytics, analyticsStatus } = matchStatsState;

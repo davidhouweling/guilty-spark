@@ -1,8 +1,16 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { aFakeMatchDetailWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import {
+  aFakeMedalWith,
+  aFakePlayerTeamStatsWith,
+  aFakePlayerWith,
+  aFakeStatWith,
+  aFakeTeamWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 
 vi.mock("../../../icons/team-icon", () => ({
   TeamIcon: ({ teamId }: { teamId: number }): React.ReactNode => (
@@ -20,10 +28,18 @@ import {
 } from "../../../../services/individual-tracker/fakes/view.fake";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { StatsDetailController } from "../../../../controllers/stats/stats-detail-controller";
 import { buildViewerRenderModel } from "../../viewer/viewer-render-model";
 import { IndividualTrackerOverlayPresenter } from "../individual-tracker-overlay-presenter";
 import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
 import { IndividualTrackerOverlay } from "../individual-tracker-overlay";
+import { OverlayPagePresenter } from "../overlay-page-presenter";
+import { OverlayPageStore } from "../overlay-page-store";
+import { projectStandaloneMatchStats } from "../standalone-match-stats";
+import { aFakeHaloClientWith } from "../../../../services/fakes/halo-client.fake";
+import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metadata-resolver";
+import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
+import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import containerStyles from "../../../container/container.module.css";
 
 function aRenderModel(
@@ -159,6 +175,156 @@ describe("IndividualTrackerOverlay", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     cleanup();
+  });
+
+  it("shows projected standalone medals and a warning without fetching raw stats", async () => {
+    const first = aFakePlayerWith({
+      playerId: "first",
+      gamertag: "Same",
+      teamStats: [
+        aFakePlayerTeamStatsWith({
+          stats: [aFakeStatWith({ value: 7 })],
+          medals: [
+            aFakeMedalWith({ name: "Known", sortingWeight: 50, totalPersonalScoreAwarded: 200 }),
+            aFakeMedalWith({ name: "Omitted", sortingWeight: null }),
+          ],
+        }),
+      ],
+    });
+    const second = aFakePlayerWith({
+      playerId: "second",
+      gamertag: "Same",
+      teamStats: [
+        aFakePlayerTeamStatsWith({
+          stats: [aFakeStatWith({ value: 42 })],
+          medals: [
+            aFakeMedalWith({ name: "Zero", sortingWeight: null, totalPersonalScoreAwarded: 0 }),
+            aFakeMedalWith({ name: "Filtered", sortingWeight: 150 }),
+            aFakeMedalWith({ name: "Known", sortingWeight: null, count: 4 }),
+          ],
+        }),
+      ],
+    });
+    const detail = aFakeMatchDetailWith({
+      teams: [aFakeTeamWith({ playerIds: ["first", "second"] })],
+      players: [second, first],
+    });
+    const store = new OverlayPageStore();
+    const haloClient = aFakeHaloClientWith();
+    const rawFetch = vi.spyOn(haloClient, "getMatchStats");
+    const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+    const analytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
+    const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+    const details = vi.spyOn(seriesMatchesService, "getMatchDetails").mockResolvedValue({
+      matchIds: ["match-1"],
+      results: [{ status: "resolved", matchId: "match-1", detail }],
+    });
+    const presenter = new OverlayPagePresenter({
+      store,
+      haloClient,
+      medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+      matchAnalyticsService,
+      seriesMatchesService,
+    });
+    const renderModel = aRenderModel({
+      gamertag: "Same",
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "match-1" })],
+      series: [],
+    });
+    presenter.preloadTimelineMatchStats(renderModel.timeline);
+    await waitFor(() => {
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("condensed");
+    });
+    expect(analytics).not.toHaveBeenCalled();
+    presenter.selectMatch("match-1", renderModel.timeline);
+    await waitFor(() => {
+      expect(analytics).toHaveBeenCalledOnce();
+    });
+    const state = store.getSnapshot().matchStatsByMatchId.get("match-1");
+    const panel = presenter.present(store.getSnapshot()).matchStatsPanelState;
+    if (state?.status !== "condensed" || panel?.status !== "loaded") {
+      throw new Error("expected standalone match");
+    }
+    const props = aPropsWith({
+      renderModel,
+      streamerSettings: { styleFlags: { matchmakingMyStatsOnly: true, medalRarityFilter: [0] } },
+      selectedMatchId: "match-1",
+      matchStatsState: state,
+      matchStatsPanelState: panel,
+    });
+    const rows = props.viewModel.tickerMatchGroups.flatMap((group) => group.rows);
+    expect(rows.map((row) => [row.stats[0]?.value, row.medals])).toEqual([
+      [7, [{ name: "Known", count: 2 }]],
+      [42, [{ name: "Zero", count: 2 }]],
+    ]);
+    expect(panel.data[0].players.map((player) => player.medals.map((medal) => medal.name))).toEqual([
+      ["Known", "Omitted"],
+      ["Filtered", "Zero", "Known"],
+    ]);
+    expect(panel.data[0].teamMedals).toEqual([
+      { name: "Filtered", count: 2, sortingWeight: 150 },
+      { name: "Known", count: 6, sortingWeight: 50 },
+      { name: "Omitted", count: 2, sortingWeight: 0 },
+      { name: "Zero", count: 2, sortingWeight: 0 },
+    ]);
+    expect(
+      new IndividualTrackerOverlayPresenter().present({
+        renderModel,
+        streamerSettings: undefined,
+        matchStatsByMatchId: store.getSnapshot().matchStatsByMatchId,
+        selectedMatchId: null,
+      }).tickerMatchGroups[0]?.hasUnavailableMedals,
+    ).toBe(true);
+    const consoleError = vi.spyOn(console, "error");
+    const { rerender } = render(<IndividualTrackerOverlay {...props} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Some ticker medals are omitted because their rarity is unavailable.",
+    );
+    expect(consoleError).not.toHaveBeenCalled();
+    rerender(<IndividualTrackerOverlay {...props} viewModel={{ ...props.viewModel, showTicker: false }} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    rerender(<IndividualTrackerOverlay {...props} viewModel={{ ...props.viewModel, tickerMatchGroups: [] }} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const [unknownGroup] = props.viewModel.tickerMatchGroups;
+    const knownGroup = { ...unknownGroup, matchIndex: 99, hasUnavailableMedals: false };
+    rerender(
+      <IndividualTrackerOverlay
+        {...props}
+        viewModel={{ ...props.viewModel, tickerMatchGroups: [knownGroup, unknownGroup] }}
+      />,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    rerender(
+      <IndividualTrackerOverlay
+        {...props}
+        viewModel={{ ...props.viewModel, tickerMatchGroups: [unknownGroup, knownGroup] }}
+      />,
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    const cleanPlayer = {
+      ...second,
+      gamertag: "Clean",
+      teamStats: second.teamStats.map((stats) => ({
+        ...stats,
+        medals: stats.medals.filter((medal) => medal.name !== "Known"),
+      })),
+    };
+    const cleanState = {
+      ...state,
+      tickerData: projectStandaloneMatchStats({ ...detail, players: [first, cleanPlayer] }, new StatsDetailController())
+        .teams,
+    };
+    const filtered = new IndividualTrackerOverlayPresenter().present({
+      renderModel: { ...renderModel, gamertag: "Clean" },
+      streamerSettings: { styleFlags: { matchmakingMyStatsOnly: true } },
+      matchStatsByMatchId: new Map([["match-1", cleanState]]),
+      selectedMatchId: "match-1",
+    });
+    expect(filtered.tickerMatchGroups[0]?.hasUnavailableMedals).toBe(false);
+    rerender(<IndividualTrackerOverlay {...props} viewModel={filtered} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(details).toHaveBeenCalledOnce();
+    expect(rawFetch).not.toHaveBeenCalled();
   });
 
   it("renders without crashing when the timeline is empty", () => {

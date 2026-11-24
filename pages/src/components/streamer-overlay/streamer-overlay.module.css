@@ -14,6 +14,15 @@
   z-index: var(--z-overlay);
 }
 
+.medalWarning {
+  left: var(--space-2);
+  max-width: 22rem;
+  pointer-events: none;
+  position: absolute;
+  top: var(--space-2);
+  z-index: 101;
+}
+
 .topSectionPinnedWrapper {
   left: 50%;
   position: fixed;

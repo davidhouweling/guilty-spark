@@ -6,6 +6,7 @@ import { createElement } from "react";
 import type { CSSProperties } from "react";
 import type { MedalEntry, MedalMetadata } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
@@ -19,6 +20,7 @@ import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/types";
 import type {
   IndividualTrackerViewerRenderModel,
+  MatchDetailsState,
   SeriesDetailsState,
   ViewerSeriesTab,
   ViewerTimelineItem,
@@ -39,6 +41,7 @@ import type {
   OverlayTeamPlayerModel,
   OverlayTeamDetailsModel,
   OverlayTopSectionModel,
+  OverlayStandaloneTeamStats,
 } from "./types";
 import { getOverlayDisplaySettings, MATCHMAKING_SUMMARY_TAB_SERIES_ID } from "./types";
 
@@ -89,6 +92,12 @@ function getSeriesTabLabel(series: ViewerSeriesTab): string {
 
 export type MatchStatsState =
   | { readonly status: "loading" }
+  | {
+      readonly status: "condensed";
+      readonly detail: MatchDetail;
+      readonly tickerData: OverlayStandaloneTeamStats[];
+      readonly panel: Extract<MatchDetailsState, { status: "loaded" }>;
+    }
   | {
       readonly status: "loaded";
       readonly stats: MatchStats;
@@ -315,7 +324,12 @@ export class IndividualTrackerOverlayPresenter {
     selectedSeriesId: string | null,
     seriesEntryState: SeriesDetailsState | null,
   ): boolean {
-    if (selectedMatchId != null && (matchStatsState?.status === "loaded" || matchStatsState?.status === "error")) {
+    if (
+      selectedMatchId != null &&
+      (matchStatsState?.status === "loaded" ||
+        matchStatsState?.status === "condensed" ||
+        matchStatsState?.status === "error")
+    ) {
       return true;
     }
 
@@ -761,12 +775,18 @@ export class IndividualTrackerOverlayPresenter {
       }
 
       const matchState = matchStatsByMatchId.get(tab.matchId);
-      if (matchState?.status !== "loaded") {
+      if (matchState?.status !== "loaded" && matchState?.status !== "condensed") {
         continue;
       }
 
-      const formatter = createMatchStatsFormatter(matchState.stats.MatchInfo.GameVariantCategory);
-      const data = formatter.getData(matchState.stats, matchState.playerMap, matchState.medalMetadata);
+      const data =
+        matchState.status === "condensed"
+          ? matchState.tickerData
+          : createMatchStatsFormatter(matchState.stats.MatchInfo.GameVariantCategory).getData(
+              matchState.stats,
+              matchState.playerMap,
+              matchState.medalMetadata,
+            );
 
       const rows = data.flatMap((teamData) => [
         {
@@ -775,6 +795,7 @@ export class IndividualTrackerOverlayPresenter {
           name: getTeamName(teamData.teamId),
           stats: this.filterTickerStats(teamData.teamStats, filterOptions),
           medals: this.filterTickerMedals(teamData.teamMedals, filterOptions.medalRarityFilter),
+          hasUnavailableMedals: "hasUnknownRarity" in teamData && teamData.hasUnknownRarity,
         },
         ...teamData.players.map((player) => ({
           type: "player" as const,
@@ -784,6 +805,7 @@ export class IndividualTrackerOverlayPresenter {
           gamertag: player.name,
           stats: this.filterTickerStats(player.values, filterOptions),
           medals: this.filterTickerMedals(player.medals, filterOptions.medalRarityFilter),
+          hasUnavailableMedals: "hasUnknownRarity" in player && player.hasUnknownRarity,
         })),
       ]);
 
@@ -798,6 +820,9 @@ export class IndividualTrackerOverlayPresenter {
         matchIndex: tab.index,
         label: tab.label,
         rows: filteredRows,
+        hasUnavailableMedals: filteredRows.some(
+          (row) => "hasUnavailableMedals" in row && row.hasUnavailableMedals === true,
+        ),
       });
     }
 

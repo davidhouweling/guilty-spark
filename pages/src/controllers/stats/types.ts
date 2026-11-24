@@ -37,6 +37,7 @@ export interface SeriesStatsData {
 }
 
 export interface MatchStatsPlayerData {
+  playerId?: string | undefined;
   name: string;
   values: MatchStatsValues[];
   medals: MedalEntry[];
