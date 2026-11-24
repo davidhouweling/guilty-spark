@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSettingsFromUrl, encodeSettingsToUrlParams } from "../settings-url-params";
+import { parseSettingsFromUrl, encodeSettingsToUrlParams, buildUrlWithViewMode } from "../settings-url-params";
 import { DEFAULT_ALL_SETTINGS, DEFAULT_GLOBAL_SETTINGS } from "../types";
 import type { AllStreamerSettings } from "../types";
 
@@ -281,6 +281,17 @@ describe("parseSettingsFromUrl", () => {
     const result = parseSettingsFromUrl(params, customDefaults);
 
     expect(result.series.titleOverride).toBe("URL Title");
+  });
+});
+
+describe("buildUrlWithViewMode", () => {
+  it("replaces only the view mode and preserves other query parameters and the hash", () => {
+    const url = buildUrlWithViewMode(
+      "https://example.test/stats/discord/123/456?campaign=summer&viewMode=standard#match-one",
+      "wide",
+    );
+
+    expect(url).toBe("https://example.test/stats/discord/123/456?campaign=summer&viewMode=wide#match-one");
   });
 });
 

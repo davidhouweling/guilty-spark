@@ -9,6 +9,10 @@ import { createDiscordSeriesDetailStats } from "../../components/discord-series-
 import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { ViewMode } from "../../components/view-mode/view-mode-selector";
+import { DEFAULT_VIEW_MODE } from "../../components/live-tracker/settings/types";
+import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
+import { buildUrlWithViewMode, parseSettingsFromUrl } from "../../components/live-tracker/settings/settings-url-params";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -32,8 +36,17 @@ function DiscordSeriesStatsData({
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
+  const { settings } = useStreamerSettings();
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") {
+      return DEFAULT_VIEW_MODE;
+    }
+
+    const urlViewMode = parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).global.viewMode;
+    return urlViewMode === "standard" ? "standard" : "wide";
+  });
 
   const presenter = useMemo(() => {
     const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
@@ -77,6 +90,17 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
+  const onViewModeSelect = useCallback((mode: ViewMode): void => {
+    const archiveViewMode = mode === "standard" ? "standard" : "wide";
+    setViewMode(archiveViewMode);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        buildUrlWithViewMode(window.location.href, archiveViewMode),
+      );
+    }
+  }, []);
 
   const loaderStatus =
     model.state === "loading"
@@ -95,6 +119,8 @@ function DiscordSeriesStatsData({
           <DiscordSeriesStats
             data={model.data}
             analyticsByMatchId={snapshot.analyticsByMatchId}
+            viewMode={viewMode}
+            onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}
           />
         ) : model.state === "pending-index" ? (

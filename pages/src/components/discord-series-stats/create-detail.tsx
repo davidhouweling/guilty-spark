@@ -5,11 +5,14 @@ import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/
 import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import type { SeriesMatchAnalyticsById } from "../series-stats/types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
+import type { ViewMode } from "../view-mode/view-mode-selector";
 import { DiscordSeriesStatsView } from "./discord-series-stats";
 
 export interface DiscordSeriesDetailStatsProps {
   readonly data: SeriesDetailResponse;
   readonly analyticsByMatchId: SeriesMatchAnalyticsById;
+  readonly viewMode: ViewMode;
+  readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
 }
 
@@ -17,6 +20,8 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
   function DiscordSeriesDetailStats({
     data,
     analyticsByMatchId,
+    viewMode,
+    onViewModeSelect,
     onAnalyticsTabSelected,
   }: DiscordSeriesDetailStatsProps): ReactElement {
     const statsDetailController = useMemo(() => new StatsDetailController(), []);
@@ -26,7 +31,14 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     );
     const model = useMemo(() => presenter.present(data, analyticsByMatchId), [analyticsByMatchId, data, presenter]);
 
-    return <DiscordSeriesStatsView {...model} onAnalyticsTabSelected={onAnalyticsTabSelected} />;
+    return (
+      <DiscordSeriesStatsView
+        {...model}
+        viewMode={viewMode}
+        onViewModeSelect={onViewModeSelect}
+        onAnalyticsTabSelected={onAnalyticsTabSelected}
+      />
+    );
   }
 
   return DiscordSeriesDetailStats;
