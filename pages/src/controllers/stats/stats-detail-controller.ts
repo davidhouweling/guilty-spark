@@ -8,6 +8,7 @@ import type { KillMatrixPlayer } from "./kill-matrix/types";
 import type {
   MatchDetailAnalyticsData,
   MatchDetailAnalyticsInput,
+  IdentifiedMatchStatsData,
   MatchStatsData,
   MatchStatsPlayerData,
   SeriesStatsData,
@@ -34,6 +35,13 @@ export class StatsDetailController {
   }
 
   mapMatchDetailToStats(detail: MatchDetail): MatchStatsData[] {
+    return this.mapMatchDetailToStatsWithPlayerIds(detail).map((team) => ({
+      ...team,
+      players: team.players.map(({ name, values, medals }) => ({ name, values, medals })),
+    }));
+  }
+
+  mapMatchDetailToStatsWithPlayerIds(detail: MatchDetail): IdentifiedMatchStatsData[] {
     const playersById = new Map(detail.players.map((player) => [player.playerId, player]));
     const teamPlayers = detail.teams.map((team) => this.getMatchTeamPlayers(team, playersById));
     const bestTeams = this.formatter.getBestValues(detail.teams.flatMap((team) => team.stats));
@@ -48,7 +56,8 @@ export class StatsDetailController {
         teamId: team.matchTeamId,
         teamStats: team.stats.map((stat) => this.formatter.presentStat(stat, new Map(), bestTeams)),
         teamMedals: this.formatter.presentMedals(team.medals),
-        players: players.map(({ player, entry }): MatchStatsPlayerData => ({
+        players: players.map(({ player, entry }) => ({
+          playerId: player.playerId,
           name: player.playerType === 1 ? (player.gamertag ?? "*Unknown*") : "Bot",
           values: entry.stats.map((stat) => this.formatter.presentStat(stat, bestInTeam, bestPlayers)),
           medals: this.formatter.presentMedals(entry.medals),
