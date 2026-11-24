@@ -1,7 +1,12 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
-import type { AllStreamerSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import type {
+  AllStreamerSettings,
+  GlobalStreamerSettings,
+  ObserverViewColorSettings,
+  SeriesStreamerSettings,
+} from "../../components/live-tracker/settings/types";
 import {
   buildUrlWithViewMode,
   encodeSettingsToUrlParams,
@@ -21,6 +26,7 @@ interface DiscordSeriesStatsPresenterDependencies {
   readonly guildId: string;
   readonly queueNumber: string;
   readonly settings: AllStreamerSettings;
+  readonly updateGlobalSettings: (settings: Partial<GlobalStreamerSettings>) => void;
 }
 
 export class DiscordSeriesStatsPresenter {
@@ -30,6 +36,8 @@ export class DiscordSeriesStatsPresenter {
   private readonly guildId: string;
   private readonly queueNumber: string;
   private readonly settings: AllStreamerSettings;
+  private readonly updateGlobalSettings: (settings: Partial<GlobalStreamerSettings>) => void;
+  private persistedObserverColors: ObserverViewColorSettings;
   private isDisposed = false;
   private requestNumber = 0;
 
@@ -40,6 +48,7 @@ export class DiscordSeriesStatsPresenter {
     guildId,
     queueNumber,
     settings,
+    updateGlobalSettings,
   }: DiscordSeriesStatsPresenterDependencies) {
     this.store = store;
     this.discordSeriesStatsService = discordSeriesStatsService;
@@ -47,6 +56,8 @@ export class DiscordSeriesStatsPresenter {
     this.guildId = guildId;
     this.queueNumber = queueNumber;
     this.settings = settings;
+    this.updateGlobalSettings = updateGlobalSettings;
+    this.persistedObserverColors = settings.global.colors.observerView;
   }
 
   private async fetchDetail(): Promise<NonNullable<DiscordSeriesStatsSnapshot["response"]>> {
@@ -136,6 +147,25 @@ export class DiscordSeriesStatsPresenter {
     }
   }
 
+  setObserverColors(updates: Partial<ObserverViewColorSettings>): void {
+    const observerColors = { ...this.store.getSnapshot().observerColors, ...updates };
+    this.store.update({ observerColors });
+    this.persistedObserverColors = { ...this.persistedObserverColors, ...updates };
+    this.updateGlobalSettings({
+      colors: { ...this.settings.global.colors, observerView: this.persistedObserverColors },
+    });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (updates.eagleColor != null) {
+        url.searchParams.set("eagleColor", updates.eagleColor);
+      }
+      if (updates.cobraColor != null) {
+        url.searchParams.set("cobraColor", updates.cobraColor);
+      }
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+  }
+
   setAnalytics(analyticsByMatchId: SeriesMatchAnalyticsById): void {
     if (!this.isDisposed) {
       this.store.update({ analyticsByMatchId });
@@ -149,6 +179,7 @@ export class DiscordSeriesStatsPresenter {
         : parseSettingsFromUrl(new URLSearchParams(window.location.search), this.settings);
     this.store.update({
       seriesSettings: settings.series,
+      observerColors: settings.global.colors.observerView,
       viewMode: settings.global.viewMode === "standard" ? "standard" : "wide",
     });
   }

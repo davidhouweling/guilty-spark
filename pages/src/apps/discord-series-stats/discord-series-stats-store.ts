@@ -10,6 +10,7 @@ export class DiscordSeriesStatsStore {
     analyticsByMatchId: new Map(),
     viewMode: "wide",
     seriesSettings: DEFAULT_ALL_SETTINGS.series,
+    observerColors: DEFAULT_ALL_SETTINGS.global.colors.observerView,
   };
 
   private readonly listeners = new Set<() => void>();

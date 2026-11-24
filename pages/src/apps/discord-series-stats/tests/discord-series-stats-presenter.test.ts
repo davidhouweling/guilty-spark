@@ -49,6 +49,7 @@ function createPresenter(
     guildId: "123456789012345678",
     queueNumber: "7777",
     settings,
+    updateGlobalSettings: vi.fn(),
   });
   target.presenter = presenter;
   return presenter;
