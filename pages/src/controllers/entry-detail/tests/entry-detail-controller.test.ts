@@ -114,6 +114,29 @@ function getLoadedSeriesState(store: IndividualTrackerViewerStore, key = "series
 }
 
 describe("EntryDetailController condensed series loading", () => {
+  it("reloads a reopened series when its ordered match membership changes", async () => {
+    const { store, item, controller, seriesMatchesService } = setupSeries(["m-1", "m-2"]);
+    const detail = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    controller.toggleEntry(item);
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).data.matches.matchIds).toEqual(["m-1", "m-2"]);
+    });
+    controller.toggleEntry(item);
+    const nextItem: Extract<ViewerTimelineItem, { type: "series" }> = {
+      ...item,
+      series: {
+        ...item.series,
+        matches: [...item.series.matches, { ...item.series.matches[0], matchId: "m-3" }],
+      },
+    };
+    detail.mockResolvedValueOnce(aFakeViewerSeriesDetailWith(["m-1", "m-2", "m-3"]));
+    controller.toggleEntry(nextItem);
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).data.matches.matchIds).toEqual(["m-1", "m-2", "m-3"]);
+    });
+    expect(detail).toHaveBeenCalledTimes(2);
+  });
+
   it("isolates module loading between expanded series", async () => {
     const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
     const { store, item, controller, seriesMatchesService } = setupSeries(["m-1", "m-2"], data);

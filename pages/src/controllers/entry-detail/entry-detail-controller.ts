@@ -1,5 +1,5 @@
 import { getDurationInIsoString } from "@guilty-spark/shared/halo/duration";
-import type { MatchDetail, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
@@ -11,22 +11,18 @@ import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../components/tea
 import type { TeamColor } from "../../components/team-colors/team-colors";
 import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
 import type { SeriesAnalyticsController } from "../series-analytics/series-analytics-controller";
+import { SeriesDetailController } from "../series-detail/series-detail-controller";
 import type {
   IndividualTrackerViewerStore,
   MatchEntryLoadedState,
 } from "../../components/individual-tracker/viewer/viewer-store";
-import type { ViewerSeriesTab, ViewerTimelineItem } from "../../components/individual-tracker/viewer/types";
+import type { ViewerTimelineItem } from "../../components/individual-tracker/viewer/types";
 
 interface MatchAnalyticsSource {
   readonly matchSource: MatchDetail;
   analytics: MatchAnalytics | null;
   readonly requestedModules: Set<AnalyticsModule>;
   readonly moduleStatuses: Map<AnalyticsModule, ComponentLoaderStatus>;
-}
-
-interface SeriesAnalyticsSource {
-  readonly data: SeriesDetailResponse;
-  readonly controller: SeriesAnalyticsController;
 }
 
 export interface EntryDetailControllerConfig {
@@ -43,11 +39,30 @@ export interface EntryDetailControllerConfig {
 export class EntryDetailController {
   private readonly config: EntryDetailControllerConfig;
   private readonly matchAnalyticsSources = new Map<string, MatchAnalyticsSource>();
-  private readonly seriesAnalyticsSources = new Map<string, SeriesAnalyticsSource>();
+  private readonly seriesDetailController: SeriesDetailController;
   private isDisposed = false;
 
   public constructor(config: EntryDetailControllerConfig) {
     this.config = config;
+    this.seriesDetailController = new SeriesDetailController({
+      seriesMatchesService: config.seriesMatchesService,
+      trackerId: config.trackerId,
+      createSeriesAnalyticsController: config.createSeriesAnalyticsController,
+      onChange: (seriesId, state): void => {
+        const key = `series:${seriesId}`;
+        if (state.status === "loading") {
+          config.store.setEntryLoading(key, "series");
+        } else if (state.status === "error") {
+          config.store.setEntryError(key, "series", state.message);
+        } else {
+          config.store.setSeriesEntryLoaded(key, {
+            seriesId: state.data.seriesId,
+            data: state.data,
+            analyticsByMatchId: state.analyticsByMatchId,
+          });
+        }
+      },
+    });
   }
 
   private static entryKey(item: ViewerTimelineItem): string {
@@ -64,10 +79,7 @@ export class EntryDetailController {
   public dispose(): void {
     this.isDisposed = true;
     this.matchAnalyticsSources.clear();
-    for (const { controller } of this.seriesAnalyticsSources.values()) {
-      controller.dispose();
-    }
-    this.seriesAnalyticsSources.clear();
+    this.seriesDetailController.dispose();
   }
 
   public toggleEntry(item: ViewerTimelineItem): void {
@@ -83,12 +95,11 @@ export class EntryDetailController {
       return;
     }
 
-    const cachedEntryState = snapshot.entryStates.get(key);
-    if (cachedEntryState != null && cachedEntryState.state.status !== "error") {
-      return;
-    }
-
     if (item.type === "match") {
+      const cachedEntryState = snapshot.entryStates.get(key);
+      if (cachedEntryState != null && cachedEntryState.state.status !== "error") {
+        return;
+      }
       void this.fetchMatchEntry(key, item.match.matchId);
       return;
     }
@@ -97,7 +108,11 @@ export class EntryDetailController {
       return;
     }
 
-    void this.fetchSeriesEntry(key, item.series);
+    this.seriesDetailController.load({
+      seriesId: item.series.id,
+      matchIds: item.series.matches.map((match) => match.matchId),
+      teamMappingMode: "substitution-aware",
+    });
   }
 
   public loadAnalytics(item: ViewerTimelineItem, module: AnalyticsModule, matchId?: string): void {
@@ -113,7 +128,7 @@ export class EntryDetailController {
       return;
     }
 
-    this.seriesAnalyticsSources.get(key)?.controller.load(module, matchId);
+    this.seriesDetailController.loadAnalytics(item.series.id, module, matchId);
   }
 
   /**
@@ -263,41 +278,6 @@ export class EntryDetailController {
       );
       this.config.store.setMatchEntryLoaded(key, loadedState);
     }
-  }
-
-  private async fetchSeriesEntry(key: string, series: ViewerSeriesTab): Promise<void> {
-    this.config.store.setEntryLoading(key, "series");
-    try {
-      const data = await this.config.seriesMatchesService.getSeriesDetail(
-        series.id,
-        series.matches.map((match) => match.matchId),
-        this.config.trackerId,
-        "substitution-aware",
-      );
-      if (this.shouldAbort()) {
-        return;
-      }
-      this.setSeriesEntryLoaded(key, data);
-    } catch (error) {
-      if (this.isDisposed) {
-        return;
-      }
-      this.config.store.setEntryError(key, "series", error instanceof Error ? error.message : "Failed to load series");
-    }
-  }
-
-  private setSeriesEntryLoaded(key: string, data: SeriesDetailResponse): void {
-    const controller = this.config.createSeriesAnalyticsController((analyticsByMatchId) => {
-      if (this.shouldAbort() || this.seriesAnalyticsSources.get(key)?.data !== data) {
-        return;
-      }
-      this.config.store.setSeriesEntryLoaded(key, { seriesId: data.seriesId, data, analyticsByMatchId });
-    });
-    this.seriesAnalyticsSources.get(key)?.controller.dispose();
-    this.seriesAnalyticsSources.set(key, { data, controller });
-    controller.reset(
-      data.matches.results.filter((result) => result.status === "resolved").map((result) => result.matchId),
-    );
   }
 
   private syncRequestedModules(requestedModules: Set<AnalyticsModule>, analytics: MatchAnalytics | null): void {
