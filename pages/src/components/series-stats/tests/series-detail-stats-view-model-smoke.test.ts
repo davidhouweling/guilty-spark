@@ -152,7 +152,15 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
 
   it("uses the latest roster for matrix display without moving historical team totals", () => {
     const response = aFakeSeriesDetailWithTeamSwap();
-    const viewModel = new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(
+    const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
+    const earlierViewModel = presenter.present({
+      ...response,
+      matches: {
+        matchIds: ["match-one"],
+        results: response.matches.results.filter(({ matchId }) => matchId === "match-one"),
+      },
+    });
+    const viewModel = presenter.present(
       response,
       new Map([
         [
@@ -176,9 +184,13 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ]),
     );
 
-    expect(viewModel.teams.map(({ name, players }) => ({ name, players }))).toEqual([
-      { name: "Eagle", players: ["Bravo"] },
-      { name: "Cobra", players: ["Alpha", "Charlie"] },
+    expect(earlierViewModel.teams.map(({ seriesTeamId, name, players }) => ({ seriesTeamId, name, players }))).toEqual([
+      { seriesTeamId: 0, name: "Eagle", players: ["Alpha"] },
+      { seriesTeamId: 1, name: "Cobra", players: ["Bravo", "Charlie"] },
+    ]);
+    expect(viewModel.teams.map(({ seriesTeamId, name, players }) => ({ seriesTeamId, name, players }))).toEqual([
+      { seriesTeamId: 0, name: "Eagle", players: ["Bravo"] },
+      { seriesTeamId: 1, name: "Cobra", players: ["Alpha", "Charlie"] },
     ]);
     expect(viewModel.seriesStats?.crossTeamKillMatrixData).toBeNull();
     expect(viewModel.seriesStats?.killMatrixPivotData.tableRows).toMatchObject([{ killerId: "111", killerTeamId: 1 }]);

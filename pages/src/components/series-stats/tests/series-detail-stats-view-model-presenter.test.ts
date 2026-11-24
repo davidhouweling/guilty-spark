@@ -457,8 +457,8 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     expect(viewModel.seriesStats?.teamColors[2]?.hex).toBe("#FE3939");
     expect(viewModel.seriesStats?.teamColors[3]?.hex).toBe("#3B9DFF");
     expect(viewModel.teams).toEqual([
-      { name: "Alpha", players: ["Alpha Player"], teamColorHex: "#FE3939" },
-      { name: "Bravo", players: ["Beta"], teamColorHex: "#3B9DFF" },
+      { seriesTeamId: 2, name: "Alpha", players: ["Alpha Player"], teamColorHex: "#FE3939" },
+      { seriesTeamId: 3, name: "Bravo", players: ["Beta"], teamColorHex: "#3B9DFF" },
     ]);
   });
 
@@ -536,6 +536,7 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     expect(viewModel.matchSummaries[0]?.winningTeamColorHex).toBe("#FE3939");
     expect(viewModel.matchDetails[0]?.teamColors[7]?.hex).toBe("#FE3939");
     expect(viewModel.matchDetails[0]?.teamColors[19]?.hex).toBe("#3B9DFF");
+    expect(viewModel.teams.map(({ seriesTeamId }) => seriesTeamId)).toEqual([null, null]);
   });
 
   it("retains unavailable matches and reports unavailable aggregation without deriving totals", () => {

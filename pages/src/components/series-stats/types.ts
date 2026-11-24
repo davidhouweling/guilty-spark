@@ -19,6 +19,8 @@ export interface SeriesMatchSummary {
 }
 
 export interface SeriesTeamCard {
+  // Null or absent when a stable series identity is unavailable; never a match-local fallback.
+  readonly seriesTeamId?: number | null | undefined;
   readonly name: string;
   readonly players: readonly string[];
   readonly teamColorHex: string;

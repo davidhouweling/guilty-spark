@@ -284,6 +284,7 @@ export class SeriesDetailStatsViewModelPresenter {
       });
 
       return {
+        seriesTeamId: team.seriesTeamId,
         name: this.presentLabel(
           teamNamesBySeriesTeamId.get(stableTeamId),
           this.presentLabel(seriesTeam?.name, this.presentLabel(team.name, getTeamName(stableTeamId))),
