@@ -123,7 +123,7 @@ function DiscordSeriesStatsData({
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         const params = encodeSettingsToUrlParams({ ...settings, series: next });
-        for (const key of ["title", "subtitle"]) {
+        for (const key of ["title", "subtitle", "eagleTeamName", "cobraTeamName"]) {
           if (Object.hasOwn(params, key)) {
             url.searchParams.set(key, params[key]);
           } else {

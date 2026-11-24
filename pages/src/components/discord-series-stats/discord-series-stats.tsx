@@ -7,15 +7,17 @@ import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../ser
 import type { ViewMode } from "../view-mode/view-mode-selector";
 import { ViewModeSelector } from "../view-mode/view-mode-selector";
 import { SeriesTitleSection } from "../live-tracker/settings/series-title-section";
+import { SeriesTeamNameInputs } from "../live-tracker/settings/series-team-name-inputs";
 import { ObserverColorSettings } from "../live-tracker/settings/observer-color-settings";
 import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../live-tracker/settings/types";
+import stylesTeamNames from "../live-tracker/settings/series-team-section.module.css";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
   readonly seriesSettings: SeriesStreamerSettings;
   readonly observerColors: ObserverViewColorSettings;
-  readonly colorSettingsAvailable: boolean;
+  readonly stableTeamSlotsAvailable: boolean;
   readonly defaultTitle: string | null;
   readonly defaultSubtitle: string | null;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
@@ -44,7 +46,7 @@ export function DiscordSeriesStatsView({
   viewMode,
   seriesSettings,
   observerColors,
-  colorSettingsAvailable,
+  stableTeamSlotsAvailable,
   defaultTitle,
   defaultSubtitle,
   onSeriesSettingsChange,
@@ -84,8 +86,22 @@ export function DiscordSeriesStatsView({
           />
         </details>
         <details className={styles.titleSettings}>
+          <summary>Team name settings</summary>
+          {stableTeamSlotsAvailable ? (
+            <div className={stylesTeamNames.container}>
+              <SeriesTeamNameInputs
+                settings={seriesSettings}
+                onChange={onSeriesSettingsChange}
+                description="These names apply to overview cards; match Timeline labels are separate."
+              />
+            </div>
+          ) : (
+            <p>Team names cannot be customized because stable series teams are unavailable.</p>
+          )}
+        </details>
+        <details className={styles.titleSettings}>
           <summary>Team color settings</summary>
-          {colorSettingsAvailable ? (
+          {stableTeamSlotsAvailable ? (
             <>
               <p>Archived series use observer colors in stable series-team order.</p>
               <ObserverColorSettings
@@ -102,12 +118,12 @@ export function DiscordSeriesStatsView({
       </Container>
       <div className={styles.content}>
         <SharedSeriesStatsView
+          {...stats}
           title={title}
           subtitle={subtitle}
           showSeriesTitle={true}
           wide={viewMode === "wide"}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
-          {...stats}
         />
       </div>
     </>
