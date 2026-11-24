@@ -124,6 +124,41 @@ describe("prepareMatchDetails", () => {
     expect(JSON.stringify(response)).not.toMatch(/rawMatches|MatchInfo|CoreStats|PlayerTeamStats/);
   });
 
+  it("retains each player's fallback score through the public match-detail response", async () => {
+    const makePlayer = (id: string, score: number): MatchStats["Players"][number] =>
+      aFakePlayerWith({
+        PlayerId: id,
+        LastTeamId: 7,
+        PlayerTeamStats: [
+          {
+            TeamId: 7,
+            Stats: {
+              CoreStats: aFakeCoreStatsWith({
+                Medals: [{ NameId: 17, Count: 1, TotalPersonalScoreAwarded: score }],
+              }),
+            },
+          },
+        ],
+      });
+    const raw = aFakeMatchStatsWith({
+      MatchId: "match",
+      Teams: [aFakeTeamWith({ TeamId: 7 })],
+      Players: [makePlayer("xuid(1)", 50), makePlayer("xuid(2)", 200)],
+    });
+    getMatchDetailsSpy.mockResolvedValue([raw]);
+    getMedalsMetadataSpy.mockResolvedValue({ ...getMedalsMetadata(), medals: [] });
+    const { batch } = await prepareMatchDetails(haloService, ["match"], logService);
+    const parsed = await matchDetailContract.fromResponse(matchDetailContract.toResponse(batch));
+    const result = Preconditions.checkExists(parsed.results[0]);
+    if (result.status !== "resolved") {
+      throw new Error("Expected resolved detail");
+    }
+    expect(result.detail.players.map((player) => player.teamStats[0]?.medals[0])).toEqual([
+      expect.objectContaining({ id: 17, sortingWeight: null, totalPersonalScoreAwarded: 50 }),
+      expect.objectContaining({ id: 17, sortingWeight: null, totalPersonalScoreAwarded: 200 }),
+    ]);
+  });
+
   it("returns explicit not-found for upstream 404 and missing results without dropping duplicates", async () => {
     getMatchDetailsSpy.mockImplementation(async ([matchId]) => {
       if (matchId === "missing") {
