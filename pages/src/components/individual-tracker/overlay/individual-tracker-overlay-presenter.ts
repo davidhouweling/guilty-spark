@@ -9,19 +9,19 @@ import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-
 import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
+import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup, TickerStatRow } from "../../information-ticker/information-ticker";
 import { createMatchStatsFormatter } from "../../../controllers/stats/create";
-import { SeriesTeamStatsFormatter } from "../../../controllers/stats/series-team-stats-formatter";
-import { SeriesPlayerStatsFormatter } from "../../../controllers/stats/series-player-stats-formatter";
 import type { MatchStatsValues } from "../../../controllers/stats/types";
 import type { OverlayTab } from "../../streamer-overlay/types";
 import type {
   IndividualTrackerViewerRenderModel,
   MatchDetailsState,
   SeriesDetailsState,
+  ViewerSeriesDetailsState,
   ViewerSeriesTab,
   ViewerTimelineItem,
 } from "../viewer/types";
@@ -35,6 +35,7 @@ import {
 } from "../../live-tracker/settings/types";
 import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import { timeAgo } from "../../../services/time-ago";
+import { projectSeriesTicker } from "./series-ticker-projection";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,
@@ -185,6 +186,7 @@ interface BuildOverlayViewModelOptions {
   readonly renderModel: IndividualTrackerViewerRenderModel;
   readonly streamerSettings: StreamerViewSettings | undefined;
   readonly matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>;
+  readonly seriesDetailsById?: ReadonlyMap<string, ViewerSeriesDetailsState> | undefined;
   readonly selectedMatchId: string | null;
   readonly selectedSeriesId?: string | null;
 }
@@ -201,6 +203,7 @@ interface IndividualTrackerOverlayPresenterConfig {
 
 export class IndividualTrackerOverlayPresenter {
   private readonly defaultTeamColors: readonly [TeamColor, TeamColor];
+  private readonly statsDetailController = new StatsDetailController();
 
   public constructor(config?: IndividualTrackerOverlayPresenterConfig) {
     this.defaultTeamColors = config?.defaultTeamColors ?? getDefaultTeamColors();
@@ -542,7 +545,7 @@ export class IndividualTrackerOverlayPresenter {
     };
     const seriesStatsTickerGroup =
       activeSeries != null
-        ? this.buildSeriesStatsTickerGroup(options.matchStatsByMatchId, activeSeries, tickerFilterOptions)
+        ? this.buildSeriesStatsTickerGroup(options.seriesDetailsById ?? new Map(), activeSeries, tickerFilterOptions)
         : null;
     const matchTickerGroups = this.buildTickerGroups(options.matchStatsByMatchId, trimmedTabs, tickerFilterOptions);
     const loadedTickerGroups =
@@ -705,38 +708,28 @@ export class IndividualTrackerOverlayPresenter {
   }
 
   private buildSeriesStatsTickerGroup(
-    matchStatsByMatchId: ReadonlyMap<string, MatchStatsState>,
+    seriesDetailsById: ReadonlyMap<string, ViewerSeriesDetailsState>,
     activeSeries: ViewerSeriesTab,
     filterOptions: TickerFilterOptions,
   ): TickerMatchGroup | null {
-    const loadedStates = activeSeries.matches
-      .map((match) => matchStatsByMatchId.get(match.matchId))
-      .filter((state): state is Extract<MatchStatsState, { status: "loaded" }> => state?.status === "loaded");
-    if (loadedStates.length === 0) {
+    const state = seriesDetailsById.get(activeSeries.id);
+    if (state?.status !== "loaded") {
       return null;
     }
-    const [firstState] = loadedStates;
-
-    const playerMap = new Map<string, string>();
-    for (const state of loadedStates) {
-      for (const [xuid, gamertag] of state.playerMap) {
-        playerMap.set(xuid, gamertag);
-      }
+    const projection = projectSeriesTicker(state.data.aggregation, this.statsDetailController);
+    if (projection.status !== "resolved") {
+      return null;
     }
-
-    const matches = loadedStates.map((state) => state.stats);
-    const teamData = new SeriesTeamStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
-    const playerData = new SeriesPlayerStatsFormatter().getSeriesData(matches, playerMap, firstState.medalMetadata);
-
     const rows: TickerMatchGroup["rows"] = [
-      ...teamData.map((team) => ({
+      ...projection.teamData.map((team) => ({
         type: "team" as const,
         teamId: team.teamId,
         name: getTeamName(team.teamId),
         stats: this.filterTickerStats(team.teamStats, filterOptions),
         medals: this.filterTickerMedals(team.teamMedals, filterOptions.medalRarityFilter),
+        hasUnavailableMedals: team.hasUnknownRarity,
       })),
-      ...playerData.flatMap((team) =>
+      ...projection.playerData.flatMap((team) =>
         team.players.map((player) => ({
           type: "player" as const,
           teamId: team.teamId,
@@ -745,6 +738,7 @@ export class IndividualTrackerOverlayPresenter {
           gamertag: player.name,
           stats: this.filterTickerStats(player.values, filterOptions),
           medals: this.filterTickerMedals(player.medals, filterOptions.medalRarityFilter),
+          hasUnavailableMedals: player.hasUnknownRarity,
         })),
       ),
     ];
@@ -759,6 +753,9 @@ export class IndividualTrackerOverlayPresenter {
       matchIndex: -1,
       label: "Series Stats",
       rows: filteredRows,
+      hasUnavailableMedals: filteredRows.some(
+        (row) => "hasUnavailableMedals" in row && row.hasUnavailableMedals === true,
+      ),
     };
   }
 

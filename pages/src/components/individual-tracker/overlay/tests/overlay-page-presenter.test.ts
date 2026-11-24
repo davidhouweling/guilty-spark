@@ -8,7 +8,7 @@ import { HaloMedalMetadataResolver } from "../../../../services/halo/medal-metad
 import { aFakeMatchAnalyticsServiceWith } from "../../../../services/stats/fakes/match-analytics.fake";
 import { aFakeSeriesMatchesServiceWith } from "../../../../services/series-matches/fakes/series-matches.fake";
 import type { ViewerMatchTab, ViewerSeriesTab, ViewerTimelineItem } from "../../viewer/types";
-import type { MatchStatsState } from "../individual-tracker-overlay-presenter";
+import { aFakeViewerSeriesDetailWith } from "../../viewer/fakes/series-detail.fake";
 import { OverlayPagePresenter } from "../overlay-page-presenter";
 import { OverlayPageStore } from "../overlay-page-store";
 
@@ -51,20 +51,6 @@ function aSeriesTabWith(overrides: Partial<ViewerSeriesTab> = {}): ViewerSeriesT
     plannedMatches: [],
     iconMatches: [],
     colorHex: undefined,
-    ...overrides,
-  };
-}
-
-function aLoadedMatchStatsStateWith(
-  overrides: Partial<Extract<MatchStatsState, { status: "loaded" }>> = {},
-): Extract<MatchStatsState, { status: "loaded" }> {
-  return {
-    status: "loaded",
-    stats: aFakeMatchStatsWith(),
-    playerMap: new Map(),
-    medalMetadata: {},
-    analytics: null,
-    analyticsStatus: ComponentLoaderStatus.LOADED,
     ...overrides,
   };
 }
@@ -398,7 +384,41 @@ describe("OverlayPagePresenter", () => {
   });
 
   describe("preloadTimelineMatchStats", () => {
-    it("preloads stats for standalone matches and matches nested inside series entries", async () => {
+    it("shows match errors when the series detail request fails before or after selection", async () => {
+      const store = new OverlayPageStore();
+      const haloClient = aFakeHaloClientWith();
+      const getMatchStats = vi.spyOn(haloClient, "getMatchStats");
+      const seriesMatchesService = aFakeSeriesMatchesServiceWith();
+      vi.spyOn(seriesMatchesService, "getSeriesDetail").mockRejectedValue(new Error("series unavailable"));
+      const presenter = new OverlayPagePresenter({
+        store,
+        haloClient,
+        medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
+        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        seriesMatchesService,
+      });
+      const series = aSeriesTabWith({
+        matches: [aMatchTabWith({ matchId: "match-1" }), aMatchTabWith({ matchId: "match-2" })],
+      });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series }];
+
+      presenter.preloadTimelineMatchStats(timeline);
+      presenter.selectMatch("match-1", timeline);
+      await waitFor(() => {
+        expect(presenter.present(store.getSnapshot()).matchStatsPanelState).toEqual({
+          status: "error",
+          message: "Failed to load match stats",
+        });
+      });
+      presenter.selectMatch("match-2", timeline);
+      expect(presenter.present(store.getSnapshot()).matchStatsPanelState).toEqual({
+        status: "error",
+        message: "Failed to load match stats",
+      });
+      expect(getMatchStats).not.toHaveBeenCalled();
+    });
+
+    it("loads condensed series details without raw requests and loads analytics only for visible panels", async () => {
       const getMatchStats = vi
         .fn(async (matchId: string) => Promise.resolve(aFakeMatchStatsWith({ MatchId: matchId })))
         .mockName("getMatchStats");
@@ -409,41 +429,53 @@ describe("OverlayPagePresenter", () => {
       });
       const seriesMatchesService = aFakeSeriesMatchesServiceWith();
       const getMatchDetails = vi.spyOn(seriesMatchesService, "getMatchDetails");
+      const getSeriesDetail = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+      const matchAnalyticsService = aFakeMatchAnalyticsServiceWith();
+      const getAnalytics = vi.spyOn(matchAnalyticsService, "getBatchMatchAnalytics");
       const presenter = new OverlayPagePresenter({
         store,
         haloClient,
         medalMetadataResolver: new HaloMedalMetadataResolver(haloClient),
-        matchAnalyticsService: aFakeMatchAnalyticsServiceWith(),
+        matchAnalyticsService,
         seriesMatchesService,
       });
-      const timeline: readonly ViewerTimelineItem[] = [
-        { type: "match", match: aMatchTabWith({ matchId: "standalone-1" }) },
-        { type: "match", match: aMatchTabWith({ matchId: "series-match-1" }) },
-        {
-          type: "series",
-          series: aSeriesTabWith({
-            matches: [aMatchTabWith({ matchId: "series-match-1" }), aMatchTabWith({ matchId: "series-match-2" })],
-          }),
-        },
-      ];
+      const series = aSeriesTabWith({
+        matches: [aMatchTabWith({ matchId: "series-match-1" }), aMatchTabWith({ matchId: "series-match-2" })],
+      });
+      const timeline: readonly ViewerTimelineItem[] = [{ type: "series", series }];
 
       presenter.preloadTimelineMatchStats(timeline);
-      presenter.selectMatch("series-match-1", timeline);
+      expect(getAnalytics).not.toHaveBeenCalled();
 
       await waitFor(() => {
-        expect(store.getSnapshot().matchStatsByMatchId.get("standalone-1")?.status).toBe("condensed");
-        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-1")?.status).toBe("loaded");
-        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-2")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-1")?.status).toBe("condensed");
+        expect(store.getSnapshot().matchStatsByMatchId.get("series-match-2")?.status).toBe("condensed");
+        expect(store.getSnapshot().seriesDetailsById.get("series-1")?.status).toBe("loaded");
       });
-      expect(getMatchStats).toHaveBeenCalledTimes(2);
-      expect(getMatchStats).not.toHaveBeenCalledWith("standalone-1");
-      expect(getMatchDetails).toHaveBeenCalledOnce();
-      expect(getMatchDetails).toHaveBeenCalledWith(["standalone-1"], undefined);
-      const series = timeline.find((item) => item.type === "series");
-      expect(
-        series?.type === "series" &&
-          presenter.buildSeriesStatsPanelState(series.series, store.getSnapshot().matchStatsByMatchId)?.status,
-      ).toBe("loaded");
+      expect(getMatchStats).not.toHaveBeenCalled();
+      expect(getMatchDetails).not.toHaveBeenCalled();
+      expect(getSeriesDetail).toHaveBeenCalledOnce();
+      expect(getSeriesDetail).toHaveBeenCalledWith(
+        "series-1",
+        ["series-match-1", "series-match-2"],
+        undefined,
+        "substitution-aware",
+      );
+      expect(getAnalytics).not.toHaveBeenCalled();
+      presenter.selectSeries("series-1");
+      presenter.loadSeriesAnalytics("series-1", "killMatrix");
+      await waitFor(() => {
+        expect(getAnalytics).toHaveBeenCalledOnce();
+      });
+      expect(getAnalytics).toHaveBeenCalledWith(["series-match-1", "series-match-2"], ["killMatrix"]);
+      presenter.selectMatch("series-match-1", timeline);
+      await waitFor(() => {
+        expect(getAnalytics).toHaveBeenCalledTimes(2);
+      });
+      expect(getAnalytics).toHaveBeenLastCalledWith(["series-match-1"], ["scoreProgression"]);
+      expect(presenter.buildSeriesStatsPanelState(series, store.getSnapshot().seriesDetailsById)?.status).toBe(
+        "loaded",
+      );
     });
 
     it("keeps standalone tables and ticker data available when analytics fails", async () => {
@@ -515,12 +547,12 @@ describe("OverlayPagePresenter", () => {
       presenter.preloadTimelineMatchStats([{ type: "match", match }]);
       presenter.preloadTimelineMatchStats([{ type: "series", series: aSeriesTabWith({ matches: [match] }) }]);
       await waitFor(() => {
-        expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
+        expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("condensed");
       });
       resolveDetails?.(response);
       await Promise.resolve();
-      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("loaded");
-      expect(getMatchStats).toHaveBeenCalledOnce();
+      expect(store.getSnapshot().matchStatsByMatchId.get("match-1")?.status).toBe("condensed");
+      expect(getMatchStats).not.toHaveBeenCalled();
     });
 
     it("does not load analytics when selection closes before detail resolves", async () => {
@@ -675,56 +707,40 @@ describe("OverlayPagePresenter", () => {
       expect(aPresenter().buildSeriesStatsPanelState(series, new Map())).toBeNull();
     });
 
-    it("returns loading while any match's cached stats are still pending", () => {
-      const match = aMatchTabWith({ matchId: "match-1" });
-      const series = aSeriesTabWith({ matches: [match] });
+    it("returns loading while condensed series details are pending", () => {
+      const series = aSeriesTabWith({ matches: [aMatchTabWith({ matchId: "match-1" })] });
+      const seriesDetailsById = new Map([["series-1", { status: "loading" as const }]]);
 
-      expect(aPresenter().buildSeriesStatsPanelState(series, new Map())).toEqual({ status: "loading" });
+      expect(aPresenter().buildSeriesStatsPanelState(series, seriesDetailsById)).toEqual({ status: "loading" });
     });
 
-    it("returns the error message when a match's cached stats failed to load", () => {
-      const match = aMatchTabWith({ matchId: "match-1" });
-      const series = aSeriesTabWith({ matches: [match] });
-      const matchStatsByMatchId = new Map<string, MatchStatsState>([
-        ["match-1", { status: "error", message: "Failed to load match stats" }],
-      ]);
+    it("returns the series detail error", () => {
+      const series = aSeriesTabWith({ matches: [aMatchTabWith({ matchId: "match-1" })] });
+      const seriesDetailsById = new Map([["series-1", { status: "error" as const, message: "Failed to load series" }]]);
 
-      expect(aPresenter().buildSeriesStatsPanelState(series, matchStatsByMatchId)).toEqual({
+      expect(aPresenter().buildSeriesStatsPanelState(series, seriesDetailsById)).toEqual({
         status: "error",
-        message: "Failed to load match stats",
+        message: "Failed to load series",
       });
     });
 
-    it("builds a loaded view model from cached match stats without any additional fetch", () => {
-      const matchOne = aMatchTabWith({ matchId: "match-1", mapName: "Live Fire" });
-      const matchTwo = aMatchTabWith({ matchId: "match-2", mapName: "Aquarius" });
-      const series = aSeriesTabWith({ title: "Alpha vs Beta", subtitle: "Best of 3", matches: [matchOne, matchTwo] });
-      const playerMap = new Map([
-        ["1111111111", "Alpha"],
-        ["2222222222", "Bravo"],
-        ["3333333333", "Charlie"],
-        ["4444444444", "Delta"],
-      ]);
-      const matchStatsByMatchId = new Map<string, MatchStatsState>([
+    it("preserves match details while marking ambiguous series totals unavailable", () => {
+      const series = aSeriesTabWith({
+        title: "Alpha vs Beta",
+        subtitle: "Best of 3",
+        matches: [aMatchTabWith({ matchId: "match-1" })],
+      });
+      const response = aFakeViewerSeriesDetailWith(["match-1"], {
+        aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
+      });
+      const seriesDetailsById = new Map([
         [
-          "match-1",
-          aLoadedMatchStatsStateWith({
-            stats: aFakeMatchStatsWith({ MatchId: "match-1" }),
-            playerMap,
-            medalMetadata: { 1: { name: "Killing Spree", sortingWeight: 100 } },
-          }),
-        ],
-        [
-          "match-2",
-          aLoadedMatchStatsStateWith({
-            stats: aFakeMatchStatsWith({ MatchId: "match-2" }),
-            playerMap,
-            medalMetadata: { 2: { name: "Double Kill", sortingWeight: 50 } },
-          }),
+          "series-1",
+          { status: "loaded" as const, seriesId: "series-1", data: response, analyticsByMatchId: new Map() },
         ],
       ]);
 
-      const state = aPresenter().buildSeriesStatsPanelState(series, matchStatsByMatchId);
+      const state = aPresenter().buildSeriesStatsPanelState(series, seriesDetailsById);
 
       expect(state?.status).toBe("loaded");
       if (state?.status !== "loaded") {
@@ -733,7 +749,10 @@ describe("OverlayPagePresenter", () => {
       expect(state.seriesId).toBe("series-1");
       expect(state.viewModel.title).toBe("Alpha vs Beta");
       expect(state.viewModel.subtitle).toBe("Best of 3");
-      expect(state.viewModel.matchSummaries.map((summary) => summary.matchId)).toEqual(["match-1", "match-2"]);
+      expect(state.viewModel.seriesScore).toBe("Unavailable");
+      expect(state.viewModel.seriesStats).toBeNull();
+      expect(state.viewModel.seriesStatsWarning).toContain("team identities could not be matched reliably");
+      expect(state.viewModel.matchDetails[0]?.data).not.toBeNull();
     });
   });
 });

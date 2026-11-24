@@ -134,6 +134,7 @@ function aPropsWith(options?: {
     selectedSeriesId,
     onSelectMatch: options?.onSelectMatch ?? ((): void => undefined),
     onSelectSeries: options?.onSelectSeries ?? ((): void => undefined),
+    onSeriesAnalyticsTabSelected: (): void => undefined,
     onDeselect: options?.onDeselect ?? ((): void => undefined),
   };
 }
