@@ -6,10 +6,16 @@ import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
 import type { ViewMode } from "../view-mode/view-mode-selector";
 import { ViewModeSelector } from "../view-mode/view-mode-selector";
+import { SeriesTitleSection } from "../live-tracker/settings/series-title-section";
+import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
+  readonly seriesSettings: SeriesStreamerSettings;
+  readonly defaultTitle: string | null;
+  readonly defaultSubtitle: string | null;
+  readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
@@ -32,6 +38,10 @@ export function DiscordSeriesStatsView({
   title,
   subtitle,
   viewMode,
+  seriesSettings,
+  defaultTitle,
+  defaultSubtitle,
+  onSeriesSettingsChange,
   onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
@@ -57,6 +67,15 @@ export function DiscordSeriesStatsView({
             showCurrentModeLabel
           />
         </div>
+        <details className={styles.titleSettings}>
+          <summary>Series title settings</summary>
+          <SeriesTitleSection
+            settings={seriesSettings}
+            defaultTitle={defaultTitle}
+            defaultSubtitle={defaultSubtitle}
+            onChange={onSeriesSettingsChange}
+          />
+        </details>
       </Container>
       <div className={styles.content}>
         <SharedSeriesStatsView

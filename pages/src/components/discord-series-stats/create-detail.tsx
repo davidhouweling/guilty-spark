@@ -6,12 +6,15 @@ import { StatsDetailController } from "../../controllers/stats/stats-detail-cont
 import type { SeriesMatchAnalyticsById } from "../series-stats/types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
 import type { ViewMode } from "../view-mode/view-mode-selector";
+import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
 import { DiscordSeriesStatsView } from "./discord-series-stats";
 
 export interface DiscordSeriesDetailStatsProps {
   readonly data: SeriesDetailResponse;
   readonly analyticsByMatchId: SeriesMatchAnalyticsById;
   readonly viewMode: ViewMode;
+  readonly seriesSettings: SeriesStreamerSettings;
+  readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
 }
@@ -21,6 +24,8 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     data,
     analyticsByMatchId,
     viewMode,
+    seriesSettings,
+    onSeriesSettingsChange,
     onViewModeSelect,
     onAnalyticsTabSelected,
   }: DiscordSeriesDetailStatsProps): ReactElement {
@@ -34,7 +39,13 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     return (
       <DiscordSeriesStatsView
         {...model}
+        title={seriesSettings.titleOverride ?? model.title}
+        subtitle={seriesSettings.subtitleOverride ?? model.subtitle}
         viewMode={viewMode}
+        seriesSettings={seriesSettings}
+        defaultTitle={data.context?.title ?? null}
+        defaultSubtitle={data.context?.subtitle ?? null}
+        onSeriesSettingsChange={onSeriesSettingsChange}
         onViewModeSelect={onViewModeSelect}
         onAnalyticsTabSelected={onAnalyticsTabSelected}
       />

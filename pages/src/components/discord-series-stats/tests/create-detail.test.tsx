@@ -10,6 +10,7 @@ import {
   aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { createDiscordSeriesDetailStats } from "../create-detail";
+import { DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
 
 afterEach(() => {
   cleanup();
@@ -49,6 +50,8 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={vi.fn()}
       />,
@@ -69,6 +72,8 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={onAnalyticsTabSelected}
       />,
@@ -95,6 +100,8 @@ describe("DiscordSeriesDetailStats", () => {
         data={data}
         analyticsByMatchId={new Map()}
         viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
         onViewModeSelect={vi.fn()}
         onAnalyticsTabSelected={vi.fn()}
       />,

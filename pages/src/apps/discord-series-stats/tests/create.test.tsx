@@ -102,7 +102,52 @@ describe("DiscordSeriesStatsApp", () => {
     expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(legacySettings);
   });
 
+  it("applies, edits, clears and restores series title overrides through the URL", async () => {
+    const storedSettings = JSON.stringify({ colors: { mode: "player", observerView: { eagleColor: "jade" } } });
+    localStorage.setItem("live-tracker-streamer-settings-global", storedSettings);
+    window.history.replaceState(
+      { marker: "kept" },
+      "",
+      "/stats/discord/123456789012345678/7777?title=Finals&subtitle=Season+1&viewMode=standard&campaign=summer#match-one",
+    );
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+
+    const app = (
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />
+    );
+    const { unmount } = render(app);
+
+    expect(await screen.findByRole("heading", { name: "Finals" })).toBeInTheDocument();
+    expect(screen.getByText("Season 1")).toBeInTheDocument();
+    expect(document.title).toContain("Finals");
+    fireEvent.click(screen.getByText("Series title settings"));
+    expect(screen.getByLabelText("Title")).toHaveValue("Finals");
+    expect(screen.getByLabelText("Subtitle")).toHaveValue("Season 1");
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Championship" } });
+    fireEvent.change(screen.getByLabelText("Subtitle"), { target: { value: "" } });
+
+    expect(screen.getByRole("heading", { name: "Championship" })).toBeInTheDocument();
+    expect(screen.getByText("Guild 123456789012345678")).toBeInTheDocument();
+    const url = new URL(window.location.href);
+    expect(url.searchParams.get("title")).toBe("Championship");
+    expect(url.searchParams.has("subtitle")).toBe(false);
+    expect(url.searchParams.get("viewMode")).toBe("standard");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+    expect(url.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(storedSettings);
+
+    unmount();
+    render(app);
+    expect(await screen.findByRole("heading", { name: "Championship" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Series title settings"));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "" } });
+    expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.has("title")).toBe(false);
+  });
+
   it("renders pending message when stats are indexing", async () => {
+    window.history.replaceState({}, "", "/?title=Custom&subtitle=Custom");
     mockInstallServices.mockResolvedValue({
       ...aFakeDiscordSeriesStatsAppServicesWith(aFakePendingDiscordSeriesStatsDetailResultWith()),
     });
@@ -112,6 +157,7 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     expect(await screen.findByText("Stats are still indexing. Retry in 9s.")).toBeInTheDocument();
+    expect(screen.queryByText("Series title settings")).not.toBeInTheDocument();
   });
 
   it("renders queue not found state", async () => {
