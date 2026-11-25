@@ -322,7 +322,7 @@ export class SeriesDetailStatsViewModelPresenter {
       [...aggregation.teams]
         .sort((left, right) => left.seriesTeamId - right.seriesTeamId)
         .flatMap((team, index) => {
-          const name = overrides[index];
+          const name = overrides[index]?.trim();
           return name == null || name === "" ? [] : [[team.seriesTeamId, name]];
         }),
     );

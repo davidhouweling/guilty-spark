@@ -118,6 +118,9 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       teamNameOverrides: ["Finals", "Rivals"],
     });
     const defaults = presenter.present(response, analyticsByMatchId);
+    const normalized = presenter.present(response, analyticsByMatchId, {
+      teamNameOverrides: [" \t ", "  Rivals  "],
+    });
 
     expect(
       customized.matchDetails.map(({ scoreProgressionViewData }) =>
@@ -136,6 +139,23 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
       ],
     ]);
     expect(customized.teams.map(({ name }) => name)).toEqual(["Finals", "Rivals"]);
+    expect(normalized.teams.map(({ name }) => name)).toEqual([defaults.teams[0]?.name, "Rivals"]);
+    expect(
+      normalized.matchDetails.map(({ scoreProgressionViewData }) =>
+        scoreProgressionViewData?.kind === "score-lines"
+          ? scoreProgressionViewData.teamLines.map(({ teamId, name }) => [teamId, name])
+          : [],
+      ),
+    ).toEqual([
+      [
+        [7, getTeamName(7)],
+        [19, "Rivals"],
+      ],
+      [
+        [12, "Rivals"],
+        [31, getTeamName(31)],
+      ],
+    ]);
     expect(
       defaults.matchDetails.map(({ scoreProgressionViewData }) =>
         scoreProgressionViewData?.kind === "score-lines"
