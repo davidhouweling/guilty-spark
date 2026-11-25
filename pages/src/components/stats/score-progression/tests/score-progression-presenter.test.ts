@@ -186,7 +186,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(3, undefined)).toEqual(["Eagle +3", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(3, undefined, "score")).toEqual(["Eagle +3", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns team1Name leading on negative delta", () => {
@@ -195,7 +195,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(-2, undefined)).toEqual(["Cobra +2", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-2, undefined, "score")).toEqual(["Cobra +2", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is 0", () => {
@@ -204,7 +204,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(0, undefined)).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(0, undefined, "score")).toEqual(["Tied", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is a string", () => {
@@ -213,7 +213,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter("unknown", undefined)).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter("unknown", undefined, "score")).toEqual(["Tied", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter returns Tied when value is NaN", () => {
@@ -222,7 +222,7 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(NaN, undefined)).toEqual(["Tied", "Score Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(NaN, undefined, "score")).toEqual(["Tied", "Score Delta"]);
     });
 
     it("deltaViewModel.tooltipFormatter routes Player Advantage to team0Name leading on positive advantage", () => {
@@ -231,7 +231,10 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(2, "Player Advantage")).toEqual(["Eagle +2", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(2, "Player Advantage", "player-advantage")).toEqual([
+        "Eagle +2",
+        "Player Advantage",
+      ]);
     });
 
     it("deltaViewModel.tooltipFormatter routes Player Advantage to team1Name leading on negative advantage", () => {
@@ -240,7 +243,10 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(-1, "Player Advantage")).toEqual(["Cobra +1", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(-1, "Player Advantage", "player-advantage")).toEqual([
+        "Cobra +1",
+        "Player Advantage",
+      ]);
     });
 
     it("deltaViewModel.tooltipFormatter routes Player Advantage to Even when value is 0", () => {
@@ -249,7 +255,10 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData() })),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(0, "Player Advantage", "player-advantage")).toEqual([
+        "Even",
+        "Player Advantage",
+      ]);
     });
   });
 
@@ -380,7 +389,10 @@ describe("ScoreProgressionPresenter", () => {
           aScoreLinesInput({ scoreDelta: aFakeScoreDeltaData(), zoneAdvantage: aFakeZoneAdvantageData() }),
         ),
       );
-      expect(model.deltaViewModel?.tooltipFormatter(2, "Zone Advantage")).toEqual(["Eagle +2 zones", "Zone Advantage"]);
+      expect(model.deltaViewModel?.tooltipFormatter(2, "Zone Advantage", "zone-advantage")).toEqual([
+        "Eagle +2 zones",
+        "Zone Advantage",
+      ]);
     });
 
     it("passes markers through by default and hides them when toggled off", () => {
@@ -416,15 +428,18 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ zoneAdvantage: aFakeZoneAdvantageData() })),
       );
-      expect(model.progressionViewModel.tooltipFormatter(2, "Zone Advantage")).toEqual([
+      expect(model.progressionViewModel.tooltipFormatter(2, "Zone Advantage", "zone-advantage")).toEqual([
         "Eagle +2 zones",
         "Zone Advantage",
       ]);
-      expect(model.progressionViewModel.tooltipFormatter(-1, "Zone Advantage")).toEqual([
+      expect(model.progressionViewModel.tooltipFormatter(-1, "Zone Advantage", "zone-advantage")).toEqual([
         "Cobra +1 zone",
         "Zone Advantage",
       ]);
-      expect(model.progressionViewModel.tooltipFormatter(0, "Zone Advantage")).toEqual(["Even", "Zone Advantage"]);
+      expect(model.progressionViewModel.tooltipFormatter(0, "Zone Advantage", "zone-advantage")).toEqual([
+        "Even",
+        "Zone Advantage",
+      ]);
     });
 
     it("updates the store through the marker and zone advantage callbacks", () => {
@@ -443,22 +458,25 @@ describe("ScoreProgressionPresenter", () => {
       const model = asScoreLines(
         presenter.present(store.getSnapshot(), aScoreLinesInput({ playerAdvantage: aFakePlayerAdvantageData() })),
       );
-      expect(model.progressionViewModel.tooltipFormatter(2, "Player Advantage")).toEqual([
+      expect(model.progressionViewModel.tooltipFormatter(2, "Player Advantage", "player-advantage")).toEqual([
         "Eagle +2",
         "Player Advantage",
       ]);
-      expect(model.progressionViewModel.tooltipFormatter(-1, "Player Advantage")).toEqual([
+      expect(model.progressionViewModel.tooltipFormatter(-1, "Player Advantage", "player-advantage")).toEqual([
         "Cobra +1",
         "Player Advantage",
       ]);
-      expect(model.progressionViewModel.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
+      expect(model.progressionViewModel.tooltipFormatter(0, "Player Advantage", "player-advantage")).toEqual([
+        "Even",
+        "Player Advantage",
+      ]);
     });
 
     it("passes through team line series unchanged", () => {
       const { store, presenter } = makePresenter();
       const model = asScoreLines(presenter.present(store.getSnapshot(), aScoreLinesInput()));
-      expect(model.progressionViewModel.tooltipFormatter(5, "Eagle")).toEqual(["5", "Eagle"]);
-      expect(model.progressionViewModel.tooltipFormatter(3, "Cobra")).toEqual(["3", "Cobra"]);
+      expect(model.progressionViewModel.tooltipFormatter(5, "Eagle", "score")).toEqual(["5", "Eagle"]);
+      expect(model.progressionViewModel.tooltipFormatter(3, "Cobra", "score")).toEqual(["3", "Cobra"]);
     });
   });
 
@@ -717,11 +735,17 @@ describe("ScoreProgressionPresenter", () => {
         "Objective Timeline",
       ]);
       expect(model.progressionViewModel.scoreUnit).toBe("percent");
-      expect(model.progressionViewModel.tooltipFormatter(62.5, "Eagle")).toEqual(["63%", "Eagle"]);
+      expect(model.progressionViewModel.tooltipFormatter(62.5, "Eagle", "score")).toEqual(["63%", "Eagle"]);
       expect(model.deltaViewModel?.scoreUnit).toBe("percent");
-      expect(model.deltaViewModel?.tooltipFormatter(25, undefined)).toEqual(["Eagle +25%", "Hill Progress Delta"]);
-      expect(model.deltaViewModel?.tooltipFormatter(-33.4, undefined)).toEqual(["Cobra +33%", "Hill Progress Delta"]);
-      expect(model.deltaViewModel?.tooltipFormatter(0.3, undefined)).toEqual(["Tied", "Hill Progress Delta"]);
+      expect(model.deltaViewModel?.tooltipFormatter(25, undefined, "score")).toEqual([
+        "Eagle +25%",
+        "Hill Progress Delta",
+      ]);
+      expect(model.deltaViewModel?.tooltipFormatter(-33.4, undefined, "score")).toEqual([
+        "Cobra +33%",
+        "Hill Progress Delta",
+      ]);
+      expect(model.deltaViewModel?.tooltipFormatter(0.3, undefined, "score")).toEqual(["Tied", "Hill Progress Delta"]);
 
       store.update({ chartType: null });
       expect(presenter.present(store.getSnapshot(), input).effectiveChartType).toBe("progression");
@@ -912,11 +936,11 @@ describe("ScoreProgressionPresenter ctf", () => {
       presenter.present(store.getSnapshot(), { viewData: aFakeCtfViewDataWith(), ariaLabel: "x" }),
     );
 
-    expect(model.chart.tooltipFormatter(-86, "Cobra flag · Eagle carrying")).toEqual([
+    expect(model.chart.tooltipFormatter(-86, "Cobra flag · Eagle carrying", "score")).toEqual([
       "86% of the way to the capture point",
       "Cobra flag · Eagle carrying",
     ]);
-    expect(model.chart.tooltipFormatter(undefined, "x")).toEqual(["", "x"]);
+    expect(model.chart.tooltipFormatter(undefined, "x", "score")).toEqual(["", "x"]);
   });
 
   describe("player advantage overlay", () => {
@@ -1023,10 +1047,19 @@ describe("ScoreProgressionPresenter ctf", () => {
         }),
       );
 
-      expect(model.chart.tooltipFormatter(1, "Player Advantage")).toEqual(["Eagle +1", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(-2, "Player Advantage")).toEqual(["Cobra +2", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(0, "Player Advantage")).toEqual(["Even", "Player Advantage"]);
-      expect(model.chart.tooltipFormatter(50, "Eagle flag · Cobra carrying")).toEqual([
+      expect(model.chart.tooltipFormatter(1, "Player Advantage", "player-advantage")).toEqual([
+        "Eagle +1",
+        "Player Advantage",
+      ]);
+      expect(model.chart.tooltipFormatter(-2, "Player Advantage", "player-advantage")).toEqual([
+        "Cobra +2",
+        "Player Advantage",
+      ]);
+      expect(model.chart.tooltipFormatter(0, "Player Advantage", "player-advantage")).toEqual([
+        "Even",
+        "Player Advantage",
+      ]);
+      expect(model.chart.tooltipFormatter(50, "Eagle flag · Cobra carrying", "score")).toEqual([
         "50% of the way to the capture point",
         "Eagle flag · Cobra carrying",
       ]);

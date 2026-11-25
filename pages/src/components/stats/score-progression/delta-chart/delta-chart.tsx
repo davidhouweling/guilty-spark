@@ -18,6 +18,7 @@ import {
   TICK_STYLE,
   advantageAxisProps,
   chartMargin,
+  chartTooltipFormatter,
   roundBoundaryLineProps,
   playerAdvantageAreaProps,
   scoreAxisWidth,
@@ -115,7 +116,7 @@ export function DeltaChart({
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={tooltipFormatter}
+          formatter={chartTooltipFormatter(tooltipFormatter, "score")}
         />
         <Area
           dataKey="score"
@@ -129,8 +130,20 @@ export function DeltaChart({
         {advantageDomain != null && (
           <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
-        {playerAdvantage != null && <Area {...playerAdvantageAreaProps("score")} data={playerAdvantage.points} />}
-        {zoneAdvantage != null && <Area {...zoneAdvantageAreaProps()} data={zoneAdvantage.points} />}
+        {playerAdvantage != null && (
+          <Area
+            {...playerAdvantageAreaProps("score")}
+            data={playerAdvantage.points}
+            formatter={chartTooltipFormatter(tooltipFormatter, "player-advantage")}
+          />
+        )}
+        {zoneAdvantage != null && (
+          <Area
+            {...zoneAdvantageAreaProps()}
+            data={zoneAdvantage.points}
+            formatter={chartTooltipFormatter(tooltipFormatter, "zone-advantage")}
+          />
+        )}
       </AreaChart>
     </ResponsiveContainer>
   );

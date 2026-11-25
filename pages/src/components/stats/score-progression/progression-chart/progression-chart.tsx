@@ -17,6 +17,7 @@ import {
   TICK_STYLE,
   advantageAxisProps,
   chartMargin,
+  chartTooltipFormatter,
   roundBoundaryLineProps,
   playerAdvantageAreaProps,
   scoreAxisProps,
@@ -56,7 +57,7 @@ export function ProgressionChart({
           contentStyle={tooltipContentStyle}
           labelStyle={tooltipLabelStyle}
           labelFormatter={formatTooltipLabel}
-          formatter={tooltipFormatter}
+          formatter={chartTooltipFormatter(tooltipFormatter, "score")}
         />
         {teamLines.map((line) => (
           <Area
@@ -75,8 +76,20 @@ export function ProgressionChart({
         {advantageDomain != null && (
           <ReferenceLine y={0} yAxisId="advantage" stroke={AXIS_STROKE} strokeDasharray="3 3" />
         )}
-        {playerAdvantage != null && <Area {...playerAdvantageAreaProps("score")} data={playerAdvantage.points} />}
-        {zoneAdvantage != null && <Area {...zoneAdvantageAreaProps()} data={zoneAdvantage.points} />}
+        {playerAdvantage != null && (
+          <Area
+            {...playerAdvantageAreaProps("score")}
+            data={playerAdvantage.points}
+            formatter={chartTooltipFormatter(tooltipFormatter, "player-advantage")}
+          />
+        )}
+        {zoneAdvantage != null && (
+          <Area
+            {...zoneAdvantageAreaProps()}
+            data={zoneAdvantage.points}
+            formatter={chartTooltipFormatter(tooltipFormatter, "zone-advantage")}
+          />
+        )}
         {markers?.map((marker, index) => (
           <ReferenceDot
             key={`${String(index)}-${String(marker.timestampMs)}`}
