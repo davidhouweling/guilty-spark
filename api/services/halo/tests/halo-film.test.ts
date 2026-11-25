@@ -241,42 +241,45 @@ describe("HaloFilmService", () => {
     expect(client.getFilmChunk.mock.calls).toEqual([]);
   });
 
-  it("delegates cache misses to the SDK and caches metadata and chunk bytes", async () => {
-    const env = aFakeCacheBackedEnvWith();
-    const client = aFakeHaloInfiniteClient();
-    const service = new HaloFilmService({ env, client });
+  it.each(["https://blob.example/", "https://blob.example"])(
+    "delegates cache misses to the SDK with one path separator for prefix %s",
+    async (prefix) => {
+      const env = aFakeCacheBackedEnvWith();
+      const client = aFakeHaloInfiniteClient();
+      const service = new HaloFilmService({ env, client });
 
-    const compressedChunk = deflateSync(Uint8Array.of(0x04, 0x05, 0x06));
-    const metadata = aFilmMetadataWith({
-      AssetId: "asset-id",
-      BlobStoragePathPrefix: "https://blob.example/",
-      CustomData: {
-        MatchId: "match-456",
-        FilmMajorVersion: 42,
-        FilmLength: 600,
-        Chunks: [
-          {
-            Index: 7,
-            ChunkType: 3,
-            DurationMilliseconds: 600,
-            ChunkSize: compressedChunk.byteLength,
-            FileRelativePath: "/filmChunk42",
-          },
-        ],
-      },
-    });
-    configureFilmClientWith(client, metadata, new Map([[7, compressedChunk]]));
+      const compressedChunk = deflateSync(Uint8Array.of(0x04, 0x05, 0x06));
+      const metadata = aFilmMetadataWith({
+        AssetId: "asset-id",
+        BlobStoragePathPrefix: prefix,
+        CustomData: {
+          MatchId: "match-456",
+          FilmMajorVersion: 42,
+          FilmLength: 600,
+          Chunks: [
+            {
+              Index: 7,
+              ChunkType: 3,
+              DurationMilliseconds: 600,
+              ChunkSize: compressedChunk.byteLength,
+              FileRelativePath: "/filmChunk42",
+            },
+          ],
+        },
+      });
+      configureFilmClientWith(client, metadata, new Map([[7, compressedChunk]]));
 
-    const firstRead = await service.getHighlightEventsForMatch("match-456");
-    const secondRead = await service.getHighlightEventsForMatch("match-456");
+      const firstRead = await service.getHighlightEventsForMatch("match-456");
+      const secondRead = await service.getHighlightEventsForMatch("match-456");
 
-    expect(firstRead).toEqual([]);
-    expect(secondRead).toEqual([]);
-    expect(client.spectateMatch.mock.calls).toEqual([["match-456"]]);
-    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", "/filmChunk42"]]);
-    expect(await defaultCache().match(metadataCacheRequestFor("match-456"))).toBeDefined();
-    expect(await defaultCache().match(chunkCacheRequestFor("match-456", 7))).toBeDefined();
-  });
+      expect(firstRead).toEqual([]);
+      expect(secondRead).toEqual([]);
+      expect(client.spectateMatch.mock.calls).toEqual([["match-456"]]);
+      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk42"]]);
+      expect(await defaultCache().match(metadataCacheRequestFor("match-456"))).toBeDefined();
+      expect(await defaultCache().match(chunkCacheRequestFor("match-456", 7))).toBeDefined();
+    },
+  );
 
   it("treats cached metadata without highlight chunk as cache miss", async () => {
     const env = aFakeCacheBackedEnvWith();
@@ -326,7 +329,7 @@ describe("HaloFilmService", () => {
 
     expect(events).toEqual([]);
     expect(client.spectateMatch.mock.calls).toEqual([["match-789"]]);
-    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", "/filmChunk7"]]);
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk7"]]);
     expect(await defaultCache().match(chunkCacheRequestFor("match-789", 7))).toBeDefined();
   });
 
@@ -2007,7 +2010,7 @@ describe("HaloFilmService", () => {
       expect(stored).not.toBeNull();
       expect(Array.isArray(stored)).toBe(true);
       expect(client.spectateMatch.mock.calls).toEqual([["kv-miss-match"]]);
-      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", "/filmChunk1"]]);
+      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk1"]]);
     });
 
     it("serves second request from KV without additional network calls", async () => {
@@ -2037,7 +2040,7 @@ describe("HaloFilmService", () => {
 
       const firstResult = await service.getHighlightEventsForMatch("kv-second-req");
       expect(client.spectateMatch.mock.calls).toEqual([["kv-second-req"]]);
-      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", "/filmChunk2"]]);
+      expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk2"]]);
       client.spectateMatch.mockClear();
       client.getFilmChunk.mockClear();
 
@@ -2121,6 +2124,22 @@ describe("HaloFilmService replication chunks", () => {
     ]);
     expect(load.chunks[0]?.data).toEqual(new Uint8Array(encoded));
     expect(load.skippedChunks).toEqual([{ index: 2, startMs: 21_000, reason: "malformed" }]);
+  });
+
+  it("downloads replication chunks with one separator between prefix and path", async () => {
+    const metadata = aChunkMetadata([{ Index: 2, ChunkType: 2, DurationMilliseconds: 1000 }]);
+    const client = aFakeHaloInfiniteClient();
+    const service = await aServiceWithFilm(
+      metadata,
+      new Map([[2, deflateSync(buildReplicationChunkBytes(identityFrames))]]),
+      aFakeCacheBackedEnvWith(),
+      client,
+    );
+
+    const result = await service.getReplicationChunks("match-ctf");
+
+    expect(result.chunks).toHaveLength(1);
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk2"]]);
   });
 
   it("decodes flag events from the fetched film, dated from the chunk start offset", async () => {
@@ -2502,7 +2521,7 @@ describe("HaloFilmService replication chunks", () => {
 
     await expect(service.getCompleteReplicationChunks("match-ctf")).rejects.toThrow("malformed replication chunk: 1");
 
-    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example/", "/filmChunk42"]]);
+    expect(client.getFilmChunk.mock.calls).toEqual([["https://blob.example", "/filmChunk42"]]);
   });
 
   it("fetches the film metadata once when the chunk and highlight loads both start cold", async () => {
@@ -2535,7 +2554,7 @@ describe("HaloFilmService replication chunks", () => {
 
     expect(client.spectateMatch.mock.calls).toEqual([["match-ctf"]]);
     expect(client.getFilmChunk.mock.calls).toHaveLength(3);
-    expect(client.getFilmChunk.mock.calls).toContainEqual(["https://blob.example/", "/filmChunk3"]);
+    expect(client.getFilmChunk.mock.calls).toContainEqual(["https://blob.example", "/filmChunk3"]);
   });
 
   it("refuses to build player positions when a chunk inflates to nothing", async () => {
