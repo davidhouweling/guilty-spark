@@ -92,6 +92,7 @@ export type SeriesMatchAnalyticsById = ReadonlyMap<string, SeriesMatchAnalyticsS
 export interface SeriesStatsPresentationOptions {
   // Ordered by stable series team slot (seriesTeamId, else matchTeamId); missing slots use default colors.
   readonly teamColors?: readonly TeamColor[] | undefined;
+  readonly teamNameOverrides?: readonly (string | null)[] | undefined;
 }
 
 export interface SeriesStatsContentProps {

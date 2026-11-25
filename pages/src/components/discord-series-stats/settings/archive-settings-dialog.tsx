@@ -57,7 +57,7 @@ export function ArchiveSettingsDialog({
                 <SeriesTeamNameInputs
                   settings={seriesSettings}
                   onChange={onSeriesSettingsChange}
-                  description="These names apply to overview cards; match Timeline labels are separate."
+                  description="These names apply to overview cards and match Timeline labels."
                 />
               </div>
             ) : (

@@ -108,6 +108,47 @@ describe("formatScoreProgression", () => {
     expect(result.teamLines[1]?.name).toBe("Cobra");
   });
 
+  it("uses supplied names consistently for every timeline mode", () => {
+    const names = new Map([
+      [0, "Finals"],
+      [1, "Rivals"],
+    ]);
+    const ctf = asCtf(
+      formatScoreProgression(aFakeScoreProgressionWith({ timeline: aFakeCtfTimelineWith() }), TEAM_COLORS, null, names),
+    );
+    const koth = asKoth(
+      formatScoreProgression(
+        aFakeScoreProgressionWith({ timeline: aFakeKothTimelineWith() }),
+        TEAM_COLORS,
+        null,
+        names,
+      ),
+    );
+    const oddball = asOddball(
+      formatScoreProgression(
+        aFakeScoreProgressionWith({ timeline: aFakeOddballTimelineWith() }),
+        TEAM_COLORS,
+        null,
+        names,
+      ),
+    );
+    const strongholds = asStrongholds(
+      formatScoreProgression(
+        aFakeScoreProgressionWith({ timeline: aFakeStrongholdsTimelineWith() }),
+        TEAM_COLORS,
+        null,
+        names,
+      ),
+    );
+
+    expect(ctf.teamNames).toEqual(["Finals", "Rivals"]);
+    expect(ctf.runs[0]?.seriesName).toContain("Finals");
+    expect(ctf.legend.map(({ text }) => text)).toContain("Above: Rivals's flag, carried by Finals");
+    expect(koth.hills[0]?.teamCaptureProgress.map(({ name }) => name)).toEqual(["Finals", "Rivals"]);
+    expect(oddball.rounds[0]?.teamScores.map(({ name }) => name)).toEqual(["Finals", "Rivals"]);
+    expect(strongholds.scoreLines.teamLines.map(({ name }) => name)).toEqual(["Finals", "Rivals"]);
+  });
+
   it("uses getTeamColorOrDefault fallback colors when teamColors has no entries", () => {
     const result = asScoreLines(formatScoreProgression(aFakeScoreProgressionWith(), []));
     expect(result.teamLines[0]?.color).toBe("#FE3939");

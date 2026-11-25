@@ -246,6 +246,7 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.getByLabelText("Team 1 Name")).toHaveValue("URL Eagles");
     expect(screen.getByRole("button", { name: "Select URL Eagles team color" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Select URL Cobras team color" })).toBeInTheDocument();
+    expect(screen.getByText("These names apply to overview cards and match Timeline labels.")).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /player names/i })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Team 1 Name"), { target: { value: "Finals" } });
     fireEvent.change(screen.getByLabelText("Team 2 Name"), { target: { value: "" } });

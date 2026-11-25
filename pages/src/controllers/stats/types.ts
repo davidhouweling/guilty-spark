@@ -10,6 +10,7 @@ export interface MatchDetailAnalyticsInput {
   readonly scoreProgression: MatchAnalytics["scoreProgression"];
   readonly teamColors: readonly TeamColor[];
   readonly teamSize: number | null;
+  readonly teamNameByTeamId?: ReadonlyMap<number, string> | undefined;
 }
 
 export interface MatchDetailAnalyticsData {

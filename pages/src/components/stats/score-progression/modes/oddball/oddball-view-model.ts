@@ -1,6 +1,6 @@
 import type { OddballRound, OddballTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
+import { getTeamNameWithOverride } from "../../team-name";
 import { zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { OddballRoundData, OddballRoundTeamScore, ScoreSample } from "../../types";
@@ -109,11 +109,12 @@ export function buildOddballRounds(
   timeline: OddballTimeline,
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
+  teamNameByTeamId: ReadonlyMap<number, string> = new Map(),
 ): OddballRoundData[] {
   return timeline.rounds.map((round) => {
     const teamScores: OddballRoundTeamScore[] = teamIds.map((teamId) => ({
       teamId,
-      name: getTeamName(teamId),
+      name: getTeamNameWithOverride(teamId, teamNameByTeamId),
       color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
       score: round.scores[String(teamId)] ?? 0,
     }));
@@ -123,7 +124,7 @@ export function buildOddballRounds(
       endedByCap: round.endedByCap,
       segments: tileSegments(round.startMs, round.endMs, round.carrySegments, teamColorByTeamId),
       winnerColor: round.winnerTeamId != null ? (teamColorByTeamId.get(round.winnerTeamId) ?? null) : null,
-      winnerName: round.winnerTeamId != null ? getTeamName(round.winnerTeamId) : null,
+      winnerName: round.winnerTeamId != null ? getTeamNameWithOverride(round.winnerTeamId, teamNameByTeamId) : null,
       teamScores,
     };
   });

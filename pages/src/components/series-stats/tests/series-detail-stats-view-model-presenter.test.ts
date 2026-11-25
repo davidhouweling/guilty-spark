@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MatchDetail, SeriesAggregation, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
@@ -11,10 +12,12 @@ import {
   aFakePlayerWith,
   aFakeTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
+import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import { aFakeCtfMatchAnalyticsWith } from "../../../services/stats/fakes/match-analytics.fake";
+import { aFakeScoreProgressionWith } from "../../stats/score-progression/fakes/score-progression.fake";
 import type { SeriesMatchAnalyticsById } from "../types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 
@@ -56,7 +59,174 @@ function rosterPlayer(
   });
 }
 
+function scoreProgressionFor(teamIds: readonly [number, number]): NonNullable<MatchAnalytics["scoreProgression"]> {
+  const [first, second] = teamIds;
+  const firstKey = String(first);
+  const secondKey = String(second);
+  return aFakeScoreProgressionWith({
+    timeline: {
+      type: "kill-race",
+      events: [{ timestampMs: 1000, teamId: first, runningScores: { [firstKey]: 1, [secondKey]: 0 } }],
+      deathTimeline: [],
+      respawnDurationMs: 8000,
+    },
+  });
+}
+
 describe("SeriesDetailStatsViewModelPresenter", () => {
+  it("maps stable name overrides to each match team across side swaps and retains defaults without overrides", () => {
+    const first = aFakeMatchDetailWith({
+      matchId: "first",
+      teams: [aFakeTeamWith({ matchTeamId: 19, seriesTeamId: 3 }), aFakeTeamWith({ matchTeamId: 7, seriesTeamId: 2 })],
+      teamCount: 2,
+    });
+    const second = aFakeMatchDetailWith({
+      matchId: "second",
+      teams: [aFakeTeamWith({ matchTeamId: 12, seriesTeamId: 3 }), aFakeTeamWith({ matchTeamId: 31, seriesTeamId: 2 })],
+      teamCount: 2,
+    });
+    const aggregation: ResolvedAggregation = {
+      status: "resolved",
+      gamesPlayed: 2,
+      completedGameCount: 2,
+      teams: [aFakeSeriesTeamWith({ seriesTeamId: 3 }), aFakeSeriesTeamWith({ seriesTeamId: 2 })],
+      players: [],
+    };
+    const analyticsByMatchId: SeriesMatchAnalyticsById = new Map([
+      [
+        "first",
+        {
+          scoreProgression: {
+            status: ComponentLoaderStatus.LOADED,
+            data: scoreProgressionFor([7, 19]),
+          },
+        },
+      ],
+      [
+        "second",
+        {
+          scoreProgression: {
+            status: ComponentLoaderStatus.LOADED,
+            data: scoreProgressionFor([12, 31]),
+          },
+        },
+      ],
+    ]);
+    const response = responseWith([first, second], aggregation);
+    const presenter = createPresenter();
+    const customized = presenter.present(response, analyticsByMatchId, {
+      teamNameOverrides: ["Finals", "Rivals"],
+    });
+    const defaults = presenter.present(response, analyticsByMatchId);
+
+    expect(
+      customized.matchDetails.map(({ scoreProgressionViewData }) =>
+        scoreProgressionViewData?.kind === "score-lines"
+          ? scoreProgressionViewData.teamLines.map(({ teamId, name }) => [teamId, name])
+          : [],
+      ),
+    ).toEqual([
+      [
+        [7, "Finals"],
+        [19, "Rivals"],
+      ],
+      [
+        [12, "Rivals"],
+        [31, "Finals"],
+      ],
+    ]);
+    expect(customized.teams.map(({ name }) => name)).toEqual(["Finals", "Rivals"]);
+    expect(
+      defaults.matchDetails.map(({ scoreProgressionViewData }) =>
+        scoreProgressionViewData?.kind === "score-lines"
+          ? scoreProgressionViewData.teamLines.map(({ teamId, name }) => [teamId, name])
+          : [],
+      ),
+    ).toEqual([
+      [
+        [7, getTeamName(7)],
+        [19, getTeamName(19)],
+      ],
+      [
+        [12, getTeamName(12)],
+        [31, getTeamName(31)],
+      ],
+    ]);
+  });
+
+  it("keeps default timeline names when the stable series mapping is partial or ambiguous", () => {
+    expect.assertions(4);
+    const detail = aFakeMatchDetailWith({
+      matchId: "available",
+      teams: [
+        aFakeTeamWith({ matchTeamId: 7, seriesTeamId: null }),
+        aFakeTeamWith({ matchTeamId: 19, seriesTeamId: null }),
+      ],
+      teamCount: 2,
+    });
+    const analyticsByMatchId: SeriesMatchAnalyticsById = new Map([
+      [
+        "available",
+        {
+          scoreProgression: {
+            status: ComponentLoaderStatus.LOADED,
+            data: scoreProgressionFor([7, 19]),
+          },
+        },
+      ],
+    ]);
+    const partial = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: ["available", "missing"],
+        results: [
+          { status: "resolved", matchId: "available", detail },
+          { status: "unavailable", matchId: "missing", reason: "not-found" },
+        ],
+      },
+      aggregation: {
+        status: "resolved",
+        gamesPlayed: 1,
+        completedGameCount: 1,
+        teams: [aFakeSeriesTeamWith({ seriesTeamId: 0 }), aFakeSeriesTeamWith({ seriesTeamId: 1 })],
+        players: [],
+      },
+    });
+    const ambiguous = responseWith([detail], {
+      status: "resolved",
+      gamesPlayed: 1,
+      completedGameCount: 1,
+      teams: [aFakeSeriesTeamWith({ seriesTeamId: 0 }), aFakeSeriesTeamWith({ seriesTeamId: 1 })],
+      players: [],
+    });
+    const ambiguousResults = ambiguous.matches.results.map((result) =>
+      result.status === "resolved"
+        ? {
+            ...result,
+            detail: {
+              ...result.detail,
+              teams: result.detail.teams.map((team) => ({ ...team, seriesTeamId: null })),
+            },
+          }
+        : result,
+    );
+    const ambiguousResponse = {
+      ...ambiguous,
+      matches: { ...ambiguous.matches, results: ambiguousResults },
+      aggregation: { status: "unavailable" as const, reason: "ambiguous-team-mapping" as const },
+    };
+    const presenter = createPresenter();
+    const options = { teamNameOverrides: ["Custom One", "Custom Two"] };
+
+    for (const response of [partial, ambiguousResponse]) {
+      const viewModel = presenter.present(response, analyticsByMatchId, options);
+      const timeline = viewModel.matchDetails[0]?.scoreProgressionViewData;
+      expect(timeline?.kind).toBe("score-lines");
+      if (timeline?.kind === "score-lines") {
+        expect(timeline.teamLines.map(({ name }) => name)).toEqual([getTeamName(7), getTeamName(19)]);
+      }
+    }
+  });
+
   it("maps localized primary and secondary scores, details, metadata and pending analytics", () => {
     const detail = aFakeMatchDetailWith({
       durationSeconds: 125,
