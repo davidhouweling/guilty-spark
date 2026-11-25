@@ -2,11 +2,13 @@ import type { ReactElement } from "react";
 import { Dialog } from "../../dialog/dialog";
 import { Heading } from "../../heading/heading";
 import { SeriesTitleSection } from "../../live-tracker/settings/series-title-section";
+import { SeriesTeamNameInputs } from "../../live-tracker/settings/series-team-name-inputs";
 import { ObserverColorSettings } from "../../live-tracker/settings/observer-color-settings";
 import { ViewModeButton } from "../../live-tracker/settings/view-mode-button";
 import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../../live-tracker/settings/types";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import styles from "../../live-tracker/settings/settings-dialog.module.css";
+import teamStyles from "../../live-tracker/settings/series-team-section.module.css";
 
 interface ArchiveSettingsDialogProps {
   readonly viewMode: ViewMode;
@@ -46,6 +48,22 @@ export function ArchiveSettingsDialog({
             defaultSubtitle={defaultSubtitle}
             onChange={onSeriesSettingsChange}
           />
+          <section className={styles.section}>
+            <Heading tagName="h3" styleAs="h6" spacing={3}>
+              Team Names
+            </Heading>
+            {colorLabels != null ? (
+              <div className={teamStyles.container}>
+                <SeriesTeamNameInputs
+                  settings={seriesSettings}
+                  onChange={onSeriesSettingsChange}
+                  description="These names apply to overview cards; match Timeline labels are separate."
+                />
+              </div>
+            ) : (
+              <p>Team names cannot be customized because stable series teams are unavailable.</p>
+            )}
+          </section>
         </section>
         <section className={styles.section}>
           <Heading tagName="h3" styleAs="h6" spacing={3}>

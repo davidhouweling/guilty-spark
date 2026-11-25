@@ -320,6 +320,8 @@ describe("encodeSettingsToUrlParams", () => {
       series: {
         ...DEFAULT_ALL_SETTINGS.series,
         titleOverride: "Test Series",
+        eagleTeamNameOverride: "Team One",
+        cobraTeamNameOverride: "Team Two",
       },
     };
 
@@ -336,5 +338,7 @@ describe("encodeSettingsToUrlParams", () => {
     expect(roundTripped.global.ticker.showTabs).toBe(original.global.ticker.showTabs);
     expect(roundTripped.global.ticker.maxPreviousGamesToShow).toBe(original.global.ticker.maxPreviousGamesToShow);
     expect(roundTripped.series.titleOverride).toBe(original.series.titleOverride);
+    expect(roundTripped.series.eagleTeamNameOverride).toBe(original.series.eagleTeamNameOverride);
+    expect(roundTripped.series.cobraTeamNameOverride).toBe(original.series.cobraTeamNameOverride);
   });
 });
