@@ -183,11 +183,13 @@ describe("DiscordSeriesStatsApp", () => {
 
     expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
     expect(screen.queryByText("Hidden Title")).not.toBeInTheDocument();
+    expect(document.body).toHaveAttribute("data-view-mode", "streamer");
     expect(screen.getByRole("button", { name: /Series/ })).toBeInTheDocument();
     expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
     expect(window.location.hash).toBe("#match-one");
     expect(window.history.state).toEqual({ marker: "kept" });
     unmount();
+    expect(document.body).not.toHaveAttribute("data-view-mode");
     render(app);
     fireEvent.click(await screen.findByRole("button", { name: "Open overlay settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
@@ -496,6 +498,7 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     await screen.findByRole("heading", { name: "Matches" });
+    expect(document.body).toHaveAttribute("data-view-mode", "wide");
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Preview overlay background/ }));
     fireEvent.click(screen.getByRole("button", { name: "Streamer Overlay" }));
@@ -503,11 +506,18 @@ describe("DiscordSeriesStatsApp", () => {
     expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
     expect(screen.getByTestId("archive-streamer-overlay").firstElementChild).toHaveClass(overlayStyles.previewObserver);
     expect(localStorage.getItem("live-tracker-streamer-settings-global")).toContain('"viewPreview":true');
+    expect(document.body).toHaveAttribute("data-view-mode", "streamer");
     expect(new URL(window.location.href).pathname).toBe("/stats/discord/123456789012345678/7777");
     expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("streamer");
     expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
     expect(window.location.hash).toBe("#match-one");
     expect(window.history.state).toEqual({ marker: "kept" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Open overlay settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
+    expect(screen.queryByTestId("archive-streamer-overlay")).not.toBeInTheDocument();
+    expect(document.body).toHaveAttribute("data-view-mode", "wide");
+    expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("wide");
   });
 
   it("copies the OBS URL from the settings dialog with preview disabled", async () => {
@@ -593,7 +603,7 @@ describe("DiscordSeriesStatsApp", () => {
   });
 
   it("renders pending message when stats are indexing", async () => {
-    window.history.replaceState({}, "", "/?title=Custom&subtitle=Custom");
+    window.history.replaceState({}, "", "/?title=Custom&subtitle=Custom&viewMode=streamer");
     mockInstallServices.mockResolvedValue({
       ...aFakeDiscordSeriesStatsAppServicesWith(aFakePendingDiscordSeriesStatsDetailResultWith()),
     });
@@ -603,6 +613,7 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     expect(await screen.findByText("Stats are still indexing. Retry in 9s.")).toBeInTheDocument();
+    expect(document.body).not.toHaveAttribute("data-view-mode");
     expect(screen.queryByRole("button", { name: "Open series settings" })).not.toBeInTheDocument();
   });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
@@ -52,6 +52,13 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     onAnalyticsTabSelected,
   }: DiscordSeriesDetailStatsProps): ReactElement {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    useEffect(() => {
+      document.body.setAttribute("data-view-mode", viewMode);
+      return (): void => {
+        document.body.removeAttribute("data-view-mode");
+      };
+    }, [viewMode]);
+
     const statsDetailController = useMemo(() => new StatsDetailController(), []);
     const presenter = useMemo(
       () => new SeriesDetailStatsViewModelPresenter(statsDetailController),
