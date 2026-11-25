@@ -6,13 +6,18 @@ import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
 import type { ViewMode } from "../view-mode/view-mode-selector";
-import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../live-tracker/settings/types";
+import type {
+  AllStreamerSettings,
+  ObserverViewColorSettings,
+  SeriesStreamerSettings,
+} from "../live-tracker/settings/types";
 import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
 import { ArchiveSettingsTrigger } from "./settings/archive-settings-trigger";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
+  readonly streamerSettings: AllStreamerSettings;
   readonly seriesSettings: SeriesStreamerSettings;
   readonly observerColors: ObserverViewColorSettings;
   readonly colorLabels: { readonly first: string; readonly second: string } | null;
@@ -20,6 +25,7 @@ interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly defaultSubtitle: string | null;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
   readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
+  readonly onViewPreviewChange: (enabled: boolean) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
@@ -42,6 +48,7 @@ export function DiscordSeriesStatsView({
   title,
   subtitle,
   viewMode,
+  streamerSettings,
   seriesSettings,
   observerColors,
   colorLabels,
@@ -49,6 +56,7 @@ export function DiscordSeriesStatsView({
   defaultSubtitle,
   onSeriesSettingsChange,
   onObserverColorsChange,
+  onViewPreviewChange,
   onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
@@ -77,6 +85,7 @@ export function DiscordSeriesStatsView({
       {isSettingsOpen && (
         <ArchiveSettingsDialog
           viewMode={viewMode}
+          streamerSettings={streamerSettings}
           seriesSettings={seriesSettings}
           observerColors={observerColors}
           colorLabels={colorLabels}
@@ -87,6 +96,7 @@ export function DiscordSeriesStatsView({
           }}
           onSeriesSettingsChange={onSeriesSettingsChange}
           onObserverColorsChange={onObserverColorsChange}
+          onViewPreviewChange={onViewPreviewChange}
           onViewModeSelect={onViewModeSelect}
         />
       )}

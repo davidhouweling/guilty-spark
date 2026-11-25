@@ -27,6 +27,7 @@ export interface DiscordSeriesDetailStatsProps {
   readonly observerColors: ObserverViewColorSettings;
   readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onViewPreviewChange: (enabled: boolean) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
 }
@@ -41,6 +42,7 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     observerColors,
     onObserverColorsChange,
     onSeriesSettingsChange,
+    onViewPreviewChange,
     onViewModeSelect,
     onAnalyticsTabSelected,
   }: DiscordSeriesDetailStatsProps): ReactElement {
@@ -91,7 +93,15 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     );
 
     if (archiveOverlayModel != null) {
-      return <ArchiveSeriesOverlay model={archiveOverlayModel} onAnalyticsTabSelected={onAnalyticsTabSelected} />;
+      return (
+        <ArchiveSeriesOverlay
+          model={archiveOverlayModel}
+          onAnalyticsTabSelected={onAnalyticsTabSelected}
+          onExitPreview={(): void => {
+            onViewModeSelect("wide");
+          }}
+        />
+      );
     }
 
     return (
@@ -100,9 +110,11 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
         title={seriesSettings.titleOverride ?? model.title}
         subtitle={seriesSettings.subtitleOverride ?? model.subtitle}
         viewMode={viewMode}
+        streamerSettings={streamerSettings}
         seriesSettings={seriesSettings}
         observerColors={observerColors}
         colorLabels={colorLabels}
+        onViewPreviewChange={onViewPreviewChange}
         onObserverColorsChange={onObserverColorsChange}
         defaultTitle={data.context?.title ?? null}
         defaultSubtitle={data.context?.subtitle ?? null}

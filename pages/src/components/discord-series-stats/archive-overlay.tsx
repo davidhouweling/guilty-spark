@@ -1,15 +1,18 @@
 import { useMemo } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import { Button } from "../button/button";
 import { createStreamerOverlaySection } from "../streamer-overlay/create";
 import { TopSection } from "../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../streamer-overlay/team-details-content";
 import { SeriesStatsView } from "../series-stats/series-stats";
 import type { ArchiveOverlayTeamModel, ArchiveSeriesOverlayViewModel } from "./archive-series-overlay-presenter";
+import styles from "./archive-overlay.module.css";
 
 interface ArchiveOverlayProps {
   readonly model: ArchiveSeriesOverlayViewModel;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
+  readonly onExitPreview: () => void;
 }
 
 function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement | null {
@@ -23,7 +26,11 @@ function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement |
   );
 }
 
-export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveOverlayProps): ReactElement {
+export function ArchiveSeriesOverlay({
+  model,
+  onAnalyticsTabSelected,
+  onExitPreview,
+}: ArchiveOverlayProps): ReactElement {
   const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
   const topSection = (
     <TopSection
@@ -52,6 +59,13 @@ export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveO
       />
     );
   };
+  const settingsUi = model.showPreview ? (
+    <div className={styles.previewControls}>
+      <Button onClick={onExitPreview} variant="primary">
+        Exit preview
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <div data-testid="archive-streamer-overlay">
@@ -63,10 +77,10 @@ export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveO
         showTabs={model.showTabs}
         showTicker={model.showTicker}
         matchesLength={model.matchesLength}
-        showPreview={false}
+        showPreview={model.showPreview}
         previewMode="observer"
         fontSizeStyles={model.fontSizeStyles}
-        settingsUi={null}
+        settingsUi={settingsUi}
         hasPanelContent={hasPanelContent}
         renderPanelContent={renderPanelContent}
       />

@@ -119,15 +119,20 @@ export class DiscordSeriesStatsPresenter {
   }
 
   setViewMode(mode: ViewMode): void {
-    const archiveViewMode = mode === "standard" ? "standard" : "wide";
-    this.store.update({ viewMode: archiveViewMode });
+    this.store.update({ viewMode: mode });
     if (typeof window !== "undefined") {
       window.history.replaceState(
         window.history.state,
         "",
-        buildUrlWithViewMode(window.location.href, archiveViewMode),
+        buildUrlWithViewMode(window.location.href, mode),
       );
     }
+  }
+
+  setViewPreview(enabled: boolean): void {
+    const urlSettings = this.store.getSnapshot().urlSettings;
+    this.store.update({ urlSettings: { ...urlSettings, global: { ...urlSettings.global, viewPreview: enabled } } });
+    this.updateGlobalSettings({ viewPreview: enabled });
   }
 
   setSeriesSettings(updates: Partial<SeriesStreamerSettings>): void {

@@ -1,0 +1,6 @@
+.previewControls {
+  position: fixed;
+  right: var(--space-2);
+  top: var(--space-2);
+  z-index: 101;
+}

@@ -17,6 +17,7 @@ export function parseSettingsFromUrl(
 ): AllStreamerSettings {
   const parsed: {
     viewMode?: ViewMode;
+    viewPreview?: boolean;
     fontSizes?: Record<string, number>;
     colorMode?: "player" | "observer";
     playerColors?: { teamColor?: string; enemyColor?: string; selectedPlayerId?: string | null };
@@ -44,6 +45,11 @@ export function parseSettingsFromUrl(
   const viewMode = searchParams.get("viewMode");
   if (viewMode === "standard" || viewMode === "wide" || viewMode === "streamer") {
     parsed.viewMode = viewMode;
+  }
+
+  const viewPreview = searchParams.get("viewPreview");
+  if (viewPreview === "true" || viewPreview === "false") {
+    parsed.viewPreview = viewPreview === "true";
   }
 
   // Color mode
@@ -83,6 +89,7 @@ export function parseSettingsFromUrl(
     "showTeamDetails",
     "showDiscordNames",
     "showXboxNames",
+    "showServerIcon",
     "showTitle",
     "showSubtitle",
     "showScore",
@@ -130,24 +137,22 @@ export function parseSettingsFromUrl(
       ...(showPreSeriesInfo === "true" || showPreSeriesInfo === "false"
         ? { showPreSeriesInfo: showPreSeriesInfo === "true" }
         : {}),
-      ...(enabledStats !== null &&
-        enabledStats !== "" && { selectedSlayerStats: enabledStats.split(",").filter((s) => s.length > 0) }),
+      ...(enabledStats !== null && { selectedSlayerStats: enabledStats.split(",").filter((s) => s.length > 0) }),
       ...(showObjectiveStats === "true" || showObjectiveStats === "false"
         ? { showObjectiveStats: showObjectiveStats === "true" }
         : {}),
-      ...(medalRarityFilter !== null &&
-        medalRarityFilter !== "" && {
-          medalRarityFilter: medalRarityFilter
-            .split(",")
-            .map((s) => Number.parseInt(s, 10))
-            .filter((n) => !Number.isNaN(n)),
-        }),
+      ...(medalRarityFilter !== null && {
+        medalRarityFilter: medalRarityFilter
+          .split(",")
+          .map((s) => Number.parseInt(s, 10))
+          .filter((n) => !Number.isNaN(n)),
+      }),
     };
   }
 
   // Font sizes
   const fontSizes: Record<string, number> = {};
-  const fontSizesKeys = ["queueInfo", "teamNames", "playerNames", "statsTable", "ticker", "tabs"];
+  const fontSizesKeys = ["queueInfo", "score", "teams", "teamNames", "playerNames", "statsTable", "ticker", "tabs"];
   for (const key of fontSizesKeys) {
     const value = searchParams.get(`fontSize_${key}`);
     if (value !== null) {
@@ -190,6 +195,7 @@ export function parseSettingsFromUrl(
     global: {
       ...defaults.global,
       viewMode: parsed.viewMode ?? defaults.global.viewMode,
+      viewPreview: parsed.viewPreview ?? defaults.global.viewPreview,
       ...(parsed.fontSizes && {
         fontSizes: {
           ...defaults.global.fontSizes,
