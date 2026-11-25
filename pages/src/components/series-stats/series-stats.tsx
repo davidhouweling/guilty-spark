@@ -15,7 +15,7 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesOverview?: boolean | undefined;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
-  readonly useStableTeamCardKeys?: boolean;
+  readonly useStableTeamCardKeys?: boolean | undefined;
   readonly beforeMatchContent?: ReadonlyMap<string, ReactNode> | undefined;
   readonly afterMatchesContent?: ReactNode;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;

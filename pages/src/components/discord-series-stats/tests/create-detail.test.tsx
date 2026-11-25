@@ -28,6 +28,52 @@ vi.mock("../../icons/medal-icon", () => ({
 }));
 
 describe("DiscordSeriesDetailStats", () => {
+  it("keeps exactly two stable team cards through duplicate and distinct labels", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const props = {
+      data: aFakeSeriesDetailWithTeamSwap(),
+      analyticsByMatchId: new Map(),
+      viewMode: "wide" as const,
+      observerColors: DEFAULT_COLOR_SETTINGS.observerView,
+      onObserverColorsChange: vi.fn(),
+      onSeriesSettingsChange: vi.fn(),
+      onViewModeSelect: vi.fn(),
+      onAnalyticsTabSelected: vi.fn(),
+    };
+    const settings = (first: string): typeof DEFAULT_SERIES_SETTINGS => ({
+      ...DEFAULT_SERIES_SETTINGS,
+      eagleTeamNameOverride: first,
+      cobraTeamNameOverride: "B",
+    });
+    const { rerender } = render(<DiscordSeriesStats {...props} seriesSettings={settings("A")} />);
+    const first = screen.getByRole("heading", { name: "A" });
+    const second = screen.getByRole("heading", { name: "B" });
+    const overview = Preconditions.checkExists(first.closest("section")?.parentElement);
+
+    function expectCards(names: readonly string[]): void {
+      const headings = within(overview).getAllByRole("heading", { level: 3 }).slice(1);
+      expect(headings.map((heading) => heading.textContent)).toEqual(names);
+      expect(
+        within(Preconditions.checkExists(Preconditions.checkExists(headings[0]).closest("section")))
+          .getAllByRole("listitem")
+          .map((item) => item.textContent),
+      ).toEqual(["Bravo"]);
+      expect(
+        within(Preconditions.checkExists(Preconditions.checkExists(headings[1]).closest("section")))
+          .getAllByRole("listitem")
+          .map((item) => item.textContent),
+      ).toEqual(["Alpha", "Charlie"]);
+    }
+
+    expectCards(["A", "B"]);
+    rerender(<DiscordSeriesStats {...props} seriesSettings={settings("B")} />);
+    expectCards(["B", "B"]);
+    rerender(<DiscordSeriesStats {...props} seriesSettings={settings("C")} />);
+    expectCards(["C", "B"]);
+    expect(screen.getByRole("heading", { name: "C" })).toBe(first);
+    expect(screen.getByRole("heading", { name: "B" })).toBe(second);
+  });
+
   it("preserves both cards when duplicate team labels are edited", () => {
     const DiscordSeriesStats = createDiscordSeriesDetailStats();
     const props = {
