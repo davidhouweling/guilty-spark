@@ -13,6 +13,7 @@ import {
 import { createDiscordSeriesDetailStats } from "../create-detail";
 import { DEFAULT_COLOR_SETTINGS, DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
 import { aFakeSeriesDetailWithTeamSwap } from "../../series-stats/fakes/series-detail-team-swap.fake";
+import { presentArchiveSeriesColors } from "../archive-series-colors";
 
 afterEach(() => {
   cleanup();
@@ -133,7 +134,6 @@ describe("DiscordSeriesDetailStats", () => {
             matchIds: [first.matchId, "missing"],
             results: [first, { status: "unavailable", matchId: "missing", reason: "not-found" }],
           },
-          aggregation: { status: "unavailable", reason: "incomplete-matches" },
         }}
         analyticsByMatchId={new Map()}
         viewMode="wide"
@@ -148,7 +148,61 @@ describe("DiscordSeriesDetailStats", () => {
 
     expect(screen.getByText("Failed to load detailed stats for match missing.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
-    fireEvent.click(screen.getByText("Team color settings"));
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     expect(screen.queryByRole("button", { name: "Select First series team color" })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["null", [0, null]],
+    ["duplicate", [0, 0]],
+    ["mismatched", [0, 42]],
+    ["incomplete", [0]],
+  ])("rejects %s match-team mappings even with resolved aggregation", (_label, ids) => {
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const results = data.matches.results.map((result, index) =>
+      result.status === "resolved" && index === 1
+        ? {
+            ...result,
+            detail: {
+              ...result.detail,
+              teams: result.detail.teams.slice(0, ids.length).map((team, i) => ({
+                ...team,
+                seriesTeamId: ids[i] ?? null,
+              })),
+            },
+          }
+        : result,
+    );
+    expect(
+      presentArchiveSeriesColors(
+        { ...data, matches: { ...data.matches, results } },
+        {
+          eagleColor: "jade",
+          cobraColor: "sky",
+        },
+      ),
+    ).toEqual({ available: false, teamColors: [] });
+  });
+
+  it("shows the same fallback color in the picker and archive for an invalid observer color", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    render(
+      <DiscordSeriesStats
+        data={aFakeSeriesDetailWithTeamSwap()}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={{ eagleColor: "invalid", cobraColor: "invalid" }}
+        onObserverColorsChange={vi.fn()}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
+    expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #3B9DFF");
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.getByRole("button", { name: "Select First series team color" })).toHaveTextContent("Salmon");
+    expect(screen.getByRole("button", { name: "Select Second series team color" })).toHaveTextContent("Cerulean");
   });
 });
