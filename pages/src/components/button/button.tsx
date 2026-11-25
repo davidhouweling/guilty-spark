@@ -15,6 +15,7 @@ interface ButtonProps {
   readonly icon?: ImageMetadata | React.ReactNode;
   readonly iconAlt?: string;
   readonly ariaLabel?: string | undefined;
+  readonly ariaHasPopup?: React.AriaAttributes["aria-haspopup"] | undefined;
   readonly children: React.ReactNode;
 }
 
@@ -30,6 +31,7 @@ export function Button({
   icon,
   iconAlt = "",
   ariaLabel,
+  ariaHasPopup,
   children,
 }: ButtonProps): React.ReactElement {
   const isImageIcon = icon !== null && icon !== undefined && typeof icon === "object" && "src" in icon;
@@ -83,6 +85,7 @@ export function Button({
       className={buttonClassName}
       aria-busy={loading}
       aria-label={ariaLabel}
+      aria-haspopup={ariaHasPopup}
     >
       {content}
     </button>

@@ -15,7 +15,10 @@ export function SettingsDialogFrame({ title, children, onClose }: SettingsDialog
     const trigger = document.activeElement;
     dialogRef.current?.focus();
     return (): void => {
-      if (trigger instanceof HTMLElement) {
+      const currentTrigger = document.querySelector<HTMLElement>('button[aria-haspopup="dialog"]');
+      if (currentTrigger !== null) {
+        currentTrigger.focus();
+      } else if (trigger instanceof HTMLElement && trigger.isConnected) {
         trigger.focus();
       }
     };
