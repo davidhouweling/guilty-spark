@@ -96,6 +96,7 @@ export function DiscordSeriesStatsView({
           subtitle={subtitle}
           showSeriesTitle={true}
           wide={viewMode === "wide"}
+          useStableTeamCardKeys={stableTeamSlotsAvailable}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
           {...stats}
         />
