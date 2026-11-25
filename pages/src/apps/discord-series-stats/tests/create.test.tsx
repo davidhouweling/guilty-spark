@@ -1,12 +1,13 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordSeriesStatsApp } from "../create";
 import containerStyles from "../../../components/container/container.module.css";
 import overlayStyles from "../../../components/streamer-overlay/streamer-overlay.module.css";
+import { useStreamerSettings } from "../../../components/live-tracker/settings/use-streamer-settings";
 import { aFakeSeriesDetailWithTeamSwap } from "../../../components/series-stats/fakes/series-detail-team-swap.fake";
 import {
   aFakeDiscordSeriesStatsAppServicesWith,
@@ -88,6 +89,65 @@ describe("DiscordSeriesStatsApp", () => {
       }),
     );
   }
+
+  it("persists only edited settings while retaining unrelated URL overrides", async () => {
+    localStorage.setItem(
+      "live-tracker-streamer-settings-global",
+      JSON.stringify({
+        display: { showTitle: true, showDiscordNames: true, showScore: true },
+        ticker: { showTicker: true, showObjectiveStats: false },
+        fontSizes: { score: 80, ticker: 90 },
+        colors: { observerView: { eagleColor: "jade", cobraColor: "sky" } },
+      }),
+    );
+    window.history.replaceState(
+      { marker: "kept" },
+      "",
+      "/?showTitle=false&showDiscordNames=false&showTicker=false&showObjectiveStats=true&fontSize_score=130&fontSize_ticker=140&eagleColor=carrot&campaign=summer#match-one",
+    );
+    installSwappedSeries();
+    const app = (
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />
+    );
+    const { unmount } = render(app);
+    await screen.findByRole("heading", { name: "Eagle" });
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show Score" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Show Objective Statistics/ }));
+    fireEvent.change(screen.getByRole("slider", { name: "Score font size" }), { target: { value: "120" } });
+
+    const saved = JSON.parse(localStorage.getItem("live-tracker-streamer-settings-global") ?? "{}");
+    expect(saved).toMatchObject({
+      display: { showTitle: true, showDiscordNames: true, showScore: false },
+      ticker: { showTicker: true, showObjectiveStats: false },
+      fontSizes: { score: 120, ticker: 90 },
+      colors: { observerView: { eagleColor: "jade", cobraColor: "sky" } },
+    });
+    const url = new URL(window.location.href);
+    expect(url.searchParams.get("showTitle")).toBe("false");
+    expect(url.searchParams.get("showDiscordNames")).toBe("false");
+    expect(url.searchParams.get("showTicker")).toBe("false");
+    expect(url.searchParams.get("showScore")).toBe("false");
+    expect(url.searchParams.get("showObjectiveStats")).toBe("false");
+    expect(url.searchParams.get("fontSize_score")).toBe("120");
+    expect(url.searchParams.get("fontSize_ticker")).toBe("140");
+    expect(url.searchParams.get("eagleColor")).toBe("carrot");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+    expect(url.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+
+    unmount();
+    const stored = renderHook(() => useStreamerSettings()).result.current.settings.global;
+    expect(stored.display).toMatchObject({ showTitle: true, showDiscordNames: true, showScore: false });
+    expect(stored.ticker.showTicker).toBe(true);
+    expect(stored.fontSizes.ticker).toBe(90);
+    render(app);
+    await screen.findByRole("heading", { name: "Eagle" });
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.getByRole("checkbox", { name: "Show Title / Server Name" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Show Score" })).not.toBeChecked();
+    expect(screen.getByRole("slider", { name: "Info Ticker font size" })).toHaveValue("140");
+  });
 
   it("uses default observer colors across swapped match sides", async () => {
     installSwappedSeries();

@@ -87,7 +87,11 @@ describe("buildArchiveOverlayUrl", () => {
 
   it("does not export team customization when stable team slots are unavailable", () => {
     const result = new URL(
-      buildArchiveOverlayUrl("https://example.test/archive?keep=yes", DEFAULT_ALL_SETTINGS, false),
+      buildArchiveOverlayUrl(
+        "https://example.test/archive?keep=yes&eagleColor=jade&cobraColor=sky&eagleTeamName=Old",
+        DEFAULT_ALL_SETTINGS,
+        false,
+      ),
     );
 
     expect(result.searchParams.get("showTeamDetails")).toBe("false");
@@ -95,6 +99,7 @@ describe("buildArchiveOverlayUrl", () => {
     expect(result.searchParams.has("cobraColor")).toBe(false);
     expect(result.searchParams.has("eagleTeamName")).toBe(false);
     expect(result.searchParams.has("showXboxNames")).toBe(false);
+    expect(result.searchParams.has("eagleTeamName")).toBe(false);
     expect(result.searchParams.get("keep")).toBe("yes");
   });
 });

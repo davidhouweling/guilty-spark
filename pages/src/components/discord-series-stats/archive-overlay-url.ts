@@ -37,6 +37,13 @@ export function buildArchiveOverlayUrl(
     url.searchParams.set("eagleTeamName", series.eagleTeamNameOverride ?? "");
     url.searchParams.set("cobraTeamName", series.cobraTeamNameOverride ?? "");
     url.searchParams.set("disableTeamPlayerNames", (series.disableTeamPlayerNames === true).toString());
+  } else {
+    url.searchParams.delete("showXboxNames");
+    url.searchParams.delete("eagleColor");
+    url.searchParams.delete("cobraColor");
+    url.searchParams.delete("eagleTeamName");
+    url.searchParams.delete("cobraTeamName");
+    url.searchParams.delete("disableTeamPlayerNames");
   }
 
   return url.toString();

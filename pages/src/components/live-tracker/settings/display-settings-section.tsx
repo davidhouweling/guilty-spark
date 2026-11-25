@@ -6,66 +6,73 @@ import styles from "./display-settings-section.module.css";
 
 interface DisplaySettingsSectionProps {
   readonly settings: DisplaySettings;
+  readonly stableTeamSlotsAvailable?: boolean;
+  readonly showDiscordNamesToggle?: boolean;
+  readonly showXboxNamesToggle?: boolean;
+  readonly showServerIconToggle?: boolean;
   readonly onChange: (updates: Partial<DisplaySettings>) => void;
 }
 
-export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSectionProps): React.ReactElement {
+export function DisplaySettingsSection({
+  settings,
+  stableTeamSlotsAvailable = true,
+  showDiscordNamesToggle = true,
+  showXboxNamesToggle = true,
+  showServerIconToggle = true,
+  onChange,
+}: DisplaySettingsSectionProps): React.ReactElement {
   return (
     <div className={styles.container}>
       {/* Team Details Section */}
-      <div className={styles.section}>
-        <Heading tagName="h5" styleAs="h6" spacing={1} className={styles.subsectionHeader}>
-          Team Information
-        </Heading>
+      {stableTeamSlotsAvailable ? (
+        <div className={styles.section}>
+          <Heading tagName="h5" styleAs="h6" spacing={1} className={styles.subsectionHeader}>
+            Team Information
+          </Heading>
 
-        <Checkbox
-          checked={settings.showTeamDetails}
-          onChange={(checked): void => {
-            // Special handling for team details toggle
-            if (!checked) {
-              // When turning off team details, disable nested options
+          <Checkbox
+            checked={settings.showTeamDetails}
+            onChange={(checked): void => {
               onChange({
-                showTeamDetails: false,
-                showDiscordNames: false,
-                showXboxNames: false,
+                showTeamDetails: checked,
+                ...(showDiscordNamesToggle && { showDiscordNames: checked }),
+                ...(showXboxNamesToggle && { showXboxNames: checked }),
               });
-            } else {
-              // When turning on team details, restore defaults
-              onChange({
-                showTeamDetails: true,
-                showDiscordNames: true,
-                showXboxNames: true,
-              });
-            }
-          }}
-          label="Show Team Details"
-          description="Display team names and player information"
-        />
+            }}
+            label="Show Team Details"
+            description="Display team names and player information"
+          />
 
-        {settings.showTeamDetails && (
-          <div className={styles.nested}>
-            <Checkbox
-              checked={settings.showDiscordNames}
-              onChange={(checked): void => {
-                onChange({ showDiscordNames: checked });
-              }}
-              label="Show Discord Names"
-            />
+          {settings.showTeamDetails && (
+            <div className={styles.nested}>
+              {showDiscordNamesToggle ? (
+                <Checkbox
+                  checked={settings.showDiscordNames}
+                  onChange={(checked): void => {
+                    onChange({ showDiscordNames: checked });
+                  }}
+                  label="Show Discord Names"
+                />
+              ) : null}
 
-            <Checkbox
-              checked={settings.showXboxNames}
-              onChange={(checked): void => {
-                onChange({ showXboxNames: checked });
-              }}
-              label="Show Xbox Names"
-            />
+              {showXboxNamesToggle ? (
+                <Checkbox
+                  checked={settings.showXboxNames}
+                  onChange={(checked): void => {
+                    onChange({ showXboxNames: checked });
+                  }}
+                  label="Show Xbox Names"
+                />
+              ) : null}
 
-            {!settings.showDiscordNames && !settings.showXboxNames && (
-              <p className={styles.hint}>Only team names will be shown</p>
-            )}
-          </div>
-        )}
-      </div>
+              {(!showDiscordNamesToggle || !settings.showDiscordNames) &&
+                (!showXboxNamesToggle || !settings.showXboxNames) && (
+                  <p className={styles.hint}>Only team names will be shown</p>
+                )}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Queue Info Section */}
       <div className={styles.section}>
@@ -97,6 +104,16 @@ export function DisplaySettingsSection({ settings, onChange }: DisplaySettingsSe
           }}
           label="Show Score"
         />
+
+        {showServerIconToggle ? (
+          <Checkbox
+            checked={settings.showServerIcon}
+            onChange={(checked): void => {
+              onChange({ showServerIcon: checked });
+            }}
+            label="Show Server Icon"
+          />
+        ) : null}
       </div>
     </div>
   );

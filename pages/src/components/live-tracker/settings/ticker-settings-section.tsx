@@ -18,6 +18,7 @@ function formatStatName(stat: string): string {
 interface TickerSettingsSectionProps {
   readonly settings: TickerSettings;
   readonly showTickerVisibilityToggle?: boolean;
+  readonly showTabsVisibilityToggle?: boolean;
   readonly showPreSeriesInfoToggle?: boolean;
   readonly onChange: (updates: Partial<TickerSettings>) => void;
 }
@@ -25,6 +26,7 @@ interface TickerSettingsSectionProps {
 export function TickerSettingsSection({
   settings,
   showTickerVisibilityToggle = true,
+  showTabsVisibilityToggle = false,
   showPreSeriesInfoToggle = true,
   onChange,
 }: TickerSettingsSectionProps): React.ReactElement {
@@ -81,6 +83,15 @@ export function TickerSettingsSection({
       <div className={styles.section}>
         <Heading tagName="h5">Tabs</Heading>
         <p className={styles.sectionDescription}>Configure how many recent match tabs are shown.</p>
+        {showTabsVisibilityToggle ? (
+          <Checkbox
+            checked={settings.showTabs}
+            onChange={(checked): void => {
+              onChange({ showTabs: checked });
+            }}
+            label="Show Match Tabs"
+          />
+        ) : null}
         <Input
           label="Max number of previous games to show"
           type="number"

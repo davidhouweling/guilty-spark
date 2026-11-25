@@ -97,6 +97,33 @@ describe("DiscordSeriesStatsPresenter", () => {
     expect(window.history.state).toEqual({ marker: "kept" });
   });
 
+  it("preserves sequential display edits without persisting untouched URL overrides", (): void => {
+    window.history.replaceState({}, "", "/?showTitle=false&campaign=summer");
+    const store = new DiscordSeriesStatsStore();
+    const save = vi.fn<(settings: Partial<AllStreamerSettings["global"]>) => void>();
+    const presenter = createPresenter(
+      store,
+      aFakeDiscordSeriesStatsServiceWith(),
+      undefined,
+      DEFAULT_ALL_SETTINGS,
+      save,
+    );
+    presenter.start();
+
+    presenter.setGlobalSettings({ display: { showScore: false } });
+    presenter.setGlobalSettings({ display: { showXboxNames: false } });
+
+    expect(store.getSnapshot().urlSettings.global.display).toMatchObject({
+      showTitle: false,
+      showScore: false,
+      showXboxNames: false,
+    });
+    expect(save).toHaveBeenLastCalledWith({
+      display: { ...DEFAULT_ALL_SETTINGS.global.display, showScore: false, showXboxNames: false },
+    });
+    expect(window.location.search).toContain("campaign=summer");
+  });
+
   it("updates both colors without persisting an untouched URL override", (): void => {
     window.history.replaceState({ marker: "kept" }, "", "/?eagleColor=carrot&campaign=summer#match-one");
     const store = new DiscordSeriesStatsStore();

@@ -12,6 +12,7 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
 import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import type { ArchiveGlobalSettingsUpdates } from "../../components/discord-series-stats/types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -115,6 +116,12 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
+  const onGlobalSettingsChange = useCallback(
+    (updates: ArchiveGlobalSettingsUpdates): void => {
+      presenter.setGlobalSettings(updates);
+    },
+    [presenter],
+  );
   const onSeriesSettingsChange = useCallback(
     (updates: Partial<SeriesStreamerSettings>): void => {
       presenter.setSeriesSettings(updates);
@@ -150,6 +157,7 @@ function DiscordSeriesStatsData({
             observerColors={snapshot.observerColors}
             onObserverColorsChange={onObserverColorsChange}
             onSeriesSettingsChange={onSeriesSettingsChange}
+            onGlobalSettingsChange={onGlobalSettingsChange}
             onViewPreviewChange={onViewPreviewChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}

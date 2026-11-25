@@ -111,6 +111,7 @@ function renderArchiveTicker(): void {
       observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
       onObserverColorsChange={vi.fn()}
       onSeriesSettingsChange={vi.fn()}
+      onGlobalSettingsChange={vi.fn()}
       onViewPreviewChange={vi.fn()}
       onViewModeSelect={vi.fn()}
       onAnalyticsTabSelected={vi.fn()}
@@ -157,6 +158,7 @@ describe("DiscordSeriesDetailStats", () => {
       observerColors: DEFAULT_COLOR_SETTINGS.observerView,
       onObserverColorsChange: vi.fn(),
       onSeriesSettingsChange: vi.fn(),
+      onGlobalSettingsChange: vi.fn(),
       onViewPreviewChange: vi.fn(),
       onViewModeSelect: vi.fn(),
       onAnalyticsTabSelected: vi.fn(),
@@ -205,6 +207,7 @@ describe("DiscordSeriesDetailStats", () => {
       observerColors: DEFAULT_COLOR_SETTINGS.observerView,
       onObserverColorsChange: vi.fn(),
       onSeriesSettingsChange: vi.fn(),
+      onGlobalSettingsChange: vi.fn(),
       onViewPreviewChange: vi.fn(),
       onViewModeSelect: vi.fn(),
       onAnalyticsTabSelected: vi.fn(),
@@ -232,6 +235,40 @@ describe("DiscordSeriesDetailStats", () => {
     expect(screen.getByRole("heading", { name: "Renamed" })).toBe(first);
     expect(screen.getByRole("heading", { name: "Same" })).toBe(second);
     consoleError.mockRestore();
+  });
+
+  it("edits supported archive overlay settings and hides unavailable team identity controls", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const onGlobalSettingsChange = vi.fn();
+    const data = aFakeSeriesDetailResponseWith({
+      aggregation: { status: "unavailable", reason: "incomplete-matches" },
+    });
+
+    render(
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        streamerSettings={DEFAULT_ALL_SETTINGS}
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+        onGlobalSettingsChange={onGlobalSettingsChange}
+        onObserverColorsChange={vi.fn()}
+        onSeriesSettingsChange={vi.fn()}
+        onViewPreviewChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.queryByRole("checkbox", { name: "Show Team Details" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Show Discord Names" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/pre-series/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show Score" }));
+    expect(onGlobalSettingsChange).toHaveBeenCalledWith({
+      display: { showScore: false },
+    });
   });
 
   it("uses series context and score in the document title", () => {
@@ -263,6 +300,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}
@@ -290,6 +328,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}
@@ -324,6 +363,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={onViewPreviewChange}
         onViewModeSelect={onViewModeSelect}
@@ -347,6 +387,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={onViewPreviewChange}
         onViewModeSelect={onViewModeSelect}
@@ -371,6 +412,7 @@ describe("DiscordSeriesDetailStats", () => {
       observerColors: DEFAULT_COLOR_SETTINGS.observerView,
       onObserverColorsChange: vi.fn(),
       onSeriesSettingsChange: vi.fn(),
+      onGlobalSettingsChange: vi.fn(),
       onViewPreviewChange: vi.fn(),
       onViewModeSelect,
       onAnalyticsTabSelected: vi.fn(),
@@ -422,6 +464,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}
@@ -454,6 +497,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}
@@ -509,6 +553,7 @@ describe("DiscordSeriesDetailStats", () => {
         streamerSettings={DEFAULT_ALL_SETTINGS}
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={{ eagleColor: "invalid", cobraColor: "invalid" }}
+        onGlobalSettingsChange={vi.fn()}
         onObserverColorsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
@@ -547,6 +592,7 @@ describe("DiscordSeriesDetailStats", () => {
           observerColors={DEFAULT_COLOR_SETTINGS.observerView}
           onObserverColorsChange={onObserverColorsChange}
           onSeriesSettingsChange={vi.fn()}
+          onGlobalSettingsChange={vi.fn()}
           onViewPreviewChange={vi.fn()}
           onViewModeSelect={vi.fn()}
           onAnalyticsTabSelected={vi.fn()}
@@ -589,6 +635,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}
@@ -627,6 +674,7 @@ describe("DiscordSeriesDetailStats", () => {
         seriesSettings={DEFAULT_SERIES_SETTINGS}
         observerColors={DEFAULT_COLOR_SETTINGS.observerView}
         onObserverColorsChange={vi.fn()}
+        onGlobalSettingsChange={vi.fn()}
         onSeriesSettingsChange={vi.fn()}
         onViewPreviewChange={vi.fn()}
         onViewModeSelect={vi.fn()}

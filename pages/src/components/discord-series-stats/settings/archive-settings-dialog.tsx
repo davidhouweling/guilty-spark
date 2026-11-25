@@ -5,16 +5,29 @@ import { Checkbox } from "../../checkbox/checkbox";
 import { SeriesTitleSection } from "../../live-tracker/settings/series-title-section";
 import { SeriesTeamNameInputs } from "../../live-tracker/settings/series-team-name-inputs";
 import { ObserverColorSettings } from "../../live-tracker/settings/observer-color-settings";
+import { DisplaySettingsSection } from "../../live-tracker/settings/display-settings-section";
+import { TickerSettingsSection } from "../../live-tracker/settings/ticker-settings-section";
+import { FontSizeSlider } from "../../live-tracker/settings/font-size-slider";
 import { ViewModeButton } from "../../live-tracker/settings/view-mode-button";
 import type {
   AllStreamerSettings,
+  FontSizeSettings,
   ObserverViewColorSettings,
   SeriesStreamerSettings,
 } from "../../live-tracker/settings/types";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { ArchiveOverlayUrlButton } from "../archive-overlay-url-button";
+import type { ArchiveGlobalSettingsUpdates } from "../types";
 import styles from "../../live-tracker/settings/settings-dialog.module.css";
 import teamStyles from "../../live-tracker/settings/series-team-section.module.css";
+
+const fontSizeSections: readonly { key: keyof FontSizeSettings; label: string }[] = [
+  { key: "queueInfo", label: "Queue Info" },
+  { key: "score", label: "Score" },
+  { key: "teams", label: "Teams" },
+  { key: "ticker", label: "Info Ticker" },
+  { key: "tabs", label: "Tabs" },
+];
 
 interface ArchiveSettingsDialogProps {
   readonly viewMode: ViewMode;
@@ -26,6 +39,7 @@ interface ArchiveSettingsDialogProps {
   readonly defaultSubtitle: string | null;
   readonly onClose: () => void;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onGlobalSettingsChange: (updates: ArchiveGlobalSettingsUpdates) => void;
   readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly onViewPreviewChange: (enabled: boolean) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
@@ -41,6 +55,7 @@ export function ArchiveSettingsDialog({
   defaultSubtitle,
   onClose,
   onSeriesSettingsChange,
+  onGlobalSettingsChange,
   onObserverColorsChange,
   onViewPreviewChange,
   onViewModeSelect,
@@ -49,6 +64,43 @@ export function ArchiveSettingsDialog({
     <Dialog open title="Series Settings" onClose={onClose}>
       <div className={styles.twoColumn}>
         <section className={styles.section}>
+          <Heading tagName="h3" styleAs="h6" spacing={3}>
+            Display Options
+          </Heading>
+          <DisplaySettingsSection
+            settings={streamerSettings.global.display}
+            stableTeamSlotsAvailable={colorLabels != null}
+            showDiscordNamesToggle={false}
+            onChange={(updates): void => {
+              onGlobalSettingsChange({ display: updates });
+            }}
+          />
+          <Heading tagName="h3" styleAs="h6" spacing={3}>
+            Information Ticker
+          </Heading>
+          <TickerSettingsSection
+            settings={streamerSettings.global.ticker}
+            showPreSeriesInfoToggle={false}
+            showTabsVisibilityToggle
+            onChange={(updates): void => {
+              onGlobalSettingsChange({ ticker: updates });
+            }}
+          />
+          <Heading tagName="h3" styleAs="h6" spacing={3}>
+            Font Sizes
+          </Heading>
+          <div className={styles.fontSizeContainer}>
+            {fontSizeSections.map(({ key, label }) => (
+              <FontSizeSlider
+                key={key}
+                label={label}
+                value={streamerSettings.global.fontSizes[key]}
+                onChange={(value): void => {
+                  onGlobalSettingsChange({ fontSizes: { [key]: value } });
+                }}
+              />
+            ))}
+          </div>
           <Heading tagName="h3" styleAs="h6" spacing={3}>
             Series title
           </Heading>
