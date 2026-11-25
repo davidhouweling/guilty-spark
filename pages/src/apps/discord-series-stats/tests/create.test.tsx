@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordSeriesStatsApp } from "../create";
 import containerStyles from "../../../components/container/container.module.css";
+import overlayStyles from "../../../components/streamer-overlay/streamer-overlay.module.css";
 import { aFakeSeriesDetailWithTeamSwap } from "../../../components/series-stats/fakes/series-detail-team-swap.fake";
 import {
   aFakeDiscordSeriesStatsAppServicesWith,
@@ -112,12 +113,13 @@ describe("DiscordSeriesStatsApp", () => {
     window.history.replaceState(
       { marker: "kept" },
       "",
-      "/stats/discord/123456789012345678/7777?viewMode=streamer&title=Hidden+Title&showTitle=false&campaign=summer#match-one",
+      "/stats/discord/123456789012345678/7777?viewMode=streamer&viewPreview=false&title=Hidden+Title&showTitle=false&campaign=summer#match-one",
     );
     installSwappedSeries();
-    render(
-      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    const app = (
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />
     );
+    const { unmount } = render(app);
 
     expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
     expect(screen.queryByText("Hidden Title")).not.toBeInTheDocument();
@@ -125,6 +127,12 @@ describe("DiscordSeriesStatsApp", () => {
     expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
     expect(window.location.hash).toBe("#match-one");
     expect(window.history.state).toEqual({ marker: "kept" });
+    unmount();
+    render(app);
+    fireEvent.click(await screen.findByRole("button", { name: "Open overlay settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
+    expect(await screen.findByRole("heading", { name: "Matches" })).toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("wide");
   });
 
   it("uses URL observer overrides before stored preferences and preserves player settings when editing", async () => {
@@ -429,9 +437,12 @@ describe("DiscordSeriesStatsApp", () => {
 
     await screen.findByRole("heading", { name: "Matches" });
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Preview overlay background/ }));
     fireEvent.click(screen.getByRole("button", { name: "Streamer Overlay" }));
 
     expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("archive-streamer-overlay").firstElementChild).toHaveClass(overlayStyles.previewObserver);
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toContain('"viewPreview":true');
     expect(new URL(window.location.href).pathname).toBe("/stats/discord/123456789012345678/7777");
     expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("streamer");
     expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");

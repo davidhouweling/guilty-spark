@@ -111,6 +111,7 @@ function renderArchiveTicker(): void {
       observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
       onObserverColorsChange={vi.fn()}
       onSeriesSettingsChange={vi.fn()}
+      onViewPreviewChange={vi.fn()}
       onViewModeSelect={vi.fn()}
       onAnalyticsTabSelected={vi.fn()}
     />,
@@ -354,8 +355,55 @@ describe("DiscordSeriesDetailStats", () => {
     );
 
     expect(screen.getByTestId("archive-streamer-overlay").firstElementChild).toHaveClass(overlayStyles.previewObserver);
-    fireEvent.click(screen.getByRole("button", { name: "Exit preview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open overlay settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
     expect(onViewModeSelect).toHaveBeenLastCalledWith("wide");
+  });
+
+  it("keeps settings and focus available across streamer transitions without a preview background", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const onViewModeSelect = vi.fn<(mode: "standard" | "wide" | "streamer") => void>();
+    const props = {
+      data: aFakeSeriesDetailResponseWith(),
+      analyticsByMatchId: new Map(),
+      streamerSettings: DEFAULT_ALL_SETTINGS,
+      seriesSettings: DEFAULT_SERIES_SETTINGS,
+      observerColors: DEFAULT_COLOR_SETTINGS.observerView,
+      onObserverColorsChange: vi.fn(),
+      onSeriesSettingsChange: vi.fn(),
+      onViewPreviewChange: vi.fn(),
+      onViewModeSelect,
+      onAnalyticsTabSelected: vi.fn(),
+    };
+    const { rerender, unmount } = render(<DiscordSeriesStats {...props} viewMode="wide" />);
+    const trigger = screen.getByRole("button", { name: "Open series settings" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const streamer = screen.getByRole("button", { name: "Streamer Overlay" });
+    streamer.focus();
+    fireEvent.click(streamer);
+    expect(onViewModeSelect).toHaveBeenLastCalledWith("streamer");
+    rerender(<DiscordSeriesStats {...props} viewMode="streamer" />);
+    expect(streamer).toHaveFocus();
+    fireEvent.keyDown(streamer, { key: "Escape" });
+    const overlayTrigger = screen.getByRole("button", { name: "Open overlay settings" });
+    expect(overlayTrigger).toHaveFocus();
+
+    fireEvent.click(overlayTrigger);
+    const wide = screen.getByRole("button", { name: "Wide View" });
+    wide.focus();
+    fireEvent.click(wide);
+    rerender(<DiscordSeriesStats {...props} viewMode="wide" />);
+    expect(wide).toHaveFocus();
+    fireEvent.keyDown(wide, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Open series settings" })).toHaveFocus();
+
+    unmount();
+    render(<DiscordSeriesStats {...props} viewMode="streamer" />);
+    fireEvent.click(screen.getByRole("button", { name: "Open overlay settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
+    expect(onViewModeSelect).toHaveBeenLastCalledWith("wide");
+    expect(props.onViewPreviewChange).not.toHaveBeenCalled();
   });
 
   it("renders explicit warnings for unavailable match details and series aggregation", () => {
@@ -499,6 +547,7 @@ describe("DiscordSeriesDetailStats", () => {
           observerColors={DEFAULT_COLOR_SETTINGS.observerView}
           onObserverColorsChange={onObserverColorsChange}
           onSeriesSettingsChange={vi.fn()}
+          onViewPreviewChange={vi.fn()}
           onViewModeSelect={vi.fn()}
           onAnalyticsTabSelected={vi.fn()}
         />,

@@ -86,12 +86,12 @@ describe("DiscordSeriesStatsPresenter", () => {
     const url = new URL(window.location.href);
     expect(store.getSnapshot()).toMatchObject({
       seriesSettings: { titleOverride: "Championship", subtitleOverride: "Season 1" },
-      viewMode: "wide",
+      viewMode: "streamer",
     });
 
     expect(url.searchParams.get("title")).toBe("Championship");
     expect(url.searchParams.get("subtitle")).toBe("Season 1");
-    expect(url.searchParams.get("viewMode")).toBe("wide");
+    expect(url.searchParams.get("viewMode")).toBe("streamer");
     expect(url.searchParams.get("campaign")).toBe("summer");
     expect(url.hash).toBe("#match-one");
     expect(window.history.state).toEqual({ marker: "kept" });

@@ -1,18 +1,16 @@
 import { useMemo } from "react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { Button } from "../button/button";
 import { createStreamerOverlaySection } from "../streamer-overlay/create";
 import { TopSection } from "../streamer-overlay/top-section";
 import { TeamDetailsContent } from "../streamer-overlay/team-details-content";
 import { SeriesStatsView } from "../series-stats/series-stats";
 import type { ArchiveOverlayTeamModel, ArchiveSeriesOverlayViewModel } from "./archive-series-overlay-presenter";
-import styles from "./archive-overlay.module.css";
 
 interface ArchiveOverlayProps {
   readonly model: ArchiveSeriesOverlayViewModel;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
-  readonly onExitPreview: () => void;
+  readonly settingsUi: ReactNode;
 }
 
 function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement | null {
@@ -26,11 +24,7 @@ function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement |
   );
 }
 
-export function ArchiveSeriesOverlay({
-  model,
-  onAnalyticsTabSelected,
-  onExitPreview,
-}: ArchiveOverlayProps): ReactElement {
+export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected, settingsUi }: ArchiveOverlayProps): ReactElement {
   const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
   const topSection = (
     <TopSection
@@ -59,14 +53,6 @@ export function ArchiveSeriesOverlay({
       />
     );
   };
-  const settingsUi = model.showPreview ? (
-    <div className={styles.previewControls}>
-      <Button onClick={onExitPreview} variant="primary">
-        Exit preview
-      </Button>
-    </div>
-  ) : null;
-
   return (
     <div data-testid="archive-streamer-overlay">
       <StreamerOverlaySection

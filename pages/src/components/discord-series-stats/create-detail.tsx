@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
@@ -13,10 +13,12 @@ import type {
   SeriesStreamerSettings,
 } from "../live-tracker/settings/types";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
+import { SettingsTrigger } from "../live-tracker/settings/settings-trigger";
 import { presentArchiveSeriesColors } from "./archive-series-colors";
 import { DiscordSeriesStatsView } from "./discord-series-stats";
 import { ArchiveSeriesOverlay } from "./archive-overlay";
 import { ArchiveSeriesOverlayPresenter } from "./archive-series-overlay-presenter";
+import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
 
 export interface DiscordSeriesDetailStatsProps {
   readonly data: SeriesDetailResponse;
@@ -46,6 +48,7 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     onViewModeSelect,
     onAnalyticsTabSelected,
   }: DiscordSeriesDetailStatsProps): ReactElement {
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const statsDetailController = useMemo(() => new StatsDetailController(), []);
     const presenter = useMemo(
       () => new SeriesDetailStatsViewModelPresenter(statsDetailController),
@@ -92,36 +95,50 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
       [archiveOverlayPresenter, colorModel.available, data, model, overlayTeamColors, streamerSettings, viewMode],
     );
 
-    if (archiveOverlayModel != null) {
-      return (
-        <ArchiveSeriesOverlay
-          model={archiveOverlayModel}
-          onAnalyticsTabSelected={onAnalyticsTabSelected}
-          onExitPreview={(): void => {
-            onViewModeSelect("wide");
-          }}
-        />
-      );
+    function openSettings(): void {
+      setIsSettingsOpen(true);
+    }
+
+    function closeSettings(): void {
+      setIsSettingsOpen(false);
     }
 
     return (
-      <DiscordSeriesStatsView
-        {...model}
-        title={seriesSettings.titleOverride ?? model.title}
-        subtitle={seriesSettings.subtitleOverride ?? model.subtitle}
-        viewMode={viewMode}
-        streamerSettings={streamerSettings}
-        seriesSettings={seriesSettings}
-        observerColors={observerColors}
-        colorLabels={colorLabels}
-        onViewPreviewChange={onViewPreviewChange}
-        onObserverColorsChange={onObserverColorsChange}
-        defaultTitle={data.context?.title ?? null}
-        defaultSubtitle={data.context?.subtitle ?? null}
-        onSeriesSettingsChange={onSeriesSettingsChange}
-        onViewModeSelect={onViewModeSelect}
-        onAnalyticsTabSelected={onAnalyticsTabSelected}
-      />
+      <>
+        {archiveOverlayModel != null ? (
+          <ArchiveSeriesOverlay
+            model={archiveOverlayModel}
+            onAnalyticsTabSelected={onAnalyticsTabSelected}
+            settingsUi={<SettingsTrigger compact onClick={openSettings} />}
+          />
+        ) : (
+          <DiscordSeriesStatsView
+            {...model}
+            title={seriesSettings.titleOverride ?? model.title}
+            subtitle={seriesSettings.subtitleOverride ?? model.subtitle}
+            viewMode={viewMode}
+            stableTeamSlotsAvailable={colorModel.available}
+            onOpenSettings={openSettings}
+            onAnalyticsTabSelected={onAnalyticsTabSelected}
+          />
+        )}
+        {isSettingsOpen && (
+          <ArchiveSettingsDialog
+            viewMode={viewMode}
+            streamerSettings={streamerSettings}
+            seriesSettings={seriesSettings}
+            observerColors={observerColors}
+            colorLabels={colorLabels}
+            defaultTitle={data.context?.title ?? null}
+            defaultSubtitle={data.context?.subtitle ?? null}
+            onClose={closeSettings}
+            onSeriesSettingsChange={onSeriesSettingsChange}
+            onObserverColorsChange={onObserverColorsChange}
+            onViewPreviewChange={onViewPreviewChange}
+            onViewModeSelect={onViewModeSelect}
+          />
+        )}
+      </>
     );
   }
 

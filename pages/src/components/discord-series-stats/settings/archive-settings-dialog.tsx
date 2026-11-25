@@ -6,7 +6,11 @@ import { SeriesTitleSection } from "../../live-tracker/settings/series-title-sec
 import { SeriesTeamNameInputs } from "../../live-tracker/settings/series-team-name-inputs";
 import { ObserverColorSettings } from "../../live-tracker/settings/observer-color-settings";
 import { ViewModeButton } from "../../live-tracker/settings/view-mode-button";
-import type { AllStreamerSettings, ObserverViewColorSettings, SeriesStreamerSettings } from "../../live-tracker/settings/types";
+import type {
+  AllStreamerSettings,
+  ObserverViewColorSettings,
+  SeriesStreamerSettings,
+} from "../../live-tracker/settings/types";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { ArchiveOverlayUrlButton } from "../archive-overlay-url-button";
 import styles from "../../live-tracker/settings/settings-dialog.module.css";

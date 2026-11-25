@@ -121,16 +121,12 @@ export class DiscordSeriesStatsPresenter {
   setViewMode(mode: ViewMode): void {
     this.store.update({ viewMode: mode });
     if (typeof window !== "undefined") {
-      window.history.replaceState(
-        window.history.state,
-        "",
-        buildUrlWithViewMode(window.location.href, mode),
-      );
+      window.history.replaceState(window.history.state, "", buildUrlWithViewMode(window.location.href, mode));
     }
   }
 
   setViewPreview(enabled: boolean): void {
-    const urlSettings = this.store.getSnapshot().urlSettings;
+    const { urlSettings } = this.store.getSnapshot();
     this.store.update({ urlSettings: { ...urlSettings, global: { ...urlSettings.global, viewPreview: enabled } } });
     this.updateGlobalSettings({ viewPreview: enabled });
   }
