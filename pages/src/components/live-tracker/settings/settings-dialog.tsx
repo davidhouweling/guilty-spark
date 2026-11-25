@@ -1,7 +1,5 @@
 import React from "react";
-import classNames from "classnames";
 import { Heading } from "../../heading/heading";
-import { CloseButton } from "../../close-button/close-button";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { Checkbox } from "../../checkbox/checkbox";
 import type {
@@ -20,6 +18,9 @@ import { SeriesTitleSection } from "./series-title-section";
 import { CopyUrlButton } from "./copy-url-button";
 import styles from "./settings-dialog.module.css";
 import { SeriesTeamSection } from "./series-team-section";
+import { SettingsDialogFrame } from "./settings-dialog-frame";
+import { SettingsDialogHeader } from "./settings-dialog-header";
+import { ViewModeButton } from "./view-mode-button";
 
 interface SettingsDialogProps {
   readonly isOpen: boolean;
@@ -34,28 +35,6 @@ interface SettingsDialogProps {
   readonly availablePlayers?: readonly { id: string; name: string }[];
   readonly server?: string;
   readonly queue?: number;
-}
-
-interface ViewModeButtonProps {
-  readonly mode: ViewMode;
-  readonly label: string;
-  readonly description: string;
-  readonly isSelected: boolean;
-  readonly onClick: () => void;
-}
-
-function ViewModeButton({ label, description, isSelected, onClick }: ViewModeButtonProps): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={classNames(styles.viewModeButton, { [styles.viewModeButtonSelected]: isSelected })}
-    >
-      <span className={styles.viewModeLabel}>{label}</span>
-      <span className={styles.viewModeDescription}>{description}</span>
-      {isSelected && <span className={styles.viewModeCheckmark}>✓</span>}
-    </button>
-  );
 }
 
 export function SettingsDialog({
@@ -170,36 +149,10 @@ export function SettingsDialog({
     });
   };
 
-  const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>): void => {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  };
-
-  const handleEscape = (event: React.KeyboardEvent): void => {
-    if (event.key === "Escape") {
-      onClose();
-    }
-  };
-
   return (
-    <div
-      className={styles.overlay}
-      onClick={handleOverlayClick}
-      onKeyDown={handleEscape}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-dialog-title"
-    >
+    <SettingsDialogFrame title="Overlay Settings" onClose={onClose}>
       <div className={styles.dialog}>
-        {/* Header */}
-        <div className={styles.header}>
-          <Heading tagName="h2" id="settings-dialog-title" className={styles.title}>
-            Overlay Settings
-          </Heading>
-          <CloseButton ariaLabel="Close settings" onClick={onClose} />
-        </div>
-
+        <SettingsDialogHeader title="Overlay Settings" onClose={onClose} />
         {/* Content */}
         <div className={styles.content}>
           <div className={styles.twoColumn}>
@@ -327,7 +280,6 @@ export function SettingsDialog({
 
                 <div className={styles.viewModeButtonsContainer}>
                   <ViewModeButton
-                    mode="standard"
                     label="Narrow View"
                     description="Narrower container width"
                     isSelected={viewMode === "standard"}
@@ -336,7 +288,6 @@ export function SettingsDialog({
                     }}
                   />
                   <ViewModeButton
-                    mode="wide"
                     label="Wide View"
                     description="Full width container (default)"
                     isSelected={viewMode === "wide"}
@@ -345,7 +296,6 @@ export function SettingsDialog({
                     }}
                   />
                   <ViewModeButton
-                    mode="streamer"
                     label="Streamer Overlay"
                     description="OBS transparent mode"
                     isSelected={viewMode === "streamer"}
@@ -379,6 +329,6 @@ export function SettingsDialog({
           </div>
         </div>
       </div>
-    </div>
+    </SettingsDialogFrame>
   );
 }

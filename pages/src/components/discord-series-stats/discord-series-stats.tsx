@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
@@ -5,9 +6,9 @@ import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
 import type { ViewMode } from "../view-mode/view-mode-selector";
-import { ViewModeSelector } from "../view-mode/view-mode-selector";
-import { SeriesTitleSection } from "../live-tracker/settings/series-title-section";
 import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
+import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
+import { ArchiveSettingsTrigger } from "./settings/archive-settings-trigger";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
@@ -46,6 +47,7 @@ export function DiscordSeriesStatsView({
   onAnalyticsTabSelected,
   ...stats
 }: DiscordSeriesStatsViewProps): ReactElement {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const documentTitle = `${getQueueTitle(title)} (${emojifySeriesScore(stats.seriesScore)}) | ${subtitle} Stats - Guilty Spark`;
 
   return (
@@ -59,24 +61,26 @@ export function DiscordSeriesStatsView({
             </Heading>
             <div className={styles.headerSubtitle}>{subtitle}</div>
           </div>
-          <ViewModeSelector
-            currentMode={viewMode}
-            availableModes={["standard", "wide"]}
-            inline
-            onModeSelect={onViewModeSelect}
-            showCurrentModeLabel
+          <ArchiveSettingsTrigger
+            onClick={(): void => {
+              setIsSettingsOpen(true);
+            }}
           />
         </div>
-        <details className={styles.titleSettings}>
-          <summary>Series title settings</summary>
-          <SeriesTitleSection
-            settings={seriesSettings}
-            defaultTitle={defaultTitle}
-            defaultSubtitle={defaultSubtitle}
-            onChange={onSeriesSettingsChange}
-          />
-        </details>
       </Container>
+      {isSettingsOpen && (
+        <ArchiveSettingsDialog
+          viewMode={viewMode}
+          seriesSettings={seriesSettings}
+          defaultTitle={defaultTitle}
+          defaultSubtitle={defaultSubtitle}
+          onClose={(): void => {
+            setIsSettingsOpen(false);
+          }}
+          onSeriesSettingsChange={onSeriesSettingsChange}
+          onViewModeSelect={onViewModeSelect}
+        />
+      )}
       <div className={styles.content}>
         <SharedSeriesStatsView
           title={title}

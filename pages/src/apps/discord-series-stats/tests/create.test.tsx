@@ -41,6 +41,34 @@ afterEach(() => {
 });
 
 describe("DiscordSeriesStatsApp", () => {
+  it("opens settings from the cog and closes with the close button, Escape and backdrop", async () => {
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+    const trigger = await screen.findByRole("button", { name: "Open series settings" });
+    expect(trigger.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Series Settings" });
+    expect(dialog).toHaveFocus();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument();
+    expect(screen.getByLabelText("Subtitle")).toBeInTheDocument();
+    expect(screen.queryByText(/Team Colors|Team Names|Streamer Overlay|Share Settings/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("heading", { name: "Series title" }));
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("loads and renders resolved queue stats", async () => {
     mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
 
@@ -72,8 +100,8 @@ describe("DiscordSeriesStatsApp", () => {
     const matchesContainer = matchesHeading.closest(`.${containerStyles.container}`);
     expect(matchesContainer).not.toHaveClass(containerStyles.wide);
 
-    fireEvent.click(screen.getByRole("button", { name: "Change view mode" }));
-    expect(screen.getByRole("button", { name: "Narrow View" })).toHaveAttribute("data-selected", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.getByRole("button", { name: "Narrow View" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: /Streamer View/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
 
@@ -96,8 +124,8 @@ describe("DiscordSeriesStatsApp", () => {
 
     const matchesHeading = await screen.findByRole("heading", { name: "Matches" });
     expect(matchesHeading.closest(`.${containerStyles.container}`)).toHaveClass(containerStyles.wide);
-    fireEvent.click(screen.getByRole("button", { name: "Change view mode" }));
-    expect(screen.getByRole("button", { name: "Wide View" })).toHaveAttribute("data-selected", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.getByRole("button", { name: "Wide View" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: /Streamer View/ })).not.toBeInTheDocument();
     expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(legacySettings);
   });
@@ -120,7 +148,7 @@ describe("DiscordSeriesStatsApp", () => {
     expect(await screen.findByRole("heading", { name: "Finals" })).toBeInTheDocument();
     expect(screen.getByText("Season 1")).toBeInTheDocument();
     expect(document.title).toContain("Finals");
-    fireEvent.click(screen.getByText("Series title settings"));
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     expect(screen.getByLabelText("Title")).toHaveValue("Finals");
     expect(screen.getByLabelText("Subtitle")).toHaveValue("Season 1");
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Championship" } });
@@ -140,7 +168,7 @@ describe("DiscordSeriesStatsApp", () => {
     unmount();
     render(app);
     expect(await screen.findByRole("heading", { name: "Championship" })).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Series title settings"));
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     fireEvent.change(screen.getByLabelText("Title"), { target: { value: "" } });
     expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
     expect(new URL(window.location.href).searchParams.has("title")).toBe(false);
@@ -157,7 +185,7 @@ describe("DiscordSeriesStatsApp", () => {
     );
 
     expect(await screen.findByText("Stats are still indexing. Retry in 9s.")).toBeInTheDocument();
-    expect(screen.queryByText("Series title settings")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open series settings" })).not.toBeInTheDocument();
   });
 
   it("renders queue not found state", async () => {

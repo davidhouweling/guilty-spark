@@ -1,5 +1,4 @@
 import React from "react";
-import classNames from "classnames";
 import guiltySpark from "../../assets/guilty-spark-icon.png";
 import { Dropdown } from "../dropdown/dropdown";
 import { OBS_OVERLAY_PREVIEW } from "../../constants";
@@ -18,9 +17,6 @@ export interface StreamerOptions {
 interface ViewModeSelectorProps {
   readonly currentMode: ViewMode;
   readonly onModeSelect: (mode: ViewMode) => void;
-  readonly availableModes?: readonly ViewMode[] | undefined;
-  readonly inline?: boolean | undefined;
-  readonly showCurrentModeLabel?: boolean | undefined;
   readonly previewMode?: PreviewMode;
   readonly onPreviewModeSelect?: (mode: PreviewMode) => void;
   readonly streamerOptions?: StreamerOptions;
@@ -30,9 +26,6 @@ interface ViewModeSelectorProps {
 export function ViewModeSelector({
   currentMode,
   onModeSelect,
-  availableModes = ["standard", "wide", "streamer"],
-  inline = false,
-  showCurrentModeLabel = false,
   previewMode,
   onPreviewModeSelect,
   streamerOptions,
@@ -43,7 +36,6 @@ export function ViewModeSelector({
     { id: "wide", label: "Wide View", description: "Full width container" },
     { id: "streamer", label: "Streamer View (BETA)", description: "OBS overlay mode" },
   ];
-  const currentModeLabel = viewModes.find((mode) => mode.id === currentMode)?.label;
 
   const previewModes: { id: PreviewMode; label: string; description: string }[] = OBS_OVERLAY_PREVIEW
     ? [
@@ -77,14 +69,11 @@ export function ViewModeSelector({
         : 230;
 
   return (
-    <div className={classNames(styles.wrapper, { [styles.inline]: inline })}>
+    <div className={styles.wrapper}>
       <Dropdown
         trigger={
           <div className={styles.triggerButton}>
             <img src={guiltySpark.src} alt="" className={styles.triggerIcon} />
-            {showCurrentModeLabel && currentModeLabel != null ? (
-              <span className={styles.triggerModeLabel}>{currentModeLabel}</span>
-            ) : null}
             <svg
               className={styles.triggerChevron}
               viewBox="0 0 12 12"
@@ -102,28 +91,26 @@ export function ViewModeSelector({
       >
         <div className={styles.dropdownHeader}>View Mode</div>
         <div className={styles.modeList}>
-          {viewModes
-            .filter((mode) => availableModes.includes(mode.id))
-            .map((mode) => (
-              <button
-                key={mode.id}
-                type="button"
-                className={styles.modeOption}
-                onClick={(): void => {
-                  onModeSelect(mode.id);
-                }}
-                aria-label={mode.label}
-                data-selected={mode.id === currentMode}
-              >
-                <span className={styles.modeLabel}>{mode.label}</span>
-                <span className={styles.modeDescription}>{mode.description}</span>
-                {mode.id === currentMode ? (
-                  <span className={styles.checkmark} aria-hidden="true">
-                    ✓
-                  </span>
-                ) : null}
-              </button>
-            ))}
+          {viewModes.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              className={styles.modeOption}
+              onClick={(): void => {
+                onModeSelect(mode.id);
+              }}
+              aria-label={mode.label}
+              data-selected={mode.id === currentMode}
+            >
+              <span className={styles.modeLabel}>{mode.label}</span>
+              <span className={styles.modeDescription}>{mode.description}</span>
+              {mode.id === currentMode ? (
+                <span className={styles.checkmark} aria-hidden="true">
+                  ✓
+                </span>
+              ) : null}
+            </button>
+          ))}
         </div>
         {currentMode === "streamer" && onPreviewModeSelect && previewModes.length > 0 && previewMode ? (
           <>
