@@ -1,12 +1,23 @@
+import { useState } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
 import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
+import type { ViewMode } from "../view-mode/view-mode-selector";
+import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
+import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
+import { ArchiveSettingsTrigger } from "./settings/archive-settings-trigger";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
+  readonly viewMode: ViewMode;
+  readonly seriesSettings: SeriesStreamerSettings;
+  readonly defaultTitle: string | null;
+  readonly defaultSubtitle: string | null;
+  readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
@@ -27,9 +38,16 @@ function getQueueTitle(title: string): string {
 export function DiscordSeriesStatsView({
   title,
   subtitle,
+  viewMode,
+  seriesSettings,
+  defaultTitle,
+  defaultSubtitle,
+  onSeriesSettingsChange,
+  onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
 }: DiscordSeriesStatsViewProps): ReactElement {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const documentTitle = `${getQueueTitle(title)} (${emojifySeriesScore(stats.seriesScore)}) | ${subtitle} Stats - Guilty Spark`;
 
   return (
@@ -43,14 +61,32 @@ export function DiscordSeriesStatsView({
             </Heading>
             <div className={styles.headerSubtitle}>{subtitle}</div>
           </div>
+          <ArchiveSettingsTrigger
+            onClick={(): void => {
+              setIsSettingsOpen(true);
+            }}
+          />
         </div>
       </Container>
+      {isSettingsOpen && (
+        <ArchiveSettingsDialog
+          viewMode={viewMode}
+          seriesSettings={seriesSettings}
+          defaultTitle={defaultTitle}
+          defaultSubtitle={defaultSubtitle}
+          onClose={(): void => {
+            setIsSettingsOpen(false);
+          }}
+          onSeriesSettingsChange={onSeriesSettingsChange}
+          onViewModeSelect={onViewModeSelect}
+        />
+      )}
       <div className={styles.content}>
         <SharedSeriesStatsView
           title={title}
           subtitle={subtitle}
           showSeriesTitle={true}
-          wide={true}
+          wide={viewMode === "wide"}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
           {...stats}
         />

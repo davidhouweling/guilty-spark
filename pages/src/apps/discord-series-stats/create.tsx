@@ -9,6 +9,9 @@ import { createDiscordSeriesDetailStats } from "../../components/discord-series-
 import { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
+import type { ViewMode } from "../../components/view-mode/view-mode-selector";
+import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
+import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -32,9 +35,10 @@ function DiscordSeriesStatsData({
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
+  const { settings } = useStreamerSettings();
+  const [initialSettings] = useState(() => settings);
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
-
   const presenter = useMemo(() => {
     const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
     const analyticsController = new SeriesAnalyticsController({
@@ -51,10 +55,11 @@ function DiscordSeriesStatsData({
       analyticsController,
       guildId,
       queueNumber,
+      settings: initialSettings,
     });
     target.presenter = instance;
     return instance;
-  }, [discordSeriesStatsService, guildId, matchAnalyticsService, queueNumber, store]);
+  }, [discordSeriesStatsService, guildId, initialSettings, matchAnalyticsService, queueNumber, store]);
 
   useEffect(() => {
     presenter.start();
@@ -77,7 +82,18 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
-
+  const onViewModeSelect = useCallback(
+    (mode: ViewMode): void => {
+      presenter.setViewMode(mode);
+    },
+    [presenter],
+  );
+  const onSeriesSettingsChange = useCallback(
+    (updates: Partial<SeriesStreamerSettings>): void => {
+      presenter.setSeriesSettings(updates);
+    },
+    [presenter],
+  );
   const loaderStatus =
     model.state === "loading"
       ? ComponentLoaderStatus.LOADING
@@ -95,6 +111,10 @@ function DiscordSeriesStatsData({
           <DiscordSeriesStats
             data={model.data}
             analyticsByMatchId={snapshot.analyticsByMatchId}
+            viewMode={snapshot.viewMode}
+            seriesSettings={snapshot.seriesSettings}
+            onSeriesSettingsChange={onSeriesSettingsChange}
+            onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}
           />
         ) : model.state === "pending-index" ? (

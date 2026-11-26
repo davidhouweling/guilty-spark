@@ -12,7 +12,13 @@ interface SettingsTriggerProps {
 export function SettingsTrigger({ compact, onClick }: SettingsTriggerProps): React.ReactElement {
   if (!compact) {
     return (
-      <Button variant="secondary" size="small" ariaLabel="Open overlay settings" onClick={onClick}>
+      <Button
+        variant="secondary"
+        size="small"
+        ariaLabel="Open overlay settings"
+        ariaHasPopup="dialog"
+        onClick={onClick}
+      >
         Settings
       </Button>
     );
@@ -24,6 +30,7 @@ export function SettingsTrigger({ compact, onClick }: SettingsTriggerProps): Rea
       className={classNames(styles.trigger, styles.compact)}
       onClick={onClick}
       aria-label="Open overlay settings"
+      aria-haspopup="dialog"
     >
       <img src={guiltySpark.src} alt="" className={styles.triggerIcon} />
     </button>

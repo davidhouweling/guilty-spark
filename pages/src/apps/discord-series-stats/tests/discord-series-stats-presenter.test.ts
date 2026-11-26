@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   aFakeMatchDetailWith,
@@ -8,6 +8,8 @@ import type {
   DiscordSeriesStatsDetailResult,
   DiscordSeriesStatsService,
 } from "../../../services/stats/discord-series-types";
+import { DEFAULT_ALL_SETTINGS } from "../../../components/live-tracker/settings/types";
+import type { AllStreamerSettings } from "../../../components/live-tracker/settings/types";
 import { aFakeDiscordSeriesStatsServiceWith } from "../../../services/stats/fakes/discord-series.fake";
 import { ComponentLoaderStatus } from "../../../components/component-loader/component-loader";
 import { SeriesAnalyticsController } from "../../../controllers/series-analytics/series-analytics-controller";
@@ -29,6 +31,7 @@ function createPresenter(
   store: DiscordSeriesStatsStore,
   discordSeriesStatsService: DiscordSeriesStatsService,
   matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
+  settings: AllStreamerSettings = DEFAULT_ALL_SETTINGS,
 ): DiscordSeriesStatsPresenter {
   const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
   const analyticsController = new SeriesAnalyticsController({
@@ -45,12 +48,52 @@ function createPresenter(
     analyticsController,
     guildId: "123456789012345678",
     queueNumber: "7777",
+    settings,
   });
   target.presenter = presenter;
   return presenter;
 }
 
+afterEach(() => {
+  window.history.replaceState({}, "", "/");
+});
+
 describe("DiscordSeriesStatsPresenter", () => {
+  it("initializes display settings from the URL", (): void => {
+    window.history.replaceState({ marker: "kept" }, "", "/?viewMode=standard&title=Finals&campaign=summer#match-one");
+    const store = new DiscordSeriesStatsStore();
+    const presenter = createPresenter(store, aFakeDiscordSeriesStatsServiceWith());
+
+    presenter.start();
+
+    expect(store.getSnapshot()).toMatchObject({
+      seriesSettings: { titleOverride: "Finals" },
+      viewMode: "standard",
+    });
+  });
+
+  it("updates series settings and view mode while preserving unrelated URL state", (): void => {
+    window.history.replaceState({ marker: "kept" }, "", "/?subtitle=Season+1&campaign=summer#match-one");
+    const store = new DiscordSeriesStatsStore();
+    const presenter = createPresenter(store, aFakeDiscordSeriesStatsServiceWith());
+    presenter.start();
+
+    presenter.setSeriesSettings({ titleOverride: "Championship" });
+    presenter.setViewMode("streamer");
+
+    const url = new URL(window.location.href);
+    expect(store.getSnapshot()).toMatchObject({
+      seriesSettings: { titleOverride: "Championship", subtitleOverride: "Season 1" },
+      viewMode: "wide",
+    });
+    expect(url.searchParams.get("title")).toBe("Championship");
+    expect(url.searchParams.get("subtitle")).toBe("Season 1");
+    expect(url.searchParams.get("viewMode")).toBe("wide");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+    expect(url.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+  });
+
   it("loads stats from the service using the guild and queue params", async (): Promise<void> => {
     const response = aFakeSeriesDetailResponseWith();
     const getDetail = vi.fn<DiscordSeriesStatsService["getDetail"]>(async () => {

@@ -10,6 +10,7 @@ import {
   aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { createDiscordSeriesDetailStats } from "../create-detail";
+import { DEFAULT_SERIES_SETTINGS } from "../../live-tracker/settings/types";
 
 afterEach(() => {
   cleanup();
@@ -44,7 +45,17 @@ describe("DiscordSeriesDetailStats", () => {
       },
     });
 
-    render(<DiscordSeriesStats data={data} analyticsByMatchId={new Map()} onAnalyticsTabSelected={vi.fn()} />);
+    render(
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
 
     expect(document.title).toBe("Queue #7156 (🦅3:2🐍) | Dog Crew Stats - Guilty Spark");
   });
@@ -57,7 +68,15 @@ describe("DiscordSeriesDetailStats", () => {
     const onAnalyticsTabSelected = vi.fn<(module: AnalyticsModule, matchId?: string) => void>();
 
     render(
-      <DiscordSeriesStats data={data} analyticsByMatchId={new Map()} onAnalyticsTabSelected={onAnalyticsTabSelected} />,
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={onAnalyticsTabSelected}
+      />,
     );
 
     expect(screen.getByRole("heading", { name: "Queue #7777 Series Stats" })).toBeInTheDocument();
@@ -76,7 +95,17 @@ describe("DiscordSeriesDetailStats", () => {
       aggregation: { status: "unavailable", reason: "incomplete-matches" },
     });
 
-    render(<DiscordSeriesStats data={data} analyticsByMatchId={new Map()} onAnalyticsTabSelected={vi.fn()} />);
+    render(
+      <DiscordSeriesStats
+        data={data}
+        analyticsByMatchId={new Map()}
+        viewMode="wide"
+        seriesSettings={DEFAULT_SERIES_SETTINGS}
+        onSeriesSettingsChange={vi.fn()}
+        onViewModeSelect={vi.fn()}
+        onAnalyticsTabSelected={vi.fn()}
+      />,
+    );
 
     expect(
       screen.getByText("Series totals are unavailable because some match details could not be resolved."),

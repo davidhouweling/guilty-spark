@@ -26,6 +26,11 @@ export function Dialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -37,16 +42,56 @@ export function Dialog({
 
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const panel = panelRef.current;
+      if (panel === null) {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      const first = focusableElements.at(0);
+      const last = focusableElements.at(-1);
+      const { activeElement } = document;
+
+      if (first === undefined || last === undefined) {
+        event.preventDefault();
+        panel.focus();
+      } else if (!panel.contains(activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && (activeElement === first || activeElement === panel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
 
     return (): void => {
       document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocused.current?.focus();
+      const previousFocusTarget = previouslyFocused.current;
+      if (previousFocusTarget?.isConnected === true && previousFocusTarget !== document.body) {
+        previousFocusTarget.focus();
+        return;
+      }
+
+      const currentTrigger = document.querySelector<HTMLElement>('button[aria-haspopup="dialog"]');
+      currentTrigger?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) {
     return null;

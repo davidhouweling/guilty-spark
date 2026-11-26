@@ -1,4 +1,5 @@
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import { DEFAULT_ALL_SETTINGS } from "../../components/live-tracker/settings/types";
 import type { DiscordSeriesStatsSnapshot } from "./types";
 
 export class DiscordSeriesStatsStore {
@@ -7,6 +8,8 @@ export class DiscordSeriesStatsStore {
     response: null,
     errorMessage: null,
     analyticsByMatchId: new Map(),
+    viewMode: "wide",
+    seriesSettings: DEFAULT_ALL_SETTINGS.series,
   };
 
   private readonly listeners = new Set<() => void>();
