@@ -1,5 +1,6 @@
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
 import type { DiscordSeriesStatsDetailResult } from "../../services/stats/discord-series-types";
 
@@ -10,6 +11,8 @@ export interface DiscordSeriesStatsSnapshot {
   readonly response: DiscordSeriesStatsResponse | null;
   readonly errorMessage: string | null;
   readonly analyticsByMatchId: SeriesMatchAnalyticsById;
+  readonly viewMode: "standard" | "wide";
+  readonly seriesSettings: SeriesStreamerSettings;
 }
 
 export type DiscordSeriesStatsViewModel =

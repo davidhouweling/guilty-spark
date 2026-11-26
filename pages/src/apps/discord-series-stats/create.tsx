@@ -10,14 +10,8 @@ import { SeriesAnalyticsController } from "../../controllers/series-analytics/se
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
-import { DEFAULT_VIEW_MODE } from "../../components/live-tracker/settings/types";
-import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
-import {
-  buildUrlWithViewMode,
-  encodeSettingsToUrlParams,
-  parseSettingsFromUrl,
-} from "../../components/live-tracker/settings/settings-url-params";
+import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -42,22 +36,9 @@ function DiscordSeriesStatsData({
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
   const { settings } = useStreamerSettings();
+  const [initialSettings] = useState(() => settings);
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
-  const [seriesSettings, setSeriesSettings] = useState<SeriesStreamerSettings>(() =>
-    typeof window === "undefined"
-      ? settings.series
-      : parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).series,
-  );
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") {
-      return DEFAULT_VIEW_MODE;
-    }
-
-    const urlViewMode = parseSettingsFromUrl(new URLSearchParams(window.location.search), settings).global.viewMode;
-    return urlViewMode === "standard" ? "standard" : "wide";
-  });
-
   const presenter = useMemo(() => {
     const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
     const analyticsController = new SeriesAnalyticsController({
@@ -74,10 +55,18 @@ function DiscordSeriesStatsData({
       analyticsController,
       guildId,
       queueNumber,
+      settings: initialSettings,
     });
     target.presenter = instance;
     return instance;
-  }, [discordSeriesStatsService, guildId, matchAnalyticsService, queueNumber, store]);
+  }, [
+    discordSeriesStatsService,
+    guildId,
+    initialSettings,
+    matchAnalyticsService,
+    queueNumber,
+    store,
+  ]);
 
   useEffect(() => {
     presenter.start();
@@ -100,37 +89,18 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
-  const onViewModeSelect = useCallback((mode: ViewMode): void => {
-    const archiveViewMode = mode === "standard" ? "standard" : "wide";
-    setViewMode(archiveViewMode);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(
-        window.history.state,
-        "",
-        buildUrlWithViewMode(window.location.href, archiveViewMode),
-      );
-    }
-  }, []);
+  const onViewModeSelect = useCallback(
+    (mode: ViewMode): void => {
+      presenter.setViewMode(mode);
+    },
+    [presenter],
+  );
   const onSeriesSettingsChange = useCallback(
     (updates: Partial<SeriesStreamerSettings>): void => {
-      const next = { ...seriesSettings, ...updates };
-      setSeriesSettings(next);
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        const params = encodeSettingsToUrlParams({ ...settings, series: next });
-        for (const key of ["title", "subtitle"]) {
-          if (Object.hasOwn(params, key)) {
-            url.searchParams.set(key, params[key]);
-          } else {
-            url.searchParams.delete(key);
-          }
-        }
-        window.history.replaceState(window.history.state, "", url.toString());
-      }
+      presenter.setSeriesSettings(updates);
     },
-    [seriesSettings, settings],
+    [presenter],
   );
-
   const loaderStatus =
     model.state === "loading"
       ? ComponentLoaderStatus.LOADING
@@ -148,8 +118,8 @@ function DiscordSeriesStatsData({
           <DiscordSeriesStats
             data={model.data}
             analyticsByMatchId={snapshot.analyticsByMatchId}
-            viewMode={viewMode}
-            seriesSettings={seriesSettings}
+            viewMode={snapshot.viewMode}
+            seriesSettings={snapshot.seriesSettings}
             onSeriesSettingsChange={onSeriesSettingsChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}

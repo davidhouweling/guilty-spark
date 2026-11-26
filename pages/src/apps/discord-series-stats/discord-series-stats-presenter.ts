@@ -1,6 +1,9 @@
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
+import type { AllStreamerSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import { buildUrlWithViewMode, encodeSettingsToUrlParams, parseSettingsFromUrl } from "../../components/live-tracker/settings/settings-url-params";
+import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
 import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
@@ -13,6 +16,7 @@ interface DiscordSeriesStatsPresenterDependencies {
   readonly analyticsController: SeriesAnalyticsController;
   readonly guildId: string;
   readonly queueNumber: string;
+  readonly settings: AllStreamerSettings;
 }
 
 export class DiscordSeriesStatsPresenter {
@@ -21,6 +25,7 @@ export class DiscordSeriesStatsPresenter {
   private readonly analyticsController: SeriesAnalyticsController;
   private readonly guildId: string;
   private readonly queueNumber: string;
+  private readonly settings: AllStreamerSettings;
   private isDisposed = false;
   private requestNumber = 0;
 
@@ -30,12 +35,14 @@ export class DiscordSeriesStatsPresenter {
     analyticsController,
     guildId,
     queueNumber,
+    settings,
   }: DiscordSeriesStatsPresenterDependencies) {
     this.store = store;
     this.discordSeriesStatsService = discordSeriesStatsService;
     this.analyticsController = analyticsController;
     this.guildId = guildId;
     this.queueNumber = queueNumber;
+    this.settings = settings;
   }
 
   private async fetchDetail(): Promise<NonNullable<DiscordSeriesStatsSnapshot["response"]>> {
@@ -51,6 +58,7 @@ export class DiscordSeriesStatsPresenter {
     if (this.isDisposed) {
       return;
     }
+    this.initializeSettings();
     this.requestNumber += 1;
     const activeRequest = this.requestNumber;
 
@@ -95,10 +103,50 @@ export class DiscordSeriesStatsPresenter {
     this.analyticsController.load(module, matchId);
   }
 
+  setViewMode(mode: ViewMode): void {
+    const archiveViewMode = mode === "standard" ? "standard" : "wide";
+    this.store.update({ viewMode: archiveViewMode });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        buildUrlWithViewMode(window.location.href, archiveViewMode),
+      );
+    }
+  }
+
+  setSeriesSettings(updates: Partial<SeriesStreamerSettings>): void {
+    const next = { ...this.store.getSnapshot().seriesSettings, ...updates };
+    this.store.update({ seriesSettings: next });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const params = encodeSettingsToUrlParams({ ...this.settings, series: next });
+      for (const key of ["title", "subtitle"]) {
+        if (Object.hasOwn(params, key)) {
+          url.searchParams.set(key, params[key]);
+        } else {
+          url.searchParams.delete(key);
+        }
+      }
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+  }
+
   setAnalytics(analyticsByMatchId: SeriesMatchAnalyticsById): void {
     if (!this.isDisposed) {
       this.store.update({ analyticsByMatchId });
     }
+  }
+
+  private initializeSettings(): void {
+    const settings =
+      typeof window === "undefined"
+        ? this.settings
+        : parseSettingsFromUrl(new URLSearchParams(window.location.search), this.settings);
+    this.store.update({
+      seriesSettings: settings.series,
+      viewMode: settings.global.viewMode === "standard" ? "standard" : "wide",
+    });
   }
 
   static present(snapshot: DiscordSeriesStatsSnapshot): DiscordSeriesStatsViewModel {
