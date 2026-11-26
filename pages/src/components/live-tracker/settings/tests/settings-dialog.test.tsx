@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import type { ReactElement } from "react";
+import { Dialog } from "../../../dialog/dialog";
 import { SettingsDialog } from "../settings-dialog";
-import { SettingsDialogFrame } from "../settings-dialog-frame";
 import { DEFAULT_ALL_SETTINGS } from "../types";
 
 afterEach(cleanup);
@@ -13,7 +13,8 @@ function RemountingSettingsDialog(): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [isStreamerMode, setIsStreamerMode] = useState(false);
   const dialog = isOpen ? (
-    <SettingsDialogFrame
+    <Dialog
+      open
       title="Overlay Settings"
       onClose={(): void => {
         setIsOpen(false);
@@ -35,7 +36,7 @@ function RemountingSettingsDialog(): ReactElement {
       >
         Close settings
       </button>
-    </SettingsDialogFrame>
+    </Dialog>
   ) : null;
 
   return (
@@ -56,7 +57,7 @@ function RemountingSettingsDialog(): ReactElement {
 }
 
 describe("SettingsDialog", () => {
-  it("retains live controls and callbacks while keeping keyboard focus inside the shared dialog", () => {
+  it("retains live controls and callbacks in the shared dialog", () => {
     const onClose = vi.fn();
     const onViewModeChange = vi.fn();
     const onSettingsChange = vi.fn();
@@ -71,7 +72,7 @@ describe("SettingsDialog", () => {
         onViewPreviewChange={vi.fn()}
       />,
     );
-    const dialog = screen.getByRole("dialog", { name: "Overlay Settings" });
+    expect(screen.getByRole("dialog", { name: "Overlay Settings" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Team Colors" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Team Names" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Share Settings" })).toBeInTheDocument();
@@ -82,6 +83,7 @@ describe("SettingsDialog", () => {
       ...DEFAULT_ALL_SETTINGS,
       series: { ...DEFAULT_ALL_SETTINGS.series, titleOverride: "Finals" },
     });
+    const dialog = screen.getByRole("dialog", { name: "Overlay Settings" });
     const buttons = dialog.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
     const first = buttons.item(0);
     const last = buttons.item(buttons.length - 1);

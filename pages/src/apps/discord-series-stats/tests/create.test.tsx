@@ -58,14 +58,18 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.queryByText(/Team Colors|Team Names|Streamer Overlay|Share Settings/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("heading", { name: "Series title" }));
     expect(dialog).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close Series Settings" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
     fireEvent.click(trigger);
     fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole("dialog"));
+    const overlay = screen.getByRole("dialog").parentElement;
+    expect(overlay).not.toBeNull();
+    if (overlay !== null) {
+      fireEvent.mouseDown(overlay);
+    }
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Dialog } from "../dialog";
@@ -83,6 +83,22 @@ describe("Dialog", () => {
     await user.click(screen.getByRole("button", { name: "Close Add tracker" }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps keyboard focus within the dialog", () => {
+    render(
+      <Dialog open title="Add tracker" onClose={() => undefined}>
+        <button type="button">Last control</button>
+      </Dialog>,
+    );
+
+    const first = screen.getByRole("button", { name: "Close Add tracker" });
+    const last = screen.getByRole("button", { name: "Last control" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(first).toHaveFocus();
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
   });
 
   it("does not call onClose when content inside the panel is clicked", async () => {

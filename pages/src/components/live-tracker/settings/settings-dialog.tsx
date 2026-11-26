@@ -1,4 +1,5 @@
 import React from "react";
+import { Dialog } from "../../dialog/dialog";
 import { Heading } from "../../heading/heading";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { Checkbox } from "../../checkbox/checkbox";
@@ -18,8 +19,6 @@ import { SeriesTitleSection } from "./series-title-section";
 import { CopyUrlButton } from "./copy-url-button";
 import styles from "./settings-dialog.module.css";
 import { SeriesTeamSection } from "./series-team-section";
-import { SettingsDialogFrame } from "./settings-dialog-frame";
-import { SettingsDialogHeader } from "./settings-dialog-header";
 import { ViewModeButton } from "./view-mode-button";
 
 interface SettingsDialogProps {
@@ -51,10 +50,6 @@ export function SettingsDialog({
   onViewModeChange,
   onViewPreviewChange,
 }: SettingsDialogProps): React.ReactElement | null {
-  if (!isOpen) {
-    return null;
-  }
-
   const handleFontSizeChange = (section: keyof FontSizeSettings, value: number): void => {
     onSettingsChange({
       ...settings,
@@ -150,185 +145,179 @@ export function SettingsDialog({
   };
 
   return (
-    <SettingsDialogFrame title="Overlay Settings" onClose={onClose}>
-      <div className={styles.dialog}>
-        <SettingsDialogHeader title="Overlay Settings" onClose={onClose} />
-        {/* Content */}
-        <div className={styles.content}>
-          <div className={styles.twoColumn}>
-            {/* Left Column - Configuration Options */}
-            <div className={styles.leftColumn}>
-              {/* Global Settings - Consolidated */}
-              <div className={styles.section}>
-                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
-                  Global Settings
-                </Heading>
-                <p className={styles.sectionDescription}>These settings apply across all series</p>
+    <Dialog open={isOpen} title="Overlay Settings" onClose={onClose}>
+      <div className={styles.twoColumn}>
+        {/* Left Column - Configuration Options */}
+        <div className={styles.leftColumn}>
+          {/* Global Settings - Consolidated */}
+          <div className={styles.section}>
+            <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
+              Global Settings
+            </Heading>
+            <p className={styles.sectionDescription}>These settings apply across all series</p>
 
-                <hr className={styles.divider} />
+            <hr className={styles.divider} />
 
-                {/* Color Settings */}
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Team Colors
-                </Heading>
-                <p className={styles.subsectionDescription}>Customize team colors for player or observer view</p>
-                <ColorSettingsSection
-                  mode={settings.global.colors.mode}
-                  playerView={settings.global.colors.playerView}
-                  observerView={settings.global.colors.observerView}
-                  availablePlayers={availablePlayers}
-                  onModeChange={handleColorModeChange}
-                  onPlayerViewChange={handlePlayerViewChange}
-                  onObserverViewChange={handleObserverViewChange}
-                />
+            {/* Color Settings */}
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Team Colors
+            </Heading>
+            <p className={styles.subsectionDescription}>Customize team colors for player or observer view</p>
+            <ColorSettingsSection
+              mode={settings.global.colors.mode}
+              playerView={settings.global.colors.playerView}
+              observerView={settings.global.colors.observerView}
+              availablePlayers={availablePlayers}
+              onModeChange={handleColorModeChange}
+              onPlayerViewChange={handlePlayerViewChange}
+              onObserverViewChange={handleObserverViewChange}
+            />
 
-                <hr className={styles.divider} />
+            <hr className={styles.divider} />
 
-                {/* Display Settings */}
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Display Options
-                </Heading>
-                <p className={styles.subsectionDescription}>Control what information is shown</p>
-                <DisplaySettingsSection settings={settings.global.display} onChange={handleDisplayChange} />
+            {/* Display Settings */}
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Display Options
+            </Heading>
+            <p className={styles.subsectionDescription}>Control what information is shown</p>
+            <DisplaySettingsSection settings={settings.global.display} onChange={handleDisplayChange} />
 
-                <hr className={styles.divider} />
+            <hr className={styles.divider} />
 
-                {/* Ticker Settings */}
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Information Ticker
-                </Heading>
-                <p className={styles.subsectionDescription}>Customize stats and medals shown in ticker</p>
-                <TickerSettingsSection settings={settings.global.ticker} onChange={handleTickerChange} />
+            {/* Ticker Settings */}
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Information Ticker
+            </Heading>
+            <p className={styles.subsectionDescription}>Customize stats and medals shown in ticker</p>
+            <TickerSettingsSection settings={settings.global.ticker} onChange={handleTickerChange} />
 
-                <hr className={styles.divider} />
+            <hr className={styles.divider} />
 
-                {/* Font Size Settings */}
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Font Sizes
-                </Heading>
-                <p className={styles.subsectionDescription}>Adjust text size for each section (100% = default)</p>
-                <div className={styles.fontSizeContainer}>
-                  <FontSizeSlider
-                    label="Queue Info"
-                    value={settings.global.fontSizes.queueInfo}
-                    onChange={(value): void => {
-                      handleFontSizeChange("queueInfo", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Score"
-                    value={settings.global.fontSizes.score}
-                    onChange={(value): void => {
-                      handleFontSizeChange("score", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Teams"
-                    value={settings.global.fontSizes.teams}
-                    onChange={(value): void => {
-                      handleFontSizeChange("teams", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Tabs"
-                    value={settings.global.fontSizes.tabs}
-                    onChange={(value): void => {
-                      handleFontSizeChange("tabs", value);
-                    }}
-                  />
-                  <FontSizeSlider
-                    label="Info Ticker"
-                    value={settings.global.fontSizes.ticker}
-                    onChange={(value): void => {
-                      handleFontSizeChange("ticker", value);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Series-Specific Settings */}
-              <div className={styles.section}>
-                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
-                  This Series Settings
-                </Heading>
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Series title
-                </Heading>
-                <SeriesTitleSection
-                  settings={settings.series}
-                  onChange={handleSeriesChange}
-                  defaultTitle={defaultTitle}
-                  defaultSubtitle={defaultSubtitle}
-                />
-
-                <hr className={styles.divider} />
-
-                <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
-                  Team Names
-                </Heading>
-                <SeriesTeamSection settings={settings.series} onChange={handleSeriesChange} />
-              </div>
+            {/* Font Size Settings */}
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Font Sizes
+            </Heading>
+            <p className={styles.subsectionDescription}>Adjust text size for each section (100% = default)</p>
+            <div className={styles.fontSizeContainer}>
+              <FontSizeSlider
+                label="Queue Info"
+                value={settings.global.fontSizes.queueInfo}
+                onChange={(value): void => {
+                  handleFontSizeChange("queueInfo", value);
+                }}
+              />
+              <FontSizeSlider
+                label="Score"
+                value={settings.global.fontSizes.score}
+                onChange={(value): void => {
+                  handleFontSizeChange("score", value);
+                }}
+              />
+              <FontSizeSlider
+                label="Teams"
+                value={settings.global.fontSizes.teams}
+                onChange={(value): void => {
+                  handleFontSizeChange("teams", value);
+                }}
+              />
+              <FontSizeSlider
+                label="Tabs"
+                value={settings.global.fontSizes.tabs}
+                onChange={(value): void => {
+                  handleFontSizeChange("tabs", value);
+                }}
+              />
+              <FontSizeSlider
+                label="Info Ticker"
+                value={settings.global.fontSizes.ticker}
+                onChange={(value): void => {
+                  handleFontSizeChange("ticker", value);
+                }}
+              />
             </div>
+          </div>
 
-            {/* Right Column - View Mode Selection */}
-            <div className={styles.rightColumn}>
-              <div className={styles.section}>
-                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
-                  View Mode
-                </Heading>
-                <p className={styles.sectionDescription}>Select how to display the tracker</p>
+          {/* Series-Specific Settings */}
+          <div className={styles.section}>
+            <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
+              This Series Settings
+            </Heading>
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Series title
+            </Heading>
+            <SeriesTitleSection
+              settings={settings.series}
+              onChange={handleSeriesChange}
+              defaultTitle={defaultTitle}
+              defaultSubtitle={defaultSubtitle}
+            />
 
-                <div className={styles.viewModeButtonsContainer}>
-                  <ViewModeButton
-                    label="Narrow View"
-                    description="Narrower container width"
-                    isSelected={viewMode === "standard"}
-                    onClick={(): void => {
-                      onViewModeChange("standard");
-                    }}
-                  />
-                  <ViewModeButton
-                    label="Wide View"
-                    description="Full width container (default)"
-                    isSelected={viewMode === "wide"}
-                    onClick={(): void => {
-                      onViewModeChange("wide");
-                    }}
-                  />
-                  <ViewModeButton
-                    label="Streamer Overlay"
-                    description="OBS transparent mode"
-                    isSelected={viewMode === "streamer"}
-                    onClick={(): void => {
-                      onViewModeChange("streamer");
-                    }}
-                  />
-                  {viewMode === "streamer" && (
-                    <Checkbox
-                      label="Preview Mode (press F11 to toggle full screen)"
-                      checked={settings.global.viewPreview}
-                      onChange={(checked): void => {
-                        onViewPreviewChange(checked);
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
+            <hr className={styles.divider} />
 
-              {/* Copy URL for OBS */}
-              <div className={styles.section}>
-                <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
-                  Share Settings
-                </Heading>
-                <p className={styles.sectionDescription}>Copy URL with all current settings for OBS Browser Source</p>
-                <div className={styles.copyUrlContainer}>
-                  <CopyUrlButton settings={settings} server={server} queue={queue} viewMode={"streamer"} />
-                </div>
-              </div>
+            <Heading tagName="h4" styleAs="h6" spacing={2} className={styles.subsectionHeader}>
+              Team Names
+            </Heading>
+            <SeriesTeamSection settings={settings.series} onChange={handleSeriesChange} />
+          </div>
+        </div>
+
+        {/* Right Column - View Mode Selection */}
+        <div className={styles.rightColumn}>
+          <div className={styles.section}>
+            <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
+              View Mode
+            </Heading>
+            <p className={styles.sectionDescription}>Select how to display the tracker</p>
+
+            <div className={styles.viewModeButtonsContainer}>
+              <ViewModeButton
+                label="Narrow View"
+                description="Narrower container width"
+                isSelected={viewMode === "standard"}
+                onClick={(): void => {
+                  onViewModeChange("standard");
+                }}
+              />
+              <ViewModeButton
+                label="Wide View"
+                description="Full width container (default)"
+                isSelected={viewMode === "wide"}
+                onClick={(): void => {
+                  onViewModeChange("wide");
+                }}
+              />
+              <ViewModeButton
+                label="Streamer Overlay"
+                description="OBS transparent mode"
+                isSelected={viewMode === "streamer"}
+                onClick={(): void => {
+                  onViewModeChange("streamer");
+                }}
+              />
+              {viewMode === "streamer" && (
+                <Checkbox
+                  label="Preview Mode (press F11 to toggle full screen)"
+                  checked={settings.global.viewPreview}
+                  onChange={(checked): void => {
+                    onViewPreviewChange(checked);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Copy URL for OBS */}
+          <div className={styles.section}>
+            <Heading tagName="h3" styleAs="h6" spacing={3} className={styles.sectionHeader}>
+              Share Settings
+            </Heading>
+            <p className={styles.sectionDescription}>Copy URL with all current settings for OBS Browser Source</p>
+            <div className={styles.copyUrlContainer}>
+              <CopyUrlButton settings={settings} server={server} queue={queue} viewMode={"streamer"} />
             </div>
           </div>
         </div>
       </div>
-    </SettingsDialogFrame>
+    </Dialog>
   );
 }
