@@ -1,10 +1,63 @@
 import "@testing-library/jest-dom/vitest";
 
+import { useState } from "react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Dialog } from "../dialog";
+
+function DialogLauncher(): ReactElement {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <button type="button" aria-haspopup="dialog">
+        Settings
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          setIsOpen(true);
+        }}
+      >
+        Open head to head
+      </button>
+      <Dialog
+        open={isOpen}
+        title="Head to head"
+        onClose={(): void => {
+          setIsOpen(false);
+        }}
+      >
+        <p>Matchup details</p>
+      </Dialog>
+    </>
+  );
+}
+
+function EditableDialog(): ReactElement {
+  const [title, setTitle] = useState("");
+
+  return (
+    <>
+      <button type="button" aria-haspopup="dialog">
+        Settings
+      </button>
+      <Dialog open title="Series Settings" onClose={() => undefined}>
+        <label htmlFor="series-title">Series title</label>
+        <input
+          id="series-title"
+          value={title}
+          onChange={(event): void => {
+            setTitle(event.currentTarget.value);
+          }}
+        />
+      </Dialog>
+    </>
+  );
+}
 
 afterEach(() => {
   cleanup();
@@ -99,6 +152,28 @@ describe("Dialog", () => {
     expect(first).toHaveFocus();
     fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
     expect(last).toHaveFocus();
+  });
+
+  it("restores focus to the opener when another dialog trigger is present", async () => {
+    const user = userEvent.setup();
+    render(<DialogLauncher />);
+
+    const opener = screen.getByRole("button", { name: "Open head to head" });
+    await user.click(opener);
+    await user.click(screen.getByRole("button", { name: "Close Head to head" }));
+
+    expect(opener).toHaveFocus();
+  });
+
+  it("keeps focus in the title input while typing", async () => {
+    const user = userEvent.setup();
+    render(<EditableDialog />);
+
+    const titleInput = screen.getByRole("textbox", { name: "Series title" });
+    await user.type(titleInput, "Updated title");
+
+    expect(titleInput).toHaveValue("Updated title");
+    expect(titleInput).toHaveFocus();
   });
 
   it("does not call onClose when content inside the panel is clicked", async () => {

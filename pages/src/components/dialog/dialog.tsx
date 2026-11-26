@@ -26,6 +26,11 @@ export function Dialog({
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -37,7 +42,7 @@ export function Dialog({
 
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -77,14 +82,16 @@ export function Dialog({
 
     return (): void => {
       document.removeEventListener("keydown", handleKeyDown);
-      const currentTrigger = document.querySelector<HTMLElement>('button[aria-haspopup="dialog"]');
-      if (currentTrigger !== null) {
-        currentTrigger.focus();
-      } else if (previouslyFocused.current?.isConnected === true) {
-        previouslyFocused.current.focus();
+      const previousFocusTarget = previouslyFocused.current;
+      if (previousFocusTarget?.isConnected === true && previousFocusTarget !== document.body) {
+        previousFocusTarget.focus();
+        return;
       }
+
+      const currentTrigger = document.querySelector<HTMLElement>('button[aria-haspopup="dialog"]');
+      currentTrigger?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) {
     return null;
