@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { Dialog } from "../../../dialog/dialog";
@@ -56,6 +57,36 @@ function RemountingSettingsDialog(): ReactElement {
   );
 }
 
+function StatefulLiveSettingsDialog(): ReactElement {
+  const [settings, setSettings] = useState(DEFAULT_ALL_SETTINGS);
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={(): void => {
+          setIsOpen(true);
+        }}
+      >
+        Open overlay settings
+      </button>
+      <SettingsDialog
+        isOpen={isOpen}
+        settings={settings}
+        viewMode="wide"
+        onClose={(): void => {
+          setIsOpen(false);
+        }}
+        onSettingsChange={setSettings}
+        onViewModeChange={(): void => undefined}
+        onViewPreviewChange={(): void => undefined}
+      />
+    </>
+  );
+}
+
 describe("SettingsDialog", () => {
   it("retains live controls and callbacks in the shared dialog", () => {
     const onClose = vi.fn();
@@ -103,5 +134,17 @@ describe("SettingsDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Switch display mode" }));
     fireEvent.click(screen.getByRole("button", { name: "Close settings" }));
     expect(trigger).toHaveFocus();
+  });
+
+  it("keeps the live title input focused while settings updates rerender the dialog", async () => {
+    const user = userEvent.setup();
+    render(<StatefulLiveSettingsDialog />);
+
+    await user.click(screen.getByRole("button", { name: "Open overlay settings" }));
+    const titleInput = screen.getByRole("textbox", { name: "Title" });
+    await user.type(titleInput, "Finals");
+
+    expect(titleInput).toHaveValue("Finals");
+    expect(titleInput).toHaveFocus();
   });
 });
