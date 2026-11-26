@@ -9,6 +9,7 @@ import {
   aFakeMatchDetailWith,
   aFakeSeriesDetailResponseWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import { aFakePlayerWith } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
 import { SeriesDetailStatsViewModelPresenter } from "../series-detail-stats-view-model-presenter";
 import { SeriesStatsView } from "../series-stats";
@@ -37,15 +38,16 @@ describe("SeriesStatsView analytics selection", () => {
     const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
     const model = presenter.present(aFakeSeriesDetailResponseWith());
     const team = { seriesTeamId, name: "Original", players: [], teamColorHex: "#FE3939" };
+    const otherTeam = { seriesTeamId: 1, name: "Other", players: [], teamColorHex: "#00AAFF" };
     const { rerender } = render(
-      <SeriesStatsView {...model} teams={[team]} useStableTeamCardKeys={useStableTeamCardKeys} />,
+      <SeriesStatsView {...model} teams={[team, otherTeam]} useStableTeamCardKeys={useStableTeamCardKeys} />,
     );
     const original = screen.getByRole("heading", { name: "Original" });
 
     rerender(
       <SeriesStatsView
         {...model}
-        teams={[{ ...team, name: "Renamed" }]}
+        teams={[{ ...team, name: "Renamed" }, otherTeam]}
         useStableTeamCardKeys={useStableTeamCardKeys}
       />,
     );
@@ -105,5 +107,45 @@ describe("SeriesStatsView analytics selection", () => {
     fireEvent.click(Preconditions.checkExists(killMatrixTabs[0], "series kill matrix tab"));
     expect(onAnalyticsTabSelected).toHaveBeenLastCalledWith("killMatrix");
     expect(onAnalyticsTabSelected).toHaveBeenCalledTimes(3);
+  });
+
+  it("omits the series overview for a free-for-all match", () => {
+    const detail = aFakeMatchDetailWith({
+      mode: { ...aFakeMatchDetailWith().mode, name: "Free for All" },
+      teamsEnabled: false,
+      teamScoringEnabled: false,
+      teamCount: 0,
+      score: { primary: null, secondary: null },
+      teams: [],
+      players: [
+        aFakePlayerWith({
+          playerId: "xuid(1111111111)",
+          xuid: "1111111111",
+          gamertag: "Spartan One",
+          lastMatchTeamId: null,
+          teamStats: [],
+        }),
+        aFakePlayerWith({
+          playerId: "xuid(2222222222)",
+          xuid: "2222222222",
+          gamertag: "Spartan Two",
+          lastMatchTeamId: null,
+          teamStats: [],
+        }),
+      ],
+    });
+    const response = aFakeSeriesDetailResponseWith({
+      matches: {
+        matchIds: [detail.matchId],
+        results: [{ status: "resolved", matchId: detail.matchId, detail }],
+      },
+      aggregation: { status: "unavailable", reason: "aggregation-failed" },
+    });
+    const viewModel = new SeriesDetailStatsViewModelPresenter(new StatsDetailController()).present(response);
+
+    render(<SeriesStatsView {...viewModel} />);
+
+    expect(screen.queryByRole("heading", { name: "Series overview" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
   });
 });

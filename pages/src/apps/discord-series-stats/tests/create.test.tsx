@@ -46,6 +46,27 @@ afterEach(() => {
 });
 
 describe("DiscordSeriesStatsApp", () => {
+  it("shows a player on each team in the default fake series", async () => {
+    mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    const eagleTeam = Preconditions.checkExists(
+      (await screen.findByRole("heading", { name: "Eagle" })).closest("section"),
+      "Eagle team card",
+    );
+    const cobraTeam = Preconditions.checkExists(
+      screen.getByRole("heading", { name: "Cobra" }).closest("section"),
+      "Cobra team card",
+    );
+
+    expect(within(eagleTeam).getByText("Spartan One")).toBeInTheDocument();
+    expect(within(eagleTeam).queryByText("Spartan Two")).not.toBeInTheDocument();
+    expect(within(cobraTeam).getByText("Spartan Two")).toBeInTheDocument();
+    expect(within(cobraTeam).queryByText("Spartan One")).not.toBeInTheDocument();
+  });
+
   it("opens settings from the cog and closes with the close button, Escape and backdrop", async () => {
     mockInstallServices.mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
     render(

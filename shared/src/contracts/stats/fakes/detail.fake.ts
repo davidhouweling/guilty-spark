@@ -1,6 +1,12 @@
 import { GameVariantCategory } from "halo-infinite-api";
 import type { MatchDetail, SeriesPlayer, SeriesTeam, MatchDetailResponse, SeriesDetailResponse } from "../detail";
-import { aFakeMedalWith, aFakePlayerWith, aFakeStatWith, aFakeTeamWith } from "./detail-primitives.fake";
+import {
+  aFakeMedalWith,
+  aFakePlayerTeamStatsWith,
+  aFakePlayerWith,
+  aFakeStatWith,
+  aFakeTeamWith,
+} from "./detail-primitives.fake";
 
 export function aFakeMatchDetailWith(overrides: Partial<MatchDetail> = {}): MatchDetail {
   return {
@@ -19,13 +25,40 @@ export function aFakeMatchDetailWith(overrides: Partial<MatchDetail> = {}): Matc
     matchmakingPlaylist: null,
     teamsEnabled: true,
     teamScoringEnabled: true,
-    teamCount: 1,
+    teamCount: 2,
     score: {
-      primary: { metric: "score", teams: [{ matchTeamId: 7, seriesTeamId: 0, value: 50 }] },
+      primary: {
+        metric: "score",
+        teams: [
+          { matchTeamId: 7, seriesTeamId: 0, value: 50 },
+          { matchTeamId: 19, seriesTeamId: 1, value: 40 },
+        ],
+      },
       secondary: null,
     },
-    teams: [aFakeTeamWith()],
-    players: [aFakePlayerWith()],
+    teams: [
+      aFakeTeamWith(),
+      aFakeTeamWith({
+        matchTeamId: 19,
+        seriesTeamId: 1,
+        name: "Cobra",
+        outcome: "Loss",
+        rank: 2,
+        playerIds: ["xuid(9876543210)"],
+      }),
+    ],
+    players: [
+      aFakePlayerWith(),
+      aFakePlayerWith({
+        playerId: "xuid(9876543210)",
+        xuid: "9876543210",
+        gamertag: "Spartan Two",
+        lastMatchTeamId: 19,
+        outcome: "Loss",
+        rank: 2,
+        teamStats: [aFakePlayerTeamStatsWith({ matchTeamId: 19, seriesTeamId: 1 })],
+      }),
+    ],
     ...overrides,
   };
 }
@@ -80,10 +113,50 @@ export function aFakeSeriesDetailResponseWith(overrides: Partial<SeriesDetailRes
     matches: aFakeMatchDetailResponseWith(),
     aggregation: {
       status: "resolved",
-      gamesPlayed: 2,
+      gamesPlayed: 1,
       completedGameCount: 1,
-      teams: [aFakeSeriesTeamWith()],
-      players: [aFakeSeriesPlayerWith()],
+      teams: [
+        aFakeSeriesTeamWith({ gamesPlayed: 1, gamesWon: 1 }),
+        aFakeSeriesTeamWith({
+          seriesTeamId: 1,
+          name: "Cobra",
+          outcome: "Loss",
+          gamesPlayed: 1,
+          gamesWon: 0,
+          playerIds: ["xuid(9876543210)"],
+          stats: [aFakeStatWith({ value: 18 })],
+          medals: [],
+        }),
+      ],
+      players: [
+        aFakeSeriesPlayerWith({
+          gamesPlayed: 1,
+          teamStats: [
+            {
+              seriesTeamId: 0,
+              gamesPlayed: 1,
+              stats: [aFakeStatWith({ value: 24 })],
+              medals: [aFakeMedalWith({ count: 4 })],
+            },
+          ],
+        }),
+        aFakeSeriesPlayerWith({
+          playerId: "xuid(9876543210)",
+          xuid: "9876543210",
+          gamertag: "Spartan Two",
+          gamesPlayed: 1,
+          stats: [aFakeStatWith({ value: 18 })],
+          medals: [],
+          teamStats: [
+            {
+              seriesTeamId: 1,
+              gamesPlayed: 1,
+              stats: [aFakeStatWith({ value: 18 })],
+              medals: [],
+            },
+          ],
+        }),
+      ],
     },
     ...overrides,
   };
