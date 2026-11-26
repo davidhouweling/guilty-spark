@@ -60,11 +60,7 @@ afterEach(() => {
 
 describe("DiscordSeriesStatsPresenter", () => {
   it("initializes display settings from the URL", (): void => {
-    window.history.replaceState(
-      { marker: "kept" },
-      "",
-      "/?viewMode=standard&title=Finals&campaign=summer#match-one",
-    );
+    window.history.replaceState({ marker: "kept" }, "", "/?viewMode=standard&title=Finals&campaign=summer#match-one");
     const store = new DiscordSeriesStatsStore();
     const presenter = createPresenter(store, aFakeDiscordSeriesStatsServiceWith());
 

@@ -2,7 +2,11 @@ import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import type { AllStreamerSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
-import { buildUrlWithViewMode, encodeSettingsToUrlParams, parseSettingsFromUrl } from "../../components/live-tracker/settings/settings-url-params";
+import {
+  buildUrlWithViewMode,
+  encodeSettingsToUrlParams,
+  parseSettingsFromUrl,
+} from "../../components/live-tracker/settings/settings-url-params";
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
 import type { SeriesAnalyticsController } from "../../controllers/series-analytics/series-analytics-controller";

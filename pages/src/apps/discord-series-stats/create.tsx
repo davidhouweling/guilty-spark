@@ -59,14 +59,7 @@ function DiscordSeriesStatsData({
     });
     target.presenter = instance;
     return instance;
-  }, [
-    discordSeriesStatsService,
-    guildId,
-    initialSettings,
-    matchAnalyticsService,
-    queueNumber,
-    store,
-  ]);
+  }, [discordSeriesStatsService, guildId, initialSettings, matchAnalyticsService, queueNumber, store]);
 
   useEffect(() => {
     presenter.start();
