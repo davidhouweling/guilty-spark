@@ -248,10 +248,15 @@ describe("DiscordSeriesStatsApp", () => {
     expect(matchesContainer).not.toHaveClass(containerStyles.wide);
 
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    const dialog = screen.getByRole("dialog", { name: "Series Settings" });
     expect(screen.getByRole("button", { name: "Narrow View" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: /Streamer View/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Wide View" }));
+    const wideButton = screen.getByRole("button", { name: "Wide View" });
+    wideButton.focus();
+    fireEvent.click(wideButton);
 
+    expect(screen.getByRole("dialog", { name: "Series Settings" })).toBe(dialog);
+    expect(wideButton).toHaveFocus();
     expect(matchesContainer).toHaveClass(containerStyles.wide);
     expect(new URL(window.location.href).searchParams.get("viewMode")).toBe("wide");
     expect(new URL(window.location.href).searchParams.get("campaign")).toBe("summer");
