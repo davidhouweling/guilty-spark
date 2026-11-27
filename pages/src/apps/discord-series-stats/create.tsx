@@ -11,7 +11,7 @@ import type { DiscordSeriesStatsService } from "../../services/stats/discord-ser
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { ViewMode } from "../../components/view-mode/view-mode-selector";
 import { useStreamerSettings } from "../../components/live-tracker/settings/use-streamer-settings";
-import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import { DiscordSeriesStatsPresenter } from "./discord-series-stats-presenter";
 import { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import { installServices } from "./services";
@@ -35,7 +35,7 @@ function DiscordSeriesStatsData({
   guildId,
   queueNumber,
 }: DiscordSeriesStatsDataProps): ReactElement {
-  const { settings } = useStreamerSettings();
+  const { settings, updateGlobalSettings } = useStreamerSettings();
   const [initialSettings] = useState(() => settings);
   const DiscordSeriesStats = useMemo(() => createDiscordSeriesDetailStats(), []);
   const store = useMemo(() => new DiscordSeriesStatsStore(), []);
@@ -56,10 +56,19 @@ function DiscordSeriesStatsData({
       guildId,
       queueNumber,
       settings: initialSettings,
+      updateGlobalSettings,
     });
     target.presenter = instance;
     return instance;
-  }, [discordSeriesStatsService, guildId, initialSettings, matchAnalyticsService, queueNumber, store]);
+  }, [
+    discordSeriesStatsService,
+    guildId,
+    initialSettings,
+    matchAnalyticsService,
+    queueNumber,
+    store,
+    updateGlobalSettings,
+  ]);
 
   useEffect(() => {
     presenter.start();
@@ -94,6 +103,12 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
+  const onObserverColorsChange = useCallback(
+    (updates: Partial<ObserverViewColorSettings>): void => {
+      presenter.setObserverColors(updates);
+    },
+    [presenter],
+  );
   const loaderStatus =
     model.state === "loading"
       ? ComponentLoaderStatus.LOADING
@@ -113,6 +128,8 @@ function DiscordSeriesStatsData({
             analyticsByMatchId={snapshot.analyticsByMatchId}
             viewMode={snapshot.viewMode}
             seriesSettings={snapshot.seriesSettings}
+            observerColors={snapshot.observerColors}
+            onObserverColorsChange={onObserverColorsChange}
             onSeriesSettingsChange={onSeriesSettingsChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}

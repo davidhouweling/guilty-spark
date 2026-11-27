@@ -1,6 +1,6 @@
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
-import type { SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
+import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../../components/live-tracker/settings/types";
 import type { SeriesMatchAnalyticsById } from "../../components/series-stats/types";
 import type { DiscordSeriesStatsDetailResult } from "../../services/stats/discord-series-types";
 
@@ -13,6 +13,7 @@ export interface DiscordSeriesStatsSnapshot {
   readonly analyticsByMatchId: SeriesMatchAnalyticsById;
   readonly viewMode: "standard" | "wide";
   readonly seriesSettings: SeriesStreamerSettings;
+  readonly observerColors: ObserverViewColorSettings;
 }
 
 export type DiscordSeriesStatsViewModel =

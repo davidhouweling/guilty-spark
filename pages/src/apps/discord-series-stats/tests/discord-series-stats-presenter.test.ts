@@ -32,6 +32,7 @@ function createPresenter(
   discordSeriesStatsService: DiscordSeriesStatsService,
   matchAnalyticsService: MatchAnalyticsService = aFakeMatchAnalyticsServiceWith(),
   settings: AllStreamerSettings = DEFAULT_ALL_SETTINGS,
+  updateGlobalSettings: (settings: Partial<AllStreamerSettings["global"]>) => void = vi.fn(),
 ): DiscordSeriesStatsPresenter {
   const target: { presenter?: DiscordSeriesStatsPresenter | undefined } = {};
   const analyticsController = new SeriesAnalyticsController({
@@ -49,6 +50,7 @@ function createPresenter(
     guildId: "123456789012345678",
     queueNumber: "7777",
     settings,
+    updateGlobalSettings,
   });
   target.presenter = presenter;
   return presenter;
@@ -86,11 +88,41 @@ describe("DiscordSeriesStatsPresenter", () => {
       seriesSettings: { titleOverride: "Championship", subtitleOverride: "Season 1" },
       viewMode: "wide",
     });
+
     expect(url.searchParams.get("title")).toBe("Championship");
     expect(url.searchParams.get("subtitle")).toBe("Season 1");
     expect(url.searchParams.get("viewMode")).toBe("wide");
     expect(url.searchParams.get("campaign")).toBe("summer");
     expect(url.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+  });
+
+  it("updates both colors without persisting an untouched URL override", (): void => {
+    window.history.replaceState({ marker: "kept" }, "", "/?eagleColor=carrot&campaign=summer#match-one");
+    const store = new DiscordSeriesStatsStore();
+    const save = vi.fn<(settings: Partial<AllStreamerSettings["global"]>) => void>();
+    const presenter = createPresenter(
+      store,
+      aFakeDiscordSeriesStatsServiceWith(),
+      undefined,
+      DEFAULT_ALL_SETTINGS,
+      save,
+    );
+    presenter.start();
+
+    presenter.setObserverColors({ cobraColor: "sky" });
+    expect(store.getSnapshot().observerColors).toEqual({ eagleColor: "carrot", cobraColor: "sky" });
+    expect(save).toHaveBeenLastCalledWith({
+      colors: { ...DEFAULT_ALL_SETTINGS.global.colors, observerView: { eagleColor: "salmon", cobraColor: "sky" } },
+    });
+
+    presenter.setObserverColors({ eagleColor: "jade" });
+    expect(store.getSnapshot().observerColors).toEqual({ eagleColor: "jade", cobraColor: "sky" });
+    expect(save).toHaveBeenLastCalledWith({
+      colors: { ...DEFAULT_ALL_SETTINGS.global.colors, observerView: { eagleColor: "jade", cobraColor: "sky" } },
+    });
+    expect(window.location.search).toBe("?eagleColor=jade&campaign=summer&cobraColor=sky");
+    expect(window.location.hash).toBe("#match-one");
     expect(window.history.state).toEqual({ marker: "kept" });
   });
 

@@ -6,7 +6,7 @@ import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
 import type { ViewMode } from "../view-mode/view-mode-selector";
-import type { SeriesStreamerSettings } from "../live-tracker/settings/types";
+import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../live-tracker/settings/types";
 import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
 import { ArchiveSettingsTrigger } from "./settings/archive-settings-trigger";
 import styles from "./discord-series-stats.module.css";
@@ -14,9 +14,12 @@ import styles from "./discord-series-stats.module.css";
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
   readonly seriesSettings: SeriesStreamerSettings;
+  readonly observerColors: ObserverViewColorSettings;
+  readonly colorLabels: { readonly first: string; readonly second: string } | null;
   readonly defaultTitle: string | null;
   readonly defaultSubtitle: string | null;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
@@ -40,9 +43,12 @@ export function DiscordSeriesStatsView({
   subtitle,
   viewMode,
   seriesSettings,
+  observerColors,
+  colorLabels,
   defaultTitle,
   defaultSubtitle,
   onSeriesSettingsChange,
+  onObserverColorsChange,
   onViewModeSelect,
   onAnalyticsTabSelected,
   ...stats
@@ -72,12 +78,15 @@ export function DiscordSeriesStatsView({
         <ArchiveSettingsDialog
           viewMode={viewMode}
           seriesSettings={seriesSettings}
+          observerColors={observerColors}
+          colorLabels={colorLabels}
           defaultTitle={defaultTitle}
           defaultSubtitle={defaultSubtitle}
           onClose={(): void => {
             setIsSettingsOpen(false);
           }}
           onSeriesSettingsChange={onSeriesSettingsChange}
+          onObserverColorsChange={onObserverColorsChange}
           onViewModeSelect={onViewModeSelect}
         />
       )}
