@@ -137,7 +137,7 @@ describe("DiscordSeriesStatsApp", () => {
       expect(within(screen.getByRole("dialog")).getByRole("heading", { name: "Team Colors" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Player View" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Select Your Player")).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Select Second series team color" }));
+      fireEvent.click(screen.getByRole("button", { name: "Select Cobra team color" }));
       fireEvent.click(screen.getByRole("button", { name: "Sky" }));
 
       expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #49B8FE");
@@ -213,7 +213,7 @@ describe("DiscordSeriesStatsApp", () => {
     expect(
       screen.getByText("Team colors cannot be customized because stable series teams are unavailable."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Select First series team color" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select Eagle team color" })).not.toBeInTheDocument();
   });
 
   it("loads and renders resolved queue stats", async () => {

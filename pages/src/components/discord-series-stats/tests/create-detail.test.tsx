@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
@@ -149,7 +149,7 @@ describe("DiscordSeriesDetailStats", () => {
     expect(screen.getByText("Failed to load detailed stats for match missing.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
-    expect(screen.queryByRole("button", { name: "Select First series team color" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select Eagle team color" })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -202,7 +202,56 @@ describe("DiscordSeriesDetailStats", () => {
     expect(screen.getByRole("heading", { name: "Eagle" }).closest("section")).toHaveStyle("--team-color: #FE3939");
     expect(screen.getByRole("heading", { name: "Cobra" }).closest("section")).toHaveStyle("--team-color: #3B9DFF");
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
-    expect(screen.getByRole("button", { name: "Select First series team color" })).toHaveTextContent("Salmon");
-    expect(screen.getByRole("button", { name: "Select Second series team color" })).toHaveTextContent("Cerulean");
+    expect(screen.getByRole("button", { name: "Select Eagle team color" })).toHaveTextContent("Salmon");
+    expect(screen.getByRole("button", { name: "Select Cobra team color" })).toHaveTextContent("Cerulean");
+  });
+
+  it("labels color controls with the corresponding overview team names", () => {
+    const DiscordSeriesStats = createDiscordSeriesDetailStats();
+    const data = aFakeSeriesDetailWithTeamSwap();
+    if (data.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved series aggregation");
+    }
+    const teams = data.aggregation.teams.map((team) => ({
+      ...team,
+      name: team.seriesTeamId === 0 ? "Alpha" : "Bravo",
+    }));
+    const onObserverColorsChange = vi.fn<(updates: Partial<typeof DEFAULT_COLOR_SETTINGS.observerView>) => void>();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    try {
+      render(
+        <DiscordSeriesStats
+          data={{ ...data, aggregation: { ...data.aggregation, teams: teams.reverse() } }}
+          analyticsByMatchId={new Map()}
+          viewMode="wide"
+          seriesSettings={DEFAULT_SERIES_SETTINGS}
+          observerColors={DEFAULT_COLOR_SETTINGS.observerView}
+          onObserverColorsChange={onObserverColorsChange}
+          onSeriesSettingsChange={vi.fn()}
+          onViewModeSelect={vi.fn()}
+          onAnalyticsTabSelected={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Bravo" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+      fireEvent.click(screen.getByRole("button", { name: "Select Alpha team color" }));
+      fireEvent.click(screen.getByRole("button", { name: "Jade" }));
+      expect(onObserverColorsChange).toHaveBeenCalledWith({ eagleColor: "jade" });
+      const secondPicker = screen.getByRole("button", { name: "Select Bravo team color" });
+      fireEvent.click(secondPicker);
+      fireEvent.click(
+        within(Preconditions.checkExists(secondPicker.parentElement)).getByRole("button", { name: "Sky" }),
+      );
+      expect(onObserverColorsChange).toHaveBeenCalledWith({ cobraColor: "sky" });
+    } finally {
+      if (scrollDescriptor == null) {
+        Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+      } else {
+        Object.defineProperty(Element.prototype, "scrollIntoView", scrollDescriptor);
+      }
+    }
   });
 });

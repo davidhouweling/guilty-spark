@@ -12,7 +12,7 @@ interface ArchiveSettingsDialogProps {
   readonly viewMode: ViewMode;
   readonly seriesSettings: SeriesStreamerSettings;
   readonly observerColors: ObserverViewColorSettings;
-  readonly colorSettingsAvailable: boolean;
+  readonly colorLabels: { readonly first: string; readonly second: string } | null;
   readonly defaultTitle: string | null;
   readonly defaultSubtitle: string | null;
   readonly onClose: () => void;
@@ -25,7 +25,7 @@ export function ArchiveSettingsDialog({
   viewMode,
   seriesSettings,
   observerColors,
-  colorSettingsAvailable,
+  colorLabels,
   defaultTitle,
   defaultSubtitle,
   onClose,
@@ -73,13 +73,13 @@ export function ArchiveSettingsDialog({
             <Heading tagName="h3" styleAs="h6" spacing={3}>
               Team Colors
             </Heading>
-            {colorSettingsAvailable ? (
+            {colorLabels != null ? (
               <>
                 <p>Archived series use observer colors in stable series-team order.</p>
                 <ObserverColorSettings
                   settings={observerColors}
-                  firstLabel="First series team color"
-                  secondLabel="Second series team color"
+                  firstLabel={colorLabels.first}
+                  secondLabel={colorLabels.second}
                   onChange={onObserverColorsChange}
                 />
               </>

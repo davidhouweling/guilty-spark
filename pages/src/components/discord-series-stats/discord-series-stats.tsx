@@ -15,7 +15,7 @@ interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
   readonly seriesSettings: SeriesStreamerSettings;
   readonly observerColors: ObserverViewColorSettings;
-  readonly colorSettingsAvailable: boolean;
+  readonly colorLabels: { readonly first: string; readonly second: string } | null;
   readonly defaultTitle: string | null;
   readonly defaultSubtitle: string | null;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
@@ -44,7 +44,7 @@ export function DiscordSeriesStatsView({
   viewMode,
   seriesSettings,
   observerColors,
-  colorSettingsAvailable,
+  colorLabels,
   defaultTitle,
   defaultSubtitle,
   onSeriesSettingsChange,
@@ -79,7 +79,7 @@ export function DiscordSeriesStatsView({
           viewMode={viewMode}
           seriesSettings={seriesSettings}
           observerColors={observerColors}
-          colorSettingsAvailable={colorSettingsAvailable}
+          colorLabels={colorLabels}
           defaultTitle={defaultTitle}
           defaultSubtitle={defaultSubtitle}
           onClose={(): void => {

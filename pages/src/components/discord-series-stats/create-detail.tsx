@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
 import type { SeriesMatchAnalyticsById } from "../series-stats/types";
 import { SeriesDetailStatsViewModelPresenter } from "../series-stats/series-detail-stats-view-model-presenter";
@@ -44,6 +45,12 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
       () => presenter.present(data, analyticsByMatchId, { teamColors: colorModel.teamColors }),
       [analyticsByMatchId, colorModel, data, presenter],
     );
+    const colorLabels = colorModel.available
+      ? {
+          first: `${Preconditions.checkExists(model.teams[0], "First series team is missing").name} team color`,
+          second: `${Preconditions.checkExists(model.teams[1], "Second series team is missing").name} team color`,
+        }
+      : null;
 
     return (
       <DiscordSeriesStatsView
@@ -53,7 +60,7 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
         viewMode={viewMode}
         seriesSettings={seriesSettings}
         observerColors={observerColors}
-        colorSettingsAvailable={colorModel.available}
+        colorLabels={colorLabels}
         onObserverColorsChange={onObserverColorsChange}
         defaultTitle={data.context?.title ?? null}
         defaultSubtitle={data.context?.subtitle ?? null}
