@@ -6,16 +6,16 @@ import styles from "./color-settings-section.module.css";
 
 interface ObserverColorSettingsProps {
   readonly settings: ObserverViewColorSettings;
-  readonly onChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly firstLabel?: string;
   readonly secondLabel?: string;
+  readonly onChange: (updates: Partial<ObserverViewColorSettings>) => void;
 }
 
 export function ObserverColorSettings({
   settings,
-  onChange,
   firstLabel = "Eagle Team Color",
   secondLabel = "Cobra Team Color",
+  onChange,
 }: ObserverColorSettingsProps): ReactElement {
   return (
     <div className={styles.viewSettings}>
