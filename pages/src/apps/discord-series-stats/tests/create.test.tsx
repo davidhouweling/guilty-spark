@@ -244,12 +244,16 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.queryByLabelText("Team 1 Name")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     expect(screen.getByLabelText("Team 1 Name")).toHaveValue("URL Eagles");
+    expect(screen.getByRole("button", { name: "Select URL Eagles team color" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select URL Cobras team color" })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /player names/i })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Team 1 Name"), { target: { value: "Finals" } });
     fireEvent.change(screen.getByLabelText("Team 2 Name"), { target: { value: "" } });
 
     expect(screen.getByRole("heading", { name: "Finals" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Finals team color" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Cobra team color" })).toBeInTheDocument();
     let url = new URL(window.location.href);
     expect(url.searchParams.get("eagleTeamName")).toBe("Finals");
     expect(url.searchParams.has("cobraTeamName")).toBe(false);
@@ -268,6 +272,7 @@ describe("DiscordSeriesStatsApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
     fireEvent.change(screen.getByLabelText("Team 1 Name"), { target: { value: "" } });
     expect(screen.getByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Eagle team color" })).toBeInTheDocument();
     url = new URL(window.location.href);
     expect(url.searchParams.has("eagleTeamName")).toBe(false);
     expect(url.searchParams.has("cobraTeamName")).toBe(false);
