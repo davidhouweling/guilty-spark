@@ -34,7 +34,117 @@ vi.mock("../../icons/medal-icon", () => ({
   MedalIcon: ({ medalName }: { medalName: string }): ReactNode => <div>{medalName}</div>,
 }));
 
+vi.mock("../../scrolling-content/scrolling-content", () => ({
+  ScrollingContent: ({
+    children,
+    onScrollComplete,
+  }: {
+    children: ReactNode;
+    onScrollComplete: () => void;
+  }): ReactNode => (
+    <div>
+      {children}
+      <button onClick={onScrollComplete}>Next ticker row</button>
+    </div>
+  ),
+}));
+
+function renderArchiveTicker(): void {
+  const data = aFakeSeriesDetailWithTeamSwap();
+  const teams = [
+    aFakeSeriesTeamWith({ seriesTeamId: 7, name: "Cobra", playerIds: ["sub", "bot", "unknown"] }),
+    aFakeSeriesTeamWith({ seriesTeamId: 2, name: "Eagle", playerIds: ["full"] }),
+  ];
+  const player = (
+    playerId: string,
+    gamertag: string | null,
+    playerType: number,
+    teamId: number,
+    gamesPlayed: number,
+  ): ReturnType<typeof aFakeSeriesPlayerWith> =>
+    aFakeSeriesPlayerWith({
+      playerId,
+      gamertag,
+      playerType,
+      teamStats: [{ seriesTeamId: teamId, gamesPlayed, stats: [], medals: [] }],
+    });
+  const DiscordSeriesStats = createDiscordSeriesDetailStats();
+  render(
+    <DiscordSeriesStats
+      data={{
+        ...data,
+        matches: {
+          ...data.matches,
+          results: data.matches.results.map((result) =>
+            result.status !== "resolved"
+              ? result
+              : {
+                  ...result,
+                  detail: {
+                    ...result.detail,
+                    teams: result.detail.teams.map((team) => ({
+                      ...team,
+                      seriesTeamId: team.seriesTeamId === 0 ? 2 : 7,
+                    })),
+                  },
+                },
+          ),
+        },
+        aggregation: {
+          status: "resolved",
+          gamesPlayed: 2,
+          completedGameCount: 2,
+          teams,
+          players: [
+            player("sub", "Substitute", 1, 7, 1),
+            player("bot", "Hidden bot name", 2, 7, 1),
+            player("unknown", null, 1, 7, 1),
+            player("full", "Full Player", 1, 2, 2),
+          ],
+        },
+      }}
+      analyticsByMatchId={new Map()}
+      viewMode="streamer"
+      streamerSettings={{ ...DEFAULT_ALL_SETTINGS, global: { ...DEFAULT_ALL_SETTINGS.global, viewMode: "streamer" } }}
+      seriesSettings={DEFAULT_SERIES_SETTINGS}
+      observerColors={{ eagleColor: "jade", cobraColor: "sky" }}
+      onObserverColorsChange={vi.fn()}
+      onSeriesSettingsChange={vi.fn()}
+      onViewModeSelect={vi.fn()}
+      onAnalyticsTabSelected={vi.fn()}
+    />,
+  );
+}
+
 describe("DiscordSeriesDetailStats", () => {
+  it("uses stable team identities for rendered ticker colors despite reversed aggregation order", () => {
+    renderArchiveTicker();
+    const ticker = Preconditions.checkExists(screen.getByText("Series Stats").closest('[style*="--row-color"]'));
+    expect(ticker).toHaveTextContent("Cobra");
+    expect(ticker).toHaveStyle("--row-color: #49B8FE");
+    fireEvent.click(screen.getByRole("button", { name: "Next ticker row" }));
+    expect(ticker).toHaveTextContent("Eagle");
+    expect(ticker).toHaveStyle("--row-color: #8AFFBE");
+    fireEvent.click(screen.getByRole("button", { name: "Next ticker row" }));
+    expect(ticker).toHaveTextContent("Substitute");
+    expect(ticker).toHaveStyle("--row-color: #49B8FE");
+  });
+
+  it("renders partial-series suffixes and preserves bot and unknown player labels", () => {
+    renderArchiveTicker();
+    const next = screen.getByRole("button", { name: "Next ticker row" });
+    fireEvent.click(next);
+    fireEvent.click(next);
+    expect(screen.getByText("Substitute (1/2 games)")).toBeInTheDocument();
+    fireEvent.click(next);
+    expect(screen.getByText("Bot (1/2 games)")).toBeInTheDocument();
+    expect(screen.queryByText("Hidden bot name")).not.toBeInTheDocument();
+    fireEvent.click(next);
+    expect(screen.getByText("*Unknown* (1/2 games)")).toBeInTheDocument();
+    fireEvent.click(next);
+    expect(screen.getByText("Full Player")).toBeInTheDocument();
+  });
+
   it("keeps exactly two stable team cards through duplicate and distinct labels", () => {
     const DiscordSeriesStats = createDiscordSeriesDetailStats();
     const props = {

@@ -1,5 +1,6 @@
 import type { SeriesAggregation, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { CSSProperties } from "react";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import type { StatsDetailController } from "../../controllers/stats/stats-detail-controller";
@@ -71,11 +72,17 @@ function getTickerGroups(
   if (projection.status !== "resolved") {
     return [];
   }
+  const colorIndexByTeamId = new Map(
+    [...aggregation.teams]
+      .sort((left, right) => left.seriesTeamId - right.seriesTeamId)
+      .map((team, index) => [team.seriesTeamId, index]),
+  );
 
   const rows: TickerMatchGroup["rows"] = [
     ...projection.teamData.map((team) => ({
       type: "team" as const,
       teamId: team.teamId,
+      teamColorIndex: Preconditions.checkExists(colorIndexByTeamId.get(team.teamId), "Missing series team color"),
       name:
         seriesModel.teams.find(({ seriesTeamId: id }) => id === team.teamId)?.name ??
         aggregation.teams.find(({ seriesTeamId: id }) => id === team.teamId)?.name ??
@@ -88,8 +95,8 @@ function getTickerGroups(
       team.players.map((player) => ({
         type: "player" as const,
         teamId: team.teamId,
+        teamColorIndex: Preconditions.checkExists(colorIndexByTeamId.get(team.teamId), "Missing series team color"),
         name: player.name,
-        gamertag: player.gamertag,
         stats: getVisibleStats(player.values, settings),
         medals: getVisibleMedals(player.medals, settings),
         hasUnavailableMedals: player.hasUnknownRarity,
