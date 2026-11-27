@@ -53,7 +53,7 @@ describe("createSeriesStatsContent", () => {
     expect(screen.queryByRole("heading", { name: "Series overview" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Series Totals" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Matches" })).toBeInTheDocument();
-    expect(teamRowColors()).toEqual(["#FE3939"]);
+    expect(teamRowColors()).toEqual(["#FE3939", "#3B9DFF"]);
     fireEvent.click(screen.getByRole("tab", { name: "Timeline" }));
     expect(onAnalyticsTabSelected).toHaveBeenCalledWith("scoreProgression", "match-one");
   });
@@ -63,10 +63,10 @@ describe("createSeriesStatsContent", () => {
     const props = viewerPropsWith({ teamColors: [getTeamColorOrDefault("jade", 0)] });
 
     const { rerender } = render(<SeriesStatsContent {...props} />);
-    expect(teamRowColors()).toEqual(["#8AFFBE"]);
+    expect(teamRowColors()).toEqual(["#8AFFBE", "#3B9DFF"]);
 
     rerender(<SeriesStatsContent {...props} teamColors={[getTeamColorOrDefault("mint", 0)]} />);
-    expect(teamRowColors()).toEqual(["#23ED7D"]);
+    expect(teamRowColors()).toEqual(["#23ED7D", "#3B9DFF"]);
   });
 
   it("renders fresh content after unmount and remount of the same factory component", () => {
@@ -74,12 +74,12 @@ describe("createSeriesStatsContent", () => {
     const first = render(
       <SeriesStatsContent {...viewerPropsWith({ teamColors: [getTeamColorOrDefault("jade", 0)] })} />,
     );
-    expect(teamRowColors()).toEqual(["#8AFFBE"]);
+    expect(teamRowColors()).toEqual(["#8AFFBE", "#3B9DFF"]);
     first.unmount();
 
     render(<SeriesStatsContent {...viewerPropsWith()} />);
 
-    expect(teamRowColors()).toEqual(["#FE3939"]);
+    expect(teamRowColors()).toEqual(["#FE3939", "#3B9DFF"]);
     expect(screen.getAllByRole("heading", { name: "Series Totals" })).toHaveLength(1);
   });
 });
