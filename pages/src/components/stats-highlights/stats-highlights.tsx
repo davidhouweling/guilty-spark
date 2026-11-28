@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { INDIVIDUAL_STATS_HIGHLIGHTS_MAX_SLOT_COUNT } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../alert/alert";
 import { Checkbox } from "../checkbox/checkbox";

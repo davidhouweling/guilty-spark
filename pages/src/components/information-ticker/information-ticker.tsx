@@ -1,4 +1,5 @@
-import React, { useEffect, memo, useState } from "react";
+import type React from "react";
+import { useEffect, memo, useState } from "react";
 import classNames from "classnames";
 import type { MatchStatsValues } from "../../controllers/stats/types";
 import type { TeamColor } from "../team-colors/team-colors";

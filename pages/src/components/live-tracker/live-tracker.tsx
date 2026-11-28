@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import type React from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import classNames from "classnames";
 import { Heading } from "../heading/heading";

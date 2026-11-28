@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { Heading } from "../heading/heading";
 import { LoadingState } from "../loading-state/loading-state";
 import { Select } from "../select/select";

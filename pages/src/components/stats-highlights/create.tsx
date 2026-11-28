@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useSyncExternalStore } from "react";
+import type React from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { StatsHighlightsSectionPresenter } from "./stats-highlights-presenter";
 import { StatsHighlightsSectionStore } from "./stats-highlights-store";
 import { StatsHighlightsSectionView } from "./stats-highlights";

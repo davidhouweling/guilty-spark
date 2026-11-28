@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import React, { cloneElement } from "react";
+import type React from "react";
+import { cloneElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TimelineGanttChart } from "../timeline-gantt-chart";

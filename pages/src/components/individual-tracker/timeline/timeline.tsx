@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import { formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";

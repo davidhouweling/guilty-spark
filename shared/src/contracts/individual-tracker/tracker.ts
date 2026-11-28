@@ -114,7 +114,7 @@ export const editSeriesRequestSchema = z
   })
   .refine(
     (data) => data.titleOverride !== undefined || data.subtitleOverride !== undefined || data.teams !== undefined,
-    { message: "At least one field must be provided" },
+    { error: "At least one field must be provided" },
   );
 export type EditSeriesRequest = z.infer<typeof editSeriesRequestSchema>;
 

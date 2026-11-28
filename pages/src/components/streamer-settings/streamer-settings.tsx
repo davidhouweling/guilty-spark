@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import classNames from "classnames";
 import type { StreamerViewColorMode } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import { Alert } from "../alert/alert";

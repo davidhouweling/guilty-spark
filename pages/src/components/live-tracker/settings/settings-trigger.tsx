@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import guiltySpark from "../../../assets/guilty-spark-icon.png";
 import { Button } from "../../button/button";

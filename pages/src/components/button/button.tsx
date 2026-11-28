@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import type { ImageMetadata } from "astro";
 import classNames from "classnames";
 import styles from "./button.module.css";

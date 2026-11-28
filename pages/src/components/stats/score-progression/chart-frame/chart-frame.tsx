@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { ChartTypeSelect } from "../chart-type-select/chart-type-select";
 import type { ChartType, ChartTypeOption } from "../types";
 import styles from "../score-progression.module.css";

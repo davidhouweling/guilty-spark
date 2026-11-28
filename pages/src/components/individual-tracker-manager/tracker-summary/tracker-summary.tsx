@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import type { TrackerSearchResult } from "../../../services/individual-tracker/types";
 import { RankIcon } from "../../icons/rank-icon";

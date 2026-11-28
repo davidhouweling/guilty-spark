@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Dialog } from "../../dialog/dialog";
 import { Heading } from "../../heading/heading";
 import type { ViewMode } from "../../view-mode/view-mode-selector";

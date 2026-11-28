@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import type React from "react";
+import { useEffect } from "react";
 import { ComponentLoader } from "../component-loader/component-loader";
 import { Container } from "../container/container";
 import { ErrorState } from "../error-state/error-state";

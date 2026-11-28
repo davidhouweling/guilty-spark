@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import type { PreparedMatchHistoryEntry } from "../../../services/individual-tracker/types";
 import { Alert } from "../../alert/alert";

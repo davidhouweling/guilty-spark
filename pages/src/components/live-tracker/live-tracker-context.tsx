@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo } from "react";
+import type React from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import type { MatchStatsData } from "../../controllers/stats/types";

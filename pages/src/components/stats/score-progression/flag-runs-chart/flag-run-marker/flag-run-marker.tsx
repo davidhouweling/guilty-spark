@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import type { FlagRunMarkerKind } from "../../types";
 

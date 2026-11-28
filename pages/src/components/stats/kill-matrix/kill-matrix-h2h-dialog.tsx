@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Dialog } from "../../dialog/dialog";
 import { TeamIcon } from "../../icons/team-icon";
 import type { H2HDialogData } from "../../../controllers/stats/kill-matrix/types";

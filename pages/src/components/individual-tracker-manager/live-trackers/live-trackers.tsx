@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Alert } from "../../alert/alert";
 import type { TrackerListItem, TrackerRowAction } from "../tracker-list/tracker-list";
 import { TrackerList } from "../tracker-list/tracker-list";

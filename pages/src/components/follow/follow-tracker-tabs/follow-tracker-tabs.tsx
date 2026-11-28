@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { TabbedSection } from "../../tabbed-section/tabbed-section";
 import type { FollowTrackerTab } from "../types";
 import styles from "./follow-tracker-tabs.module.css";

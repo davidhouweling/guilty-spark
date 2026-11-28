@@ -1,4 +1,5 @@
-import React, { useMemo, useSyncExternalStore } from "react";
+import type React from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import type { MatchHistoryDisplayEntry } from "../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../individual-tracker/series-group-metadata";
 import { MatchHistoryPresenter } from "./match-history-presenter";

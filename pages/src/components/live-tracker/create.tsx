@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { LiveTrackerIdentity } from "@guilty-spark/shared/live-tracker/types";

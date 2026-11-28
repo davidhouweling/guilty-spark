@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { Button } from "../button/button";
 import { Container } from "../container/container";
 import { Input } from "../input/input";

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import type React from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ImageMetadata } from "astro";
 import { HoverZoom } from "../hover-zoom/hover-zoom";
 import TrackerManageScreenshot from "../../assets/screenshot20260719-individual-tracker-manage.png";

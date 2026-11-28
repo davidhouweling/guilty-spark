@@ -8,7 +8,7 @@ export const discordSeriesStatsParamsSchema = z.object({
     .regex(/^[1-9]\d*$/, "Invalid queueNumber")
     .transform((value) => Number(value))
     .refine((value) => Number.isSafeInteger(value) && value <= Number.MAX_SAFE_INTEGER, {
-      message: "Invalid queueNumber",
+      error: "Invalid queueNumber",
     }),
 });
 export type DiscordSeriesStatsParams = z.infer<typeof discordSeriesStatsParamsSchema>;

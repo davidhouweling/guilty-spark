@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Input } from "../../input/input";
 import type { SeriesStreamerSettings } from "./types";
 import styles from "./series-title-section.module.css";

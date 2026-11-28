@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import type React from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerViewService } from "../../../services/individual-tracker/view-types";
 import { ManualSeriesDialogPresenter } from "./manual-series-dialog-presenter";

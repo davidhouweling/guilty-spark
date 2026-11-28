@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import React from "react";
+import type React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { DeltaChart } from "../delta-chart";

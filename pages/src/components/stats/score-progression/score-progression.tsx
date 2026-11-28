@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Checkbox } from "../../checkbox/checkbox";
 import { ZONE_ADVANTAGE_SERIES } from "./chart-constants";
