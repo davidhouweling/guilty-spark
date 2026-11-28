@@ -379,7 +379,7 @@ export class SeriesDetailStatsViewModelPresenter {
     }
     const historicalPlayers = this.getSeriesKillMatrixPlayers(aggregation);
     const hasTeamChanges = historicalPlayers.some((player) => player.teamId == null);
-    const seriesPlayers = this.presentSeriesKillMatrixPlayers(historicalPlayers, latestMatch);
+    const seriesPlayers = this.presentSeriesKillMatrixPlayers(historicalPlayers, latestMatch, aggregation);
     const playersByXuid = new Map(seriesPlayers.map((player) => [player.xuid, player]));
     const matchKillMatrixRows: ReturnType<KillMatrixFormatter["present"]> = [];
     let hasKillMatrixData = false;
@@ -441,9 +441,22 @@ export class SeriesDetailStatsViewModelPresenter {
   private presentSeriesKillMatrixPlayers(
     players: readonly KillMatrixPlayer[],
     latestMatch: MatchDetail | null,
+    aggregation: ResolvedAggregation,
   ): KillMatrixPlayer[] {
     const latestPlayers = new Map(latestMatch?.players.map((player) => [player.xuid, player]) ?? []);
     const teams = new Map(latestMatch?.teams.map((team) => [team.matchTeamId, team.seriesTeamId]) ?? []);
+    const xuidsById = new Map(aggregation.players.map((player) => [player.playerId, player.xuid]));
+    const playerOrderByTeam = new Map(
+      aggregation.teams.map((team) => [
+        team.seriesTeamId,
+        new Map(
+          team.playerIds.flatMap((id, index) => {
+            const xuid = xuidsById.get(id);
+            return xuid == null ? [] : [[xuid, index]];
+          }),
+        ),
+      ]),
+    );
     return players
       .map((player) => {
         const latestPlayer = latestPlayers.get(player.xuid);
@@ -452,7 +465,15 @@ export class SeriesDetailStatsViewModelPresenter {
           ? player
           : { ...player, teamId: teamId == null ? null : (teams.get(teamId) ?? null) };
       })
-      .sort((left, right) => (left.teamId ?? Infinity) - (right.teamId ?? Infinity));
+      .sort((left, right) => {
+        if (left.teamId !== right.teamId) {
+          return (left.teamId ?? Infinity) - (right.teamId ?? Infinity);
+        }
+        const order = left.teamId == null ? undefined : playerOrderByTeam.get(left.teamId);
+        const leftOrder = order?.get(left.xuid) ?? Infinity;
+        const rightOrder = order?.get(right.xuid) ?? Infinity;
+        return leftOrder === rightOrder ? 0 : leftOrder - rightOrder;
+      });
   }
 
   private getSeriesKillMatrixStatus(

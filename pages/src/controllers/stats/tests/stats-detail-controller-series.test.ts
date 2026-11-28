@@ -24,7 +24,7 @@ function flags(stats: { bestInTeam: boolean; bestInMatch: boolean }[]): boolean[
 }
 
 describe("StatsDetailController series mapping", () => {
-  it("maps stable team and player IDs, per-team totals, medals and missing-games names", () => {
+  it("orders stable teams and preserves player membership order, per-team totals and missing-games names", () => {
     const switching = playerWith("switch", 7, [aFakeStatWith({ value: 7 })]);
     const result = new StatsDetailController("en-US").mapSeriesAggregationToStats(
       aggregationWith({
@@ -64,28 +64,28 @@ describe("StatsDetailController series mapping", () => {
         ],
       }),
     );
-    expect(result.teamData.map((team) => team.teamId)).toEqual([42, 7]);
-    expect(result.playerData.map((team) => team.teamId)).toEqual([42, 7]);
+    expect(result.teamData.map((team) => team.teamId)).toEqual([7, 42]);
+    expect(result.playerData.map((team) => team.teamId)).toEqual([7, 42]);
     expect(result.playerData.map((team) => team.players.map((player) => player.name))).toEqual([
-      ["Bot", "Switcher (1/3 games)", "*Unknown*"],
       ["Switcher"],
+      ["Bot", "Switcher (1/3 games)", "*Unknown*"],
     ]);
     expect(
       result.playerData.map((team) => team.players.map((player) => player.values.map((stat) => stat.value))),
-    ).toEqual([[[], [42], []], [[7]]]);
-    expect(result.teamData[0].teamStats[0]).toMatchObject({
+    ).toEqual([[[7]], [[], [42], []]]);
+    expect(result.teamData[1].teamStats[0]).toMatchObject({
       name: "Kills",
       value: 1234.567,
       display: "+1,234.57",
     });
-    expect(result.teamData[1].teamStats[0].display).toBe("24");
-    expect(result.teamData[0].teamMedals).toEqual([
+    expect(result.teamData[0].teamStats[0].display).toBe("24");
+    expect(result.teamData[1].teamMedals).toEqual([
       { name: "High", count: 9, sortingWeight: 100 },
       { name: "99", count: 2, sortingWeight: 0 },
     ]);
-    expect(result.playerData[0].players[1].medals).toEqual([{ name: "Double Kill", count: 42, sortingWeight: 50 }]);
-    expect(result.teamData[0].players).toEqual(
-      result.playerData[0].players.map((player) => ({ ...player, values: [] })),
+    expect(result.playerData[1].players[1].medals).toEqual([{ name: "Double Kill", count: 42, sortingWeight: 50 }]);
+    expect(result.teamData[1].players).toEqual(
+      result.playerData[1].players.map((player) => ({ ...player, values: [] })),
     );
     expect(result.playerData.map((team) => team.teamStats)).toEqual([[], []]);
     expect(result.playerData.map((team) => team.teamMedals)).toEqual(result.teamData.map((team) => team.teamMedals));
@@ -113,32 +113,32 @@ describe("StatsDetailController series mapping", () => {
     expect(result.teamData.map((team) => flags(team.teamStats))).toEqual([
       [
         [false, true],
-        [false, true],
+        [false, false],
         [false, false],
       ],
       [
         [false, true],
-        [false, false],
+        [false, true],
         [false, false],
       ],
     ]);
     expect(result.playerData.map((team) => team.players.map((player) => flags(player.values)))).toEqual([
       [
         [
-          [true, false],
           [true, true],
-          [false, false],
-        ],
-        [
-          [true, false],
-          [false, false],
+          [true, true],
           [false, false],
         ],
       ],
       [
         [
+          [true, false],
           [true, true],
-          [true, true],
+          [false, false],
+        ],
+        [
+          [true, false],
+          [false, false],
           [false, false],
         ],
       ],
