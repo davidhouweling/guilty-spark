@@ -17,7 +17,7 @@ export const generateMapsRequestSchema = z.object({
     .number()
     .int()
     .refine((count) => MAP_GENERATOR_COUNTS.includes(count), {
-      message: "Unsupported map count",
+      error: "Unsupported map count",
     }),
 });
 export type GenerateMapsRequest = z.infer<typeof generateMapsRequestSchema>;
