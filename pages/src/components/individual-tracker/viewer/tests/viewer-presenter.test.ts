@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { MatchDetail, SeriesDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
+import type { TrackerSeriesTeam, TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import type { IndividualTrackerViewerSnapshot } from "../viewer-store";
 import { IndividualTrackerViewerPresenter } from "../viewer-presenter";
@@ -7,10 +9,157 @@ import {
   aFakeTrackerSeriesGroupWith,
   aFakeTrackerViewStateWith,
 } from "../../../../services/individual-tracker/fakes/view.fake";
-import type { ViewerEntryState } from "../types";
+import type { ViewerEntryState, ViewerSeriesTab } from "../types";
 import { aFakeViewerSeriesDetailWith, aFakeViewerSeriesMatchWith } from "../fakes/series-detail.fake";
 
+function presentOverview(view: TrackerViewState, data: SeriesDetailResponse): ViewerSeriesTab["seriesOverview"] {
+  const snapshot: IndividualTrackerViewerSnapshot = {
+    status: ComponentLoaderStatus.LOADED,
+    errorMessage: null,
+    view,
+    connectionStatus: "connected",
+    refreshPending: false,
+    expandedEntryKeys: new Set(),
+    entryStates: new Map([
+      [
+        "series:s1",
+        { kind: "series", state: { status: "loaded", seriesId: "s1", data, analyticsByMatchId: new Map() } },
+      ],
+    ]),
+    hasMore: false,
+    loadingMore: false,
+    loadMoreError: null,
+  };
+  const item = IndividualTrackerViewerPresenter.present(snapshot).renderModel?.timeline[0];
+  if (item?.type !== "series") {
+    throw new Error("Expected a series timeline item");
+  }
+  return item.series.seriesOverview;
+}
+
 describe("IndividualTrackerViewerPresenter", () => {
+  it("colors winning tiles using configured team identity across a side swap and substitution", () => {
+    const anchor = aFakeViewerSeriesMatchWith({
+      matchId: "m1",
+      teams: aFakeViewerSeriesMatchWith().teams.map((team) => ({
+        ...team,
+        outcome: team.matchTeamId === 0 ? "Win" : "Loss",
+      })),
+    });
+    const swapped = aFakeViewerSeriesMatchWith({
+      matchId: "m2",
+      teams: anchor.teams.map((team) => ({
+        ...team,
+        matchTeamId: 1 - team.matchTeamId,
+        outcome: team.seriesTeamId === 1 ? "Win" : "Loss",
+      })),
+      players: anchor.players.map((player) => ({
+        ...player,
+        playerId: player.playerId === "xuid(4444444444)" ? "xuid(5555555555)" : player.playerId,
+        lastMatchTeamId: 1 - (player.lastMatchTeamId ?? 0),
+      })),
+    });
+    const teams: TrackerSeriesTeam[] = [
+      {
+        id: 8,
+        name: "Eagle",
+        players: ["3333333333", "4444444444"].map((xboxId) => ({
+          xboxId,
+          discordId: null,
+          discordName: null,
+          gamertag: null,
+        })),
+      },
+      {
+        id: 9,
+        name: "Cobra",
+        players: ["1111111111", "2222222222"].map((xboxId) => ({
+          xboxId,
+          discordId: null,
+          discordName: null,
+          gamertag: null,
+        })),
+      },
+    ];
+    const view = {
+      ...aFakeTrackerViewStateWith({
+        matches: [aFakeTrackerMatchSummaryWith({ matchId: "m1" }), aFakeTrackerMatchSummaryWith({ matchId: "m2" })],
+        series: [{ ...aFakeTrackerSeriesGroupWith({ id: "s1", matchIds: ["m1", "m2"] }), teams }],
+      }),
+      streamerSettings: { styleFlags: { playerTeamColor: "mint", playerEnemyColor: "sunshine" } },
+    };
+    const data = aFakeViewerSeriesDetailWith(["m1", "m2"], {
+      matches: {
+        matchIds: ["m1", "m2"],
+        results: [anchor, swapped].map((detail) => ({ status: "resolved", matchId: detail.matchId, detail })),
+      },
+    });
+
+    const overview = presentOverview(view, data);
+    expect(overview.teams.map((team) => team.teamColorHex)).toEqual(["#23ED7D", "#FCF55C"]);
+    expect(overview.matches.map((match) => match.teamColorHex)).toEqual(["#FCF55C", "#23ED7D"]);
+  });
+
+  it("keeps ties, unmapped sides, unavailable matches, and unmatched configured rosters neutral", () => {
+    const matchIds = ["m1", "m2", "m3"];
+    const anchor = aFakeViewerSeriesMatchWith({
+      matchId: "m1",
+      teams: aFakeViewerSeriesMatchWith().teams.map((team) => ({
+        ...team,
+        outcome: team.matchTeamId === 0 ? "Win" : "Loss",
+      })),
+    });
+    const tie: MatchDetail = {
+      ...anchor,
+      matchId: "m2",
+      teams: anchor.teams.map((team) => ({ ...team, outcome: "Tie" })),
+    };
+    const unmapped: MatchDetail = {
+      ...anchor,
+      matchId: "m3",
+      teams: anchor.teams.map((team) => ({ ...team, seriesTeamId: null })),
+    };
+    const view = aFakeTrackerViewStateWith({
+      matches: matchIds.map((matchId) => aFakeTrackerMatchSummaryWith({ matchId })),
+      series: [aFakeTrackerSeriesGroupWith({ id: "s1", matchIds })],
+    });
+    const data = aFakeViewerSeriesDetailWith(matchIds, {
+      matches: {
+        matchIds,
+        results: [anchor, tie, unmapped].map((detail) => ({ status: "resolved", matchId: detail.matchId, detail })),
+      },
+    });
+    expect(presentOverview(view, data).matches.map((match) => match.teamColorHex)).toEqual([
+      "#3B9DFF",
+      undefined,
+      undefined,
+    ]);
+
+    const unmatched = {
+      ...view,
+      series: view.series.map((series) => ({
+        ...series,
+        teams: [0, 1].map((id) => ({
+          id,
+          name: `Team ${id.toString()}`,
+          players: [{ xboxId: `999999999${id.toString()}`, discordId: null, discordName: null, gamertag: null }],
+        })),
+      })),
+    };
+    expect(presentOverview(unmatched, data).matches.every((match) => match.teamColorHex === undefined)).toBe(true);
+    const unavailable = aFakeViewerSeriesDetailWith(matchIds, {
+      matches: {
+        matchIds,
+        results: [
+          { status: "resolved", matchId: "m1", detail: anchor },
+          { status: "resolved", matchId: "m2", detail: tie },
+          { status: "unavailable", matchId: "m3", reason: "not-found" },
+        ],
+      },
+    });
+    expect(presentOverview(view, unavailable).matches[2]?.teamColorHex).toBeUndefined();
+  });
+
   it.each([
     { mapping: "stable", configured: false, score: "50:40", subScore: "80:60", scenario: "no configured teams" },
     { mapping: "unmapped", configured: false, score: "40:50", subScore: "60:80", scenario: "unmapped sides" },
