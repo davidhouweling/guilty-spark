@@ -119,6 +119,7 @@ export class IndividualTrackerViewerPresenter {
     const details = data.matches.results.flatMap((result) => (result.status === "resolved" ? [result.detail] : []));
     const anchor = details.find((detail) => detail.matchId === series.matches[0]?.matchId);
     const loadedTeams = this.presentTeams(details, colors);
+    const winnerColors = this.presentSeriesTeamColors(series, details, colors);
     return {
       ...series.seriesOverview,
       teams: series.teams.length === 0 && loadedTeams.length > 0 ? loadedTeams : series.seriesOverview.teams,
@@ -132,8 +133,18 @@ export class IndividualTrackerViewerPresenter {
         }
         const { detail } = result;
         const orderedIds = this.presentScoreTeamIds(series, detail, anchor);
+        const winners = detail.teams.filter((team) => team.outcome === "Win");
+        const teamIds = detail.teams.map((team) => team.seriesTeamId);
+        const winnerId =
+          teamIds.length === 2 &&
+          teamIds.every((id) => id != null) &&
+          new Set(teamIds).size === 2 &&
+          winners.length === 1
+            ? winners[0]?.seriesTeamId
+            : null;
         return {
           ...match,
+          teamColorHex: winnerId == null ? undefined : winnerColors.get(winnerId),
           mapBackgroundUrl:
             detail.map.thumbnailUrl == null || detail.map.thumbnailUrl === "data:,"
               ? match.mapBackgroundUrl
@@ -143,6 +154,64 @@ export class IndividualTrackerViewerPresenter {
         };
       }),
     };
+  }
+
+  private static presentSeriesTeamColors(
+    series: ViewerSeriesTab,
+    details: readonly MatchDetail[],
+    colors: readonly TeamColor[],
+  ): ReadonlyMap<number, string> {
+    if (series.teams.length === 0) {
+      const latest = [...details].sort((left, right) => compareDesc(left.endTime, right.endTime)).at(0);
+      const ids = latest?.teams.map((team) => team.seriesTeamId) ?? [];
+      if (ids.length !== 2 || ids.some((id) => id == null) || new Set(ids).size !== 2) {
+        return new Map();
+      }
+      return new Map(
+        ids
+          .filter((id): id is number => id != null)
+          .sort((left, right) => left - right)
+          .map((id, index) => [id, getTeamColorOrDefault(colors[index]?.id, index).hex]),
+      );
+    }
+
+    const configured = series.teams.map((team) => ({
+      seriesTeamId: team.id,
+      xuids: new Set(team.players.flatMap((player) => (player.xboxId == null ? [] : [unwrapXuid(player.xboxId)]))),
+      unidentifiedPlayerCount: team.players.filter((player) => player.xboxId == null).length,
+    }));
+    if (
+      configured.length !== 2 ||
+      configured.some((team) => team.xuids.size === 0) ||
+      [...configured[0].xuids].some((xuid) => configured[1].xuids.has(xuid))
+    ) {
+      return new Map();
+    }
+
+    let result: Map<number, string> | null = null;
+    for (const detail of details) {
+      const resolution = resolveSeriesTeamMapping(configured, this.presentRosters(detail));
+      if (resolution == null) {
+        continue;
+      }
+      const mapped = new Map<number, string>();
+      for (const [index, team] of series.teams.entries()) {
+        const matchTeamId = resolution.find((entry) => entry.seriesTeamId === team.id)?.matchTeamId;
+        const stableId = detail.teams.find((entry) => entry.matchTeamId === matchTeamId)?.seriesTeamId;
+        if (stableId != null) {
+          mapped.set(stableId, getTeamColorOrDefault(colors[index]?.id, index).hex);
+        }
+      }
+      if (mapped.size !== 2) {
+        continue;
+      }
+      const previous = result;
+      if (previous != null && [...mapped].some(([id, color]) => previous.get(id) !== color)) {
+        return new Map();
+      }
+      result = mapped;
+    }
+    return result ?? new Map();
   }
 
   private static presentRosters(detail: MatchDetail | undefined): MatchTeamRoster[] {
