@@ -13,7 +13,7 @@ import type { AllStreamerSettings } from "../live-tracker/settings/types";
 import type { OverlayTab } from "../streamer-overlay/types";
 import type { SeriesStatsViewModel, SeriesTeamCard } from "../series-stats/types";
 import type { TeamColor } from "../team-colors/team-colors";
-import { projectSeriesTicker } from "../individual-tracker/overlay/series-ticker-projection";
+import { projectSeriesTicker } from "../../controllers/stats/series-ticker-projection";
 
 const SLAYER_STATS = new Set<string>(ALL_SLAYER_STATS);
 type TickerStats = TickerMatchGroup["rows"][number]["stats"];
