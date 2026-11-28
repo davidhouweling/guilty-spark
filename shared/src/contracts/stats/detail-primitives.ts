@@ -44,6 +44,9 @@ export const medalSchema = z.object({
   count: z.number().int().nonnegative(),
   name: z.string().nullable(),
   sortingWeight: finiteNumberSchema.nullable(),
+  totalPersonalScoreAwarded: finiteNumberSchema
+    .optional()
+    .describe("Raw fallback when sortingWeight is null; absent in older responses, where rarity may be unknown"),
   difficultyIndex: z.number().int().nonnegative().nullable(),
   difficulty: z.string().nullable().describe("Metadata difficulties[difficultyIndex], null when unavailable"),
 });

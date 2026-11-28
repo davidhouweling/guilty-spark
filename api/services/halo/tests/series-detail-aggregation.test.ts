@@ -159,7 +159,15 @@ describe("mapSeriesDetailAggregation()", () => {
       format: "duration-seconds",
     });
     expect(player.medals).toEqual([
-      { id: 622331684, count: 5, name: null, sortingWeight: null, difficultyIndex: null, difficulty: null },
+      {
+        id: 622331684,
+        count: 5,
+        name: null,
+        sortingWeight: null,
+        totalPersonalScoreAwarded: 40,
+        difficultyIndex: null,
+        difficulty: null,
+      },
     ]);
     expect(player.teamStats[0]?.medals).toEqual(player.medals);
     const json = JSON.stringify(result);
