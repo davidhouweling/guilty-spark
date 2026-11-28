@@ -59,7 +59,6 @@ export function StreamerOverlay({
       style={fontSizeStyles}
     >
       {settingsUi}
-
       <div className={classNames({ [styles.topSectionPinnedWrapper]: pinTopSection })}>{topSection}</div>
 
       <BottomSection

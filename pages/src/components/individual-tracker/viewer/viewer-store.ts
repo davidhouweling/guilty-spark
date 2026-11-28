@@ -16,6 +16,7 @@ export interface MatchEntryLoadedState {
   readonly startTime: string;
   readonly endTime: string;
   readonly data: MatchStatsData[];
+  readonly hasUnavailableTickerMedals: boolean;
   readonly killMatrixPivotData: KillMatrixPivotData;
   readonly transposedKillMatrixPivotData: KillMatrixPivotData;
   readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;

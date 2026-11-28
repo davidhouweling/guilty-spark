@@ -141,6 +141,7 @@ export type MatchDetailsState =
       readonly startTime: string;
       readonly endTime: string;
       readonly data: MatchStatsData[];
+      readonly hasUnavailableTickerMedals?: boolean | undefined;
       readonly killMatrixPivotData: KillMatrixPivotData;
       readonly transposedKillMatrixPivotData: KillMatrixPivotData;
       readonly crossTeamKillMatrixData: KillMatrixCrossTeamData | null;

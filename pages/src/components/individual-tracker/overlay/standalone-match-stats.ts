@@ -1,14 +1,15 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
-import { projectStandaloneMatchMedals } from "./standalone-match-medals";
+import { projectStandaloneMatchMedals } from "../../../controllers/stats/standalone-match-medals";
 import type { OverlayStandaloneMatchStats } from "./types";
 
 export function projectStandaloneMatchStats(
   detail: MatchDetail,
   controller: StatsDetailController,
+  mode: "ticker" | "panel" = "ticker",
 ): OverlayStandaloneMatchStats {
-  const medals = projectStandaloneMatchMedals(detail);
+  const medals = projectStandaloneMatchMedals(detail, mode);
   const medalsByTeamId = new Map(medals.teams.map((team) => [team.teamId, team]));
   const eligibleDetail: MatchDetail = {
     ...detail,

@@ -11,6 +11,37 @@ import { StatsDetailController } from "../../../../controllers/stats/stats-detai
 import { projectStandaloneMatchStats } from "../standalone-match-stats";
 
 describe("projectStandaloneMatchStats", () => {
+  it("retains unknown panel medals without changing the ticker or first-player team aggregation", () => {
+    const detail = aFakeMatchDetailWith({
+      teams: [aFakeTeamWith({ playerIds: ["unknown", "known"] })],
+      players: [
+        aFakePlayerWith({
+          playerId: "known",
+          teamStats: [
+            aFakePlayerTeamStatsWith({ medals: [aFakeMedalWith({ name: "Shared", sortingWeight: 100, count: 3 })] }),
+          ],
+        }),
+        aFakePlayerWith({
+          playerId: "unknown",
+          teamStats: [
+            aFakePlayerTeamStatsWith({ medals: [aFakeMedalWith({ name: "Shared", sortingWeight: null, count: 2 })] }),
+          ],
+        }),
+      ],
+    });
+    const controller = new StatsDetailController();
+    const ticker = projectStandaloneMatchStats(detail, controller);
+    const panel = projectStandaloneMatchStats(detail, controller, "panel");
+
+    expect(ticker.hasUnknownRarity).toBe(true);
+    expect(ticker.teams[0].teamMedals).toEqual([{ name: "Shared", count: 3, sortingWeight: 100 }]);
+    expect(panel.teams[0].teamMedals).toEqual([{ name: "Shared", count: 5, sortingWeight: 0 }]);
+    expect(panel.teams[0].players.map(({ playerId, medals }) => ({ playerId, medals }))).toEqual([
+      { playerId: "unknown", medals: [{ name: "Shared", count: 2, sortingWeight: 0 }] },
+      { playerId: "known", medals: [{ name: "Shared", count: 3, sortingWeight: 100 }] },
+    ]);
+  });
+
   it("joins team and player medals by IDs while preserving eligible order and formatted stats", () => {
     const switching = aFakePlayerWith({
       playerId: "switch",

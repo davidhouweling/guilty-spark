@@ -31,12 +31,31 @@ export interface MatchStatsData {
   teamMedals: MedalEntry[];
 }
 
+export interface PlayerMedalProjection {
+  readonly playerId: string;
+  readonly medals: MedalEntry[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface TeamMedalProjection {
+  readonly teamId: number;
+  readonly players: readonly PlayerMedalProjection[];
+  readonly teamMedals: MedalEntry[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface MatchMedalProjection {
+  readonly teams: readonly TeamMedalProjection[];
+  readonly hasUnknownRarity: boolean;
+}
+
 export interface SeriesStatsData {
   readonly teamData: MatchStatsData[];
   readonly playerData: MatchStatsData[];
 }
 
 export interface MatchStatsPlayerData {
+  playerId?: string | undefined;
   name: string;
   values: MatchStatsValues[];
   medals: MedalEntry[];

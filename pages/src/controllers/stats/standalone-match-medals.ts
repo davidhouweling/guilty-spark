@@ -2,18 +2,25 @@ import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { Medal } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
-import type { OverlayMatchMedalProjection, OverlayPlayerMedalProjection, OverlayTeamMedalProjection } from "./types";
+import type { MatchMedalProjection, PlayerMedalProjection, TeamMedalProjection } from "./types";
 
-function projectPlayerMedals(playerId: string, source: readonly Medal[]): OverlayPlayerMedalProjection {
+function projectPlayerMedals(
+  playerId: string,
+  source: readonly Medal[],
+  mode: "ticker" | "panel",
+): PlayerMedalProjection {
   const medals: MedalEntry[] = [];
   let hasUnknownRarity = false;
   for (const medal of source) {
     const sortingWeight = medal.sortingWeight ?? medal.totalPersonalScoreAwarded;
     if (sortingWeight == null) {
       hasUnknownRarity = true;
-      continue;
+      if (mode === "ticker") {
+        continue;
+      }
     }
-    medals.push({ name: medal.name ?? medal.id.toString(), count: medal.count, sortingWeight });
+    // Old responses have no rarity; zero is only a panel sort placeholder.
+    medals.push({ name: medal.name ?? medal.id.toString(), count: medal.count, sortingWeight: sortingWeight ?? 0 });
   }
   medals.sort((left, right) => right.sortingWeight - left.sortingWeight);
   return { playerId, medals, hasUnknownRarity };
@@ -22,8 +29,9 @@ function projectPlayerMedals(playerId: string, source: readonly Medal[]): Overla
 function projectTeamMedals(
   team: MatchDetail["teams"][number],
   playersById: ReadonlyMap<string, MatchDetail["players"][number]>,
-): OverlayTeamMedalProjection {
-  const players: OverlayPlayerMedalProjection[] = [];
+  mode: "ticker" | "panel",
+): TeamMedalProjection {
+  const players: PlayerMedalProjection[] = [];
   for (const playerId of team.playerIds) {
     const player = playersById.get(playerId);
     if (player?.participation.presentAtBeginning !== true) {
@@ -31,7 +39,7 @@ function projectTeamMedals(
     }
     const stats = player.teamStats.find((entry) => entry.matchTeamId === team.matchTeamId);
     if (stats != null) {
-      players.push(projectPlayerMedals(playerId, stats.medals));
+      players.push(projectPlayerMedals(playerId, stats.medals, mode));
     }
   }
   return {
@@ -42,8 +50,11 @@ function projectTeamMedals(
   };
 }
 
-export function projectStandaloneMatchMedals(detail: MatchDetail): OverlayMatchMedalProjection {
+export function projectStandaloneMatchMedals(
+  detail: MatchDetail,
+  mode: "ticker" | "panel" = "ticker",
+): MatchMedalProjection {
   const playersById = new Map(detail.players.map((player) => [player.playerId, player]));
-  const teams = detail.teams.map((team) => projectTeamMedals(team, playersById));
+  const teams = detail.teams.map((team) => projectTeamMedals(team, playersById, mode));
   return { teams, hasUnknownRarity: teams.some((team) => team.hasUnknownRarity) };
 }
