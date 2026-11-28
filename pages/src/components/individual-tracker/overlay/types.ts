@@ -1,6 +1,7 @@
 import type React from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { SeriesAggregation } from "@guilty-spark/shared/contracts/stats/detail";
 import type { IdentifiedMatchStatsData, IdentifiedMatchStatsPlayerData } from "../../../controllers/stats/types";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
@@ -21,6 +22,25 @@ export interface OverlayStandaloneMatchStats {
   readonly teams: OverlayStandaloneTeamStats[];
   readonly hasUnknownRarity: boolean;
 }
+
+export interface OverlaySeriesTickerPlayer extends IdentifiedMatchStatsPlayerData {
+  readonly gamertag: string | null;
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface OverlaySeriesTickerTeam extends Omit<IdentifiedMatchStatsData, "players"> {
+  readonly players: OverlaySeriesTickerPlayer[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export type OverlaySeriesTickerProjection =
+  | {
+      readonly status: "resolved";
+      readonly teamData: OverlaySeriesTickerTeam[];
+      readonly playerData: OverlaySeriesTickerTeam[];
+      readonly hasUnknownRarity: boolean;
+    }
+  | Extract<SeriesAggregation, { status: "unavailable" }>;
 
 export interface OverlayDisplaySettings {
   readonly showTicker: boolean;

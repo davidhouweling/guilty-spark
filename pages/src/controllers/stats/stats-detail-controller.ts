@@ -9,8 +9,8 @@ import type {
   MatchDetailAnalyticsData,
   MatchDetailAnalyticsInput,
   IdentifiedMatchStatsData,
+  IdentifiedSeriesStatsData,
   MatchStatsData,
-  MatchStatsPlayerData,
   SeriesStatsData,
 } from "./types";
 import { DetailStatsFormatter } from "./detail-stats-formatter";
@@ -100,6 +100,15 @@ export class StatsDetailController {
   }
 
   mapSeriesAggregationToStats(aggregation: ResolvedAggregation): SeriesStatsData {
+    const data = this.mapSeriesAggregationToStatsWithPlayerIds(aggregation);
+    const withoutIds = (team: IdentifiedMatchStatsData): MatchStatsData => ({
+      ...team,
+      players: team.players.map(({ name, values, medals }) => ({ name, values, medals })),
+    });
+    return { teamData: data.teamData.map(withoutIds), playerData: data.playerData.map(withoutIds) };
+  }
+
+  mapSeriesAggregationToStatsWithPlayerIds(aggregation: ResolvedAggregation): IdentifiedSeriesStatsData {
     const playersById = new Map(aggregation.players.map((player) => [player.playerId, player]));
     const playersByTeamId = new Map(
       aggregation.teams.map((team) => [team.seriesTeamId, this.getSeriesTeamPlayers(team, playersById)]),
@@ -108,13 +117,14 @@ export class StatsDetailController {
     const bestPlayers = this.formatter.getBestValues(
       [...playersByTeamId.values()].flatMap((players) => players.flatMap(({ entry }) => entry.stats)),
     );
-    const teamData: SeriesStatsData["teamData"] = [];
-    const playerData: SeriesStatsData["playerData"] = [];
+    const teamData: IdentifiedSeriesStatsData["teamData"] = [];
+    const playerData: IdentifiedSeriesStatsData["playerData"] = [];
 
     for (const team of aggregation.teams) {
       const players = playersByTeamId.get(team.seriesTeamId) ?? [];
       const bestInTeam = this.formatter.getBestValues(players.flatMap(({ entry }) => entry.stats));
-      const playerRows = players.map(({ player, entry }): MatchStatsPlayerData => ({
+      const playerRows = players.map(({ player, entry }) => ({
+        playerId: player.playerId,
         name: `${player.playerType === 1 ? (player.gamertag ?? "*Unknown*") : "Bot"}${this.getGamesSuffix(entry.gamesPlayed, aggregation.gamesPlayed)}`,
         values: entry.stats.map((stat) => this.formatter.presentStat(stat, bestInTeam, bestPlayers)),
         medals: this.formatter.presentMedals(entry.medals),
