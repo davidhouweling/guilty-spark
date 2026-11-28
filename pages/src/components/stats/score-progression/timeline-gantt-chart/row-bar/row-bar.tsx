@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { TICK_FILL } from "../../chart-constants";
 import type { TimelineGanttRowViewModel, TimelineGanttSegment } from "../../types";
 

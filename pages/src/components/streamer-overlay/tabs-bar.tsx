@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 import classNames from "classnames";
 import type { OverlayTab } from "./types";
 import styles from "./streamer-overlay.module.css";

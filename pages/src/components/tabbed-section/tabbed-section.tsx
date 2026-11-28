@@ -1,4 +1,5 @@
-import React, { useCallback, useId, useRef } from "react";
+import type React from "react";
+import { useCallback, useId, useRef } from "react";
 import classNames from "classnames";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { TabbedSectionTab } from "./types";

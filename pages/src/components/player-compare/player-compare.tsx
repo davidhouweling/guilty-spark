@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { Alert } from "../alert/alert";
 import { Button } from "../button/button";
 import { CloseButton } from "../close-button/close-button";

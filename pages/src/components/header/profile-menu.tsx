@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import classNames from "classnames";
 import type { SessionResponse } from "@guilty-spark/shared/contracts/auth/session";
 import { Dropdown } from "../dropdown/dropdown";

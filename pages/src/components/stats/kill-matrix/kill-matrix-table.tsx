@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import type React from "react";
+import { useMemo, useState } from "react";
 import classNames from "classnames";
 import { Alert } from "../../alert/alert";
 import { Button } from "../../button/button";

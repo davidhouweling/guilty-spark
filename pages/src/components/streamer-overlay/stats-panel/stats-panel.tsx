@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 import { CSSTransition } from "react-transition-group";
 import styles from "./stats-panel.module.css";
 

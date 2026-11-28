@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import { AddTrackerDialogPresenter } from "./add-tracker-dialog-presenter";
 import { AddTrackerDialogStore } from "./add-tracker-dialog-store";

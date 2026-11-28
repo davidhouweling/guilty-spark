@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import type { HaloInfiniteClient } from "halo-infinite-api";
 import type { TrackerViewState } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import type { ComponentLoaderStatus } from "../../component-loader/component-loader";

@@ -1,4 +1,5 @@
-import React, { createRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { createRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import classNames from "classnames";

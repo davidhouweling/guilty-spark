@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import ReactTimeAgo from "react-time-ago";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";

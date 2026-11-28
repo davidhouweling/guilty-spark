@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { AXIS_STROKE, TICK_FILL, TICK_FONT_SIZE, timeAxisProps, tooltipContentStyle } from "../chart-constants";
 import type { TimelineGanttRowViewModel, TimelineGanttViewModel } from "../types";

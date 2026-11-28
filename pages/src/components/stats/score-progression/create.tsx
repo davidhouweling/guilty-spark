@@ -1,4 +1,5 @@
-import React, { useMemo, useSyncExternalStore } from "react";
+import type React from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { ScoreProgressionPresenter } from "./score-progression-presenter";
 import { ScoreProgressionStore } from "./score-progression-store";
 import { ScoreProgression } from "./score-progression";

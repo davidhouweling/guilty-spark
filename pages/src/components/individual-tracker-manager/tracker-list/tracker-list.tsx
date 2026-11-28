@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { Alert } from "../../alert/alert";

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useId } from "react";
+import type React from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { CSSTransition } from "react-transition-group";
 import styles from "./dropdown.module.css";
 

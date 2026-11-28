@@ -1,4 +1,5 @@
-import React, { useMemo, useCallback } from "react";
+import type React from "react";
+import { useMemo, useCallback } from "react";
 import { getRankTierFromCsr } from "@guilty-spark/shared/halo/rank";
 import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { differenceInHours } from "date-fns";

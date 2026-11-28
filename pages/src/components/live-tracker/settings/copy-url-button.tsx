@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { Button } from "../../button/button";
 import type { ViewMode } from "../../view-mode/view-mode-selector";
 import { buildUrlWithSettings } from "./settings-url-params";

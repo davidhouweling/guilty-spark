@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import { ChartFrame } from "../chart-frame/chart-frame";
 import { FlagRunMarker } from "../flag-runs-chart/flag-run-marker/flag-run-marker";

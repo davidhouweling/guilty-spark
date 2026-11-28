@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../../button/button";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Input } from "../../input/input";

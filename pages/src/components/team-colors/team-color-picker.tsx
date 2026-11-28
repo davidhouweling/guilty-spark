@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Dropdown } from "../dropdown/dropdown";
 import { HALO_TEAM_COLORS } from "./team-colors";
 import type { TeamColor } from "./team-colors";

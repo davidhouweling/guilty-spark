@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo } from "react";
+import type React from "react";
+import { useCallback, useMemo } from "react";
 import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";

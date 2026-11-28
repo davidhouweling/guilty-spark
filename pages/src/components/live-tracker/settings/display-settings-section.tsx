@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Checkbox } from "../../checkbox/checkbox";
 import { Heading } from "../../heading/heading";
 import type { DisplaySettings } from "./types";

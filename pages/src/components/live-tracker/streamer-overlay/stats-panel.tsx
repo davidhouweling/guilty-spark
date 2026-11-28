@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import type { PlayerAssociationData } from "@guilty-spark/shared/live-tracker/types";
 import { ComponentLoaderStatus } from "../../component-loader/component-loader";

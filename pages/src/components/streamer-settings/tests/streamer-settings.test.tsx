@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import React from "react";
+import type React from "react";
 import type { DisplaySettings, FontSizeSettings, TickerSettings } from "../../live-tracker/settings/types";
 import type { StreamerSettingsSectionViewProps } from "../streamer-settings";
 import { StreamerSettingsSectionView } from "../streamer-settings";

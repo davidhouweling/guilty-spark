@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef } from "react";
+import type React from "react";
+import { useEffect, useId, useRef } from "react";
 import classNames from "classnames";
 import { CloseButton } from "../close-button/close-button";
 import { Heading } from "../heading/heading";

@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { RankIcon } from "../../icons/rank-icon";

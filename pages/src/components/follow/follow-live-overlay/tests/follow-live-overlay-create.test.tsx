@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { TrackerDirectory } from "@guilty-spark/shared/contracts/individual-tracker/follow";

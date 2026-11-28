@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import classNames from "classnames";
 import { Select } from "../../select/select";
 import { HALO_TEAM_COLORS, getTeamColor } from "../../team-colors/team-colors";

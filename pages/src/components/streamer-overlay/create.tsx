@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import type React from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
 import type { OverlayTab } from "./types";

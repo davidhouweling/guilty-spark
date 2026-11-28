@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { describe, expect, it } from "vitest";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
 import { StreamerOverlayPresenter } from "../streamer-overlay-presenter";

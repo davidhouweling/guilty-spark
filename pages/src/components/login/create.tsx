@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
 import { parseQueryParams } from "@guilty-spark/shared/base/request-parsing";
 import { safeRedirectPath } from "@guilty-spark/shared/base/safe-redirect";
 import { authStartQuerySchema } from "@guilty-spark/shared/contracts/auth/microsoft/start";

@@ -1,4 +1,5 @@
-import React, { useId } from "react";
+import type React from "react";
+import { useId } from "react";
 import { Select } from "../../../select/select";
 import type { ChartType, ChartTypeOption } from "../types";
 import styles from "../score-progression.module.css";

@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Heading } from "../heading/heading";
 import { Button } from "../button/button";
 import styles from "./login.module.css";

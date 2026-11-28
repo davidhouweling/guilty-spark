@@ -1,5 +1,6 @@
 import type { MatchStats } from "halo-infinite-api";
-import React, { useMemo, useState } from "react";
+import type React from "react";
+import { useMemo, useState } from "react";
 import classNames from "classnames";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";

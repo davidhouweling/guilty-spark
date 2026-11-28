@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import type React from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { IndividualTrackerService } from "../../../services/individual-tracker/types";
 import type { IndividualTrackerSeriesGroup } from "../series-group-metadata";
 import { MatchSelectionDialogPresenter } from "./match-selection-dialog-presenter";

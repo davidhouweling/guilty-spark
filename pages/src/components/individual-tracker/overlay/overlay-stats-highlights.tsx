@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import type React from "react";
+import { memo } from "react";
 import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
 import { RankIcon } from "../../icons/rank-icon";
 import styles from "./overlay-stats-highlights.module.css";

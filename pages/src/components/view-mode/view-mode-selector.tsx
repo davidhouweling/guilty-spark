@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import guiltySpark from "../../assets/guilty-spark-icon.png";
 import { Dropdown } from "../dropdown/dropdown";
 import { OBS_OVERLAY_PREVIEW } from "../../constants";
