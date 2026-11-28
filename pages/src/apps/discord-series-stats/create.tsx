@@ -85,6 +85,18 @@ function DiscordSeriesStatsData({
   );
 
   const model = useMemo(() => DiscordSeriesStatsPresenter.present(snapshot), [snapshot]);
+  const streamerSettings = useMemo(
+    () => ({
+      ...snapshot.urlSettings,
+      global: {
+        ...snapshot.urlSettings.global,
+        viewMode: snapshot.viewMode,
+        colors: { ...snapshot.urlSettings.global.colors, observerView: snapshot.observerColors },
+      },
+      series: snapshot.seriesSettings,
+    }),
+    [snapshot.observerColors, snapshot.seriesSettings, snapshot.urlSettings, snapshot.viewMode],
+  );
   const onAnalyticsTabSelected = useCallback(
     (module: AnalyticsModule, matchId?: string): void => {
       presenter.loadAnalytics(module, matchId);
@@ -127,6 +139,7 @@ function DiscordSeriesStatsData({
             data={model.data}
             analyticsByMatchId={snapshot.analyticsByMatchId}
             viewMode={snapshot.viewMode}
+            streamerSettings={streamerSettings}
             seriesSettings={snapshot.seriesSettings}
             observerColors={snapshot.observerColors}
             onObserverColorsChange={onObserverColorsChange}
