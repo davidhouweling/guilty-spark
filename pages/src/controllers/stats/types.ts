@@ -42,6 +42,14 @@ export interface MatchStatsPlayerData {
   medals: MedalEntry[];
 }
 
+export interface IdentifiedMatchStatsPlayerData extends MatchStatsPlayerData {
+  playerId: string;
+}
+
+export interface IdentifiedMatchStatsData extends Omit<MatchStatsData, "players"> {
+  players: IdentifiedMatchStatsPlayerData[];
+}
+
 export interface MatchStatsValues {
   key?: string | undefined;
   name: string;
