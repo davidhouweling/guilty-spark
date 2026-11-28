@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { createStreamerOverlaySection } from "../streamer-overlay/create";
 import { TopSection } from "../streamer-overlay/top-section";
@@ -10,6 +10,7 @@ import type { ArchiveOverlayTeamModel, ArchiveSeriesOverlayViewModel } from "./a
 interface ArchiveOverlayProps {
   readonly model: ArchiveSeriesOverlayViewModel;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
+  readonly settingsUi: ReactNode;
 }
 
 function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement | null {
@@ -23,7 +24,7 @@ function renderTeamDetails(team: ArchiveOverlayTeamModel | null): ReactElement |
   );
 }
 
-export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveOverlayProps): ReactElement {
+export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected, settingsUi }: ArchiveOverlayProps): ReactElement {
   const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
   const topSection = (
     <TopSection
@@ -52,7 +53,6 @@ export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveO
       />
     );
   };
-
   return (
     <div data-testid="archive-streamer-overlay">
       <StreamerOverlaySection
@@ -63,10 +63,10 @@ export function ArchiveSeriesOverlay({ model, onAnalyticsTabSelected }: ArchiveO
         showTabs={model.showTabs}
         showTicker={model.showTicker}
         matchesLength={model.matchesLength}
-        showPreview={false}
+        showPreview={model.showPreview}
         previewMode="observer"
         fontSizeStyles={model.fontSizeStyles}
-        settingsUi={null}
+        settingsUi={settingsUi}
         hasPanelContent={hasPanelContent}
         renderPanelContent={renderPanelContent}
       />

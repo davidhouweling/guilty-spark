@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ReactElement } from "react";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { Heading } from "../heading/heading";
@@ -6,21 +5,13 @@ import { Container } from "../container/container";
 import { SeriesStatsView as SharedSeriesStatsView } from "../series-stats/series-stats";
 import type { SeriesStatsViewModel as DiscordSeriesStatsViewModel } from "../series-stats/types";
 import type { ViewMode } from "../view-mode/view-mode-selector";
-import type { ObserverViewColorSettings, SeriesStreamerSettings } from "../live-tracker/settings/types";
-import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
 import { ArchiveSettingsTrigger } from "./settings/archive-settings-trigger";
 import styles from "./discord-series-stats.module.css";
 
 interface DiscordSeriesStatsViewProps extends DiscordSeriesStatsViewModel {
   readonly viewMode: ViewMode;
-  readonly seriesSettings: SeriesStreamerSettings;
-  readonly observerColors: ObserverViewColorSettings;
-  readonly colorLabels: { readonly first: string; readonly second: string } | null;
-  readonly defaultTitle: string | null;
-  readonly defaultSubtitle: string | null;
-  readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
-  readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
-  readonly onViewModeSelect: (mode: ViewMode) => void;
+  readonly stableTeamSlotsAvailable: boolean;
+  readonly onOpenSettings: () => void;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
 }
 
@@ -42,18 +33,11 @@ export function DiscordSeriesStatsView({
   title,
   subtitle,
   viewMode,
-  seriesSettings,
-  observerColors,
-  colorLabels,
-  defaultTitle,
-  defaultSubtitle,
-  onSeriesSettingsChange,
-  onObserverColorsChange,
-  onViewModeSelect,
+  stableTeamSlotsAvailable,
+  onOpenSettings,
   onAnalyticsTabSelected,
   ...stats
 }: DiscordSeriesStatsViewProps): ReactElement {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const documentTitle = `${getQueueTitle(title)} (${emojifySeriesScore(stats.seriesScore)}) | ${subtitle} Stats - Guilty Spark`;
 
   return (
@@ -67,36 +51,16 @@ export function DiscordSeriesStatsView({
             </Heading>
             <div className={styles.headerSubtitle}>{subtitle}</div>
           </div>
-          <ArchiveSettingsTrigger
-            onClick={(): void => {
-              setIsSettingsOpen(true);
-            }}
-          />
+          <ArchiveSettingsTrigger onClick={onOpenSettings} />
         </div>
       </Container>
-      {isSettingsOpen && (
-        <ArchiveSettingsDialog
-          viewMode={viewMode}
-          seriesSettings={seriesSettings}
-          observerColors={observerColors}
-          colorLabels={colorLabels}
-          defaultTitle={defaultTitle}
-          defaultSubtitle={defaultSubtitle}
-          onClose={(): void => {
-            setIsSettingsOpen(false);
-          }}
-          onSeriesSettingsChange={onSeriesSettingsChange}
-          onObserverColorsChange={onObserverColorsChange}
-          onViewModeSelect={onViewModeSelect}
-        />
-      )}
       <div className={styles.content}>
         <SharedSeriesStatsView
           title={title}
           subtitle={subtitle}
           showSeriesTitle={true}
           wide={viewMode === "wide"}
-          useStableTeamCardKeys={colorLabels != null}
+          useStableTeamCardKeys={stableTeamSlotsAvailable}
           onAnalyticsTabSelected={onAnalyticsTabSelected}
           {...stats}
         />

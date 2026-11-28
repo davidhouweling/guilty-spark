@@ -167,11 +167,13 @@ describe("parseSettingsFromUrl", () => {
 
     const params = new URLSearchParams();
     params.set("showTitle", "false");
+    params.set("showServerIcon", "false");
     // showDiscordNames and showXboxNames not in URL - should preserve stored values
 
     const result = parseSettingsFromUrl(params, customDefaults);
 
     expect(result.global.display.showTitle).toBe(false);
+    expect(result.global.display.showServerIcon).toBe(false);
     expect(result.global.display.showDiscordNames).toBe(false);
     expect(result.global.display.showXboxNames).toBe(false);
   });
@@ -224,6 +226,8 @@ describe("parseSettingsFromUrl", () => {
         fontSizes: {
           ...DEFAULT_GLOBAL_SETTINGS.fontSizes,
           queueInfo: 120,
+          score: 80,
+          teams: 120,
           ticker: 80,
         },
       },
@@ -231,12 +235,18 @@ describe("parseSettingsFromUrl", () => {
 
     const params = new URLSearchParams();
     params.set("fontSize_queueInfo", "110");
+    params.set("fontSize_score", "125");
+    params.set("fontSize_teams", "90");
+    params.set("fontSize_teamNames", "115");
     // fontSize_ticker not in URL - should use stored value
 
     const result = parseSettingsFromUrl(params, customDefaults);
 
     expect(result.global.fontSizes.queueInfo).toBe(110);
+    expect(result.global.fontSizes.score).toBe(125);
+    expect(result.global.fontSizes.teams).toBe(90);
     expect(result.global.fontSizes.ticker).toBe(80);
+    expect(result.global.fontSizes).toMatchObject({ teamNames: 115 });
   });
 
   it("parses series settings from URL", () => {
@@ -302,6 +312,15 @@ describe("encodeSettingsToUrlParams", () => {
       global: {
         ...DEFAULT_GLOBAL_SETTINGS,
         viewMode: "wide",
+        display: {
+          ...DEFAULT_GLOBAL_SETTINGS.display,
+          showServerIcon: false,
+        },
+        fontSizes: {
+          ...DEFAULT_GLOBAL_SETTINGS.fontSizes,
+          score: 125,
+          teams: 85,
+        },
         colors: {
           ...DEFAULT_GLOBAL_SETTINGS.colors,
           mode: "player",
@@ -337,6 +356,9 @@ describe("encodeSettingsToUrlParams", () => {
     expect(roundTripped.global.ticker.showTicker).toBe(original.global.ticker.showTicker);
     expect(roundTripped.global.ticker.showTabs).toBe(original.global.ticker.showTabs);
     expect(roundTripped.global.ticker.maxPreviousGamesToShow).toBe(original.global.ticker.maxPreviousGamesToShow);
+    expect(roundTripped.global.display.showServerIcon).toBe(original.global.display.showServerIcon);
+    expect(roundTripped.global.fontSizes.score).toBe(original.global.fontSizes.score);
+    expect(roundTripped.global.fontSizes.teams).toBe(original.global.fontSizes.teams);
     expect(roundTripped.series.titleOverride).toBe(original.series.titleOverride);
     expect(roundTripped.series.eagleTeamNameOverride).toBe(original.series.eagleTeamNameOverride);
     expect(roundTripped.series.cobraTeamNameOverride).toBe(original.series.cobraTeamNameOverride);

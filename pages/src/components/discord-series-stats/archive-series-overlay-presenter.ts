@@ -29,6 +29,7 @@ export interface ArchiveSeriesOverlayViewModel {
   readonly iconUrl: string | null;
   readonly showScore: boolean;
   readonly showTeamDetails: boolean;
+  readonly showPreview: boolean;
   readonly seriesScore: string;
   readonly teamColors: readonly TeamColor[];
   readonly teamLeft: ArchiveOverlayTeamModel | null;
@@ -210,6 +211,7 @@ export class ArchiveSeriesOverlayPresenter {
       iconUrl: settings.global.display.showServerIcon ? (data.context?.guildIconUrl ?? null) : null,
       showScore: settings.global.display.showScore && data.aggregation.status === "resolved",
       showTeamDetails,
+      showPreview: settings.global.viewPreview,
       seriesScore: seriesModel.seriesScore,
       teamColors,
       teamLeft: showTeamDetails ? getTeamModel(seriesModel.teams[0], 0, settings) : null,

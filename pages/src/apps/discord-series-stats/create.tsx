@@ -109,6 +109,12 @@ function DiscordSeriesStatsData({
     },
     [presenter],
   );
+  const onViewPreviewChange = useCallback(
+    (enabled: boolean): void => {
+      presenter.setViewPreview(enabled);
+    },
+    [presenter],
+  );
   const onSeriesSettingsChange = useCallback(
     (updates: Partial<SeriesStreamerSettings>): void => {
       presenter.setSeriesSettings(updates);
@@ -144,6 +150,7 @@ function DiscordSeriesStatsData({
             observerColors={snapshot.observerColors}
             onObserverColorsChange={onObserverColorsChange}
             onSeriesSettingsChange={onSeriesSettingsChange}
+            onViewPreviewChange={onViewPreviewChange}
             onViewModeSelect={onViewModeSelect}
             onAnalyticsTabSelected={onAnalyticsTabSelected}
           />
