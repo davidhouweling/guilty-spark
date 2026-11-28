@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { sampleLiveTrackerStateMessage } from "@guilty-spark/shared/live-tracker/fakes/data";
 import { LiveTrackerApp } from "../../apps/live-tracker/create";
+import { DiscordSeriesStatsApp } from "../../apps/discord-series-stats/create";
 import * as liveServices from "../../apps/live-tracker/services";
 import * as archiveServices from "../../apps/discord-series-stats/services";
 import {
@@ -72,6 +73,32 @@ describe("canonical live-to-archive race", () => {
     expect(await screen.findByRole("heading", { name: "Series overview" })).toBeInTheDocument();
     expect(getDetail).toHaveBeenCalledWith("123", "5");
     expect(window.location.pathname + window.location.search + window.location.hash).toBe(url);
+  });
+  it("transfers streamer body styling from live to archive and removes it on unmount", async () => {
+    const originalUrl = window.location.href;
+    try {
+      window.history.replaceState({}, "", "/stats/discord/123/5?viewMode=streamer");
+      const services = await liveServices.installServices(apiHost);
+      vi.spyOn(liveServices, "installServices").mockResolvedValue({
+        ...services,
+        liveTrackerService: aFakeLiveTrackerServiceWith({
+          scenario: aFakeLiveTrackerScenarioWith({ frames: [sampleLiveTrackerStateMessage] }),
+        }),
+      });
+      vi.spyOn(archiveServices, "installServices").mockResolvedValue(aFakeDiscordSeriesStatsAppServicesWith());
+      const { rerender, unmount } = render(<LiveTrackerApp apiHost={apiHost} identity={identity} />);
+      await waitFor(() => {
+        expect(document.body).toHaveAttribute("data-view-mode", "streamer");
+      });
+
+      rerender(<DiscordSeriesStatsApp apiHost={apiHost} guildId="123" queueNumber="5" />);
+      expect(await screen.findByTestId("archive-streamer-overlay")).toBeInTheDocument();
+      expect(document.body).toHaveAttribute("data-view-mode", "streamer");
+      unmount();
+      expect(document.body).not.toHaveAttribute("data-view-mode");
+    } finally {
+      window.history.replaceState({}, "", originalUrl);
+    }
   });
   it.each([
     [aFakePendingDiscordSeriesStatsDetailResultWith(), "Stats are still indexing. Retry in 9s."],
