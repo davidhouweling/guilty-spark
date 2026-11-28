@@ -1,7 +1,7 @@
 import type { KothEvent, KothTimeline } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { KOTH_FULL_METER_TICKS, KOTH_MIN_CAPTURE_TICKS } from "@guilty-spark/shared/halo/koth-capture-meter";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { TICK_FILL } from "../../chart-constants";
+import { getTeamNameWithOverride } from "../../team-name";
 import { carryScoresForward, zeroScores } from "../../score-samples";
 import { tileSegments } from "../../timeline-segments";
 import type { KothHillData, TeamPercentShare, ScoreSample, TimelineGanttSegment } from "../../types";
@@ -251,16 +251,17 @@ export function buildKothHills(
   hillWindows: readonly KothHillWindow[],
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
+  teamNameByTeamId: ReadonlyMap<number, string> = new Map(),
 ): KothHillData[] {
   return hillWindows.map((hillWindow, periodIndex) => {
     const segments = buildHillSegments(hillWindow.startMs, hillWindow.endMs, timeline, teamColorByTeamId);
     const { winnerTeamId } = hillWindow;
     const winnerColor = winnerTeamId != null ? (teamColorByTeamId.get(winnerTeamId) ?? null) : null;
-    const winnerName = winnerTeamId != null ? getTeamName(winnerTeamId) : null;
+    const winnerName = winnerTeamId != null ? getTeamNameWithOverride(winnerTeamId, teamNameByTeamId) : null;
 
     const teamCaptureProgress: TeamPercentShare[] = teamIds.map((teamId) => ({
       teamId,
-      name: getTeamName(teamId),
+      name: getTeamNameWithOverride(teamId, teamNameByTeamId),
       color: teamColorByTeamId.get(teamId) ?? TICK_FILL,
       percentage: buildCaptureMeterPercentage(hillWindow, teamId),
     }));

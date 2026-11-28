@@ -6,9 +6,9 @@ import type {
   MatchAnalytics,
   TeamDeathEvent,
 } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { getTeamName } from "@guilty-spark/shared/halo/team";
 import { getTeamColorOrDefault } from "../../team-colors/team-colors";
 import type { TeamColor } from "../../team-colors/team-colors";
+import { getTeamNameWithOverride } from "./team-name";
 import { extendToDuration } from "./extend-to-duration";
 import {
   MATCH_SKEW_TOLERANCE_MS,
@@ -165,12 +165,13 @@ function buildTeamLines(
   teamIds: readonly number[],
   teamColorByTeamId: Map<number, string>,
   durationMs: number,
+  teamNameByTeamId: ReadonlyMap<number, string>,
 ): ScoreProgressionTeamLine[] {
   const teamState = new Map(
     teamIds.map((teamId, slotIndex) => [
       teamId,
       {
-        name: getTeamName(teamId),
+        name: getTeamNameWithOverride(teamId, teamNameByTeamId),
         color: teamColorByTeamId.get(teamId) ?? getTeamColorOrDefault(undefined, slotIndex).hex,
         prevScore: 0,
         points: [{ timestampMs: 0, score: 0 }] as ScoreProgressionPoint[],
@@ -219,6 +220,7 @@ function clampEventsToDuration(events: readonly KillRaceEvent[], durationMs: num
 interface ResolvedTeams {
   readonly teamIds: number[];
   readonly teamColorByTeamId: Map<number, string>;
+  readonly teamNameByTeamId: ReadonlyMap<number, string>;
 }
 
 function buildStepScoreLines(
@@ -231,7 +233,7 @@ function buildStepScoreLines(
     kind: "score-lines",
     durationMs,
     scoreScale: SCORE_SCALE,
-    teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    teamLines: buildTeamLines(events, teams.teamIds, teams.teamColorByTeamId, durationMs, teams.teamNameByTeamId),
     scoreDelta: buildScoreDelta(teams.teamIds, events, durationMs, "step"),
     playerAdvantage,
     markers: null,
@@ -257,7 +259,13 @@ function buildSampledScoreLines(
     kind: "score-lines",
     durationMs,
     scoreScale,
-    teamLines: buildSampledTeamLines(samples, teams.teamIds, teams.teamColorByTeamId, durationMs),
+    teamLines: buildSampledTeamLines(
+      samples,
+      teams.teamIds,
+      teams.teamColorByTeamId,
+      durationMs,
+      teams.teamNameByTeamId,
+    ),
     scoreDelta: buildScoreDelta(teams.teamIds, samples, durationMs, "linear"),
     playerAdvantage: buildPlayerAdvantage(teams.teamIds, overlaySource, durationMs, teamSize),
     markers: null,
@@ -266,7 +274,11 @@ function buildSampledScoreLines(
   };
 }
 
-function resolveTeamsFromIds(teamIds: readonly number[], teamColors: readonly TeamColor[]): ResolvedTeams | null {
+function resolveTeamsFromIds(
+  teamIds: readonly number[],
+  teamColors: readonly TeamColor[],
+  teamNameByTeamId: ReadonlyMap<number, string>,
+): ResolvedTeams | null {
   if (teamIds.length === 0) {
     return null;
   }
@@ -277,17 +289,18 @@ function resolveTeamsFromIds(teamIds: readonly number[], teamColors: readonly Te
       teamColors[slotIndex]?.hex ?? getTeamColorOrDefault(undefined, slotIndex).hex,
     ]),
   );
-  return { teamIds: sortedTeamIds, teamColorByTeamId };
+  return { teamIds: sortedTeamIds, teamColorByTeamId, teamNameByTeamId };
 }
 
 function resolveTeams(
   scoresByTeamId: Record<string, number> | undefined,
   teamColors: readonly TeamColor[],
+  teamNameByTeamId: ReadonlyMap<number, string>,
 ): ResolvedTeams | null {
   if (scoresByTeamId == null) {
     return null;
   }
-  return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors);
+  return resolveTeamsFromIds(Object.keys(scoresByTeamId).map(Number), teamColors, teamNameByTeamId);
 }
 
 function rankByFrequency(teamIds: Iterable<number>): number[] {
@@ -320,16 +333,17 @@ function resolveCtfTeams(
   teamCount: number,
   durationMs: number,
   teamColors: readonly TeamColor[],
+  teamNameByTeamId: ReadonlyMap<number, string>,
 ): ResolvedTeams | null {
   const captureTeamIds = Object.keys(mergeRunningScores(captureEvents.map((event) => event.runningScores))).map(Number);
   if (teamCount !== 2) {
-    return resolveTeamsFromIds(captureTeamIds, teamColors);
+    return resolveTeamsFromIds(captureTeamIds, teamColors, teamNameByTeamId);
   }
   const teamIds = pickRosterTeamIds(captureTeamIds, [
     rankByFrequency(inMatchDeathEvents(timeline.deathTimeline, durationMs).map((death) => death.teamId)),
     rankByFrequency(drawableRunTeamIds(timeline.runs, durationMs)),
   ]);
-  return resolveTeamsFromIds(teamIds, teamColors);
+  return resolveTeamsFromIds(teamIds, teamColors, teamNameByTeamId);
 }
 
 function isFlagDecodeEmpty(timeline: CtfTimeline): boolean {
@@ -348,6 +362,7 @@ export function formatScoreProgression(
   scoreProgression: MatchAnalytics["scoreProgression"],
   teamColors: readonly TeamColor[],
   teamSize: number | null = null,
+  teamNameByTeamId: ReadonlyMap<number, string> = new Map(),
 ): ScoreProgressionViewData | null {
   if (scoreProgression === null) {
     return null;
@@ -357,7 +372,7 @@ export function formatScoreProgression(
 
   switch (timeline.type) {
     case "kill-race": {
-      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors, teamNameByTeamId);
       if (teams == null) {
         return null;
       }
@@ -367,7 +382,7 @@ export function formatScoreProgression(
       return buildStepScoreLines(inMatchEvents, teams, playerAdvantage, durationMs);
     }
     case "koth": {
-      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors);
+      const teams = resolveTeams(timeline.events.at(0)?.runningScores, teamColors, teamNameByTeamId);
       if (teams == null) {
         return null;
       }
@@ -376,7 +391,7 @@ export function formatScoreProgression(
       return {
         kind: "koth",
         durationMs,
-        hills: buildKothHills(timeline, hillWindows, teams.teamIds, teams.teamColorByTeamId),
+        hills: buildKothHills(timeline, hillWindows, teams.teamIds, teams.teamColorByTeamId, teams.teamNameByTeamId),
         scoreLines: buildSampledScoreLines(
           samples,
           hillBoundaries,
@@ -389,7 +404,11 @@ export function formatScoreProgression(
       };
     }
     case "oddball": {
-      const teams = resolveTeams(mergeRunningScores(timeline.rounds.map((round) => round.scores)), teamColors);
+      const teams = resolveTeams(
+        mergeRunningScores(timeline.rounds.map((round) => round.scores)),
+        teamColors,
+        teamNameByTeamId,
+      );
       if (teams == null) {
         return null;
       }
@@ -397,7 +416,7 @@ export function formatScoreProgression(
       return {
         kind: "oddball",
         durationMs,
-        rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId),
+        rounds: buildOddballRounds(timeline, teams.teamIds, teams.teamColorByTeamId, teams.teamNameByTeamId),
         scoreLines: buildSampledScoreLines(
           samples,
           roundBoundaries,
@@ -410,11 +429,21 @@ export function formatScoreProgression(
       };
     }
     case "strongholds": {
-      const teams = resolveTeams(mergeRunningScores(timeline.events.map((event) => event.runningScores)), teamColors);
+      const teams = resolveTeams(
+        mergeRunningScores(timeline.events.map((event) => event.runningScores)),
+        teamColors,
+        teamNameByTeamId,
+      );
       if (teams == null) {
         return null;
       }
-      const teamLines = buildSampledTeamLines(timeline.events, teams.teamIds, teams.teamColorByTeamId, durationMs);
+      const teamLines = buildSampledTeamLines(
+        timeline.events,
+        teams.teamIds,
+        teams.teamColorByTeamId,
+        durationMs,
+        teams.teamNameByTeamId,
+      );
       // null rather than an empty array so "no markers" reads the same as modes without markers
       const markers = buildStrongholdsMarkers(timeline.zoneEvents, teamLines, durationMs);
       const zoneWindows = buildZoneCountWindows(timeline.zoneTimeline, teams.teamIds, durationMs);
@@ -436,7 +465,7 @@ export function formatScoreProgression(
     }
     case "ctf": {
       const captureEvents = clampEventsToDuration(timeline.events, durationMs);
-      const teams = resolveCtfTeams(captureEvents, timeline, teamCount, durationMs, teamColors);
+      const teams = resolveCtfTeams(captureEvents, timeline, teamCount, durationMs, teamColors, teamNameByTeamId);
       if (teams == null) {
         return null;
       }
@@ -447,7 +476,7 @@ export function formatScoreProgression(
       if (flagTeamIds == null) {
         return scoreLines;
       }
-      const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs);
+      const runs = buildFlagRuns(timeline, flagTeamIds, teams.teamColorByTeamId, durationMs, teams.teamNameByTeamId);
       if (runs.length === 0 && !isFlagDecodeEmpty(timeline)) {
         return scoreLines;
       }
@@ -457,8 +486,11 @@ export function formatScoreProgression(
         durationMs,
         runs,
         points: buildFlagChartPoints(runs, durationMs),
-        legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId),
-        teamNames: [getTeamName(firstTeamId), getTeamName(secondTeamId)],
+        legend: buildFlagRunLegend(flagTeamIds, teams.teamColorByTeamId, teams.teamNameByTeamId),
+        teamNames: [
+          getTeamNameWithOverride(firstTeamId, teams.teamNameByTeamId),
+          getTeamNameWithOverride(secondTeamId, teams.teamNameByTeamId),
+        ],
         advantageOverlay: buildFlagAdvantageOverlay(runs, playerAdvantage),
         scoreLines,
       };

@@ -27,6 +27,7 @@ import type {
   TimelineGanttChartViewModel,
   TimelineGanttRowViewModel,
   TimelineGanttTooltipEntry,
+  TooltipSeries,
   ZoneStripData,
 } from "./types";
 
@@ -164,8 +165,8 @@ export class ScoreProgressionPresenter {
         points: overlay?.rows ?? viewData.points,
         advantageDomain: overlay != null ? this.mirrorDomain(overlay.minScore, overlay.maxScore) : null,
         showTooltip: viewData.runs.length > 0 || overlay != null,
-        tooltipFormatter: (value, name): [string, string] =>
-          this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+        tooltipFormatter: (value, name, series): [string, string] =>
+          this.formatSeriesTooltip(value, series, team0Name, team1Name, () =>
             this.formatFlagProgressTooltip(value, name),
           ),
       },
@@ -308,8 +309,10 @@ export class ScoreProgressionPresenter {
             advantageDomain,
             tooltipFormatter: (
               value: number | string | readonly (number | string)[] | undefined,
-              name: string | number | undefined,
-            ): [string, string] => this.formatDeltaChartTooltip(value, name, team0Name, team1Name, viewData.scoreScale),
+              _name: string | number | undefined,
+              series: TooltipSeries,
+            ): [string, string] =>
+              this.formatDeltaChartTooltip(value, series, team0Name, team1Name, viewData.scoreScale),
           }
         : null;
 
@@ -341,8 +344,9 @@ export class ScoreProgressionPresenter {
         tooltipFormatter: (
           value: number | string | readonly (number | string)[] | undefined,
           name: string | number | undefined,
+          series: TooltipSeries,
         ): [string, string] =>
-          this.formatProgressionTooltip(value, name, team0Name, team1Name, viewData.scoreScale.unit),
+          this.formatProgressionTooltip(value, name, series, team0Name, team1Name, viewData.scoreScale.unit),
       },
       onChartTypeChange: this.onChartTypeChange,
       onPlayerAdvantageChange: this.onPlayerAdvantageChange,
@@ -447,11 +451,12 @@ export class ScoreProgressionPresenter {
   private formatProgressionTooltip(
     value: number | string | readonly (number | string)[] | undefined,
     name: string | number | undefined,
+    series: TooltipSeries,
     team0Name: string,
     team1Name: string,
     unit: ScoreUnit,
   ): [string, string] {
-    return this.formatSeriesTooltip(value, name, team0Name, team1Name, () => [
+    return this.formatSeriesTooltip(value, series, team0Name, team1Name, () => [
       typeof value === "number" ? formatScoreValue(value, unit) : String(value ?? ""),
       this.toTooltipLabel(name),
     ]);
@@ -459,32 +464,37 @@ export class ScoreProgressionPresenter {
 
   private formatDeltaChartTooltip(
     value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
+    series: TooltipSeries,
     team0Name: string,
     team1Name: string,
     scoreScale: ScoreScale,
   ): [string, string] {
-    return this.formatSeriesTooltip(value, name, team0Name, team1Name, () =>
+    return this.formatSeriesTooltip(value, series, team0Name, team1Name, () =>
       this.formatDeltaTooltip(value, team0Name, team1Name, scoreScale),
     );
   }
 
-  // routes the advantage overlay series to their formatters; anything else takes the chart's
-  // own fallback
   private formatSeriesTooltip(
     value: number | string | readonly (number | string)[] | undefined,
-    name: string | number | undefined,
+    series: TooltipSeries,
     team0Name: string,
     team1Name: string,
     fallback: () => [string, string],
   ): [string, string] {
-    if (name === PLAYER_ADVANTAGE_SERIES) {
-      return this.formatAdvantageTooltip(value, team0Name, team1Name);
+    switch (series) {
+      case "player-advantage": {
+        return this.formatAdvantageTooltip(value, team0Name, team1Name);
+      }
+      case "zone-advantage": {
+        return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
+      }
+      case "score": {
+        return fallback();
+      }
+      default: {
+        throw new UnreachableError(series);
+      }
     }
-    if (name === ZONE_ADVANTAGE_SERIES) {
-      return this.formatZoneAdvantageTooltip(value, team0Name, team1Name);
-    }
-    return fallback();
   }
 
   private formatZoneAdvantageTooltip(

@@ -13,9 +13,10 @@ import type { StatsDetailController } from "../../controllers/stats/stats-detail
 import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../controllers/stats/kill-matrix/types";
 import { KillMatrixFormatter } from "../../controllers/stats/kill-matrix/kill-matrix-formatter";
 import type { KillMatrixPlayer } from "../../controllers/stats/kill-matrix/types";
+import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
 import { getTeamColorOrDefault } from "../team-colors/team-colors";
 import type { TeamColor } from "../team-colors/team-colors";
-import { gameModeIconSrc } from "../individual-tracker/game-mode-icon";
+import { hasStableSeriesTeamMapping } from "./stable-team-mapping";
 import type {
   SeriesMatchDetail,
   SeriesMatchAnalyticsById,
@@ -60,17 +61,18 @@ export class SeriesDetailStatsViewModelPresenter {
   present(
     response: SeriesDetailResponse,
     analyticsByMatchId: SeriesMatchAnalyticsById = new Map(),
-    { teamColors = [] }: SeriesStatsPresentationOptions = {},
+    { teamColors = [], teamNameOverrides = [] }: SeriesStatsPresentationOptions = {},
   ): SeriesStatsViewModel {
     const resolvedMatches = response.matches.results.filter(
       (result): result is ResolvedMatchResult => result.status === "resolved",
     );
     const aggregation = response.aggregation.status === "resolved" ? response.aggregation : null;
+    const teamNamesBySeriesTeamId = this.getTeamNamesBySeriesTeamId(response, aggregation, teamNameOverrides);
     const seriesScore = aggregation == null ? UNAVAILABLE_SCORE : this.formatSeriesScore(aggregation);
     const seriesStatsWarning =
       response.aggregation.status === "unavailable" ? AGGREGATION_WARNINGS[response.aggregation.reason] : null;
     const matchDetails = response.matches.results.map((result, index) =>
-      this.presentMatch(result, index, analyticsByMatchId.get(result.matchId), teamColors),
+      this.presentMatch(result, index, analyticsByMatchId.get(result.matchId), teamColors, teamNamesBySeriesTeamId),
     );
     const summaryDetails = response.matches.results.map((result) =>
       result.status === "resolved" ? result.detail : null,
@@ -82,7 +84,7 @@ export class SeriesDetailStatsViewModelPresenter {
       subtitle: this.presentLabel(response.context?.subtitle, "Series details unavailable"),
       seriesScore,
       matchSummaries: response.matches.results.map((result) => this.presentMatchSummary(result, teamColors)),
-      teams: this.presentTeams(resolvedMatches, aggregation, teamColors),
+      teams: this.presentTeams(resolvedMatches, aggregation, teamColors, teamNamesBySeriesTeamId),
       seriesStats:
         aggregation == null
           ? null
@@ -104,6 +106,7 @@ export class SeriesDetailStatsViewModelPresenter {
     index: number,
     analyticsState: SeriesMatchAnalyticsState | undefined,
     colorOverrides: readonly TeamColor[],
+    teamNamesBySeriesTeamId: ReadonlyMap<number, string>,
   ): SeriesMatchDetail {
     if (result.status === "unavailable") {
       return this.presentUnavailableMatch(result, index);
@@ -113,6 +116,7 @@ export class SeriesDetailStatsViewModelPresenter {
     const labels = this.presentMatchLabels(detail);
     const data = this.statsDetailController.mapMatchDetailToStats(detail);
     const teamColors = this.presentMatchTeamColors(detail, colorOverrides);
+    const teamNameByMatchTeamId = this.getTeamNamesByMatchTeamId(detail, teamNamesBySeriesTeamId);
     return {
       matchId: result.matchId,
       data,
@@ -131,6 +135,7 @@ export class SeriesDetailStatsViewModelPresenter {
         scoreProgression: analyticsState?.scoreProgression?.data ?? null,
         teamColors,
         teamSize: data[0]?.players.length ?? null,
+        teamNameByTeamId: teamNameByMatchTeamId,
       }),
       killMatrixStatus: analyticsState?.killMatrix?.status ?? ComponentLoaderStatus.PENDING,
       scoreProgressionStatus: analyticsState?.scoreProgression?.status ?? ComponentLoaderStatus.PENDING,
@@ -248,6 +253,7 @@ export class SeriesDetailStatsViewModelPresenter {
     resolvedResults: readonly ResolvedMatchResult[],
     aggregation: ResolvedAggregation | null,
     colorOverrides: readonly TeamColor[],
+    teamNamesBySeriesTeamId: ReadonlyMap<number, string>,
   ): SeriesTeamCard[] {
     const latestMatch = this.getLatestMatch(resolvedResults);
     if (latestMatch == null) {
@@ -279,7 +285,10 @@ export class SeriesDetailStatsViewModelPresenter {
 
       return {
         seriesTeamId: team.seriesTeamId,
-        name: this.presentLabel(seriesTeam?.name, this.presentLabel(team.name, getTeamName(stableTeamId))),
+        name: this.presentLabel(
+          teamNamesBySeriesTeamId.get(stableTeamId),
+          this.presentLabel(seriesTeam?.name, this.presentLabel(team.name, getTeamName(stableTeamId))),
+        ),
         players,
         teamColorHex: this.presentTeamColor(index, colorOverrides).hex,
       };
@@ -298,6 +307,37 @@ export class SeriesDetailStatsViewModelPresenter {
 
   private getStableTeamId(team: { readonly seriesTeamId: number | null; readonly matchTeamId: number }): number {
     return team.seriesTeamId ?? team.matchTeamId;
+  }
+
+  private getTeamNamesBySeriesTeamId(
+    response: SeriesDetailResponse,
+    aggregation: ResolvedAggregation | null,
+    overrides: readonly (string | null)[],
+  ): ReadonlyMap<number, string> {
+    if (aggregation == null || !hasStableSeriesTeamMapping(response)) {
+      return new Map();
+    }
+
+    return new Map(
+      [...aggregation.teams]
+        .sort((left, right) => left.seriesTeamId - right.seriesTeamId)
+        .flatMap((team, index) => {
+          const name = overrides[index]?.trim();
+          return name == null || name === "" ? [] : [[team.seriesTeamId, name]];
+        }),
+    );
+  }
+
+  private getTeamNamesByMatchTeamId(
+    detail: MatchDetail,
+    namesBySeriesTeamId: ReadonlyMap<number, string>,
+  ): ReadonlyMap<number, string> {
+    return new Map(
+      detail.teams.flatMap((team) => {
+        const name = team.seriesTeamId == null ? undefined : namesBySeriesTeamId.get(team.seriesTeamId);
+        return name == null ? [] : [[team.matchTeamId, name]];
+      }),
+    );
   }
 
   private formatSeriesScore(aggregation: ResolvedAggregation): string {

@@ -17,6 +17,7 @@ import {
   GRID_STROKE,
   TICK_STYLE,
   chartMargin,
+  chartTooltipFormatter,
   flagAdvantageAxisProps,
   flagAxisProps,
   formatTooltipLabel,
@@ -49,7 +50,7 @@ export function FlagRunsChart({
             contentStyle={tooltipContentStyle}
             labelStyle={tooltipLabelStyle}
             labelFormatter={formatTooltipLabel}
-            formatter={tooltipFormatter}
+            formatter={chartTooltipFormatter(tooltipFormatter, "score")}
           />
         )}
         {runs.map((run) => (
@@ -79,7 +80,12 @@ export function FlagRunsChart({
             />
           ) : null,
         )}
-        {advantageDomain != null && <Area {...playerAdvantageAreaProps(FLAG_ADVANTAGE_KEY)} />}
+        {advantageDomain != null && (
+          <Area
+            {...playerAdvantageAreaProps(FLAG_ADVANTAGE_KEY)}
+            formatter={chartTooltipFormatter(tooltipFormatter, "player-advantage")}
+          />
+        )}
         {runs.flatMap((run) =>
           run.markers.map((marker, markerIndex) => (
             <ReferenceDot

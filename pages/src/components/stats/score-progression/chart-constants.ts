@@ -1,13 +1,11 @@
 import type { ReactNode } from "react";
-import type { ScoreUnit } from "./types";
+import type { ScoreUnit, TooltipFormatter, TooltipSeries } from "./types";
 
 export const GRID_STROKE = "rgba(93, 212, 216, 0.12)";
 export const AXIS_STROKE = "rgba(93, 212, 216, 0.3)";
 export const TICK_FILL = "#8fa3b0";
 const ADVANTAGE_STROKE = "#e8f4f8";
 const ZONE_ADVANTAGE_STROKE = "#f0b849";
-// series names double as the tooltip-dispatch keys in the presenter, so they live here rather
-// than inline in each chart
 export const PLAYER_ADVANTAGE_SERIES = "Player Advantage";
 export const ZONE_ADVANTAGE_SERIES = "Zone Advantage";
 export const FLAG_ADVANTAGE_KEY = "playerAdvantage";
@@ -151,10 +149,16 @@ function advantageAreaProps<K extends AdvantageDataKey>(
   };
 }
 
-// the (series name, stroke) pairing is defined once so the tooltip-dispatch key can never be
-// paired with the wrong colour at a call site
 export function playerAdvantageAreaProps<K extends AdvantageDataKey>(dataKey: K): AdvantageAreaProps<K> {
   return advantageAreaProps(PLAYER_ADVANTAGE_SERIES, ADVANTAGE_STROKE, dataKey);
+}
+
+// Recharts prioritizes each Area's formatter over the Tooltip formatter, independent of its label.
+export function chartTooltipFormatter(
+  formatter: TooltipFormatter,
+  series: TooltipSeries,
+): (value: Parameters<TooltipFormatter>[0], name: Parameters<TooltipFormatter>[1]) => [string, string] {
+  return (value, name) => formatter(value, name, series);
 }
 
 export function zoneAdvantageAreaProps(): AdvantageAreaProps<"score"> {

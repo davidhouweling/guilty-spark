@@ -209,9 +209,12 @@ export type ScoreProgressionViewData =
 
 export type ChartType = "timeline" | "progression" | "delta";
 
+export type TooltipSeries = "score" | "player-advantage" | "zone-advantage";
+
 export type TooltipFormatter = (
   value: number | string | readonly (number | string)[] | undefined,
   name: string | number | undefined,
+  series: TooltipSeries,
 ) => [string, string];
 
 export interface ChartTypeOption {
