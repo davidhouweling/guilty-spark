@@ -4,14 +4,14 @@ import styles from "./series-team-section.module.css";
 
 interface SeriesTeamNameInputsProps {
   readonly settings: SeriesStreamerSettings;
-  readonly onChange: (updates: Partial<SeriesStreamerSettings>) => void;
   readonly description?: string;
+  readonly onChange: (updates: Partial<SeriesStreamerSettings>) => void;
 }
 
 export function SeriesTeamNameInputs({
   settings,
-  onChange,
   description = "Override the team labels for this specific series. Leave empty to use defaults (Discord / Xbox).",
+  onChange,
 }: SeriesTeamNameInputsProps): React.ReactElement {
   return (
     <>
