@@ -84,12 +84,12 @@ describe("projectSeriesTicker", () => {
 
     expect(result.hasUnknownRarity).toBe(true);
     expect(result.teamData.map((team) => [team.teamId, team.hasUnknownRarity, team.teamMedals])).toEqual([
-      [42, true, [{ name: "Contract team", count: 8, sortingWeight: 150 }]],
       [7, false, [{ name: "Second team", count: 2, sortingWeight: 25 }]],
+      [42, true, [{ name: "Contract team", count: 8, sortingWeight: 150 }]],
     ]);
     expect(result.teamData.map((team) => team.teamStats[0])).toEqual([
-      expect.objectContaining({ value: 60, display: "60", bestInMatch: false }),
       expect.objectContaining({ value: 70, display: "70", bestInMatch: true }),
+      expect.objectContaining({ value: 60, display: "60", bestInMatch: false }),
     ]);
     expect(
       result.playerData.map((team) =>
@@ -100,26 +100,26 @@ describe("projectSeriesTicker", () => {
         })),
       ),
     ).toEqual([
+      [{ playerId: "switch", name: "Same", gamertag: "Same" }],
       [
         { playerId: "bot", name: "Bot", gamertag: null },
         { playerId: "switch", name: "Same (1/3 games)", gamertag: "Same" },
         { playerId: "second", name: "Same (1/3 games)", gamertag: "Same" },
       ],
-      [{ playerId: "switch", name: "Same", gamertag: "Same" }],
     ]);
-    const [, switched, second] = result.playerData[0].players;
+    const [, switched, second] = result.playerData[1].players;
     expect(switched.values[0]).toMatchObject({ value: 42, display: "42", bestInTeam: true, bestInMatch: true });
     expect(switched.medals).toEqual([{ name: "Metadata", count: 2, sortingWeight: 120 }]);
     expect(switched.hasUnknownRarity).toBe(true);
     expect(second.medals).toEqual([{ name: "8", count: 2, sortingWeight: 0 }]);
     expect(second.hasUnknownRarity).toBe(false);
-    expect(result.playerData[1].players[0]).toMatchObject({
+    expect(result.playerData[0].players[0]).toMatchObject({
       playerId: "switch",
       values: [expect.objectContaining({ value: 7, bestInMatch: false })],
       medals: [{ name: "Other side", count: 2, sortingWeight: 30 }],
       hasUnknownRarity: false,
     });
-    expect(result.teamData[0].players.map((player) => player.values)).toEqual([[], [], []]);
+    expect(result.teamData[1].players.map((player) => player.values)).toEqual([[], [], []]);
     expect(JSON.stringify(response)).toBe(original);
   });
 
