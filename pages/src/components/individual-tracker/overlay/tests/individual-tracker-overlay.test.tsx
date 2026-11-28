@@ -431,7 +431,10 @@ describe("IndividualTrackerOverlay", () => {
               subtitle: "",
               seriesScore: "0:0",
               matchSummaries: [],
-              teams: [],
+              teams: [
+                { seriesTeamId: 0, name: "Eagle", players: ["Spartan One"], teamColorHex: "#FE3939" },
+                { seriesTeamId: 1, name: "Cobra", players: ["Spartan Two"], teamColorHex: "#00AAFF" },
+              ],
               seriesStats: null,
               matchDetails: [],
             },

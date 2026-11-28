@@ -131,10 +131,11 @@ export function SeriesStatsView({
   onAnalyticsTabSelected,
 }: SeriesStatsViewProps): ReactElement {
   const statsGutter = noGutter === true || wide === true ? "0" : undefined;
+  const shouldShowSeriesOverview = showSeriesOverview !== false && teams.length === 2;
 
   return (
     <div className={styles.seriesStats}>
-      {showSeriesOverview !== false && (
+      {shouldShowSeriesOverview && (
         <Container wide={wide} className={classNames(styles.contentContainer, { [styles.noGutter]: noGutter })}>
           <Heading tagName="h2" styleAs="h3">
             Series overview

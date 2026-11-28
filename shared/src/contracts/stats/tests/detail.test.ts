@@ -55,7 +55,7 @@ describe("match details", () => {
     expect(
       matchDetailSchema.safeParse({ ...detail, endTime: detail.startTime, startTime: detail.endTime }).success,
     ).toBe(false);
-    expect(matchDetailSchema.safeParse({ ...detail, teamCount: 2 }).success).toBe(false);
+    expect(matchDetailSchema.safeParse({ ...detail, teamCount: 1 }).success).toBe(false);
   });
 
   it("preserves Oddball rounds and points separately without parsing a formatted score", () => {
@@ -96,6 +96,7 @@ describe("match details", () => {
         primary: { metric: "score", teams: [{ matchTeamId: 19, seriesTeamId: 0, value: 47 }] },
         secondary: null,
       },
+      teamCount: 1,
       players: [
         aFakePlayerWith({
           lastMatchTeamId: 19,
@@ -250,7 +251,13 @@ describe("backend series aggregation", () => {
       },
     });
     const parsed = await seriesDetailContract.fromResponse(seriesDetailContract.toResponse(response));
-    expect(parsed.aggregation).toEqual(aFakeSeriesDetailResponseWith().aggregation);
+    expect(parsed.aggregation).toEqual({
+      status: "resolved",
+      gamesPlayed: 2,
+      completedGameCount: 1,
+      teams: [aFakeSeriesTeamWith()],
+      players: [aFakeSeriesPlayerWith()],
+    });
     expect(JSON.stringify(parsed.aggregation)).not.toContain("matchTeamId");
     expect(JSON.stringify(parsed.aggregation)).not.toContain("participation");
   });
