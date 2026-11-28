@@ -1,11 +1,30 @@
 import type React from "react";
 import type { StreamerViewSettings } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
 import type { StatsHighlightItem } from "@guilty-spark/shared/contracts/individual-tracker/view";
+import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import type { TeamColor } from "../../team-colors/team-colors";
 import type { TickerMatchGroup } from "../../information-ticker/information-ticker";
 import type { OverlayTab } from "../../streamer-overlay/types";
 
 export const MATCHMAKING_SUMMARY_TAB_SERIES_ID = "matchmaking-summary";
+
+export interface OverlayPlayerMedalProjection {
+  readonly playerId: string;
+  readonly medals: MedalEntry[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface OverlayTeamMedalProjection {
+  readonly teamId: number;
+  readonly players: readonly OverlayPlayerMedalProjection[];
+  readonly teamMedals: MedalEntry[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface OverlayMatchMedalProjection {
+  readonly teams: readonly OverlayTeamMedalProjection[];
+  readonly hasUnknownRarity: boolean;
+}
 
 export interface OverlayDisplaySettings {
   readonly showTicker: boolean;
