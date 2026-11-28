@@ -35,7 +35,7 @@ import {
 } from "../../live-tracker/settings/types";
 import haloTrophyIconPng from "../../../assets/halo-trophy-icon.png";
 import { timeAgo } from "../../../services/time-ago";
-import { projectSeriesTicker } from "./series-ticker-projection";
+import { projectSeriesTicker } from "../../../controllers/stats/series-ticker-projection";
 import type {
   IndividualTrackerOverlayViewModel,
   OverlayDisplaySettings,

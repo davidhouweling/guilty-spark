@@ -1,9 +1,8 @@
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import type { SeriesAggregation } from "@guilty-spark/shared/contracts/stats/detail";
-import type { IdentifiedMatchStatsData } from "../../../controllers/stats/types";
-import type { StatsDetailController } from "../../../controllers/stats/stats-detail-controller";
-import { projectMedals } from "../../../controllers/stats/medal-projection";
-import type { OverlaySeriesTickerProjection, OverlaySeriesTickerTeam } from "./types";
+import type { IdentifiedMatchStatsData, SeriesTickerProjection, SeriesTickerTeam } from "./types";
+import type { StatsDetailController } from "./stats-detail-controller";
+import { projectMedals } from "./medal-projection";
 
 type ResolvedAggregation = Extract<SeriesAggregation, { status: "resolved" }>;
 
@@ -11,7 +10,7 @@ function projectTeam(
   team: IdentifiedMatchStatsData,
   teamsById: ReadonlyMap<number, ResolvedAggregation["teams"][number]>,
   playersById: ReadonlyMap<string, ResolvedAggregation["players"][number]>,
-): OverlaySeriesTickerTeam {
+): SeriesTickerTeam {
   const sourceTeam = Preconditions.checkExists(teamsById.get(team.teamId), "Missing series team");
   const teamMedals = projectMedals(sourceTeam.medals, "ticker");
   return {
@@ -38,7 +37,7 @@ function projectTeam(
 export function projectSeriesTicker(
   aggregation: SeriesAggregation,
   controller: StatsDetailController,
-): OverlaySeriesTickerProjection {
+): SeriesTickerProjection {
   if (aggregation.status === "unavailable") {
     return aggregation;
   }

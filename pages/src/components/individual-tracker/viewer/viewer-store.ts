@@ -30,6 +30,7 @@ export interface SeriesEntryLoadedState {
   readonly seriesId: string;
   readonly data: SeriesDetailResponse;
   readonly analyticsByMatchId: SeriesMatchAnalyticsById;
+  readonly hasUnavailableTickerMedals?: boolean | undefined;
 }
 
 export interface IndividualTrackerViewerSnapshot {

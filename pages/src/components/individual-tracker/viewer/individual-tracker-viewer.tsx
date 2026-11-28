@@ -57,6 +57,14 @@ interface IndividualTrackerViewerProps {
   readonly onLoadMore?: () => void;
 }
 
+function TickerMedalWarning(): React.ReactElement {
+  return (
+    <Alert variant="warning">
+      Some medal rarity data is unavailable; affected medals are omitted from the overlay ticker.
+    </Alert>
+  );
+}
+
 function entryKey(item: ViewerTimelineItem): string {
   if (item.type === "match") {
     return `match:${item.match.matchId}`;
@@ -491,12 +499,7 @@ export function IndividualTrackerViewer({
                               <Alert variant="error">{state.state.message}</Alert>
                             ) : state.kind === "match" && state.state.status === "loaded" ? (
                               <>
-                                {state.state.hasUnavailableTickerMedals === true && (
-                                  <Alert variant="warning">
-                                    Some medal rarity data is unavailable; affected medals are omitted from the overlay
-                                    ticker.
-                                  </Alert>
-                                )}
+                                {state.state.hasUnavailableTickerMedals === true && <TickerMedalWarning />}
                                 <MatchStats
                                   data={state.state.data}
                                   id={`match-${state.state.matchId}`}
@@ -657,18 +660,21 @@ export function IndividualTrackerViewer({
                             ) : state.kind === "series" && state.state.status === "error" ? (
                               <Alert variant="error">{state.state.message}</Alert>
                             ) : state.kind === "series" && state.state.status === "loaded" ? (
-                              <SeriesStatsContent
-                                data={state.state.data}
-                                analyticsByMatchId={state.state.analyticsByMatchId}
-                                teamColors={renderModel.teamColors}
-                                showSeriesTitle={true}
-                                showSeriesOverview={false}
-                                noGutter={true}
-                                wide={true}
-                                onAnalyticsTabSelected={(module, matchId): void => {
-                                  onLoadAnalytics?.(item, module, matchId);
-                                }}
-                              />
+                              <>
+                                {state.state.hasUnavailableTickerMedals === true && <TickerMedalWarning />}
+                                <SeriesStatsContent
+                                  data={state.state.data}
+                                  analyticsByMatchId={state.state.analyticsByMatchId}
+                                  teamColors={renderModel.teamColors}
+                                  showSeriesTitle={true}
+                                  showSeriesOverview={false}
+                                  noGutter={true}
+                                  wide={true}
+                                  onAnalyticsTabSelected={(module, matchId): void => {
+                                    onLoadAnalytics?.(item, module, matchId);
+                                  }}
+                                />
+                              </>
                             ) : (
                               <Alert variant="error">Unexpected entry state.</Alert>
                             )}

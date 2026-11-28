@@ -7,7 +7,7 @@ import {
   aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import { aFakeMedalWith, aFakeStatWith } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
-import { StatsDetailController } from "../../../../controllers/stats/stats-detail-controller";
+import { StatsDetailController } from "../stats-detail-controller";
 import { projectSeriesTicker } from "../series-ticker-projection";
 
 describe("projectSeriesTicker", () => {
