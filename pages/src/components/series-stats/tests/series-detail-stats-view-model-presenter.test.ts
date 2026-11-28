@@ -391,6 +391,115 @@ describe("SeriesDetailStatsViewModelPresenter", () => {
     });
   });
 
+  it("preserves each team's player order in series tables and kill matrices", () => {
+    const detail = aFakeMatchDetailWith({
+      matchId: "match",
+      teams: [
+        aFakeTeamWith({ matchTeamId: 7, seriesTeamId: 0, playerIds: ["a", "b"] }),
+        aFakeTeamWith({ matchTeamId: 19, seriesTeamId: 1, playerIds: ["c", "d"] }),
+      ],
+      players: [
+        rosterPlayer("a", 7, 0, { xuid: "100" }),
+        rosterPlayer("b", 7, 0, { xuid: "200" }),
+        rosterPlayer("c", 19, 1, { xuid: "300" }),
+        rosterPlayer("d", 19, 1, { xuid: "400" }),
+      ],
+      teamCount: 2,
+    });
+    const aggregation: ResolvedAggregation = {
+      status: "resolved",
+      gamesPlayed: 1,
+      completedGameCount: 1,
+      teams: [
+        aFakeSeriesTeamWith({ seriesTeamId: 1, playerIds: ["d", "c"] }),
+        aFakeSeriesTeamWith({ seriesTeamId: 0, playerIds: ["b", "a"] }),
+      ],
+      players: [
+        { playerId: "a", xuid: "100", seriesTeamId: 0 },
+        { playerId: "b", xuid: "200", seriesTeamId: 0 },
+        { playerId: "c", xuid: "300", seriesTeamId: 1 },
+        { playerId: "d", xuid: "400", seriesTeamId: 1 },
+      ].map(({ playerId, xuid, seriesTeamId }) =>
+        aFakeSeriesPlayerWith({
+          playerId,
+          xuid,
+          gamertag: playerId,
+          teamStats: [{ seriesTeamId, gamesPlayed: 1, stats: [], medals: [] }],
+        }),
+      ),
+    };
+    const analytics: SeriesMatchAnalyticsById = new Map([
+      [
+        "match",
+        {
+          killMatrix: {
+            status: ComponentLoaderStatus.LOADED,
+            data: { "100:300": { count: 1, perfects: 0 } },
+          },
+        },
+      ],
+    ]);
+
+    const stats = createPresenter().present(responseWith([detail], aggregation), analytics).seriesStats;
+
+    expect(stats?.playerData.map(({ teamId, players }) => [teamId, players.map(({ name }) => name)])).toEqual([
+      [0, ["b", "a"]],
+      [1, ["d", "c"]],
+    ]);
+    expect(stats?.crossTeamKillMatrixData?.tableRows.map(({ playerId }) => playerId)).toEqual(["200", "100"]);
+    expect(stats?.crossTeamKillMatrixData?.columnHeaders.map(({ xuid }) => xuid)).toEqual(["400", "300"]);
+  });
+
+  it("uses the current team's order for a player who changed teams", () => {
+    const detail = aFakeMatchDetailWith({
+      matchId: "match",
+      teams: [
+        aFakeTeamWith({ matchTeamId: 7, seriesTeamId: 0, playerIds: ["b"] }),
+        aFakeTeamWith({ matchTeamId: 19, seriesTeamId: 1, playerIds: ["a", "c"] }),
+      ],
+      players: [
+        rosterPlayer("a", 19, 1, { xuid: "100" }),
+        rosterPlayer("b", 7, 0, { xuid: "200" }),
+        rosterPlayer("c", 19, 1, { xuid: "300" }),
+      ],
+      teamCount: 2,
+    });
+    const aggregation: ResolvedAggregation = {
+      status: "resolved",
+      gamesPlayed: 2,
+      completedGameCount: 2,
+      teams: [
+        aFakeSeriesTeamWith({ seriesTeamId: 0, playerIds: ["a", "b"] }),
+        aFakeSeriesTeamWith({ seriesTeamId: 1, playerIds: ["c", "a"] }),
+      ],
+      players: [
+        aFakeSeriesPlayerWith({ playerId: "a", xuid: "100", gamertag: "a" }),
+        aFakeSeriesPlayerWith({ playerId: "b", xuid: "200", gamertag: "b" }),
+        aFakeSeriesPlayerWith({ playerId: "c", xuid: "300", gamertag: "c" }),
+      ],
+    };
+    const analytics: SeriesMatchAnalyticsById = new Map([
+      [
+        "match",
+        {
+          killMatrix: {
+            status: ComponentLoaderStatus.LOADED,
+            data: {
+              "100:200": { count: 1, perfects: 0 },
+              "200:100": { count: 1, perfects: 0 },
+              "300:200": { count: 1, perfects: 0 },
+            },
+          },
+        },
+      ],
+    ]);
+
+    const stats = createPresenter().present(responseWith([detail], aggregation), analytics).seriesStats;
+
+    expect(stats?.crossTeamKillMatrixData).toBeNull();
+    expect(stats?.killMatrixPivotData.tableRows.map(({ killerId }) => killerId)).toEqual(["200", "300", "100"]);
+  });
+
   it("keeps module loading and error states independent", () => {
     const detail = aFakeMatchDetailWith();
     const analyticsByMatchId: SeriesMatchAnalyticsById = new Map([

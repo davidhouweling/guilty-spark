@@ -160,7 +160,11 @@ export const seriesTeamSchema = totalsSchema.extend({
   outcome: trackerMatchOutcomeSchema,
   gamesPlayed: countSchema,
   gamesWon: countSchema,
-  playerIds: z.array(z.string().min(1)),
+  playerIds: z
+    .array(z.string().min(1))
+    .describe(
+      "Calculated players ordered by this team's aggregate raw Halo Score descending, then personal Score descending; ties retain source order, followed by uncalculated identities in source order",
+    ),
 });
 export type SeriesTeam = z.infer<typeof seriesTeamSchema>;
 

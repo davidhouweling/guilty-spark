@@ -106,6 +106,102 @@ function getResolvedAggregation(aggregation: SeriesAggregation): Extract<SeriesA
 }
 
 describe("mapSeriesDetailAggregation()", () => {
+  it("orders each team by its calculated aggregate scores and retains uncalculated roster identities", () => {
+    function player(
+      id: string,
+      teamScores: readonly [number, number, number][],
+      options: { late?: boolean; lastTeamId?: number; playerType?: number } = {},
+    ): MatchStats["Players"][number] {
+      const base = aFakePlayerWith();
+      return aFakePlayerWith({
+        PlayerId: id,
+        PlayerType: options.playerType ?? base.PlayerType,
+        Rank: id === "raw-high" ? 0 : 99,
+        LastTeamId: options.lastTeamId ?? 17,
+        ParticipationInfo: { ...base.ParticipationInfo, PresentAtBeginning: options.late !== true },
+        PlayerTeamStats: teamScores.map(([teamId, score, personalScore]) => ({
+          TeamId: teamId,
+          Stats: createStats("slayer", aFakeCoreStatsWith({ Score: score, PersonalScore: personalScore })),
+        })),
+      });
+    }
+
+    const first = aStableMatchWith("first", "2026-11-01T10:00:00.000Z", "first-map", "slayer", [1, 2]);
+    const second = aStableMatchWith("second", "2026-11-01T10:10:00.000Z", "second-map", "slayer", [1, 2]);
+    const matches = [
+      {
+        ...first,
+        Players: [
+          player("late-no-stats", [], { late: true }),
+          player("late-then-scored", [[17, 999, 999]], { late: true }),
+          player(
+            "switcher",
+            [
+              [17, 9, 100],
+              [4, 40, 1000],
+            ],
+            { lastTeamId: 4 },
+          ),
+          player("tie-first", [[17, 10, 200]]),
+          player("raw-high", [[17, 11, 9999]]),
+          player("tie-second", [[17, 10, 200]]),
+          player("personal-high", [[17, 10, 300]]),
+          player("other-team", [[4, 42, 0]], { lastTeamId: 4 }),
+          player("migrant", [[4, 50, 0]], { lastTeamId: 4 }),
+          player("negative", [[17, -1, 0]]),
+          player("bid(77)", [[17, 999, 999]], { late: true, playerType: 2 }),
+        ],
+      },
+      {
+        ...second,
+        Players: [
+          player("switcher", [
+            [4, 1, 0],
+            [17, 20, 0],
+          ]),
+          player("tie-first", [[17, 2, 0]]),
+          player("tie-second", [[17, 2, 0]]),
+          player("raw-high", [[17, 0, 0]]),
+          player("personal-high", [[17, 2, 200]]),
+          player("late-then-scored", [[17, 12, 200]]),
+          player("migrant", [[17, 2, 0]]),
+        ],
+      },
+    ];
+    const original = JSON.stringify(matches);
+
+    const result = getResolvedAggregation(mapSeriesDetailAggregation(matches));
+
+    expect(result.teams.map(({ seriesTeamId, playerIds }) => ({ seriesTeamId, playerIds }))).toEqual([
+      {
+        seriesTeamId: 17,
+        playerIds: [
+          "switcher",
+          "personal-high",
+          "late-then-scored",
+          "tie-first",
+          "tie-second",
+          "raw-high",
+          "migrant",
+          "negative",
+          "late-no-stats",
+          "bid(77)",
+        ],
+      },
+      { seriesTeamId: 4, playerIds: ["migrant", "other-team", "switcher"] },
+    ]);
+    expect(
+      result.players.find(({ playerId }) => playerId === "switcher")?.teamStats.map(({ seriesTeamId }) => seriesTeamId),
+    ).toEqual([17, 4]);
+    expect(result.players.find(({ playerId }) => playerId === "bid(77)")).toMatchObject({
+      playerType: 2,
+      stats: [],
+      teamStats: [{ seriesTeamId: 17, stats: [] }],
+    });
+    expect(JSON.stringify(result)).not.toMatch(/CoreStats|PlayerTeamStats|MatchInfo/);
+    expect(JSON.stringify(matches)).toBe(original);
+  });
+
   it("maps stable nonsequential teams and mixed-mode numeric totals without exposing raw matches", () => {
     const matches = [
       aStableMatchWith("ctf-game", "2026-11-01T10:00:00.000Z", "ctf-map", "ctf", [MatchOutcome.Win, MatchOutcome.Loss]),

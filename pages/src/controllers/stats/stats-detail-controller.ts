@@ -110,8 +110,9 @@ export class StatsDetailController {
 
   mapSeriesAggregationToStatsWithPlayerIds(aggregation: ResolvedAggregation): IdentifiedSeriesStatsData {
     const playersById = new Map(aggregation.players.map((player) => [player.playerId, player]));
+    const teams = [...aggregation.teams].sort((left, right) => left.seriesTeamId - right.seriesTeamId);
     const playersByTeamId = new Map(
-      aggregation.teams.map((team) => [team.seriesTeamId, this.getSeriesTeamPlayers(team, playersById)]),
+      teams.map((team) => [team.seriesTeamId, this.getSeriesTeamPlayers(team, playersById)]),
     );
     const bestTeams = this.formatter.getBestValues(aggregation.teams.flatMap((team) => team.stats));
     const bestPlayers = this.formatter.getBestValues(
@@ -120,7 +121,7 @@ export class StatsDetailController {
     const teamData: IdentifiedSeriesStatsData["teamData"] = [];
     const playerData: IdentifiedSeriesStatsData["playerData"] = [];
 
-    for (const team of aggregation.teams) {
+    for (const team of teams) {
       const players = playersByTeamId.get(team.seriesTeamId) ?? [];
       const bestInTeam = this.formatter.getBestValues(players.flatMap(({ entry }) => entry.stats));
       const playerRows = players.map(({ player, entry }) => ({

@@ -174,14 +174,26 @@ function mapSeriesPlayers(
   return players;
 }
 
-function getTeamPlayerIds(teamId: number, participationByPlayerId: ReadonlyMap<string, PlayerParticipation>): string[] {
+function getTeamPlayerIds(
+  teamId: number,
+  participationByPlayerId: ReadonlyMap<string, PlayerParticipation>,
+  playersByTeam: ReadonlyMap<number, ReadonlyMap<string, CalculatedSeriesPlayer>>,
+): string[] {
   const playerIds: string[] = [];
   for (const [playerId, participation] of participationByPlayerId) {
     if (participation.teamGamesPlayed.has(teamId)) {
       playerIds.push(playerId);
     }
   }
-  return playerIds;
+  const calculated = playersByTeam.get(teamId);
+  return playerIds.sort((left, right) => {
+    const leftStats = calculated?.get(left)?.coreStats;
+    const rightStats = calculated?.get(right)?.coreStats;
+    if (leftStats == null || rightStats == null) {
+      return leftStats == null ? (rightStats == null ? 0 : 1) : -1;
+    }
+    return rightStats.Score - leftStats.Score || rightStats.PersonalScore - leftStats.PersonalScore;
+  });
 }
 
 function getTeamSeriesOutcome(
@@ -209,6 +221,7 @@ function mapSeriesTeams(
   matches: readonly MatchStats[],
   collapsedMatches: readonly MatchStats[],
   participationByPlayerId: ReadonlyMap<string, PlayerParticipation>,
+  playersByTeam: ReadonlyMap<number, ReadonlyMap<string, CalculatedSeriesPlayer>>,
   options: SeriesDetailAggregationOptions,
 ): SeriesTeam[] {
   const metadata = options.medalMetadataById ?? {};
@@ -222,7 +235,7 @@ function mapSeriesTeams(
       outcome: outcome.outcome,
       gamesPlayed: teamGamesPlayed,
       gamesWon: outcome.gamesWon,
-      playerIds: getTeamPlayerIds(team.teamId, participationByPlayerId),
+      playerIds: getTeamPlayerIds(team.teamId, participationByPlayerId, playersByTeam),
       stats: serializeStatDetails(team.values, team.coreStats),
       medals: serializeMedalDetails(team.coreStats.Medals, metadata, difficulties),
     };
@@ -245,7 +258,7 @@ export function mapSeriesDetailAggregation(
     status: "resolved",
     gamesPlayed: matches.length,
     completedGameCount: collapsedMatches.length,
-    teams: mapSeriesTeams(calculatedTeams, matches, collapsedMatches, participationByPlayerId, options),
+    teams: mapSeriesTeams(calculatedTeams, matches, collapsedMatches, participationByPlayerId, playersByTeam, options),
     players: mapSeriesPlayers(
       teamIds,
       participationByPlayerId,
