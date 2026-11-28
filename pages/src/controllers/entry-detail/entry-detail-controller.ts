@@ -6,6 +6,7 @@ import type { MatchAnalyticsService } from "../../services/stats/match-analytics
 import type { SeriesMatchesService } from "../../services/series-matches/types";
 import type { StatsDetailController } from "../stats/stats-detail-controller";
 import { projectStandaloneMatchMedals } from "../stats/standalone-match-medals";
+import { projectSeriesTicker } from "../stats/series-ticker-projection";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../components/team-colors/team-colors";
 import type { TeamColor } from "../../components/team-colors/team-colors";
@@ -55,10 +56,17 @@ export class EntryDetailController {
         } else if (state.status === "error") {
           config.store.setEntryError(key, "series", state.message);
         } else {
+          const ticker = projectSeriesTicker(state.data.aggregation, config.statsDetailController);
           config.store.setSeriesEntryLoaded(key, {
             seriesId: state.data.seriesId,
             data: state.data,
             analyticsByMatchId: state.analyticsByMatchId,
+            hasUnavailableTickerMedals:
+              (ticker.status === "resolved" && ticker.hasUnknownRarity) ||
+              state.data.matches.results.some(
+                (result) =>
+                  result.status === "resolved" && projectStandaloneMatchMedals(result.detail).hasUnknownRarity,
+              ),
           });
         }
       },

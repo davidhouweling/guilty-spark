@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import classNames from "classnames";
 import { UnreachableError } from "@guilty-spark/shared/base/unreachable-error";
+import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { summarizeSeriesOutcome } from "@guilty-spark/shared/halo/match-enrichment";
 import { createStreamerOverlaySection } from "../../streamer-overlay/create";
 import { TopSection } from "../../streamer-overlay/top-section";
@@ -34,6 +35,7 @@ interface IndividualTrackerOverlayProps {
   readonly previewMode?: "player" | "observer";
   readonly onSelectMatch: (matchId: string) => void;
   readonly onSelectSeries: (seriesId: string) => void;
+  readonly onSeriesAnalyticsTabSelected: (seriesId: string, module: AnalyticsModule, matchId?: string) => void;
   readonly onDeselect: () => void;
 }
 
@@ -51,6 +53,7 @@ export function IndividualTrackerOverlay({
   previewMode = "observer",
   onSelectMatch,
   onSelectSeries,
+  onSeriesAnalyticsTabSelected,
   onDeselect,
 }: IndividualTrackerOverlayProps): React.ReactElement {
   const StreamerOverlaySection = useMemo(() => createStreamerOverlaySection(), []);
@@ -59,6 +62,14 @@ export function IndividualTrackerOverlay({
     isTransitioning: isSeriesBackgroundTransitioning,
     isGlitching: isSeriesBackgroundGlitching,
   } = useRotatingBackgroundTick();
+  const handleSeriesAnalyticsTabSelected = useCallback(
+    (module: AnalyticsModule, matchId?: string): void => {
+      if (selectedSeriesId != null) {
+        onSeriesAnalyticsTabSelected(selectedSeriesId, module, matchId);
+      }
+    },
+    [onSeriesAnalyticsTabSelected, selectedSeriesId],
+  );
 
   const topSection = useMemo(() => {
     if (viewModel.topSection != null) {
@@ -182,7 +193,14 @@ export function IndividualTrackerOverlay({
             break;
           }
           case "loaded": {
-            seriesBody = <SeriesStatsView {...seriesStatsPanelState.viewModel} noGutter={true} wide={true} />;
+            seriesBody = (
+              <SeriesStatsView
+                {...seriesStatsPanelState.viewModel}
+                noGutter={true}
+                wide={true}
+                onAnalyticsTabSelected={handleSeriesAnalyticsTabSelected}
+              />
+            );
             break;
           }
           default: {
@@ -243,6 +261,7 @@ export function IndividualTrackerOverlay({
       seriesBackgroundTick,
       isSeriesBackgroundTransitioning,
       isSeriesBackgroundGlitching,
+      handleSeriesAnalyticsTabSelected,
       viewModel.tabs,
     ],
   );

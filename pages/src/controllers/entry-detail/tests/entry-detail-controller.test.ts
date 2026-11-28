@@ -5,6 +5,7 @@ import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contr
 import {
   aFakeMatchDetailResponseWith,
   aFakeMatchDetailWith,
+  aFakeSeriesTeamWith,
 } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
 import {
   aFakeMedalWith,
@@ -114,6 +115,42 @@ function getLoadedSeriesState(store: IndividualTrackerViewerStore, key = "series
 }
 
 describe("EntryDetailController condensed series loading", () => {
+  it.each([true, false])("signals unavailable series ticker medals when expanded: %s", async (unavailable) => {
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
+    if (data.aggregation.status !== "resolved") {
+      throw new Error("Expected resolved aggregation");
+    }
+    data.aggregation.teams = [
+      aFakeSeriesTeamWith({ medals: [aFakeMedalWith({ sortingWeight: unavailable ? null : 50 })] }),
+    ];
+    const { store, item, seriesMatchesService, controller } = setupSeries(["m-1", "m-2"], data);
+    const getDetails = vi.spyOn(seriesMatchesService, "getSeriesDetail");
+    expect(getDetails).not.toHaveBeenCalled();
+    controller.toggleEntry(item);
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).hasUnavailableTickerMedals).toBe(unavailable);
+    });
+    expect(getDetails).toHaveBeenCalledOnce();
+  });
+
+  it("signals unavailable ticker medals in an individual series match", async () => {
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
+    const match = aFakeMatchDetailWith({
+      matchId: "m-1",
+      players: [
+        aFakePlayerWith({
+          teamStats: [aFakePlayerTeamStatsWith({ medals: [aFakeMedalWith({ sortingWeight: null })] })],
+        }),
+      ],
+    });
+    data.matches.results[0] = { status: "resolved", matchId: "m-1", detail: match };
+    const { store, item, controller } = setupSeries(["m-1", "m-2"], data);
+    controller.toggleEntry(item);
+    await vi.waitFor(() => {
+      expect(getLoadedSeriesState(store).hasUnavailableTickerMedals).toBe(true);
+    });
+  });
+
   it("reloads a reopened series when its ordered match membership changes", async () => {
     const { store, item, controller, seriesMatchesService } = setupSeries(["m-1", "m-2"]);
     const detail = vi.spyOn(seriesMatchesService, "getSeriesDetail");
@@ -191,7 +228,10 @@ describe("EntryDetailController condensed series loading", () => {
       expect(store.getSnapshot().entryStates.get("series:series-1")?.state.status).toBe("loaded");
     });
     expect(detailSpy).toHaveBeenCalledWith("series-1", ["missing", "m-1", "m-1"], "tracker-one", "substitution-aware");
-    expect(store.getSnapshot().entryStates.get("series:series-1")?.state).toMatchObject({ data });
+    expect(store.getSnapshot().entryStates.get("series:series-1")?.state).toMatchObject({
+      data,
+      hasUnavailableTickerMedals: false,
+    });
     expect(legacySpy).not.toHaveBeenCalled();
     expect(analyticsSpy).not.toHaveBeenCalled();
     controller.loadAnalytics(item, "killMatrix");

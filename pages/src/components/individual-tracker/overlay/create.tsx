@@ -111,8 +111,8 @@ function IndividualTrackerOverlayPageInternal({
     [model.renderModel, overlayModel.selectedSeriesId, presenter],
   );
   const selectedSeriesPanelState = useMemo(
-    () => presenter.buildSeriesStatsPanelState(selectedSeries, overlaySnapshot.matchStatsByMatchId),
-    [presenter, selectedSeries, overlaySnapshot.matchStatsByMatchId],
+    () => presenter.buildSeriesStatsPanelState(selectedSeries, overlaySnapshot.seriesDetailsById),
+    [presenter, selectedSeries, overlaySnapshot.seriesDetailsById],
   );
   const overlayViewModel = useMemo(
     () =>
@@ -121,6 +121,7 @@ function IndividualTrackerOverlayPageInternal({
             renderModel: model.renderModel,
             streamerSettings: model.streamerSettings,
             matchStatsByMatchId: overlaySnapshot.matchStatsByMatchId,
+            seriesDetailsById: overlaySnapshot.seriesDetailsById,
             selectedMatchId: overlayModel.selectedMatchId,
             selectedSeriesId: overlayModel.selectedSeriesId,
           })
@@ -129,6 +130,7 @@ function IndividualTrackerOverlayPageInternal({
       model.renderModel,
       model.streamerSettings,
       overlaySnapshot.matchStatsByMatchId,
+      overlaySnapshot.seriesDetailsById,
       overlayModel.selectedMatchId,
       overlayModel.selectedSeriesId,
       overlayPresenter,
@@ -175,6 +177,9 @@ function IndividualTrackerOverlayPageInternal({
             }}
             onSelectSeries={(seriesId): void => {
               presenter.selectSeries(seriesId);
+            }}
+            onSeriesAnalyticsTabSelected={(seriesId, module, matchId): void => {
+              presenter.loadSeriesAnalytics(seriesId, module, matchId);
             }}
             onDeselect={(): void => {
               presenter.deselect();

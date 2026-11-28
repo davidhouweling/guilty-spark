@@ -1,6 +1,7 @@
 import type { GameVariantCategory, MatchStats } from "halo-infinite-api";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
 import type { MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
+import type { SeriesAggregation } from "@guilty-spark/shared/contracts/stats/detail";
 import type { TeamColor } from "../../components/team-colors/team-colors";
 import type { ScoreProgressionViewData } from "../../components/stats/score-progression/types";
 import type { KillMatrixCrossTeamData, KillMatrixPivotData } from "./kill-matrix/types";
@@ -73,6 +74,25 @@ export interface IdentifiedSeriesStatsData {
   readonly teamData: IdentifiedMatchStatsData[];
   readonly playerData: IdentifiedMatchStatsData[];
 }
+
+export interface SeriesTickerPlayer extends IdentifiedMatchStatsPlayerData {
+  readonly gamertag: string | null;
+  readonly hasUnknownRarity: boolean;
+}
+
+export interface SeriesTickerTeam extends Omit<IdentifiedMatchStatsData, "players"> {
+  readonly players: SeriesTickerPlayer[];
+  readonly hasUnknownRarity: boolean;
+}
+
+export type SeriesTickerProjection =
+  | {
+      readonly status: "resolved";
+      readonly teamData: SeriesTickerTeam[];
+      readonly playerData: SeriesTickerTeam[];
+      readonly hasUnknownRarity: boolean;
+    }
+  | Extract<SeriesAggregation, { status: "unavailable" }>;
 
 export interface MatchStatsValues {
   key?: string | undefined;

@@ -311,6 +311,38 @@ describe("IndividualTrackerViewer", () => {
     expect(table.querySelector("tbody tr")?.getAttribute("style")).toContain("#8AFFBE");
   });
 
+  it.each([true, false])("shows a series ticker medal warning when needed: %s", (unavailable) => {
+    const view = aFakeTrackerViewStateWith({
+      matches: ["m-1", "m-2"].map((matchId) => aFakeTrackerMatchSummaryWith({ matchId })),
+      series: [aFakeTrackerSeriesGroupWith({ id: "series-1", matchIds: ["m-1", "m-2"] })],
+    });
+    const data = aFakeViewerSeriesDetailWith(["m-1", "m-2"]);
+    const states = new Map<string, ViewerEntryState>([
+      [
+        "series:series-1",
+        {
+          kind: "series",
+          state: {
+            status: "loaded",
+            seriesId: "series-1",
+            data,
+            analyticsByMatchId: new Map(),
+            hasUnavailableTickerMedals: unavailable,
+          },
+        },
+      ],
+    ]);
+    renderViewer(view, "connected", true, new Set(["series:series-1"]), states);
+    const warning = screen.queryByText(
+      "Some medal rarity data is unavailable; affected medals are omitted from the overlay ticker.",
+    );
+    if (unavailable) {
+      expect(warning).toBeInTheDocument();
+    } else {
+      expect(warning).not.toBeInTheDocument();
+    }
+  });
+
   it.each([
     {
       reason: "incomplete-matches",

@@ -168,6 +168,7 @@ export type ViewerSeriesDetailsState =
       readonly seriesId: string;
       readonly data: SeriesDetailResponse;
       readonly analyticsByMatchId: SeriesMatchAnalyticsById;
+      readonly hasUnavailableTickerMedals?: boolean | undefined;
     }
   | { readonly status: "error"; readonly message: string };
 
