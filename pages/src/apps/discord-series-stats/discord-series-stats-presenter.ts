@@ -3,10 +3,14 @@ import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import type {
   AllStreamerSettings,
+  DisplaySettings,
+  FontSizeSettings,
   GlobalStreamerSettings,
   ObserverViewColorSettings,
   SeriesStreamerSettings,
+  TickerSettings,
 } from "../../components/live-tracker/settings/types";
+import type { ArchiveGlobalSettingsUpdates } from "../../components/discord-series-stats/types";
 import {
   buildUrlWithViewMode,
   encodeSettingsToUrlParams,
@@ -18,6 +22,31 @@ import type { SeriesAnalyticsController } from "../../controllers/series-analyti
 import type { DiscordSeriesStatsService } from "../../services/stats/discord-series-types";
 import type { DiscordSeriesStatsStore } from "./discord-series-stats-store";
 import type { DiscordSeriesStatsSnapshot, DiscordSeriesStatsViewModel } from "./types";
+
+function setSettingsParams(
+  url: URL,
+  values: Partial<DisplaySettings> | Partial<TickerSettings> | Partial<FontSizeSettings>,
+  prefix = "",
+): void {
+  for (const [key, value] of Object.entries<boolean | number | readonly string[] | readonly number[] | undefined>(
+    values,
+  )) {
+    if (value === undefined) {
+      continue;
+    }
+    const param = key === "selectedSlayerStats" ? "enabledStats" : `${prefix}${key}`;
+    const encoded = typeof value === "boolean" || typeof value === "number" ? value.toString() : value.join(",");
+    url.searchParams.set(param, encoded);
+  }
+}
+
+function updateSettingsUrl(updates: ArchiveGlobalSettingsUpdates): void {
+  const url = new URL(window.location.href);
+  setSettingsParams(url, updates.display ?? {});
+  setSettingsParams(url, updates.ticker ?? {});
+  setSettingsParams(url, updates.fontSizes ?? {}, "fontSize_");
+  window.history.replaceState(window.history.state, "", url.toString());
+}
 
 interface DiscordSeriesStatsPresenterDependencies {
   readonly store: DiscordSeriesStatsStore;
@@ -38,6 +67,7 @@ export class DiscordSeriesStatsPresenter {
   private readonly settings: AllStreamerSettings;
   private readonly updateGlobalSettings: (settings: Partial<GlobalStreamerSettings>) => void;
   private persistedObserverColors: ObserverViewColorSettings;
+  private persistedGlobalSettings: GlobalStreamerSettings;
   private isDisposed = false;
   private requestNumber = 0;
 
@@ -58,6 +88,7 @@ export class DiscordSeriesStatsPresenter {
     this.settings = settings;
     this.updateGlobalSettings = updateGlobalSettings;
     this.persistedObserverColors = settings.global.colors.observerView;
+    this.persistedGlobalSettings = settings.global;
   }
 
   private async fetchDetail(): Promise<NonNullable<DiscordSeriesStatsSnapshot["response"]>> {
@@ -129,6 +160,36 @@ export class DiscordSeriesStatsPresenter {
     const { urlSettings } = this.store.getSnapshot();
     this.store.update({ urlSettings: { ...urlSettings, global: { ...urlSettings.global, viewPreview: enabled } } });
     this.updateGlobalSettings({ viewPreview: enabled });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("viewPreview", enabled.toString());
+      window.history.replaceState(window.history.state, "", url.toString());
+    }
+  }
+
+  setGlobalSettings(updates: ArchiveGlobalSettingsUpdates): void {
+    const { urlSettings } = this.store.getSnapshot();
+    const global = {
+      ...urlSettings.global,
+      display: { ...urlSettings.global.display, ...updates.display },
+      ticker: { ...urlSettings.global.ticker, ...updates.ticker },
+      fontSizes: { ...urlSettings.global.fontSizes, ...updates.fontSizes },
+    };
+    this.store.update({ urlSettings: { ...urlSettings, global } });
+    this.persistedGlobalSettings = {
+      ...this.persistedGlobalSettings,
+      display: { ...this.persistedGlobalSettings.display, ...updates.display },
+      ticker: { ...this.persistedGlobalSettings.ticker, ...updates.ticker },
+      fontSizes: { ...this.persistedGlobalSettings.fontSizes, ...updates.fontSizes },
+    };
+    this.updateGlobalSettings({
+      ...(updates.display && { display: this.persistedGlobalSettings.display }),
+      ...(updates.ticker && { ticker: this.persistedGlobalSettings.ticker }),
+      ...(updates.fontSizes && { fontSizes: this.persistedGlobalSettings.fontSizes }),
+    });
+    if (typeof window !== "undefined") {
+      updateSettingsUrl(updates);
+    }
   }
 
   setSeriesSettings(updates: Partial<SeriesStreamerSettings>): void {

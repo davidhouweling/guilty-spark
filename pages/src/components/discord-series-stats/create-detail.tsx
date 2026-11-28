@@ -19,6 +19,7 @@ import { DiscordSeriesStatsView } from "./discord-series-stats";
 import { ArchiveSeriesOverlay } from "./archive-overlay";
 import { ArchiveSeriesOverlayPresenter } from "./archive-series-overlay-presenter";
 import { ArchiveSettingsDialog } from "./settings/archive-settings-dialog";
+import type { ArchiveGlobalSettingsUpdates } from "./types";
 
 export interface DiscordSeriesDetailStatsProps {
   readonly data: SeriesDetailResponse;
@@ -29,6 +30,7 @@ export interface DiscordSeriesDetailStatsProps {
   readonly observerColors: ObserverViewColorSettings;
   readonly onObserverColorsChange: (updates: Partial<ObserverViewColorSettings>) => void;
   readonly onSeriesSettingsChange: (updates: Partial<SeriesStreamerSettings>) => void;
+  readonly onGlobalSettingsChange: (updates: ArchiveGlobalSettingsUpdates) => void;
   readonly onViewPreviewChange: (enabled: boolean) => void;
   readonly onViewModeSelect: (mode: ViewMode) => void;
   readonly onAnalyticsTabSelected: (module: AnalyticsModule, matchId?: string) => void;
@@ -44,6 +46,7 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
     observerColors,
     onObserverColorsChange,
     onSeriesSettingsChange,
+    onGlobalSettingsChange,
     onViewPreviewChange,
     onViewModeSelect,
     onAnalyticsTabSelected,
@@ -133,6 +136,7 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
             defaultSubtitle={data.context?.subtitle ?? null}
             onClose={closeSettings}
             onSeriesSettingsChange={onSeriesSettingsChange}
+            onGlobalSettingsChange={onGlobalSettingsChange}
             onObserverColorsChange={onObserverColorsChange}
             onViewPreviewChange={onViewPreviewChange}
             onViewModeSelect={onViewModeSelect}
