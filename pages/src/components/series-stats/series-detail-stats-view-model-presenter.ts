@@ -278,6 +278,7 @@ export class SeriesDetailStatsViewModelPresenter {
       });
 
       return {
+        seriesTeamId: team.seriesTeamId,
         name: this.presentLabel(seriesTeam?.name, this.presentLabel(team.name, getTeamName(stableTeamId))),
         players,
         teamColorHex: this.presentTeamColor(index, colorOverrides).hex,

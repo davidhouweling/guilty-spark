@@ -136,7 +136,16 @@ export class DiscordSeriesStatsPresenter {
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       const params = encodeSettingsToUrlParams({ ...this.settings, series: next });
-      for (const key of ["title", "subtitle"]) {
+      const fields: readonly { setting: keyof SeriesStreamerSettings; key: string }[] = [
+        { setting: "titleOverride", key: "title" },
+        { setting: "subtitleOverride", key: "subtitle" },
+        { setting: "eagleTeamNameOverride", key: "eagleTeamName" },
+        { setting: "cobraTeamNameOverride", key: "cobraTeamName" },
+      ];
+      for (const { setting, key } of fields) {
+        if (!Object.hasOwn(updates, setting)) {
+          continue;
+        }
         if (Object.hasOwn(params, key)) {
           url.searchParams.set(key, params[key]);
         } else {

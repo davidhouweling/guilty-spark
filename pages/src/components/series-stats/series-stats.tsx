@@ -15,6 +15,7 @@ interface SeriesStatsViewProps extends SeriesStatsViewModel {
   readonly showSeriesOverview?: boolean | undefined;
   readonly noGutter?: boolean;
   readonly wide?: boolean;
+  readonly useStableTeamCardKeys?: boolean | undefined;
   readonly beforeMatchContent?: ReadonlyMap<string, ReactNode> | undefined;
   readonly afterMatchesContent?: ReactNode;
   readonly onAnalyticsTabSelected?: ((module: AnalyticsModule, matchId?: string) => void) | undefined;
@@ -124,6 +125,7 @@ export function SeriesStatsView({
   showSeriesOverview,
   noGutter,
   wide,
+  useStableTeamCardKeys,
   beforeMatchContent,
   afterMatchesContent,
   onAnalyticsTabSelected,
@@ -151,7 +153,14 @@ export function SeriesStatsView({
               </section>
 
               {teams.map((team) => (
-                <TeamCardSection key={team.name} team={team} />
+                <TeamCardSection
+                  key={
+                    useStableTeamCardKeys === true && team.seriesTeamId != null
+                      ? `series-team:${team.seriesTeamId.toString()}`
+                      : team.name
+                  }
+                  team={team}
+                />
               ))}
             </div>
           </div>

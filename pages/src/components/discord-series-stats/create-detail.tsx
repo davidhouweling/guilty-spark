@@ -41,10 +41,35 @@ export function createDiscordSeriesDetailStats(): (props: DiscordSeriesDetailSta
       [statsDetailController],
     );
     const colorModel = useMemo(() => presentArchiveSeriesColors(data, observerColors), [data, observerColors]);
-    const model = useMemo(
-      () => presenter.present(data, analyticsByMatchId, { teamColors: colorModel.teamColors }),
-      [analyticsByMatchId, colorModel, data, presenter],
-    );
+    const model = useMemo(() => {
+      const presented = presenter.present(data, analyticsByMatchId, { teamColors: colorModel.teamColors });
+      if (!colorModel.available) {
+        return presented;
+      }
+
+      return {
+        ...presented,
+        teams: presented.teams.map((team, index) => {
+          const nameOverride =
+            index === 0
+              ? seriesSettings.eagleTeamNameOverride
+              : index === 1
+                ? seriesSettings.cobraTeamNameOverride
+                : null;
+          return {
+            ...team,
+            name: nameOverride != null && nameOverride !== "" ? nameOverride : team.name,
+          };
+        }),
+      };
+    }, [
+      analyticsByMatchId,
+      colorModel,
+      data,
+      presenter,
+      seriesSettings.cobraTeamNameOverride,
+      seriesSettings.eagleTeamNameOverride,
+    ]);
     const colorLabels = colorModel.available
       ? {
           first: `${Preconditions.checkExists(model.teams[0], "First series team is missing").name} team color`,

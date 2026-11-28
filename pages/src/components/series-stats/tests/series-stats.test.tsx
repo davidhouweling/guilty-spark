@@ -30,6 +30,28 @@ vi.mock("../../icons/medal-icon", () => ({
 }));
 
 describe("SeriesStatsView analytics selection", () => {
+  it.each([
+    ["non-archive", false, 1],
+    ["missing identity", true, null],
+  ])("retains name-keyed cards for %s data", (_label, useStableTeamCardKeys, seriesTeamId) => {
+    const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
+    const model = presenter.present(aFakeSeriesDetailResponseWith());
+    const team = { seriesTeamId, name: "Original", players: [], teamColorHex: "#FE3939" };
+    const { rerender } = render(
+      <SeriesStatsView {...model} teams={[team]} useStableTeamCardKeys={useStableTeamCardKeys} />,
+    );
+    const original = screen.getByRole("heading", { name: "Original" });
+
+    rerender(
+      <SeriesStatsView
+        {...model}
+        teams={[{ ...team, name: "Renamed" }]}
+        useStableTeamCardKeys={useStableTeamCardKeys}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Renamed" })).not.toBe(original);
+  });
+
   it("places contextual content by match identity and after the final match", () => {
     const presenter = new SeriesDetailStatsViewModelPresenter(new StatsDetailController());
     const viewModel = presenter.present(

@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import { DiscordSeriesStatsApp } from "../create";
 import containerStyles from "../../../components/container/container.module.css";
 import { aFakeSeriesDetailWithTeamSwap } from "../../../components/series-stats/fakes/series-detail-team-swap.fake";
@@ -57,7 +58,8 @@ describe("DiscordSeriesStatsApp", () => {
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
     expect(screen.getByLabelText("Subtitle")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Team Colors" })).toBeInTheDocument();
-    expect(screen.queryByText(/Team Names|Streamer Overlay|Share Settings/)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Team Names" })).toBeInTheDocument();
+    expect(screen.queryByText(/Streamer Overlay|Share Settings/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("heading", { name: "Series title" }));
     expect(dialog).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Close Series Settings" }));
@@ -214,6 +216,133 @@ describe("DiscordSeriesStatsApp", () => {
       screen.getByText("Team colors cannot be customized because stable series teams are unavailable."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select Eagle team color" })).not.toBeInTheDocument();
+  });
+
+  it("applies, edits, clears and restores stable team-name overrides through the URL", async () => {
+    const storedSettings = JSON.stringify({ colors: { mode: "player", observerView: { eagleColor: "jade" } } });
+    localStorage.setItem("live-tracker-streamer-settings-global", storedSettings);
+    window.history.replaceState(
+      { marker: "kept" },
+      "",
+      "/stats/discord/123456789012345678/7777?title=&eagleTeamName=URL+Eagles&cobraTeamName=URL+Cobras&disableTeamPlayerNames=true&campaign=summer#match-one",
+    );
+    installSwappedSeries();
+
+    const app = (
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />
+    );
+    const { unmount } = render(app);
+
+    const firstTeamHeading = await screen.findByRole("heading", { name: "URL Eagles" });
+    const secondTeamHeading = screen.getByRole("heading", { name: "URL Cobras" });
+    expect(
+      within(Preconditions.checkExists(firstTeamHeading.closest("section"))).getByText("Bravo"),
+    ).toBeInTheDocument();
+    expect(
+      within(Preconditions.checkExists(secondTeamHeading.closest("section"))).getByText("Alpha"),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Team 1 Name")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(screen.getByLabelText("Team 1 Name")).toHaveValue("URL Eagles");
+    expect(screen.getByRole("button", { name: "Select URL Eagles team color" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select URL Cobras team color" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /player names/i })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Team 1 Name"), { target: { value: "Finals" } });
+    fireEvent.change(screen.getByLabelText("Team 2 Name"), { target: { value: "" } });
+
+    expect(screen.getByRole("heading", { name: "Finals" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Finals team color" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Cobra team color" })).toBeInTheDocument();
+    let url = new URL(window.location.href);
+    expect(url.searchParams.get("eagleTeamName")).toBe("Finals");
+    expect(url.searchParams.has("cobraTeamName")).toBe(false);
+    expect(url.searchParams.has("title")).toBe(true);
+    expect(url.searchParams.get("title")).toBe("");
+    expect(url.searchParams.get("disableTeamPlayerNames")).toBe("true");
+    expect(url.searchParams.get("campaign")).toBe("summer");
+    expect(url.hash).toBe("#match-one");
+    expect(window.history.state).toEqual({ marker: "kept" });
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(storedSettings);
+
+    unmount();
+    render(app);
+    expect(await screen.findByRole("heading", { name: "Finals" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    fireEvent.change(screen.getByLabelText("Team 1 Name"), { target: { value: "" } });
+    expect(screen.getByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select Eagle team color" })).toBeInTheDocument();
+    url = new URL(window.location.href);
+    expect(url.searchParams.has("eagleTeamName")).toBe(false);
+    expect(url.searchParams.has("cobraTeamName")).toBe(false);
+    expect(url.searchParams.get("campaign")).toBe("summer");
+    expect(url.hash).toBe("#match-one");
+    expect(localStorage.getItem("live-tracker-streamer-settings-global")).toBe(storedSettings);
+  });
+
+  it("retains default team names when the stable mapping is ambiguous", async () => {
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const results = data.matches.results.map((result) =>
+      result.status === "resolved"
+        ? {
+            ...result,
+            detail: { ...result.detail, teams: result.detail.teams.map((team) => ({ ...team, seriesTeamId: null })) },
+          }
+        : result,
+    );
+    window.history.replaceState({}, "", "/?eagleTeamName=Custom+One&cobraTeamName=Custom+Two");
+    mockInstallServices.mockResolvedValue(
+      aFakeDiscordSeriesStatsAppServicesWith({
+        ...aFakeResolvedDiscordSeriesStatsDetailResultWith(),
+        data: {
+          ...data,
+          matches: { ...data.matches, results },
+          aggregation: { status: "unavailable", reason: "ambiguous-team-mapping" },
+        },
+      }),
+    );
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Custom One" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open series settings" }));
+    expect(
+      screen.getByText("Team names cannot be customized because stable series teams are unavailable."),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Team 1 Name")).not.toBeInTheDocument();
+  });
+
+  it("retains default team names when a match in the series is unavailable", async () => {
+    const data = aFakeSeriesDetailWithTeamSwap();
+    const resolved = data.matches.results.find((result) => result.status === "resolved");
+    const first = Preconditions.checkExists(resolved, "Expected a resolved match");
+    window.history.replaceState({}, "", "/?eagleTeamName=Custom+One&cobraTeamName=Custom+Two");
+    mockInstallServices.mockResolvedValue(
+      aFakeDiscordSeriesStatsAppServicesWith({
+        ...aFakeResolvedDiscordSeriesStatsDetailResultWith(),
+        data: {
+          ...data,
+          matches: {
+            matchIds: [first.matchId, "missing"],
+            results: [first, { status: "unavailable", matchId: "missing", reason: "not-found" }],
+          },
+          aggregation: { status: "unavailable", reason: "incomplete-matches" },
+        },
+      }),
+    );
+
+    render(
+      <DiscordSeriesStatsApp apiHost="https://api.example.test" guildId="123456789012345678" queueNumber="7777" />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Eagle" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cobra" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Custom One" })).not.toBeInTheDocument();
   });
 
   it("loads and renders resolved queue stats", async () => {
