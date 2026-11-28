@@ -8,8 +8,8 @@ import {
 } from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { getTeamPlayersFromMatches } from "@guilty-spark/shared/halo/match-stats";
 import { serializeMedalDetails } from "@guilty-spark/shared/halo/medal-detail-serialization";
-import { createMatchStatsFormatter } from "../../../../controllers/stats/create";
-import { aFakeMatchStatsWith } from "../../../../controllers/stats/fakes/data";
+import { createMatchStatsFormatter } from "../create";
+import { aFakeMatchStatsWith } from "../fakes/data";
 import { projectStandaloneMatchMedals } from "../standalone-match-medals";
 
 describe("projectStandaloneMatchMedals", () => {

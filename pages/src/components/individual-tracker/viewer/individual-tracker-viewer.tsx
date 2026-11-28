@@ -490,31 +490,39 @@ export function IndividualTrackerViewer({
                             ) : state.kind === "match" && state.state.status === "error" ? (
                               <Alert variant="error">{state.state.message}</Alert>
                             ) : state.kind === "match" && state.state.status === "loaded" ? (
-                              <MatchStats
-                                data={state.state.data}
-                                id={`match-${state.state.matchId}`}
-                                backgroundImageUrl=""
-                                gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
-                                gameModeAlt=""
-                                matchNumber={index + 1}
-                                gameTypeAndMap={match.mapName}
-                                duration={state.state.duration}
-                                score={match.score}
-                                startTime={state.state.startTime}
-                                endTime={state.state.endTime}
-                                teamColors={renderModel.teamColors}
-                                killMatrixPivotData={state.state.killMatrixPivotData}
-                                transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
-                                crossTeamData={state.state.crossTeamKillMatrixData}
-                                swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
-                                killMatrixStatus={state.state.killMatrixStatus}
-                                scoreProgressionStatus={state.state.scoreProgressionStatus}
-                                scoreProgressionViewData={state.state.scoreProgressionViewData}
-                                onAnalyticsTabSelected={(module): void => {
-                                  onLoadAnalytics?.(item, module);
-                                }}
-                                showHeader={false}
-                              />
+                              <>
+                                {state.state.hasUnavailableTickerMedals === true && (
+                                  <Alert variant="warning">
+                                    Some medal rarity data is unavailable; affected medals are omitted from the overlay
+                                    ticker.
+                                  </Alert>
+                                )}
+                                <MatchStats
+                                  data={state.state.data}
+                                  id={`match-${state.state.matchId}`}
+                                  backgroundImageUrl=""
+                                  gameModeIconUrl={gameModeIconSrc(state.state.gameVariantCategory)}
+                                  gameModeAlt=""
+                                  matchNumber={index + 1}
+                                  gameTypeAndMap={match.mapName}
+                                  duration={state.state.duration}
+                                  score={match.score}
+                                  startTime={state.state.startTime}
+                                  endTime={state.state.endTime}
+                                  teamColors={renderModel.teamColors}
+                                  killMatrixPivotData={state.state.killMatrixPivotData}
+                                  transposedKillMatrixPivotData={state.state.transposedKillMatrixPivotData}
+                                  crossTeamData={state.state.crossTeamKillMatrixData}
+                                  swappedCrossTeamData={state.state.swappedCrossTeamKillMatrixData}
+                                  killMatrixStatus={state.state.killMatrixStatus}
+                                  scoreProgressionStatus={state.state.scoreProgressionStatus}
+                                  scoreProgressionViewData={state.state.scoreProgressionViewData}
+                                  onAnalyticsTabSelected={(module): void => {
+                                    onLoadAnalytics?.(item, module);
+                                  }}
+                                  showHeader={false}
+                                />
+                              </>
                             ) : (
                               <Alert variant="error">Unexpected entry state.</Alert>
                             )}

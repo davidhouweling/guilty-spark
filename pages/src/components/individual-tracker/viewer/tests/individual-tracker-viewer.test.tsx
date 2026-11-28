@@ -5,6 +5,8 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AnalyticsModule } from "@guilty-spark/shared/contracts/stats/match-analytics";
 import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tracker/streamer-view-settings";
+import { EMPTY_KILL_MATRIX_PIVOT_DATA } from "../../../../controllers/stats/kill-matrix/types";
+import { ComponentLoaderStatus } from "../../../component-loader/component-loader";
 import {
   aFakeTrackerMatchSummaryWith,
   aFakeTrackerSeriesGroupWith,
@@ -60,6 +62,48 @@ function renderViewer(
 describe("IndividualTrackerViewer", () => {
   afterEach(() => {
     cleanup();
+  });
+
+  it.each([true, false])("shows the ticker medal warning in an expanded match only when needed: %s", (unavailable) => {
+    const view = aFakeTrackerViewStateWith({
+      matches: [aFakeTrackerMatchSummaryWith({ matchId: "m-1" })],
+      series: [],
+    });
+    const entryStates = new Map<string, ViewerEntryState>([
+      [
+        "match:m-1",
+        {
+          kind: "match",
+          state: {
+            status: "loaded",
+            matchId: "m-1",
+            gameVariantCategory: 6,
+            gameMapThumbnailUrl: "data:,",
+            duration: "PT5M",
+            startTime: "2024-01-01T00:00:00Z",
+            endTime: "2024-01-01T00:05:00Z",
+            data: [],
+            hasUnavailableTickerMedals: unavailable,
+            killMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+            transposedKillMatrixPivotData: EMPTY_KILL_MATRIX_PIVOT_DATA,
+            crossTeamKillMatrixData: null,
+            swappedCrossTeamKillMatrixData: null,
+            killMatrixStatus: ComponentLoaderStatus.PENDING,
+            scoreProgressionStatus: ComponentLoaderStatus.PENDING,
+            scoreProgressionViewData: null,
+          },
+        },
+      ],
+    ]);
+    renderViewer(view, "connected", true, new Set(["match:m-1"]), entryStates);
+    const warning = screen.queryByText(
+      "Some medal rarity data is unavailable; affected medals are omitted from the overlay ticker.",
+    );
+    if (unavailable) {
+      expect(warning).toBeInTheDocument();
+    } else {
+      expect(warning).not.toBeInTheDocument();
+    }
   });
 
   it("renders the gamertag and active status", () => {

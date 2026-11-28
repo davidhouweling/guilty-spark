@@ -2,13 +2,13 @@ import type { MatchDetail } from "@guilty-spark/shared/contracts/stats/detail";
 import type { Medal } from "@guilty-spark/shared/contracts/stats/detail-primitives";
 import { aggregateTeamMedals } from "@guilty-spark/shared/halo/medals";
 import type { MedalEntry } from "@guilty-spark/shared/halo/medals";
-import type { OverlayMatchMedalProjection, OverlayPlayerMedalProjection, OverlayTeamMedalProjection } from "./types";
+import type { MatchMedalProjection, PlayerMedalProjection, TeamMedalProjection } from "./types";
 
 function projectPlayerMedals(
   playerId: string,
   source: readonly Medal[],
   mode: "ticker" | "panel",
-): OverlayPlayerMedalProjection {
+): PlayerMedalProjection {
   const medals: MedalEntry[] = [];
   let hasUnknownRarity = false;
   for (const medal of source) {
@@ -30,8 +30,8 @@ function projectTeamMedals(
   team: MatchDetail["teams"][number],
   playersById: ReadonlyMap<string, MatchDetail["players"][number]>,
   mode: "ticker" | "panel",
-): OverlayTeamMedalProjection {
-  const players: OverlayPlayerMedalProjection[] = [];
+): TeamMedalProjection {
+  const players: PlayerMedalProjection[] = [];
   for (const playerId of team.playerIds) {
     const player = playersById.get(playerId);
     if (player?.participation.presentAtBeginning !== true) {
@@ -53,7 +53,7 @@ function projectTeamMedals(
 export function projectStandaloneMatchMedals(
   detail: MatchDetail,
   mode: "ticker" | "panel" = "ticker",
-): OverlayMatchMedalProjection {
+): MatchMedalProjection {
   const playersById = new Map(detail.players.map((player) => [player.playerId, player]));
   const teams = detail.teams.map((team) => projectTeamMedals(team, playersById, mode));
   return { teams, hasUnknownRarity: teams.some((team) => team.hasUnknownRarity) };

@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { MockInstance } from "vitest";
 import type { MatchDetailResponse } from "@guilty-spark/shared/contracts/stats/detail";
 import type { AnalyticsModule, MatchAnalytics } from "@guilty-spark/shared/contracts/stats/match-analytics";
-import { aFakeMatchDetailResponseWith } from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import {
+  aFakeMatchDetailResponseWith,
+  aFakeMatchDetailWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail.fake";
+import {
+  aFakeMedalWith,
+  aFakePlayerTeamStatsWith,
+  aFakePlayerWith,
+} from "@guilty-spark/shared/contracts/stats/fakes/detail-primitives.fake";
 import { Preconditions } from "@guilty-spark/shared/base/preconditions";
 import {
   aFakeTrackerMatchSummaryWith,
@@ -483,6 +491,33 @@ describe("EntryDetailController condensed series loading", () => {
   });
 });
 describe("EntryDetailController condensed match loading", () => {
+  it.each([
+    ["unknown rarity", aFakeMedalWith({ sortingWeight: null }), true],
+    ["zero fallback", aFakeMedalWith({ sortingWeight: null, totalPersonalScoreAwarded: 0 }), false],
+    ["known rarity", aFakeMedalWith({ sortingWeight: 50 }), false],
+  ])("reports %s from the shared match detail when expanded", async (_label, medal, expected) => {
+    const { store, item, controller, seriesMatchesService, key } = setup();
+    const detail = aFakeMatchDetailWith({
+      matchId: item.match.matchId,
+      players: [aFakePlayerWith({ teamStats: [aFakePlayerTeamStatsWith({ medals: [medal] })] })],
+    });
+    const getDetails = vi.spyOn(seriesMatchesService, "getMatchDetails").mockResolvedValue(
+      aFakeMatchDetailResponseWith({
+        matchIds: [detail.matchId],
+        results: [{ status: "resolved", matchId: detail.matchId, detail }],
+      }),
+    );
+    expect(getDetails).not.toHaveBeenCalled();
+    controller.toggleEntry(item);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot().entryStates.get(key)?.state).toMatchObject({
+        status: "loaded",
+        hasUnavailableTickerMedals: expected,
+      });
+    });
+    expect(getDetails).toHaveBeenCalledOnce();
+  });
+
   it("preserves matrix success supplied by a concurrent timeline when the older matrix result is null", async () => {
     const { store, item, controller, matchAnalyticsService, key } = setup();
     controller.toggleEntry(item);

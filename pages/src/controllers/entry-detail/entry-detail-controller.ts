@@ -5,6 +5,7 @@ import { getStreamerViewTeamColorIds } from "@guilty-spark/shared/individual-tra
 import type { MatchAnalyticsService } from "../../services/stats/match-analytics-types";
 import type { SeriesMatchesService } from "../../services/series-matches/types";
 import type { StatsDetailController } from "../stats/stats-detail-controller";
+import { projectStandaloneMatchMedals } from "../stats/standalone-match-medals";
 import { ComponentLoaderStatus } from "../../components/component-loader/component-loader";
 import { DEFAULT_TEAM_COLORS, getTeamColorOrDefault } from "../../components/team-colors/team-colors";
 import type { TeamColor } from "../../components/team-colors/team-colors";
@@ -159,6 +160,7 @@ export class EntryDetailController {
       startTime: detail.startTime,
       endTime: detail.endTime,
       data,
+      hasUnavailableTickerMedals: projectStandaloneMatchMedals(detail).hasUnknownRarity,
       ...controller.mapMatchDetailToAnalytics(detail, {
         killMatrix: analytics?.killMatrix ?? null,
         scoreProgression: analytics?.scoreProgression ?? null,

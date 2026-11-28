@@ -2,7 +2,6 @@ import React, { useRef } from "react";
 import classNames from "classnames";
 import type { TeamColor } from "../team-colors/team-colors";
 import type { TickerMatchGroup } from "../information-ticker/information-ticker";
-import { Alert } from "../alert/alert";
 import type { OverlayTab } from "./types";
 import { BottomSection } from "./bottom-section";
 import { StatsPanel } from "./stats-panel/stats-panel";
@@ -60,12 +59,6 @@ export function StreamerOverlay({
       style={fontSizeStyles}
     >
       {settingsUi}
-      {showTicker && currentMatchGroup?.hasUnavailableMedals === true && (
-        <Alert variant="warning" className={styles.medalWarning}>
-          Some ticker medals are omitted because their rarity is unavailable.
-        </Alert>
-      )}
-
       <div className={classNames({ [styles.topSectionPinnedWrapper]: pinTopSection })}>{topSection}</div>
 
       <BottomSection

@@ -177,7 +177,7 @@ describe("IndividualTrackerOverlay", () => {
     cleanup();
   });
 
-  it("shows projected standalone medals and a warning without fetching raw stats", async () => {
+  it("shows projected standalone medals without warning on the overlay or fetching raw stats", async () => {
     const first = aFakePlayerWith({
       playerId: "first",
       gamertag: "Same",
@@ -277,9 +277,7 @@ describe("IndividualTrackerOverlay", () => {
     ).toBe(true);
     const consoleError = vi.spyOn(console, "error");
     const { rerender } = render(<IndividualTrackerOverlay {...props} />);
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Some ticker medals are omitted because their rarity is unavailable.",
-    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(consoleError).not.toHaveBeenCalled();
     rerender(<IndividualTrackerOverlay {...props} viewModel={{ ...props.viewModel, showTicker: false }} />);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -300,7 +298,7 @@ describe("IndividualTrackerOverlay", () => {
         viewModel={{ ...props.viewModel, tickerMatchGroups: [unknownGroup, knownGroup] }}
       />,
     );
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     const cleanPlayer = {
       ...second,
       gamertag: "Clean",
