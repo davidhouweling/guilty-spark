@@ -21,12 +21,12 @@
     "stylelint:fix": "stylelint 'src/**/*.css' 'src/**/*.astro' --fix"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.4.8",
+    "@astrojs/cloudflare": "^14.4.9",
     "@astrojs/react": "^7.1.9",
-    "@astrojs/sitemap": "^3.7.5",
+    "@astrojs/sitemap": "^3.7.6",
     "@guilty-spark/shared": "file:../shared",
     "@tanstack/react-table": "^9.3.1",
-    "astro": "^7.4.12",
+    "astro": "^7.4.13",
     "classnames": "^2.5.1",
     "date-fns": "^4.4.0",
     "halo-infinite-api": "^14.4.1",
@@ -36,7 +36,7 @@
     "react-dom": "^19.3.1",
     "react-time-ago": "^7.4.4",
     "react-transition-group": "^4.4.5",
-    "recharts": "^3.11.0",
+    "recharts": "^3.11.1",
     "tinyduration": "^3.4.1",
     "zod": "^4.6.7"
   },
@@ -46,10 +46,10 @@
     "@playwright/test": "^1.65.1",
     "@types/postcss-clamp": "^4.1.3",
     "@types/postcss-normalize": "^9.0.4",
-    "@types/react": "^19.3.0",
+    "@types/react": "^19.3.1",
     "@types/react-dom": "^19.3.0",
     "@types/react-transition-group": "^4.4.12",
-    "autoprefixer": "^10.6.2",
+    "autoprefixer": "^10.7.0",
     "postcss": "^8.5.33",
     "postcss-clamp": "^4.1.0",
     "postcss-custom-media": "^12.0.4",
@@ -57,11 +57,11 @@
     "postcss-load-config": "^6.0.1",
     "postcss-nesting": "^14.0.3",
     "postcss-preset-env": "^11.6.3",
-    "stylelint": "^18.0.0",
+    "stylelint": "^18.1.0",
     "stylelint-config-css-modules": "^4.6.0",
-    "stylelint-config-standard": "^41.0.0",
+    "stylelint-config-standard": "^41.1.0",
     "stylelint-order": "^8.1.3",
     "typescript": "^6.0.3",
-    "wrangler": "^4.164.0"
+    "wrangler": "^4.168.0"
   }
 }
